@@ -34,6 +34,13 @@
 // Phrases that name a limited game in its title or subtitle.
 const RESTRICTED_LABELS = ["ez bridge", "non-life master", "nlm", "mid-flight"];
 
+// A masterpoint cap named in a title: a "0-99"/"0-3000" range, or a "<500MP"
+// ceiling. The range is anchored to a 0 at a word boundary, so it matches a
+// cap that starts at zero rather than a "0-N" lurking inside a larger number
+// or a time — otherwise an open game's "750-2000" stratum or a "10-12:30"
+// session window would be misread as a cap. Compiled once, reused per row.
+const MASTERPOINT_CAP_PATTERN = /\b0\s*-\s*\d+|<\s*\d+\s*mp/;
+
 /**
  * True if a game's title/subtitle names an eligibility restriction — a known
  * limited-game label, or a masterpoint cap like "0-3000MP" or "0-99".
@@ -48,12 +55,7 @@ function hasRestrictedLabel(label) {
     return true;
   }
 
-  // Masterpoint caps phrased in the title, built from named parts since JS has
-  // no verbose-regex mode: a "0-99"/"0-3000" range, or a "<500MP" ceiling.
-  const cappedRange = String.raw`0\s*-\s*\d+`;
-  const cappedCeiling = String.raw`<\s*\d+\s*mp`;
-  const masterpointCapPattern = new RegExp(`${cappedRange}|${cappedCeiling}`);
-  return masterpointCapPattern.test(text);
+  return MASTERPOINT_CAP_PATTERN.test(text);
 }
 
 /**
@@ -170,6 +172,22 @@ function onDialogOpened(dialog, callback) {
   const observer = new MutationObserver(handleIfOpen);
   observer.observe(dialog, { attributes: true, attributeFilter: ["open"] });
   return observer;
+}
+
+/**
+ * The element in `elements` whose visible text equals `text`, compared trimmed
+ * and case-insensitively, or undefined when none matches — the shared rule for
+ * picking a `<select>` option or a dropdown entry by its label.
+ *
+ * @param {Iterable<Element>} elements
+ * @param {string} text
+ * @returns {Element|undefined}
+ */
+function findByText(elements, text) {
+  const target = text.trim().toLowerCase();
+  return [...elements].find(
+    (element) => element.textContent.trim().toLowerCase() === target,
+  );
 }
 
 // --- Settings panel --------------------------------------------------------
@@ -446,6 +464,18 @@ function expandShowMore(button) {
 }
 
 /**
+ * Fire the `change` event a real selection would, after setting a control's
+ * value programmatically. This page reads these controls' values directly, so
+ * it does not need the event today; firing it keeps the set faithful to a user
+ * selection and correct if the page ever moves to change-driven form state.
+ * (`typeName`'s input event, by contrast, is load-bearing: the autocomplete
+ * only opens in response to it.)
+ */
+function dispatchChange(control) {
+  control.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
  * Pre-select the stored direction when the reserve modal's direction control is
  * still at its "No preference" default.
  */
@@ -453,6 +483,7 @@ function prefillDirection(modal, direction) {
   const select = modal.querySelector("#direction");
   if (select && direction && select.value === "") {
     select.value = direction;
+    dispatchChange(select);
   }
 }
 
@@ -466,11 +497,10 @@ function prefillSection(modal) {
     return;
   }
 
-  const open = [...menu.options].find(
-    (option) => option.textContent.trim().toLowerCase() === "open",
-  );
+  const open = findByText(menu.options, "open");
   if (open) {
     open.selected = true;
+    dispatchChange(menu);
   }
 }
 
@@ -497,11 +527,7 @@ function prefillCancelEmail(input, email) {
  * @returns {boolean} whether a matching entry was found and clicked.
  */
 function selectDropdownMatch(dropdown, name) {
-  const target = name.trim().toLowerCase();
-  const match = [...dropdown.querySelectorAll("li")].find(
-    (item) => item.textContent.trim().toLowerCase() === target,
-  );
-
+  const match = findByText(dropdown.querySelectorAll("li"), name);
   if (match) {
     match.click();
     return true;
@@ -646,6 +672,12 @@ function main() {
   // an entry submits and closes it, and the user may want a different player.
   // The field is re-queried on open in case the site rebuilds it.
   onElementAdded("dialog", (dialog) => {
+    // The cancel dialog is also a <dialog>, handled separately below; it must
+    // not receive the name prefill, so skip it here rather than matching every
+    // dialog on the page.
+    if (dialog.closest("cancel-reservation-modal")) {
+      return;
+    }
     onDialogOpened(dialog, () => {
       const nameInput = dialog.querySelector("input.needsDropdown");
       if (nameInput) {

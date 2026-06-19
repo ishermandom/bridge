@@ -28,6 +28,12 @@ describe("hasRestrictedLabel", () => {
       false,
     );
   });
+
+  test("does not mistake a session time window for a masterpoint cap", () => {
+    // The cap pattern anchors on a leading zero, so a session time like
+    // "10-12:30" — which merely contains a "0-" run — is not read as a cap.
+    expect(hasRestrictedLabel("Open Swiss 10-12:30")).toBe(false);
+  });
 });
 
 describe("isLimitedGame", () => {

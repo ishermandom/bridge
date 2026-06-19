@@ -190,6 +190,17 @@ describe("prefillDirection", () => {
     prefillDirection(modal, "E-W");
     expect(modal.querySelector("#direction").value).toBe("N-S");
   });
+
+  test("fires a change event so the site registers the new direction", () => {
+    const modal = makeReserveModal([], "");
+    const select = modal.querySelector("#direction");
+    const onChange = vi.fn();
+    select.addEventListener("change", onChange);
+
+    prefillDirection(modal, "E-W");
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("prefillSection", () => {
@@ -213,6 +224,17 @@ describe("prefillSection", () => {
     prefillSection(modal);
 
     expect(menu.selectedIndex).toBe(2);
+  });
+
+  test("fires a change event when it defaults to Open", () => {
+    const modal = makeReserveModal(["<500MP", "Open"]);
+    const menu = modal.querySelector("#sectionMenu");
+    const onChange = vi.fn();
+    menu.addEventListener("change", onChange);
+
+    prefillSection(modal);
+
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });
 
