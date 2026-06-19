@@ -8,7 +8,8 @@ sharing flashcards), and the day-to-day logistics of playing at a local club.
 ## Projects
 
 Each project lives in its own top-level directory. Performance-sensitive
-analysis is written in Rust; tooling and automation are written in Python.
+analysis is written in Rust; most tooling and automation in Python, with
+browser-side userscripts in JavaScript.
 
 Note that most of the projects are currently only dreamed, and not yet started.
 This is a personal, hobby repository. Projects arrive over time and graduate
@@ -73,11 +74,16 @@ from the code.
 
 ### Club website tooling
 
-`club_site/` — Python
+`club_sites/` — JavaScript (userscripts)
 
-Scripts for automating interactions with a local club's website — the kind of
-repetitive logistics that are tedious by hand. Scope will firm up as specific
-needs arise.
+Per-club userscripts that add personal conveniences to a club's website — the
+kind of repetitive logistics that are tedious by hand. Each club lives in its
+own subdirectory.
+
+- `club_sites/palo_alto/` — a Tampermonkey userscript for the Palo Alto Bridge
+  Center reservations page: a remembered identity (prefilled name, email, and
+  playing direction), the game list expanded by default, and a guard against
+  accidentally booking a limited game such as EZ Bridge.
 
 ### Session analysis (exploratory)
 

@@ -1,0 +1,14 @@
+{
+  "name": "pabc-reservations-helper",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Tampermonkey userscript: conveniences for the Palo Alto Bridge Center reservations page.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.9"
+  }
+}
