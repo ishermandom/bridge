@@ -112,6 +112,23 @@ describe("flagLimitedGame", () => {
     expect(row.querySelector(".pabc-limited-badge")).toBeNull();
   });
 
+  test("marks the date cell shared so dimming skips it", () => {
+    // The site shows the date on a day's first game and hides it on the rest,
+    // so the first game's date heads the whole day. Dimming must skip that date
+    // cell — the one carrying the day-of-week label — so it isn't dimmed.
+    const row = makeGameRow({ mps: 49 });
+    const dateCell = document.createElement("td");
+    dateCell.innerHTML = `<div><span class="dow">Mon</span> Jun 22</div>`;
+    row.prepend(dateCell);
+
+    flagLimitedGame(row);
+
+    expect(dateCell.classList.contains("pabc-shared-cell")).toBe(true);
+    // The game's own name cell carries no date and still dims with the row.
+    const gameCell = row.querySelector(".gameName").closest("td");
+    expect(gameCell.classList.contains("pabc-shared-cell")).toBe(false);
+  });
+
   test("does not add a second badge when run twice", () => {
     const row = makeGameRow({ mps: 49 });
     flagLimitedGame(row);

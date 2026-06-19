@@ -210,7 +210,10 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
   recedes before the user clicks reserve (the primary prevention point). Dimming
   the rare limited game reads better than emphasizing it; the badge's text
   labels why the row is dimmed without re-brightening it, so the signal never
-  rests on color alone; and
+  rests on color alone. The site shows the date on a day's first game and hides
+  it on the rest, so the first game's date heads the whole day. That date cell
+  (the one carrying the day-of-week label) is excluded from the dimming, so a
+  limited first game does not dim the date the open games below rely on; and
 - in the reservation dialog, by a warning banner shown when the modal opens for
   a limited game (a second catch right before saving). The modal carries no
   ceiling of its own, so its limited status is carried over from the list: a

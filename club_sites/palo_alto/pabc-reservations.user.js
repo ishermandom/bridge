@@ -286,8 +286,13 @@ function injectHelperStyles() {
        to skip). Dimming is cell-level opacity, not a text color, so the site's
        own cell colors can't override it — and it fades the badge along with the
        row. The "Limited" badge is a quiet neutral tag that labels why the row
-       is dimmed rather than a bright alert that fights the dimming. */
-    tr.pabc-limited > td { opacity: 0.4; }
+       is dimmed rather than a bright alert that fights the dimming.
+
+       The site shows the date on a day's first game and hides it on the rest,
+       so the first game's date heads the whole day. That date cell is excluded
+       (pabc-shared-cell, set in flagLimitedGame) so a limited first game
+       doesn't dim the date the open games below rely on. */
+    tr.pabc-limited > td:not(.pabc-shared-cell) { opacity: 0.4; }
     /* align-self/fit-content keep the chip hugging its text — the name cell is
        a flex column, which would otherwise stretch the chip to the cell's
        width. */
@@ -394,6 +399,19 @@ function flagLimitedGame(row) {
   }
 
   row.classList.add("pabc-limited");
+
+  // The site shows the date on a day's first game and hides it on the rest
+  // (their date cells get a "sameDate" class), so the first game's date doubles
+  // as the whole day's header. Skip dimming the date cell — the one carrying the
+  // day-of-week label — so dimming a limited first game doesn't dim the date the
+  // open games below rely on. On a later game the date cell is hidden anyway, so
+  // excluding it has no visible effect and the rest of the row still dims. A
+  // lone limited game's date isn't shared, but leaving it bright is a negligible
+  // cosmetic cost, not worth detecting.
+  const dateCell = row.querySelector(".dow")?.closest("td");
+  if (dateCell) {
+    dateCell.classList.add("pabc-shared-cell");
+  }
 
   const gameName = row.querySelector(".gameName");
   if (gameName && !gameName.querySelector(".pabc-limited-badge")) {
