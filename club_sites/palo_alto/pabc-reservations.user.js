@@ -12,6 +12,8 @@
 // Copyright 2026 Ilya Sherman (ishermandom@)
 // SPDX-License-Identifier: MIT
 
+// @ts-check
+
 "use strict";
 
 // --- Limited-game detection ------------------------------------------------
@@ -89,6 +91,13 @@ const DEFAULT_PROFILE = {
 };
 
 /**
+ * @typedef {object} Profile
+ * @property {string} name
+ * @property {string} email
+ * @property {string} direction - a site direction value: "", "N-S", or "E-W".
+ */
+
+/**
  * The stored profile, with defaults filled in for any absent field.
  */
 function loadProfile() {
@@ -97,6 +106,8 @@ function loadProfile() {
 
 /**
  * Persist the profile, normalized against the defaults.
+ *
+ * @param {Partial<Profile>} profile
  */
 function saveProfile(profile) {
   GM_setValue(PROFILE_KEY, { ...DEFAULT_PROFILE, ...profile });
@@ -109,6 +120,10 @@ function saveProfile(profile) {
  * and any added later. The page renders much of its content (and its modals)
  * asynchronously, so a feature cannot assume its target exists at startup.
  *
+ * @template {Element} T
+ * @param {string} selector
+ * @param {(element: T) => void} callback - receives each match; its parameter
+ *   type fixes T, letting a caller narrow to a specific element subtype.
  * @returns {MutationObserver} the observer, so a caller can disconnect it.
  */
 function onElementAdded(selector, callback) {
@@ -124,7 +139,9 @@ function onElementAdded(selector, callback) {
     for (const element of document.querySelectorAll(selector)) {
       if (!seen.has(element)) {
         seen.add(element);
-        callback(element);
+        // The selector is the caller's assertion that matches are of type T;
+        // `querySelectorAll` can only type its result as `Element`.
+        callback(/** @type {T} */ (element));
       }
     }
   };
@@ -157,6 +174,8 @@ function onElementAdded(selector, callback) {
  * react to the opening, not to the element being inserted — it may have
  * existed, empty, since page load.
  *
+ * @param {HTMLDialogElement} dialog
+ * @param {(dialog: HTMLDialogElement) => void} callback
  * @returns {MutationObserver} the observer, so a caller can disconnect it.
  */
 function onDialogOpened(dialog, callback) {
@@ -179,15 +198,45 @@ function onDialogOpened(dialog, callback) {
  * and case-insensitively, or undefined when none matches — the shared rule for
  * picking a `<select>` option or a dropdown entry by its label.
  *
- * @param {Iterable<Element>} elements
+ * @template {Element} T
+ * @param {Iterable<T>} elements
  * @param {string} text
- * @returns {Element|undefined}
+ * @returns {T|undefined}
  */
 function findByText(elements, text) {
   const target = text.trim().toLowerCase();
   return [...elements].find(
-    (element) => element.textContent.trim().toLowerCase() === target,
+    (element) => (element.textContent ?? "").trim().toLowerCase() === target,
   );
+}
+
+/**
+ * Query `root` for `selector` and confirm the match is an instance of `type`.
+ * The `instanceof` check both narrows the static type — replacing an unchecked
+ * cast — and validates it at runtime. Returns null when nothing matches (a
+ * possibly-transient absence, left quiet) or, with a warning, when the match is
+ * present but the wrong type — the signature of the site changing its markup
+ * out from under a selector. The warning's quiet-on-absent / loud-on-mismatch
+ * split mirrors `parseMasterpointCeiling`.
+ *
+ * @template {Element} T
+ * @param {Element} root
+ * @param {string} selector
+ * @param {new () => T} type - the expected element constructor.
+ * @returns {?T}
+ */
+function querySelectorOfType(root, selector, type) {
+  const element = root.querySelector(selector);
+  if (element instanceof type) {
+    return element;
+  }
+  if (element) {
+    console.warn(
+      `PABC helper: ${selector} matched an unexpected element`,
+      element,
+    );
+  }
+  return null;
 }
 
 // --- Settings panel --------------------------------------------------------
@@ -203,6 +252,11 @@ const DIRECTION_OPTIONS = [
 
 /**
  * A labeled `<input>` appended to `panel`. Returns the input.
+ *
+ * @param {HTMLElement} panel
+ * @param {string} labelText
+ * @param {string} type
+ * @param {string} value
  */
 function appendField(panel, labelText, type, value) {
   const label = document.createElement("label");
@@ -223,6 +277,9 @@ function appendField(panel, labelText, type, value) {
  * rendered here as flat text (the site appears to restyle selects, wrapping its
  * own in `<menu-frame>` overlays and suppressing the native affordance), so
  * radios sidestep that. Returns the fieldset; read its checked radio.
+ *
+ * @param {HTMLElement} panel
+ * @param {string} value
  */
 function appendDirectionField(panel, value) {
   const fieldset = document.createElement("fieldset");
@@ -345,7 +402,10 @@ function mountSettingsPanel(root = document.body) {
     saveProfile({
       name: nameInput.value.trim(),
       email: emailInput.value.trim(),
-      direction: directionField.querySelector("input:checked")?.value ?? "",
+      direction:
+        /** @type {HTMLInputElement | null} */ (
+          directionField.querySelector("input:checked")
+        )?.value ?? "",
     });
     panel.hidden = true;
   });
@@ -368,7 +428,7 @@ function mountSettingsPanel(root = document.body) {
 /**
  * The masterpoint ceiling on a game row's `data-mps`, or null when absent.
  *
- * @param {Element} row - a game `<tr>`.
+ * @param {HTMLElement} row - a game `<tr>`.
  * @returns {?number}
  */
 function parseMasterpointCeiling(row) {
@@ -390,6 +450,7 @@ function parseMasterpointCeiling(row) {
 /**
  * Dim a limited game's row and badge its name. No-op for an open game.
  *
+ * @param {HTMLElement} row - a game `<tr>`.
  * @returns {boolean} whether the row was flagged.
  */
 function flagLimitedGame(row) {
@@ -472,11 +533,16 @@ function showLimitedBanner(modal, isLimited) {
 
 /**
  * Expand the collapsed game list so every game is visible on load.
+ *
+ * @param {HTMLElement} button - the "Show more" toggle.
  */
 function expandShowMore(button) {
+  // `textContent` is `string | null`; coalesce so the `.includes` check is safe
+  // even on a button the site renders empty.
+  const buttonText = button.textContent ?? "";
   // The same control toggles to "Show less" once expanded; only click while it
   // still offers "more", so a re-run never collapses the list.
-  if (button.textContent.toLowerCase().includes("more")) {
+  if (buttonText.toLowerCase().includes("more")) {
     button.click();
   }
 }
@@ -488,6 +554,8 @@ function expandShowMore(button) {
  * selection and correct if the page ever moves to change-driven form state.
  * (`typeName`'s input event, by contrast, is load-bearing: the autocomplete
  * only opens in response to it.)
+ *
+ * @param {Element} control
  */
 function dispatchChange(control) {
   control.dispatchEvent(new Event("change", { bubbles: true }));
@@ -496,9 +564,12 @@ function dispatchChange(control) {
 /**
  * Pre-select the stored direction when the reserve modal's direction control is
  * still at its "No preference" default.
+ *
+ * @param {Element} modal - the reserve popover.
+ * @param {string} direction - the stored direction value.
  */
 function prefillDirection(modal, direction) {
-  const select = modal.querySelector("#direction");
+  const select = querySelectorOfType(modal, "#direction", HTMLSelectElement);
   if (select && direction && select.value === "") {
     select.value = direction;
     dispatchChange(select);
@@ -508,9 +579,11 @@ function prefillDirection(modal, direction) {
 /**
  * Default the reserve modal's section dropdown to "Open" when it is still at
  * its first option. Harmless when the game has no "Open" section.
+ *
+ * @param {Element} modal - the reserve popover.
  */
 function prefillSection(modal) {
-  const menu = modal.querySelector("#sectionMenu");
+  const menu = querySelectorOfType(modal, "#sectionMenu", HTMLSelectElement);
   if (!menu || menu.selectedIndex !== 0) {
     return;
   }
@@ -524,6 +597,9 @@ function prefillSection(modal) {
 
 /**
  * Prefill the cancellation flow's confirmation email when the field is empty.
+ *
+ * @param {?HTMLInputElement} input
+ * @param {string} email
  */
 function prefillCancelEmail(input, email) {
   if (input && email && input.value.trim() === "") {
@@ -542,6 +618,8 @@ function prefillCancelEmail(input, email) {
  * Click the dropdown entry exactly matching `name` (case-insensitive). Exact
  * match avoids selecting a different person who merely shares a surname.
  *
+ * @param {Element} dropdown - the populated `ul.dropdown`.
+ * @param {string} name - the stored full name.
  * @returns {boolean} whether a matching entry was found and clicked.
  */
 function selectDropdownMatch(dropdown, name) {
@@ -557,6 +635,11 @@ function selectDropdownMatch(dropdown, name) {
  * Poll `container` for a populated `ul.dropdown`, resolving with it once it has
  * entries, or with null if none appear before the timeout (the site changed, or
  * the name matched nobody) — in which case the typed text stands as a fallback.
+ *
+ * @param {Element} container - the modal/dialog holding the dropdown.
+ * @param {number} [timeoutMs]
+ * @param {number} [intervalMs]
+ * @returns {Promise<Element | null>}
  */
 function waitForDropdownItems(container, timeoutMs = 2000, intervalMs = 50) {
   return new Promise((resolve) => {
@@ -585,6 +668,8 @@ function waitForDropdownItems(container, timeoutMs = 2000, intervalMs = 50) {
  * has already typed is left untouched. Does not select a dropdown entry, so it
  * never advances or submits the form.
  *
+ * @param {?HTMLInputElement} input - the autocomplete name field.
+ * @param {string} name - the stored full name.
  * @returns {boolean} whether it typed.
  */
 function typeName(input, name) {
@@ -606,7 +691,7 @@ function typeName(input, name) {
  * closes it. If the dropdown never populates, the typed text stands for a
  * manual pick.
  *
- * @param {HTMLInputElement} input - the `.needsDropdown` name field.
+ * @param {?HTMLInputElement} input - the `.needsDropdown` name field.
  * @param {string} name - the stored full name.
  * @param {Element} container - the modal/dialog holding the field's dropdown.
  */
@@ -639,6 +724,8 @@ let isPendingLimitedReserve = false;
 /**
  * Run the reserve-flow features when the reserve popover opens: prefill
  * direction and section, warn on a limited game, and fill the player name.
+ *
+ * @param {Element} modal - the reserve popover (`#newReservation`).
  */
 function onReserveOpen(modal) {
   const profile = loadProfile();
@@ -649,7 +736,11 @@ function onReserveOpen(modal) {
   // Consume the flag so a later open of an open game shows no banner.
   isPendingLimitedReserve = false;
 
-  const nameInput = modal.querySelector('input[name="player"]');
+  const nameInput = querySelectorOfType(
+    modal,
+    'input[name="player"]',
+    HTMLInputElement,
+  );
   // Fire-and-forget: the fill awaits the site's async dropdown; it never
   // rejects, and the reserve flow shouldn't block on it.
   void fillNameField(nameInput, profile.name, modal);
@@ -662,7 +753,7 @@ function main() {
 
   // Flag limited game rows; on a limited row, remember a click on its reserve
   // button so the reserve modal can warn when it opens.
-  onElementAdded("tr[data-sections]", (row) => {
+  onElementAdded("tr[data-sections]", (/** @type {HTMLElement} */ row) => {
     if (!flagLimitedGame(row)) {
       return;
     }
@@ -676,9 +767,9 @@ function main() {
 
   // Reserve popover toggles visibility rather than mounting, so its features
   // hang off the open event, not element insertion.
-  onElementAdded("#newReservation", (modal) => {
+  onElementAdded("#newReservation", (/** @type {HTMLElement} */ modal) => {
     modal.addEventListener("toggle", (event) => {
-      if (event.newState === "open") {
+      if (/** @type {ToggleEvent} */ (event).newState === "open") {
         onReserveOpen(modal);
       }
     });
@@ -689,7 +780,7 @@ function main() {
   // mounts. Only type the name (no dropdown click): on this dialog, selecting
   // an entry submits and closes it, and the user may want a different player.
   // The field is re-queried on open in case the site rebuilds it.
-  onElementAdded("dialog", (dialog) => {
+  onElementAdded("dialog", (/** @type {HTMLDialogElement} */ dialog) => {
     // The cancel dialog is also a <dialog>, handled separately below; it must
     // not receive the name prefill, so skip it here rather than matching every
     // dialog on the page.
@@ -697,7 +788,11 @@ function main() {
       return;
     }
     onDialogOpened(dialog, () => {
-      const nameInput = dialog.querySelector("input.needsDropdown");
+      const nameInput = querySelectorOfType(
+        dialog,
+        "input.needsDropdown",
+        HTMLInputElement,
+      );
       if (nameInput) {
         typeName(nameInput, loadProfile().name);
       }
@@ -707,14 +802,21 @@ function main() {
   // Cancel dialog: the cancel-reservation-modal persists in the DOM and shows
   // its dialog on demand, so fill the email each time the dialog opens, not
   // when it mounts.
-  onElementAdded("cancel-reservation-modal dialog", (dialog) => {
-    onDialogOpened(dialog, () => {
-      const input = dialog.querySelector(".inputDiv input");
-      if (input) {
-        prefillCancelEmail(input, loadProfile().email);
-      }
-    });
-  });
+  onElementAdded(
+    "cancel-reservation-modal dialog",
+    (/** @type {HTMLDialogElement} */ dialog) => {
+      onDialogOpened(dialog, () => {
+        const input = querySelectorOfType(
+          dialog,
+          ".inputDiv input",
+          HTMLInputElement,
+        );
+        if (input) {
+          prefillCancelEmail(input, loadProfile().email);
+        }
+      });
+    },
+  );
 }
 
 // Run only as a userscript, where the GM storage API is present. Under Node

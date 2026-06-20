@@ -218,6 +218,26 @@ describe("prefillDirection", () => {
 
     expect(onChange).toHaveBeenCalledTimes(1);
   });
+
+  test("warns and skips when the direction control is the wrong type", () => {
+    // The site swapped its <select id="direction"> for something else: the
+    // prefill must not act on it, and should surface the drift.
+    const modal = document.createElement("div");
+    modal.innerHTML = '<span id="direction"></span>';
+    const onChange = vi.fn();
+    modal.querySelector("#direction").addEventListener("change", onChange);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    prefillDirection(modal, "E-W");
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("#direction"),
+      expect.anything(),
+    );
+    expect(onChange).not.toHaveBeenCalled();
+
+    warn.mockRestore();
+  });
 });
 
 describe("prefillSection", () => {

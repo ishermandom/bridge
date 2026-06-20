@@ -292,3 +292,39 @@ Three tiers, matched to how testable each piece is.
   and so isn't reproducible in jsdom. For the autocomplete specifically,
   verification goes one step past appearance: complete a reservation and confirm
   it persists against the correct player record.
+
+## Type checking
+
+The goal is static type safety over the userscript without surrendering its
+defining constraint — a single hand-written file the user copies into
+Tampermonkey, with no build step and no generated artifact (see "Platform and
+packaging"). Real TypeScript fails that test: `.ts` must be compiled to `.js`,
+reintroducing a build and a derived file to keep in sync.
+
+The chosen path keeps the source a plain `.js` and checks it in place:
+
+- `// @ts-check` at the top of the userscript opts the file into the TypeScript
+  checker; types are expressed in JSDoc, which the browser ignores as comments.
+- `jsconfig.json` turns on `checkJs` and `strict`, so the check runs under
+  `tsc --noEmit` (no output, pure verification) and the editor.
+- `globals.d.ts` declares the globals that have no source here: Tampermonkey's
+  `GM_*` storage API (present only in the userscript host) and Node's `module`
+  (present only under vitest, for the test seam).
+
+The `GM_*` and `module` globals are each guarded by a `typeof … !== "undefined"`
+check at runtime, so the same file runs unmodified in both hosts; the ambient
+declarations let the checker see both.
+
+DOM access carries the one recurring friction: `querySelector` is typed to
+return the base `Element`, but the code reaches for subtype members (`.value`,
+`.dataset`, an option's `.selected`). The site-owned lookups go through
+`querySelectorOfType`, which narrows with a runtime `instanceof` instead of an
+unchecked cast: a present-but-wrong-type match (the site changing its markup out
+from under a selector) is caught at runtime and logged, where a bare cast would
+let it pass silently. `onElementAdded` and `findByText` are generic over the
+element type, so a caller's callback or lookup fixes the subtype once. A JSDoc
+cast remains only where `instanceof` cannot reach — a generic type parameter, an
+event subtype, or an element this code just constructed.
+
+The check is gated ahead of the tests in the repo-root `run_tests.sh`: a type
+error fails the run before vitest starts.

@@ -24,17 +24,14 @@ Done: repo-root `run_tests.sh` (runs the palo_alto vitest suite via
 
 ---
 
-## Type checking
+## Type checking ✓
 
 **Goal:** static type checking for the userscript with no build step.
 
-- [ ] Adopt `// @ts-check` + JSDoc type-checking (preserves the no-build,
-      single-file packaging). Add a `jsconfig.json` with `checkJs`, plus ambient
-      declarations for the `GM_*` globals and the `module` test seam, then
-      resolve the type errors that surface.
-  - Rationale: real TypeScript needs compilation, reintroducing a build and a
-    generated artifact; `@ts-check` gives editor and `tsc --noEmit` checking
-    over the `.js` in place — most of the benefit, none of the build.
+Done: `// @ts-check` + strict `checkJs` over the userscript in place (no build,
+no emit), with `GM_*`/`module` ambients in `globals.d.ts` and a `typecheck` npm
+script gated ahead of vitest in `run_tests.sh`. Design record: spec.md ("Type
+checking"). Scoped to the userscript; the vitest test files aren't checked.
 
 ---
 

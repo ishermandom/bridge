@@ -5,10 +5,12 @@
   "license": "MIT",
   "description": "Tampermonkey userscript: conveniences for the Palo Alto Bridge Center reservations page.",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }
 }
