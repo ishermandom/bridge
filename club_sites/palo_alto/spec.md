@@ -281,17 +281,22 @@ Three tiers, matched to how testable each piece is.
 - **jsdom tests for deterministic DOM features.** Row flagging, the "Show more
   games" expansion, the section default, and the value-setting prefills are
   deterministic transformations of the page, testable under a Node toolchain
-  (e.g. vitest + jsdom): load an HTML fixture captured from the live page, run
-  the feature, assert the DOM change. This catches regressions in our own logic.
-  The main noteworthy cost: the fixtures are hand-captured snapshots of a site
-  we do not control — they can drift, so passing tests prove our logic is
-  internally consistent, not that the live markup still matches.
+  (e.g. vitest + jsdom): build minimal synthetic markup inline, run the feature,
+  assert the DOM change. Each test inlines the small fragment it needs rather
+  than loading a shared capture. Raw HTML captured from the live site was the
+  build-time reference for the selectors and markup shape, but it held member
+  PII, so it was gitignored and has since been deleted — re-capture from the
+  live site if ever needed; the selectors now live inline in the userscript and
+  in this spec. Because the synthetic markup encodes our reading of a site we do
+  not control, passing tests prove our logic is internally consistent, not that
+  the live markup still matches.
 - **Manual in-browser verification** for what the tiers above can't reach: that
-  the live markup still matches the fixtures, and the name autocomplete binding
-  — which depends on the site's own JS event handling and player-record binding,
-  and so isn't reproducible in jsdom. For the autocomplete specifically,
-  verification goes one step past appearance: complete a reservation and confirm
-  it persists against the correct player record.
+  the live markup still matches the structure the tests assume, and the name
+  autocomplete binding — which depends on the site's own JS event handling and
+  player-record binding, and so isn't reproducible in jsdom. For the
+  autocomplete specifically, verification goes one step past appearance:
+  complete a reservation and confirm it persists against the correct player
+  record.
 
 ## Type checking
 
