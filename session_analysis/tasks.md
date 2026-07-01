@@ -39,11 +39,21 @@ and verified with no OCR involved.
       and over this model.
 - [x] Dealer/vul computation from board number, table-driven test across a full
       16-board cycle.
-- [ ] Auction + contract string parser: VLM strings → canonical model. Depends
-      on #normalizer.
-  - Note: the auction grammar handles boxes spanning calls and wrapping circled
-    ones; unparseable tokens become issues, never failures. See models.md
-    (Parsing).
+- [x] Auction + contract string parser: VLM strings → canonical model. See
+      `parsing.py` and models.md (Parsing, Announcement decoding).
+- [ ] Check in with Ilya on `parsing.py` and `parsing_test.py` — not yet
+      reviewed. Decisions to ratify:
+  - NT-range `+` ('a good 14') degrades to `minimum_points` = 14 with the `+`
+    kept only in `raw`; the model has no field for the nuance.
+  - Issue severities: `unparseable_call` is medium, `unparseable_contract` high.
+  - `AuctionEntry.raw` drops the box/circle markup (already captured in the
+    booleans) but keeps inline glyphs; `Outcome.raw` is the verbatim cell.
+  - Issue codes are plain strings pending the enum, which lands with validation.
+- [ ] Remaining field parsers and board assembly: lead (`10S` → `Card`), board
+      number (`7` → `Schedule` via board_rotation), and header (date, pair);
+      assemble the `Board` and `Session` envelopes. The auction and contract
+      cells — the interpretation-heavy ones — are done in `parsing.py`; these
+      are the simpler remaining cells.
 - [ ] Non-raising validation pass: returns issues with severity; never aborts.
   - Content well-formedness: each call, lead, and contract resolved to canonical
     values; contract level in 1-7; `tricks_taken` in 0-13; result notation

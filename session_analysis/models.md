@@ -140,6 +140,29 @@ Worked example — the string `(1D) 1H_S * 2N! [(2C)] 1N^0_2 ED` parses to:
 | `1N^0_2` | no     | no      | no    | bid    | 1     | NT     | nt_range, 10–12 (raw `^0_2`) | —                  |
 | `ED`     | no     | no      | no    | —      | —     | —      | —                            | `unparseable_call` |
 
+### Announcement decoding
+
+A call's `_` subscript and `^` superscript annotate its meaning; the parser maps
+them to an `Announcement`. The markers are the vision model's faithful
+transcription (see [Auction string syntax](#auction-string-syntax)); decoding
+them is the parser's job.
+
+- A subscript **strain letter** (`_S`) → `artificial_suit`, showing that strain.
+- A subscript **digit** (`_2`) → `min_suit_length`, that many cards in the bid's
+  own suit.
+- `_SF` → `semi_forcing`; `_F` → `forcing`.
+- A **superscript** is a notrump range: the superscript is the minimum and the
+  subscript the maximum, each a teens value with the leading `1` implied, so
+  `^0_2` is 10–12 and `^5_7` is 15–17. A `+` on the minimum (`^4+` is 'a good
+  14') is a nuance the two point fields can't hold; the numeric floor is kept
+  (14) and the `+` survives in `raw`.
+- Anything else unrecognized → `other`, raw preserved, so a novel form never
+  fails.
+
+Only an explicit annotation is decoded. What a bare, unannotated `1N` implies —
+the club's assumed range — is not the parser's concern; the sheet spells a range
+out only when it departs from that default.
+
 ### Contract parsing
 
 The contract cell parses into a `Contract` and a `Result` together (they share
