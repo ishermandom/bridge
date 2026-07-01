@@ -33,16 +33,10 @@ and verified with no OCR involved.
       #normalizer
   - Note: `notation.py` covers the sheet convention; the traveller convention
     lands with reconciliation, when it's first needed.
-- [~] Pydantic models and enums: Session, Board, Call, Contract, Result, Card,
-  Announcement, Issue. Typed skeleton with per-token parse envelopes.
-  - Done: all enums (`enums.py`); `pyproject.toml` + the Pydantic dependency;
-    the value models a board contains (`models.py`). Each written token sits in
-    an envelope — `AuctionEntry` around `Call`, `Lead` around `Card`, `Outcome`
-    around `Contract`/`Result` — carrying raw, marks, and issues, so a null
-    parsed value marks an all-or-nothing parse failure and the inner objects
-    stay clean.
-  - Left: the Board and Session containers, which add matchpoints, the date, and
-    source provenance.
+- [x] Pydantic models and enums: Session, Board, Call, Contract, Result, Card,
+      Announcement, Issue — a typed skeleton with per-token parse envelopes. See
+      models.md and models.py. The parser and validation tasks below parse into
+      and over this model.
 - [x] Dealer/vul computation from board number, table-driven test across a full
       16-board cycle.
 - [ ] Auction + contract string parser: VLM strings → canonical model. Depends

@@ -16,6 +16,7 @@ whole, rather than each field being independently absent. Content validation
 (bridge legality, ranges) is the validation pass's job, not these models'.
 """
 
+import datetime
 from typing import Annotated, Literal
 
 import pydantic
@@ -29,10 +30,22 @@ from session_analysis.enums import (
   Rank,
   Strain,
   Suit,
+  Vulnerability,
 )
 
 
-class Issue(pydantic.BaseModel):
+class _FrozenModel(pydantic.BaseModel):
+  """Base for the canonical models: frozen, so instances are immutable.
+
+  Every canonical model inherits this, so a whole record is immutable and
+  hashable once built. Collection fields use `tuple` rather than `list` so the
+  immutability is deep, not just a block on reassigning the field.
+  """
+
+  model_config = pydantic.ConfigDict(frozen=True)
+
+
+class Issue(_FrozenModel):
   """A review flag: one item worth a human's attention on a board."""
 
   code: str
@@ -41,7 +54,7 @@ class Issue(pydantic.BaseModel):
   location: str | None = None
 
 
-class Announcement(pydantic.BaseModel):
+class Announcement(_FrozenModel):
   """The meaning announced for a bid.
 
   A tagged value: `type` selects the meaning and the matching payload fields
@@ -59,14 +72,14 @@ class Announcement(pydantic.BaseModel):
   maximum_points: int | None = None
 
 
-class Card(pydantic.BaseModel):
+class Card(_FrozenModel):
   """A single card, whole only when both rank and suit were understood."""
 
   rank: Rank
   suit: Suit
 
 
-class Contract(pydantic.BaseModel):
+class Contract(_FrozenModel):
   """A final contract, present only when it was fully understood."""
 
   level: int
@@ -75,13 +88,13 @@ class Contract(pydantic.BaseModel):
   penalty: Penalty
 
 
-class Result(pydantic.BaseModel):
+class Result(_FrozenModel):
   """A contract's result, as the canonical trick count."""
 
   tricks_taken: int
 
 
-class Call(pydantic.BaseModel):
+class Call(_FrozenModel):
   """An understood call: a bid, pass, double, or redouble.
 
   `level` and `strain` are set for bids and absent for the other kinds — a
@@ -95,7 +108,7 @@ class Call(pydantic.BaseModel):
   announcement: Announcement | None = None
 
 
-class AuctionEntry(pydantic.BaseModel):
+class AuctionEntry(_FrozenModel):
   """One written token of the auction.
 
   Carries the always-available transcription and marks, plus the understood
@@ -109,18 +122,18 @@ class AuctionEntry(pydantic.BaseModel):
   alerted: bool = False
   flagged_for_discussion: bool = False
   call: Call | None = None
-  issues: list[Issue] = pydantic.Field(default_factory=list)
+  issues: tuple[Issue, ...] = ()
 
 
-class Lead(pydantic.BaseModel):
+class Lead(_FrozenModel):
   """The opening lead as written: transcription, issues, and the parsed card."""
 
   raw: str
   card: Card | None = None
-  issues: list[Issue] = pydantic.Field(default_factory=list)
+  issues: tuple[Issue, ...] = ()
 
 
-class PlayedContract(pydantic.BaseModel):
+class PlayedContract(_FrozenModel):
   """A contract that was played, with the result it produced."""
 
   kind: Literal['played'] = 'played'
@@ -128,7 +141,7 @@ class PlayedContract(pydantic.BaseModel):
   result: Result
 
 
-class Passout(pydantic.BaseModel):
+class Passout(_FrozenModel):
   """A passed-out board: every player passed, so no contract was played."""
 
   kind: Literal['passout'] = 'passout'
@@ -141,7 +154,7 @@ Resolution = Annotated[
 ]
 
 
-class Outcome(pydantic.BaseModel):
+class Outcome(_FrozenModel):
   """A board's contract cell: what its auction resolved to.
 
   `resolution` is the understood outcome — a `PlayedContract` or a `Passout` —
@@ -151,4 +164,105 @@ class Outcome(pydantic.BaseModel):
 
   raw: str
   resolution: Resolution | None = None
-  issues: list[Issue] = pydantic.Field(default_factory=list)
+  issues: tuple[Issue, ...] = ()
+
+
+class Schedule(_FrozenModel):
+  """A resolved board number and the deal parameters it fixes.
+
+  The board number determines the dealer and vulnerability under the standard
+  16-board cycle (see board_rotation). This bundles the parsed number with that
+  derived pair as one all-or-nothing unit: it exists only when the number was
+  read and resolved, so every field is present together — there is no partially
+  known board. The parser builds it, computing dealer and vulnerability; the
+  models derive nothing.
+  """
+
+  number: int
+  dealer: Direction
+  vulnerability: Vulnerability
+
+
+class BoardNumber(_FrozenModel):
+  """The board-number cell envelope: its transcription and resolved schedule.
+
+  Follows the parse-envelope pattern — `raw` plus a parsed value that is null
+  when the cell couldn't be understood. Here that value is `schedule`: a fully
+  populated `Schedule` when the number was read and valid, or null when it was
+  unreadable or invalid. The board is stored and flagged for review either way —
+  an unreadable number is a review item, not a reason to drop the board (nothing
+  is garbage).
+  """
+
+  raw: str
+  schedule: Schedule | None = None
+  issues: tuple[Issue, ...] = ()
+
+
+class Board(_FrozenModel):
+  """One board's fully parsed record: its number, auction, lead, and outcome.
+
+  Groups the board's envelopes alongside its board-level context. The `number`
+  envelope carries the board number and the dealer and vulnerability it fixes;
+  `auction`, `opening_lead`, and `outcome` are the play; the rest are
+  reconciliation and review fields.
+  """
+
+  number: BoardNumber
+  flagged_for_review: bool = False
+  # Their pair, parsed from the `Vs` cell; null with an issue when unreadable.
+  opponent_pair: int | None = None
+  auction: tuple[AuctionEntry, ...] = ()
+  opening_lead: Lead | None = None
+  outcome: Outcome | None = None
+  # Traveller-sourced; filled at reconciliation, null until then and for
+  # no-traveller sessions.
+  matchpoints: float | None = None
+  notes: str | None = None
+  issues: tuple[Issue, ...] = ()
+
+
+class SheetImage(_FrozenModel):
+  """The scanned sheet a session was digitized from."""
+
+  path: str
+  content_hash: str
+
+
+class Source(_FrozenModel):
+  """Provenance for a digitized session: its image and travellers consulted.
+
+  `travellers` records which travellers the reconciliation pass consulted; it is
+  empty until then and for no-traveller sessions.
+  """
+
+  image: SheetImage
+  # TODO: reconciliation will replace these path/URL references with a richer
+  # traveller type once that phase defines one.
+  travellers: tuple[str, ...] = ()
+
+
+class Session(_FrozenModel):
+  """A whole digitized session: its header, provenance, and boards.
+
+  Like the rest of the models, the header fields never hard-fail: a value the
+  parser couldn't read is null with an issue, not a construction error, so a
+  session is always stored and reviewable (nothing is garbage). `event` and
+  `source` are the always-present exceptions — `event` is the raw header
+  transcription, `source` is file provenance, neither a parse that can fail.
+  """
+
+  # Stable identifier derived from event and date (e.g. `pabc-mon-2026-06-29`);
+  # the filename and the reconciliation join. Null until ingest assigns it,
+  # downstream of parsing and review.
+  session_key: str | None = None
+  event: str
+  # Parsed from the header, or null with an issue when unreadable.
+  date: datetime.date | None = None
+  # Our pair, parsed from the header; null with an issue when unreadable.
+  pair_number: int | None = None
+  source: Source
+  boards: tuple[Board, ...] = ()
+  # Session-level issues, such as an unreadable date or pair; board- and
+  # token-level issues live on the board and its envelopes.
+  issues: tuple[Issue, ...] = ()

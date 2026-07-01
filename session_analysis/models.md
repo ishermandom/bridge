@@ -169,13 +169,21 @@ unit-tested before anything depends on it.
 The stored, queryable shape. Expressed as Pydantic models; the JSON on disk is
 their serialization. Bounded value sets are enums throughout.
 
+The models are **frozen and deeply immutable**: every model inherits a frozen
+base, and collection fields are `tuple`, not `list`, so a built record can't be
+mutated in place and is hashable. A change to a parsed record is a new object,
+not a mutation of the old one. The models derive nothing — every value,
+including dealer and vulnerability, is set by the parser; Pydantic only holds
+and (de)serializes.
+
 Each written token sits in a **parse envelope**: a wrapper carrying the raw
 transcription, any structural marks, and issues, plus the parsed value — or null
 when the token couldn't be understood as a whole. The envelope makes parse
 failure a single, all-or-nothing signal and keeps the inner parsed objects
-clean, with no field-by-field optionality standing in for failure. The three
-envelopes are `AuctionEntry` (around `Call`), `Lead` (around `Card`), and
-`Outcome` (around a played contract or a passout).
+clean, with no field-by-field optionality standing in for failure. The four
+envelopes are `BoardNumber` (around a `Schedule`), `AuctionEntry` (around
+`Call`), `Lead` (around `Card`), and `Outcome` (around a played contract or a
+passout).
 
 ### Enums
 
@@ -197,27 +205,27 @@ validation pass define the concrete code set (see
 ### Session
 
 - `session_key` — stable identifier derived from event and date, e.g.
-  `pabc-mon-2026-06-29`; the filename and the reconciliation join.
+  `pabc-mon-2026-06-29`; the filename and the reconciliation join. Null until
+  ingest assigns it, downstream of parsing.
 - `event` — raw header text.
 - `date` — parsed date, or null with an issue if unparseable.
-- `pair_number` — our pair.
+- `pair_number` — our pair, or null with an issue if unreadable.
 - `source` — provenance: the sheet image (path + content hash) and the
   travellers consulted.
-- `boards` — the list of `Board`s.
+- `boards` — the tuple of `Board`s.
 
 ### Board
 
-- `board_number` — parsed int; the dealer/vul source.
-- `dealer` — `Direction`, **computed** from `board_number` (never extracted; see
-  [Dealer and vulnerability](#dealer-and-vulnerability)).
-- `vulnerability` — `Vulnerability`, **computed** from `board_number`.
+- `number` — a `BoardNumber` envelope: the parsed board number and the dealer
+  and vulnerability it fixes.
 - `flagged_for_review` — true when the board number was circled.
-- `opponent_pair` — parsed from the `Vs` string, or null.
+- `opponent_pair` — their pair, parsed from the `Vs` cell to an int; null with
+  an issue when unreadable.
 - `opening_lead` — a `Lead` envelope, or null when no lead was recorded.
 - `outcome` — an `Outcome` envelope (the contract cell), or null.
 - `matchpoints` — traveller-sourced, filled at reconciliation; null until then
   and for no-traveller sessions.
-- `auction` — an ordered list of `AuctionEntry`.
+- `auction` — an ordered tuple of `AuctionEntry`.
 - `notes` — freetext cursive annotations (the inline questions), or null.
 - `issues` — board-level issues.
 
@@ -225,6 +233,34 @@ A board's boxed calls aren't a separate field: each boxed call's `AuctionEntry`
 carries `flagged_for_discussion`, and the "calls to discuss with partner" list
 is a filter over the auction. This supersedes the earlier decision to fold boxes
 into `notes`.
+
+### BoardNumber
+
+The envelope for the board-number cell.
+
+- `raw` — the number as transcribed (`7`, or `l3` for a misread).
+- `schedule` — a `Schedule` when the number was read and valid, or null when it
+  was unreadable or invalid.
+- `issues` — per-cell issues (e.g. `unreadable_board_number`).
+
+The parsed value is all-or-nothing: a null `schedule` is the single signal that
+the number couldn't be understood, with no partially known board. Either way the
+board is stored and flagged for review — an unreadable number is a review item,
+not a reason to drop the board, per
+[nothing is garbage](#design-principle-nothing-is-garbage).
+
+### Schedule
+
+A resolved board number and the deal parameters it fixes. Present only inside a
+`BoardNumber` whose parse succeeded, so every field is set together.
+
+- `number` — the parsed board number.
+- `dealer` — `Direction`, fixed by `number` under the standard 16-board cycle.
+- `vulnerability` — `Vulnerability`, fixed by `number` under the same cycle.
+
+The parser computes `dealer` and `vulnerability` from `number` (see
+[Dealer and vulnerability](#dealer-and-vulnerability)); the models store them,
+deriving nothing.
 
 ### AuctionEntry
 
@@ -318,7 +354,9 @@ the envelope whose parse produced it, or on the board for board-level issues.
 ## Dealer and vulnerability
 
 Both are pure functions of the board number under the standard 16-board cycle,
-computed and stored — never extracted. Per the resolution in
+computed by the parser and stored in the `Schedule` — never extracted, never
+derived by the models. They are present exactly when the `Schedule` is, i.e.
+when the number was read and valid. Per the resolution in
 [spec.md](spec.md#open-questions), there is no printed-column checksum: the
 computed value is authoritative on its own, and board-numbering errors surface
 through traveller reconciliation instead. The computation is table-driven and
@@ -355,17 +393,19 @@ is **not** the gatekeeper for content. Its job is narrower and honest:
   contents), with coercion (strings → `date`, ints, enums, nested models, the
   `kind`-tagged `Outcome` union) for free. This is the main earning, and exactly
   what a JSON-on-disk, DB-bound pipeline needs.
-- **Skeleton typing** — the bones are real types (`boards: list[Board]`,
-  `auction: list[AuctionEntry]`, `board_number: int`), so downstream code and
-  the validation pass can rely on shape without re-checking it.
+- **Skeleton typing** — the bones are real types (`boards: tuple[Board, ...]`,
+  `auction: tuple[AuctionEntry, ...]`, `number: BoardNumber`), so downstream
+  code and the validation pass can rely on shape without re-checking it.
 
-It is configured so content never raises: each envelope's parsed value is
-optional, so a misread is captured as a null rather than rejected, and the
-genuinely malformed skeleton — the rare case where the VLM returns something
-that isn't shaped like a board at all — is contained by parsing board-by-board,
-so one broken board is captured and flagged while the rest succeed. The errors
-Pydantic catches are _shape_ errors ("this isn't a board record"), never
-_content_ errors ("this isn't legal bridge") — those belong to validation.
+It is configured so content never raises: every parsed value is optional — an
+envelope's parsed value, and the header scalars (`date`, `pair_number`) parsed
+straight into `Session` — so a misread is captured as a null rather than
+rejected, and the genuinely malformed skeleton — the rare case where the VLM
+returns something that isn't shaped like a board at all — is contained by
+parsing board-by-board, so one broken board is captured and flagged while the
+rest succeed. The errors Pydantic catches are _shape_ errors ("this isn't a
+board record"), never _content_ errors ("this isn't legal bridge") — those
+belong to validation.
 
 The alternative considered was stdlib `dataclasses` plus hand-written JSON
 mapping: viable, but it hand-rolls the nested (de)serialization and coercion
