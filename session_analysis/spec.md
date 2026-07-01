@@ -103,9 +103,9 @@ parser between them, and the validation pass — is specified in
   freetext notes; and the review flags — a circled board number, and per-call
   "discuss with partner" markers lifted from boxed bids. Matchpoints are
   traveller-sourced and filled at reconciliation.
-- **Nothing is discarded as garbage**: every parsed field sits beside the raw
-  text it came from, so a misread value is captured and flagged, never rejected
-  (see [Validation](#validation)).
+- **Nothing is discarded as garbage**: each written token sits in an envelope
+  beside its raw text, so a misread is captured and flagged, never rejected (see
+  [Validation](#validation)).
 
 Pydantic owns the record's shape and JSON (de)serialization, not content
 validation — see [models.md](models.md#why-pydantic) for that boundary.
