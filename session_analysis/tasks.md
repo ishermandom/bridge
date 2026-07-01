@@ -17,8 +17,10 @@ reconciliation, ingest, and the review UI.
 **Goal:** a Python package under `session_analysis/` with test infrastructure,
 matching the repo's conventions.
 
-- [ ] Set up the package layout and dependencies (Pydantic, pytest).
-- [ ] Wire the package's tests into the repo's `run_tests.sh`.
+- [x] Set up the package layout and test infrastructure (package, pytest).
+  - Note: `pyproject.toml` and the Pydantic dependency are deferred to the
+    models task — the first piece that needs a third-party dependency.
+- [x] Wire the package's tests into the repo's `run_tests.sh`.
 
 ---
 
@@ -27,10 +29,10 @@ matching the repo's conventions.
 **Goal:** the testable heart — notation, models, parsing, and validation — built
 and verified with no OCR involved.
 
-- [ ] Notation normalizer: `±N` → `tricks_taken`, with exhaustive unit tests.
+- [x] Notation normalizer: `±N` → `tricks_taken`, with exhaustive unit tests.
       #normalizer
-  - Note: build first — an off-by-one corrupts every downstream traveller
-    comparison. Settled — see spec.md (Notation and normalization).
+  - Note: `notation.py` covers the sheet convention; the traveller convention
+    lands with reconciliation, when it's first needed.
 - [ ] Pydantic models and enums: Session, Board, Call, Contract, Result, Card,
       Announcement, Issue. Lenient content leaves; typed skeleton.
 - [ ] Dealer/vul computation from board number, table-driven test across a full
@@ -40,9 +42,15 @@ and verified with no OCR involved.
   - Note: the auction grammar handles boxes spanning calls and wrapping circled
     ones; unparseable tokens become issues, never failures. See models.md
     (Parsing).
-- [ ] Non-raising validation pass: content well-formedness, auction legality
-      (monotonicity, contract = last call, declarer derivable), card legality.
-      Returns issues with severity; never aborts.
+- [ ] Non-raising validation pass: returns issues with severity; never aborts.
+  - Content well-formedness: each call, lead, and contract resolved to canonical
+    values; contract level in 1-7; `tricks_taken` in 0-13; result notation
+    consistent with the contract (a `+N` make must not imply fewer tricks than
+    the contract needed). These range and consistency checks are deferred here
+    from the notation translator, which only parses.
+  - Auction legality: rank monotonicity, contract = last call, declarer
+    derivable and consistent.
+  - Card legality: the opening lead is a real card.
 
 ---
 

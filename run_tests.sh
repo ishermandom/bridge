@@ -21,4 +21,14 @@ if [ "$typecheck_status" -ne 0 ]; then
 fi
 
 # `npm --prefix` runs that package's "test" script without changing directory.
-exec npm --prefix "$package" test
+# Gated explicitly, rather than `&&`, to keep the failing step's own exit status.
+npm --prefix "$package" test
+palo_alto_status=$?
+if [ "$palo_alto_status" -ne 0 ]; then
+  exit "$palo_alto_status"
+fi
+
+# session_analysis: a Python package tested with pytest. Pointing pytest at the
+# package directory lets it insert the repo root on the import path, so the
+# `session_analysis.*` imports resolve regardless of the caller's directory.
+exec python3 -m pytest "$repo_root/session_analysis"
