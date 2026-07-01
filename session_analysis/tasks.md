@@ -35,7 +35,10 @@ and verified with no OCR involved.
     lands with reconciliation, when it's first needed.
 - [ ] Pydantic models and enums: Session, Board, Call, Contract, Result, Card,
       Announcement, Issue. Lenient content leaves; typed skeleton.
-- [ ] Dealer/vul computation from board number, table-driven test across a full
+  - Note: `Direction` and `Vulnerability` enums already exist in `enums.py`
+    (from the dealer/vul work); the remaining enums and the model classes are
+    what's left. This task adds `pyproject.toml` and the Pydantic dependency.
+- [x] Dealer/vul computation from board number, table-driven test across a full
       16-board cycle.
 - [ ] Auction + contract string parser: VLM strings → canonical model. Depends
       on #normalizer.
