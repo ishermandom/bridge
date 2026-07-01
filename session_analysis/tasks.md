@@ -78,6 +78,8 @@ parsed into the canonical model.
 likely row swaps.
 
 - [ ] Traveller HTML parsers (ACBL Live, club site) → recoverable fields.
+  - Note: this phase defines the richer traveller type that replaces
+    `Source.travellers`, currently a placeholder `tuple[str]` of path/URL refs.
 - [ ] Join on session + pair + `Vs`; cross-check recoverable fields; raise
       review priority on disagreement.
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
