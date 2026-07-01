@@ -1,0 +1,16 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# The repository's Python project. ruff and mypy are configured globally, so no
+# [tool.ruff]/[tool.mypy] here — adding them would shadow that global config.
+
+[project]
+name = "session-analysis"
+version = "0.0.0"
+description = "Digitizing handwritten bridge scoresheets and analyzing the session."
+requires-python = ">=3.14"
+dependencies = ["pydantic>=2"]
+
+[tool.pytest.ini_options]
+# Tests are named <module>_test.py, beside the module they cover.
+python_files = ["*_test.py"]

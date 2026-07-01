@@ -26,9 +26,12 @@ of review; review corrects the flagged fields; the parse re-runs.
 
 This principle drives two structural decisions throughout:
 
-- **Every parsed field carries its `raw` source.** Parsing is best-effort: on
-  success the structured fields are populated; on failure they are null, an
-  `Issue` is logged, and `raw` preserves exactly what the VLM saw.
+- **Each written token sits in a parse envelope.** A per-token wrapper (e.g.
+  `AuctionEntry` around `Call`) carries the `raw` transcription, any marks, and
+  issues, plus the parsed value — or null when the token couldn't be understood
+  as a whole. Parse failure is thus one explicit, all-or-nothing signal, the
+  inner parsed objects stay clean, and the marks and `raw` survive even a
+  content-parse failure.
 - **Validation never raises.** All checks — structural and bridge-semantic alike
   — run as pure functions that _return_ issues. Pydantic is configured so that
   even malformed content is captured rather than rejected (see
@@ -166,24 +169,30 @@ unit-tested before anything depends on it.
 The stored, queryable shape. Expressed as Pydantic models; the JSON on disk is
 their serialization. Bounded value sets are enums throughout.
 
-Content-leaf fields are **optional** — a null means "the VLM saw something, but
-the parser couldn't make it canonical," and the adjacent `raw` holds what it
-saw. This is what lets a malformed value be stored rather than rejected.
+Each written token sits in a **parse envelope**: a wrapper carrying the raw
+transcription, any structural marks, and issues, plus the parsed value — or null
+when the token couldn't be understood as a whole. The envelope makes parse
+failure a single, all-or-nothing signal and keeps the inner parsed objects
+clean, with no field-by-field optionality standing in for failure. The three
+envelopes are `AuctionEntry` (around `Call`), `Lead` (around `Card`), and
+`Outcome` (around a played contract or a passout).
 
 ### Enums
 
 - `Direction` — `N` / `E` / `S` / `W`.
 - `Strain` — `C` / `D` / `H` / `S` / `NT`.
 - `Suit` — `C` / `D` / `H` / `S`.
-- `Rank` — `2`…`10`, `J`, `Q`, `K`, `A`.
+- `Rank` — `2`…`9`, `T`, `J`, `Q`, `K`, `A`.
 - `Penalty` — `none` / `doubled` / `redoubled`.
 - `CallKind` — `bid` / `pass` / `double` / `redouble`.
-- `Vulnerability` — `none` / `ns` / `ew` / `both`.
-- `AnnouncementType` — `artificial_suit` / `min_suit_length` / `semi_forcing` /
-  `nt_range` / `other`.
+- `Vulnerability` — `none` / `NS` / `EW` / `both`.
+- `AnnouncementType` — `artificial_suit` / `min_suit_length` / `forcing` /
+  `semi_forcing` / `nt_range` / `other`.
 - `IssueSeverity` — `low` / `medium` / `high`.
-- `IssueCode` — the closed set of check identifiers (see
-  [Validation](#validation)).
+
+`Issue.code` is a plain string for now; it becomes an enum once the parser and
+validation pass define the concrete code set (see
+[Open questions](#open-questions-and-todos)).
 
 ### Session
 
@@ -204,75 +213,104 @@ saw. This is what lets a malformed value be stored rather than rejected.
 - `vulnerability` — `Vulnerability`, **computed** from `board_number`.
 - `flagged_for_review` — true when the board number was circled.
 - `opponent_pair` — parsed from the `Vs` string, or null.
-- `opening_lead` — a `Card`, or null.
-- `contract` — a `Contract`, or null for a passout.
-- `result` — a `Result`, or null for a passout.
+- `opening_lead` — a `Lead` envelope, or null when no lead was recorded.
+- `outcome` — an `Outcome` envelope (the contract cell), or null.
 - `matchpoints` — traveller-sourced, filled at reconciliation; null until then
   and for no-traveller sessions.
-- `auction` — an ordered list of `Call`s.
+- `auction` — an ordered list of `AuctionEntry`.
 - `notes` — freetext cursive annotations (the inline questions), or null.
-- `contract_cell_raw` — the verbatim contract cell, the shared source for
-  `contract` and `result`.
-- `issues` — board-level validation issues.
+- `issues` — board-level issues.
 
-A board's boxed calls are not a separate field: each boxed call carries
-`flagged_for_discussion` (below), which is the queryable "calls to discuss with
-partner" list — a filter over the auction. This supersedes the earlier spec
-decision to fold boxes into `notes`.
+A board's boxed calls aren't a separate field: each boxed call's `AuctionEntry`
+carries `flagged_for_discussion`, and the "calls to discuss with partner" list
+is a filter over the auction. This supersedes the earlier decision to fold boxes
+into `notes`.
+
+### AuctionEntry
+
+The envelope for one written token of the auction. Marks live here, not on
+`Call`, because they're read from reliable markup and survive a content-parse
+failure — a circled but unreadable token is still known to be the opponents'.
+
+- `raw` — the token exactly as transcribed, markup included (`(1N)`, `[(2C)]`,
+  `1N^0_2`, `ED`).
+- `by_opponents` — true when circled.
+- `alerted` — true when annotated `!`.
+- `flagged_for_discussion` — true when boxed.
+- `call` — the understood `Call`, or null when the token couldn't be parsed.
+- `issues` — per-token issues (e.g. `unparseable_call`).
 
 ### Call
 
-- `raw` — the call token exactly as transcribed, markup included (`(1N)`,
-  `[(2C)]`, `1N^0_2`, `ED`).
-- `kind` — `CallKind`, or null if unparseable.
-- `level` — `1`–`7`, for bids; null otherwise or on failure.
-- `strain` — `Strain`, for bids; null otherwise or on failure.
-- `by_opponents` — true when circled. Reliable structural markup, not a guess.
-- `alerted` — true when annotated `!`.
-- `flagged_for_discussion` — true when boxed.
+The understood call — present only within an `AuctionEntry` whose parse
+succeeded.
+
+- `kind` — `CallKind`.
+- `level` — `1`–`7` for bids; null for pass/double/redouble (a kind-driven
+  absence, not a parse failure).
+- `strain` — `Strain` for bids; null otherwise.
 - `announcement` — an `Announcement`, or null.
-- `issues` — per-call issues (e.g. `unparseable_call`).
 
 ### Announcement
 
 - `raw` — the announcement text as seen (`S`, `2`, `SF`, `^0_2`).
 - `type` — `AnnouncementType`; `other` when unrecognized, so a novel form never
-  fails — it degrades to `other` carrying `raw`.
+  fails — it degrades to `other` carrying `raw`. It needs no envelope of its
+  own.
 - typed payload per type: `artificial_suit` carries the shown strain;
-  `min_suit_length` the suit and minimum; `nt_range` the min and max points;
-  `semi_forcing` needs no payload.
+  `min_suit_length` the suit and minimum length; `nt_range` the min and max
+  points; `forcing` and `semi_forcing` need no payload.
 
-### Contract
+### Lead
 
-- `level` — `1`–`7`, or null.
-- `strain` — `Strain`, or null.
-- `penalty` — `Penalty`.
-- `declarer` — `Direction`, or null.
-- `issues` — per-contract issues.
+The envelope for the opening lead.
 
-The shared raw cell lives on the board (`contract_cell_raw`), since one cell
-yields both `Contract` and `Result`.
-
-### Result
-
-- `tricks_taken` — `0`–`13`, or null on failure.
-- `issues` — per-result issues.
-
-Making, overtricks, and undertricks are derived from `tricks_taken` and the
-contract level; they are not stored.
+- `raw` — the lead as transcribed (`10S`, `QC`).
+- `card` — the understood `Card`, or null on parse failure.
+- `issues` — per-lead issues.
 
 ### Card
 
-- `raw` — the lead as transcribed (`10S`, `QC`).
-- `rank` — `Rank`, or null.
-- `suit` — `Suit`, or null.
-- `issues` — per-card issues.
+The understood card — whole only when both rank and suit were read.
+
+- `rank` — `Rank`.
+- `suit` — `Suit`.
+
+### Outcome
+
+The envelope for the contract cell. One cell yields both the contract and its
+result, so they share a transcription and issue list.
+
+- `raw` — the verbatim contract cell (`4S N +6`, `6H*W-1`, `PASSOUT`).
+- `resolution` — a `kind`-tagged union, `PlayedContract` or `Passout`, or null
+  when the cell couldn't be parsed. A passout is therefore an explicit
+  understood state, distinct from an unparsed cell (null) — and the tag keeps
+  the two distinct in the stored JSON, not just in the types.
+- `issues` — per-cell issues.
+
+`PlayedContract` bundles a `Contract` and its `Result`, both always present, so
+"played" implies both. `Passout` is a marker with no payload.
+
+### Contract
+
+The played contract, present only when fully understood.
+
+- `level` — `1`–`7`.
+- `strain` — `Strain`.
+- `declarer` — `Direction`.
+- `penalty` — `Penalty`.
+
+### Result
+
+- `tricks_taken` — the canonical trick count. Making, overtricks, and
+  undertricks are derived from it and the contract level; they aren't stored.
 
 ### Issue
 
-The unit of "something to look at." Drives the review triage ranking.
+The unit of "something to look at." Drives the review triage ranking; lives on
+the envelope whose parse produced it, or on the board for board-level issues.
 
-- `code` — an `IssueCode`.
+- `code` — a string identifier (an enum later).
 - `severity` — an `IssueSeverity`.
 - `message` — human-readable, with enough context to act on without the image.
 - `location` — optional pointer to the offending field or auction index.
@@ -312,15 +350,17 @@ with zero OCR involved.
 With every bridge check moved into the parser and the validation pass, Pydantic
 is **not** the gatekeeper for content. Its job is narrower and honest:
 
-- **JSON ↔ typed object (de)serialization** of a five-level nested structure
-  (Session → Board → Call / Contract / Result / Announcement / Card), with
-  coercion (strings → `date`, ints, enums, nested models) for free. This is the
-  main earning, and exactly what a JSON-on-disk, DB-bound pipeline needs.
+- **JSON ↔ typed object (de)serialization** of a deeply nested structure
+  (Session → Board → AuctionEntry → Call, alongside `Lead`, `Outcome`, and their
+  contents), with coercion (strings → `date`, ints, enums, nested models, the
+  `kind`-tagged `Outcome` union) for free. This is the main earning, and exactly
+  what a JSON-on-disk, DB-bound pipeline needs.
 - **Skeleton typing** — the bones are real types (`boards: list[Board]`,
-  `auction: list[Call]`, `board_number: int`), so downstream code and the
-  validation pass can rely on shape without re-checking it.
+  `auction: list[AuctionEntry]`, `board_number: int`), so downstream code and
+  the validation pass can rely on shape without re-checking it.
 
-It is configured so content never raises: leaf fields are optional, and the
+It is configured so content never raises: each envelope's parsed value is
+optional, so a misread is captured as a null rather than rejected, and the
 genuinely malformed skeleton — the rare case where the VLM returns something
 that isn't shaped like a board at all — is contained by parsing board-by-board,
 so one broken board is captured and flagged while the rest succeed. The errors
@@ -332,6 +372,15 @@ mapping: viable, but it hand-rolls the nested (de)serialization and coercion
 Pydantic does declaratively, which this pipeline genuinely needs. msgspec is
 faster but offers nothing here, since throughput is irrelevant at one or two
 sheets per week and we use none of its validation.
+
+## Testing the models
+
+These models are plain data holders — no validators, computed fields, or custom
+serializers — so constructing one and reading a field back tests Pydantic, not
+us. Their tests pin only what is genuinely ours: the serialization contract,
+chiefly the `kind`-tagged `Outcome` union keeping a played contract, a passout,
+and an unparsed cell distinct in the JSON. Turning VLM strings into these models
+is the parser's behaviour, and is tested there.
 
 ## Open questions and TODOs
 
