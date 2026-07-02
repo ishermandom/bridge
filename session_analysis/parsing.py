@@ -50,7 +50,6 @@ _UNPARSEABLE_CONTRACT = 'unparseable_contract'
 _UNPARSEABLE_LEAD = 'unparseable_lead'
 _UNREADABLE_BOARD_NUMBER = 'unreadable_board_number'
 _UNREADABLE_DATE = 'unreadable_date'
-_UNREADABLE_PAIR = 'unreadable_pair'
 _MISPLACED_ALERT = 'misplaced_alert'
 
 # The dash glyphs (see glyphs.DASHES), regex-escaped for embedding in a
@@ -88,24 +87,10 @@ _CONTRACT_PATTERN = re.compile(
   + _RESULT
 )
 
-# A positive integer, ASCII, no leading zero — the shape of a board number and
-# the number within a pair cell alike. The leading `[1-9]` rules out `0` and a
-# leading-zero misread in one stroke; nothing bounds it above (board numbers run
-# past the 16-board cycle, and pair counts vary by field).
-_POSITIVE_INTEGER = r'[1-9][0-9]*'
-_POSITIVE_INTEGER_PATTERN = re.compile(_POSITIVE_INTEGER)
-
-# A pair-number cell. The number is the only part the model keeps today; a
-# section letter (`A`) and a direction (`E/W`) commonly flank it, in any mix of
-# spacing and slashes — `A6 E/W`, `6E/W`, `A6EW`, or a bare `6`. Section and
-# direction are matched so the whole cell is recognized, but not captured: the
-# model has no field for them yet.
-_PAIR_SECTION = r'[A-Z]?'
-_PAIR_NUMBER = rf'(?P<number>{_POSITIVE_INTEGER})'
-_PAIR_DIRECTION = r'(?:N/?S|E/?W)?'
-_PAIR_PATTERN = re.compile(
-  _SEAM + _PAIR_SECTION + _SEAM + _PAIR_NUMBER + _SEAM + _PAIR_DIRECTION + _SEAM
-)
+# A board number: a positive integer, ASCII, no leading zero. The leading
+# `[1-9]` rules out `0` and a leading-zero misread in one stroke; nothing bounds
+# it above (sessions run past the 16-board cycle the schedule repeats on).
+_BOARD_NUMBER_PATTERN = re.compile(r'[1-9][0-9]*')
 
 # The header date. The vision model is expected to transcribe it as numeric
 # month/day (`6/29`), normalizing whatever the human wrote ('June 9th', `6.23`);
@@ -270,8 +255,8 @@ def parse_board_number(cell: str) -> BoardNumber:
   an `unreadable_board_number` issue; the board is still stored and flagged for
   review (nothing is garbage). See models.md (BoardNumber, Schedule).
   """
-  number = _positive_integer_or_none(cell)
-  if not number:
+  match = _BOARD_NUMBER_PATTERN.fullmatch(cell.strip())
+  if not match:
     issue = Issue(
       code=_UNREADABLE_BOARD_NUMBER,
       severity=IssueSeverity.HIGH,
@@ -279,6 +264,7 @@ def parse_board_number(cell: str) -> BoardNumber:
     )
     return BoardNumber(raw=cell, issues=(issue,))
 
+  number = int(match.group())
   schedule = Schedule(
     number=number,
     dealer=board_rotation.dealer_for_board(number),
@@ -289,71 +275,42 @@ def parse_board_number(cell: str) -> BoardNumber:
 
 @dataclasses.dataclass(frozen=True)
 class ParsedHeader:
-  """The parsed session header: its date, our pair number, and any issues.
+  """The parsed session header: its date and any issues.
 
-  These feed the session-level fields directly — `Session.date`,
-  `Session.pair_number`, and `Session.issues`. The header carries no envelope of
-  its own, so a misread value is null with a session-level issue. `event` is
-  absent here: it is the raw header text, stored verbatim and never parsed.
+  These feed the session-level fields directly — `Session.date` and
+  `Session.issues`. The header carries no envelope of its own, so a misread date
+  is null with a session-level issue. `event` is absent here: it is the raw
+  header text, stored verbatim and never parsed. Our pair identity is not read
+  from the sheet at all — it is resolved from the travellers at reconciliation
+  (see models.md, Session).
   """
 
   date: datetime.date | None
-  pair_number: int | None
   issues: tuple[Issue, ...]
 
 
 def parse_header(
-  date_text: str, pair_text: str, *, reference_date: datetime.date
+  date_text: str, *, reference_date: datetime.date
 ) -> ParsedHeader:
-  """Parse the session header's date and pair into their canonical values.
+  """Parse the session header's date into its canonical value.
 
   The sheet writes the date as month/day with no year (`6/29`); the year is
   inferred against `reference_date` — the day of the scan — on the assumption
   that a scanned sheet is at most a few months old and never from the future, so
-  a December sheet scanned in January reads as the prior year. The pair is our
-  pair number, taken from a cell that may also carry a section and direction
-  (`A6 E/W`). Each value is null with a session-level issue when it can't be
-  read, never a failure (nothing is garbage). See models.md (Session).
+  a December sheet scanned in January reads as the prior year. The date is null
+  with a session-level issue when it can't be read, never a failure (nothing is
+  garbage). See models.md (Session).
   """
-  issues: list[Issue] = []
-
   date = _date_from_header(date_text, reference_date)
-  if not date:
-    issues.append(
-      Issue(
-        code=_UNREADABLE_DATE,
-        severity=IssueSeverity.MEDIUM,
-        message=f'could not read a date from header: {date_text!r}',
-      )
-    )
+  if date:
+    return ParsedHeader(date=date, issues=())
 
-  pair_number = _pair_number_or_none(pair_text)
-  if not pair_number:
-    issues.append(
-      Issue(
-        code=_UNREADABLE_PAIR,
-        severity=IssueSeverity.MEDIUM,
-        message=f'could not read a pair number from header: {pair_text!r}',
-      )
-    )
-
-  return ParsedHeader(date=date, pair_number=pair_number, issues=tuple(issues))
-
-
-def _positive_integer_or_none(text: str) -> int | None:
-  """Return the positive integer a cell holds, or None if it isn't one."""
-  match = _POSITIVE_INTEGER_PATTERN.fullmatch(text.strip())
-  return int(match.group()) if match else None
-
-
-def _pair_number_or_none(text: str) -> int | None:
-  """Return the pair number a pair cell holds, or None if it isn't one.
-
-  Reads the number out of the fuller cell the sheet may carry — a section letter
-  and a direction can flank it (`A6 E/W`), and only the number is kept today.
-  """
-  match = _PAIR_PATTERN.fullmatch(text.strip())
-  return int(match.group('number')) if match else None
+  issue = Issue(
+    code=_UNREADABLE_DATE,
+    severity=IssueSeverity.MEDIUM,
+    message=f'could not read a date from header: {date_text!r}',
+  )
+  return ParsedHeader(date=None, issues=(issue,))
 
 
 def _date_from_header(

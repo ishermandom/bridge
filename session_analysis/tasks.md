@@ -49,24 +49,29 @@ and verified with no OCR involved.
 - [x] Lead parser: `10S` → `Card` in a `Lead` envelope. #lead-parser
 - [x] Board-number parser: `7` → `Schedule` via `board_rotation`, in a
       `BoardNumber` envelope. #board-number-parser
-- [x] Header parser: date and pair from the header transcription. #header-parser
+- [x] Header parser: date from the header transcription. #header-parser
   - Note: the date is month/day with no year (`6/29`); `parse_header` infers the
     year against a scan-date argument, reading the month/day as its most recent
     past occurrence (a December sheet scanned in January is the prior year).
-    Pair cells may carry a section and direction (`A6 E/W`); only the number is
-    kept today. Assembly supplies the scan date.
+    Assembly supplies the scan date.
+  - Note: our own pair is deliberately not read from the sheet — a pair
+    identifier is number + direction (sometimes a section), not a bare int, and
+    it comes more directly from the travellers. Resolved at reconciliation; see
+    the reconciliation phase.
 - [ ] Board and Session assembly: compose the parsed cells into `Board` and
       `Session` envelopes. #board-assembly
   - Note: the auction and contract cells — the interpretation-heavy ones — are
     done in `parsing.py`; the cells above are the simpler remaining ones.
-  - Open question: `Board.flagged_for_review` is set when the board number was
-    circled, but how the VLM transcribes a circled number is unspecified (the
-    auction uses `(…)` for circles). Settle the transcription, then set the flag
-    here — the circle rides on the number cell but belongs to the `Board`, not
-    the `BoardNumber` envelope. #vlm-prompt will need to emit it.
-  - Open question: whether to keep the pair's section and direction (`A6 E/W`),
-    which the parser reads past today — they may matter for the reconciliation
-    join. Needs a model field if kept.
+  - Decided: the VLM's flat output is modeled as a raw Pydantic type
+    (`RawSession`/`RawBoard`, all string fields), parsed board-by-board for the
+    malformed-skeleton containment. Assembly reads it into the canonical model.
+  - Decided: a circled board number is transcribed with parentheses — `(7)`,
+    reusing the auction's circle convention. The parser strips them and sets
+    `Board.flagged_for_review`; the circle rides on the number cell but belongs
+    to the `Board`, not the `BoardNumber` envelope. #vlm-prompt must emit it.
+  - Note: `Board.opponent_pair` (the `Vs` cell) is still read from the sheet as
+    the reconciliation join key, but it is a pair identifier too — revisit its
+    `int` type when the `Vs` parser lands here.
 - [ ] Non-raising validation pass: returns issues with severity; never aborts.
   - Content well-formedness: each call, lead, and contract resolved to canonical
     values; contract level in 1-7; `tricks_taken` in 0-13; result notation
@@ -108,8 +113,11 @@ likely row swaps.
 - [ ] Traveller HTML parsers (ACBL Live, club site) → recoverable fields.
   - Note: this phase defines the richer traveller type that replaces
     `Source.travellers`, currently a placeholder `tuple[str]` of path/URL refs.
-- [ ] Join on session + pair + `Vs`; cross-check recoverable fields; raise
-      review priority on disagreement.
+- [ ] Join on session + `Vs` (+ board content); cross-check recoverable fields;
+      raise review priority on disagreement.
+  - Note: our own pair identity is not on the digitized session — it is resolved
+    here from the matched traveller (number + direction, sometimes section), not
+    read from the sheet. Settle its type alongside the traveller type above.
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
       Test against the 6/29 board-20/21 swap.
 - [ ] Graceful degradation: run to completion with zero travellers.

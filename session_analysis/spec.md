@@ -95,8 +95,10 @@ The field-level schema — the canonical record, the VLM's output contract, the
 parser between them, and the validation pass — is specified in
 [models.md](models.md). At pipeline altitude:
 
-- **One session is one record**: a header (event, date, our pair, provenance)
-  plus a list of board records.
+- **One session is one record**: a header (event, date, provenance) plus a list
+  of board records. Our own pair identity is not read from the sheet — it is
+  resolved from the travellers at reconciliation (see
+  [models.md](models.md#vlm-output)).
 - **Each board** carries its number; the computed dealer and vulnerability; the
   opponent pair; the opening lead; the contract, penalty, declarer, and result
   (canonicalized to tricks taken); the auction as an ordered list of calls; the
@@ -232,9 +234,9 @@ Whichever is chosen:
   scanner's native multi-page container absorbs glare and binding splits with no
   pipeline logic). The scanner's on-device perspective correction is relied on,
   so classical preprocessing is omitted; PDF pages are rasterized as needed.
-- **Self-naming**: the header (event, date, pair) is read first so the file
-  names itself by session key — no manual tagging. The key is confirmed in
-  review before it commits to the filesystem.
+- **Self-naming**: the header (event, date) is read first so the file names
+  itself by session key — no manual tagging. The key is confirmed in review
+  before it commits to the filesystem.
 - **Spine**: `inbox/` → `processed/<session-key>.json` + image → `archive/`.
   Idempotent on header plus content hash, so re-scanning a sheet is a no-op.
 - **Trigger**: an explicit "process inbox" command, not a watcher daemon. At

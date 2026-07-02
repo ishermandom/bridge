@@ -48,7 +48,6 @@ a session header.
 {
   "event": "PABC mon",
   "date": "6/29",
-  "pair": "6",
   "boards": [
     {
       "board_number": "7",
@@ -67,17 +66,18 @@ deliberately **no score field**: the sheet's matchpoint estimate is not
 trustworthy, and the traveller is authoritative (matchpoints are filled in at
 reconciliation, and are simply absent for a no-traveller session).
 
-The header fields are strings too; `date` and `pair` are parsed downstream like
-everything else. Two expectations on their form, so the downstream parser stays
-simple:
+The header carries `event` and `date`. `event` is stored raw; `date` is parsed
+downstream, and the VLM is expected to emit it as numeric month/day (`6/29`),
+normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). A human
+records the date many ways; a VLM reasons through the variants far more easily
+than a regex, so that burden sits here, not in the parser. The year is absent on
+the sheet and inferred downstream against the scan date.
 
-- **Date** — emitted as numeric month/day (`6/29`), with the VLM normalizing
-  whatever the human wrote ('June 9th', `6.23`, `June 9`). A human records the
-  date many ways; a VLM reasons through the variants far more easily than a
-  regex, so that burden sits here, not in the parser. The year is absent on the
-  sheet and inferred downstream against the scan date.
-- **Pair** — the number, optionally flanked by a section letter and a direction
-  (`A6 E/W`), transcribed as written. The parser keeps the number today.
+Our own pair is deliberately **not** transcribed. A pair is identified by number
+and direction (sometimes a section too), not a bare number, and that identity is
+recovered far more directly from the travellers — so it is resolved at
+reconciliation, not read from the sheet. The opponent pair (`vs`) is still
+transcribed per board: the reconciliation join needs it.
 
 ### Auction string syntax
 
@@ -250,10 +250,13 @@ validation pass define the concrete code set (see
   ingest assigns it, downstream of parsing.
 - `event` — raw header text.
 - `date` — parsed date, or null with an issue if unparseable.
-- `pair_number` — our pair, or null with an issue if unreadable.
 - `source` — provenance: the sheet image (path + content hash) and the
   travellers consulted.
 - `boards` — the tuple of `Board`s.
+
+Our own pair identity is intentionally not a field here: it is resolved from the
+travellers at reconciliation, not read from the sheet (see
+[VLM output](#vlm-output)).
 
 ### Board
 
@@ -440,14 +443,13 @@ is **not** the gatekeeper for content. Its job is narrower and honest:
   code and the validation pass can rely on shape without re-checking it.
 
 It is configured so content never raises: every parsed value is optional — an
-envelope's parsed value, and the header scalars (`date`, `pair_number`) parsed
-straight into `Session` — so a misread is captured as a null rather than
-rejected, and the genuinely malformed skeleton — the rare case where the VLM
-returns something that isn't shaped like a board at all — is contained by
-parsing board-by-board, so one broken board is captured and flagged while the
-rest succeed. The errors Pydantic catches are _shape_ errors ("this isn't a
-board record"), never _content_ errors ("this isn't legal bridge") — those
-belong to validation.
+envelope's parsed value, and the header `date` parsed straight into `Session` —
+so a misread is captured as a null rather than rejected, and the genuinely
+malformed skeleton — the rare case where the VLM returns something that isn't
+shaped like a board at all — is contained by parsing board-by-board, so one
+broken board is captured and flagged while the rest succeed. The errors Pydantic
+catches are _shape_ errors ("this isn't a board record"), never _content_ errors
+("this isn't legal bridge") — those belong to validation.
 
 The alternative considered was stdlib `dataclasses` plus hand-written JSON
 mapping: viable, but it hand-rolls the nested (de)serialization and coercion

@@ -248,11 +248,17 @@ class Source(_FrozenModel):
 class Session(_FrozenModel):
   """A whole digitized session: its header, provenance, and boards.
 
-  Like the rest of the models, the header fields never hard-fail: a value the
-  parser couldn't read is null with an issue, not a construction error, so a
+  Like the rest of the models, the parsed header date never hard-fails: a value
+  the parser couldn't read is null with an issue, not a construction error, so a
   session is always stored and reviewable (nothing is garbage). `event` and
   `source` are the always-present exceptions — `event` is the raw header
   transcription, `source` is file provenance, neither a parse that can fail.
+
+  Our own pair identity is deliberately not read from the sheet: a pair is
+  identified by number and direction (sometimes a section too), not a bare
+  number, and that identity is recovered far more directly from the travellers.
+  It is resolved at reconciliation, alongside the traveller type that phase
+  defines, and is simply absent for a no-traveller session.
   """
 
   # Stable identifier derived from event and date (e.g. `pabc-mon-2026-06-29`);
@@ -262,10 +268,8 @@ class Session(_FrozenModel):
   event: str
   # Parsed from the header, or null with an issue when unreadable.
   date: datetime.date | None = None
-  # Our pair, parsed from the header; null with an issue when unreadable.
-  pair_number: int | None = None
   source: Source
   boards: tuple[Board, ...] = ()
-  # Session-level issues, such as an unreadable date or pair; board- and
-  # token-level issues live on the board and its envelopes.
+  # Session-level issues, such as an unreadable date; board- and token-level
+  # issues live on the board and its envelopes.
   issues: tuple[Issue, ...] = ()
