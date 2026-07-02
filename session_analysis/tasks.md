@@ -41,17 +41,11 @@ and verified with no OCR involved.
       16-board cycle.
 - [x] Auction + contract string parser: VLM strings → canonical model. See
       `parsing.py` and models.md (Parsing, Announcement decoding).
-- [ ] Check in with Ilya on `parsing.py` and `parsing_test.py` — not yet
-      reviewed. Decisions to ratify:
-  - NT-range `+` ('a good 14') degrades to `minimum_points` = 14 with the `+`
-    kept only in `raw`; the model has no field for the nuance.
-  - Issue severities: `unparseable_call` is medium, `unparseable_contract` high.
-  - `AuctionEntry.raw` drops the box/circle markup (already captured in the
-    booleans) but keeps inline glyphs; `Outcome.raw` is the verbatim cell.
-  - Issue codes are plain strings pending the enum, which lands with validation.
-  - Dash handling: a new `glyphs.py` holds the one dash-glyph set (hyphen, en/em
-    dash, minus sign, …), shared by the result-minus and passout-strike patterns
-    and the notation normalizer so they can't drift.
+- [x] Reviewed `parsing.py`/`parsing_test.py` with Ilya; applied the follow-ups
+      in code and models.md: `NT` spelling everywhere, order-free NT ranges, the
+      `minimum_points_is_soft` field, 'pass'-substring passout, `x`/`xx`
+      doubles, trailing-only alerts, decomposed regexes, and two refocused
+      auction tests (realistic composition + legality-agnostic).
 - [ ] Remaining field parsers and board assembly: lead (`10S` → `Card`), board
       number (`7` → `Schedule` via board_rotation), and header (date, pair);
       assemble the `Board` and `Session` envelopes. The auction and contract

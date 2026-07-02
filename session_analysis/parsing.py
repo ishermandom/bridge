@@ -41,37 +41,66 @@ from session_analysis.notation import tricks_taken_from_sheet_result
 # models.md); these are the parser's contribution to that set.
 _UNPARSEABLE_CALL = 'unparseable_call'
 _UNPARSEABLE_CONTRACT = 'unparseable_contract'
-
-# The bid glyphs of a call: a level 1-7 and a strain (`N` is notrump). Any
-# trailing `!` and `_`/`^` announcement are stripped before this is matched.
-_BID_PATTERN = re.compile(r'([1-7])([CDHSN])')
+_MISPLACED_ALERT = 'misplaced_alert'
 
 # The dash glyphs (see glyphs.DASHES), regex-escaped for embedding in a
 # character class: a result's minus and a passout's strike-through may each be
 # written as any of them.
 _DASHES = re.escape(glyphs.DASHES)
 
-# A whole contract cell: `<level><strain>[*|**]<declarer><result>`, with spacing
-# on the sheet inconsistent, so every seam tolerates optional whitespace. The
-# `*`/`**` penalty sits before the declarer; the result carries its own sign, a
-# plus or any dash.
+# Named regex components for the bid and contract cells. Decomposing the
+# patterns this way keeps each assembled pattern readable — the intent lives in
+# the component's name, not in a comment decoding the syntax. `\s*` seams absorb
+# the sheet's inconsistent spacing; a result carries its own sign, a plus or any
+# dash. `(?P<name>…)` groups let the extraction sites read by name.
+_LEVEL = r'(?P<level>[1-7])'
+_STRAIN = r'(?P<strain>NT|[CDHSN])'  # notrump as `N` or `NT`; see below
+_PENALTY = (
+  r'(?P<penalty>\*{1,2}|xx?|XX?)?'  # `*`/`x` doubled, `**`/`xx` redoubled
+)
+_DECLARER = r'(?P<declarer>[NESW])'
+_RESULT = rf'(?P<result>[+{_DASHES}]\d+)'
+_SEAM = r'\s*'
+
+# The bid glyphs of a call: a level and a strain. Any trailing `!` alert and
+# `_`/`^` announcement are stripped before this is matched.
+_BID_PATTERN = re.compile(_LEVEL + _STRAIN)
+
+# A whole contract cell: `<level><strain>[penalty]<declarer><result>`. The
+# penalty sits before the declarer.
 _CONTRACT_PATTERN = re.compile(
-  rf'([1-7])\s*([CDHSN])\s*(\*{{1,2}})?\s*([NESW])\s*([+{_DASHES}]\d+)'
+  _LEVEL
+  + _SEAM
+  + _STRAIN
+  + _SEAM
+  + _PENALTY
+  + _SEAM
+  + _DECLARER
+  + _SEAM
+  + _RESULT
 )
 
-# A passed-out cell: the explicit word, or a run of dashes struck through it.
-_PASSOUT_PATTERN = re.compile(rf'PASSOUT|[{_DASHES}]+', re.IGNORECASE)
+# A struck-through cell: a run of any dash glyph. The other passout form — the
+# word 'pass' in any wording ('PASS', 'ALL PASS') — is a substring test, not a
+# pattern.
+_STRUCK_THROUGH_PATTERN = re.compile(rf'[{_DASHES}]+')
 
-# A notrump-range announcement: a superscript minimum and subscript maximum,
-# each a teens value with the leading `1` implied (`^0_2` is 10-12). An optional
-# `+` on the minimum ('a good 14') is a nuance the point range can't hold; it
-# survives only in the raw text.
-_NOTRUMP_RANGE_PATTERN = re.compile(r'\^(\d)\+?_(\d)')
+# The two halves of a notrump-range announcement, each tagged by its marker so
+# order does not matter: `^` is the superscript floor (an optional `+` marks 'a
+# good N'), `_` the subscript ceiling. The vision model may transcribe them in
+# either order (`^0_2` or `_2^0`); both mean the same range. Each digit is a
+# teens value with the leading `1` implied (`^0` is 10, `_7` is 17).
+_NOTRUMP_FLOOR_PATTERN = re.compile(r'\^(?P<floor>\d)(?P<soft>\+?)')
+_NOTRUMP_CEILING_PATTERN = re.compile(r'_(?P<ceiling>\d)')
 
 # Notrump ranges are written as their ones digit with the tens `1` implied.
 _TEENS_BASE = 10
 
-# `N` doubles as a strain (notrump) and a seat (North); context picks which.
+# Two strain letters collide with seat letters — `N` (notrump vs. North) and `S`
+# (spades vs. South) — so a letter alone is ambiguous. The bid and contract
+# patterns resolve each by position (strain slot vs. declarer slot). This
+# single-letter map backs both the strain slot and the artificial-suit
+# announcement; `_strain_from_glyphs` adds the `NT` spelling on top of it.
 _STRAIN_BY_LETTER = {
   'C': Strain.CLUBS,
   'D': Strain.DIAMONDS,
@@ -81,9 +110,10 @@ _STRAIN_BY_LETTER = {
 }
 
 _PENALTY_BY_MARKS = {
-  None: Penalty.NONE,
   '*': Penalty.DOUBLED,
+  'x': Penalty.DOUBLED,
   '**': Penalty.REDOUBLED,
+  'xx': Penalty.REDOUBLED,
 }
 
 
@@ -100,19 +130,17 @@ def parse_auction(auction: str) -> Sequence[AuctionEntry]:
   entries: list[AuctionEntry] = []
   is_in_box = False
   for chunk in auction.split():
-    opens_box = chunk.startswith('[')
-    closes_box = chunk.endswith(']')
-    # A box may span several chunks, so a chunk is inside the span if the box
-    # was already open or opens on this chunk.
-    flagged_for_discussion = is_in_box or opens_box
+    # Opening the span before reading the flag lets a chunk that both opens and
+    # closes the box (`[2N]`) still count as inside it.
+    if chunk.startswith('['):
+      is_in_box = True
+    flagged_for_discussion = is_in_box
     core = chunk.strip('[]')
     # A bracket written with surrounding space arrives as a bare `[` or `]`
     # chunk; it toggles the span but is not itself a call.
     if core:
       entries.append(_parse_auction_token(core, flagged_for_discussion))
-    if opens_box:
-      is_in_box = True
-    if closes_box:
+    if chunk.endswith(']'):
       is_in_box = False
   return tuple(entries)
 
@@ -121,14 +149,17 @@ def parse_contract_cell(cell: str) -> Outcome:
   """Parse a contract cell into its `Outcome` envelope.
 
   The one cell encodes the final contract, its penalty, the declarer, and the
-  result together; they share the raw text and issue list. `PASSOUT` or a
-  struck-through cell is an explicit passout. Anything else that doesn't parse
-  yields a null resolution plus an `unparseable_contract` issue — the board is
-  still stored (nothing is garbage). See models.md (Contract parsing).
+  result together; they share the raw text and issue list. A cell whose text
+  contains 'pass' in any wording, or a struck-through cell, is an explicit
+  passout. Anything else that doesn't parse yields a null resolution plus an
+  `unparseable_contract` issue — the board is still stored (nothing is garbage).
+  See models.md (Contract parsing).
   """
   text = cell.strip()
 
-  if _PASSOUT_PATTERN.fullmatch(text):
+  # 'PASS' / 'ALL PASS' anywhere in the cell, or a run of dashes struck through
+  # it, both mean the board was passed out.
+  if 'pass' in text.lower() or _STRUCK_THROUGH_PATTERN.fullmatch(text):
     return Outcome(raw=cell, resolution=Passout())
 
   match = _CONTRACT_PATTERN.fullmatch(text)
@@ -140,24 +171,40 @@ def parse_contract_cell(cell: str) -> Outcome:
     )
     return Outcome(raw=cell, issues=(issue,))
 
-  level_text, strain_letter, penalty_marks, declarer_letter, result_token = (
-    match.groups()
-  )
-  level = int(level_text)
   contract = Contract(
-    level=level,
-    strain=_STRAIN_BY_LETTER[strain_letter],
-    declarer=Direction(declarer_letter),
-    penalty=_PENALTY_BY_MARKS[penalty_marks],
+    level=int(match.group('level')),
+    strain=_strain_from_glyphs(match.group('strain')),
+    declarer=Direction(match.group('declarer')),
+    penalty=_penalty_from_marks(match.group('penalty')),
   )
   # The result normalizer needs the level to convert a `-N` set; the regex has
   # already constrained the token to a `±N` form, so it cannot raise here.
   result = Result(
-    tricks_taken=tricks_taken_from_sheet_result(result_token, level)
+    tricks_taken=tricks_taken_from_sheet_result(
+      match.group('result'), contract.level
+    )
   )
   return Outcome(
     raw=cell, resolution=PlayedContract(contract=contract, result=result)
   )
+
+
+def _strain_from_glyphs(glyphs_text: str) -> Strain:
+  """Map a bid/contract strain glyph to its `Strain` (notrump is `N`/`NT`)."""
+  if glyphs_text == 'NT':
+    return Strain.NOTRUMP
+  return _STRAIN_BY_LETTER[glyphs_text]
+
+
+def _penalty_from_marks(marks: str | None) -> Penalty:
+  """Map a contract's penalty glyphs (`*`/`**` or `x`/`xx`) to a `Penalty`.
+
+  Any case is accepted. Absent marks are no penalty; the regex constrains a
+  present value to one of the four known forms, so the lookup cannot miss.
+  """
+  if not marks:
+    return Penalty.NONE
+  return _PENALTY_BY_MARKS[marks.lower()]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -199,22 +246,36 @@ def _parse_auction_token(
 def _parse_call_core(core: str) -> _ParsedCore:
   """Parse a call core (structural markup stripped) into a `Call`.
 
-  The core is a bid (`2H`, with an optional `!` alert and `_`/`^` announcement),
-  or a standalone pass (`p`), double (`*`), or redouble (`**`). A bid whose
-  glyphs don't match `[1-7][CDHSN]` yields no call and an `unparseable_call`
-  issue.
+  The core is a bid (`2H`, with an optional trailing `!` alert and `_`/`^`
+  announcement), or a standalone pass (`p`), double (`*`/`x`), or redouble
+  (`**`/`xx`). A bid whose glyphs don't match yields no call and an
+  `unparseable_call` issue.
   """
-  alerted = '!' in core
-  core = core.replace('!', '')
+  # An alert `!` is only valid at the very end of a call. A `!` anywhere else
+  # isn't a real alert mark, so flag it for a human and strip it before a
+  # best-effort parse of what remains.
+  alerted = core.endswith('!')
+  body = core[:-1] if alerted else core
+  issues: tuple[Issue, ...] = ()
+  if '!' in body:
+    issues = (
+      Issue(
+        code=_MISPLACED_ALERT,
+        severity=IssueSeverity.MEDIUM,
+        message=f'alert mark not at end of call: {core!r}',
+      ),
+    )
+    body = body.replace('!', '')
 
-  if core in ('p', 'P'):
-    return _ParsedCore(Call(kind=CallKind.PASS), alerted, ())
-  if core == '*':
-    return _ParsedCore(Call(kind=CallKind.DOUBLE), alerted, ())
-  if core == '**':
-    return _ParsedCore(Call(kind=CallKind.REDOUBLE), alerted, ())
+  if body in ('p', 'P'):
+    return _ParsedCore(Call(kind=CallKind.PASS), alerted, issues)
+  if body in ('*', 'x', 'X'):
+    return _ParsedCore(Call(kind=CallKind.DOUBLE), alerted, issues)
+  if body in ('**', 'xx', 'XX'):
+    return _ParsedCore(Call(kind=CallKind.REDOUBLE), alerted, issues)
 
-  return _parse_bid(core, alerted)
+  parsed = _parse_bid(body, alerted)
+  return _ParsedCore(parsed.call, alerted, issues + parsed.issues)
 
 
 def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
@@ -235,8 +296,7 @@ def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
     )
     return _ParsedCore(None, alerted, (issue,))
 
-  level, strain_letter = match.groups()
-  strain = _STRAIN_BY_LETTER[strain_letter]
+  strain = _strain_from_glyphs(match.group('strain'))
   announcement = (
     _parse_announcement(announcement_text, strain)
     if announcement_text
@@ -244,7 +304,7 @@ def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
   )
   call = Call(
     kind=CallKind.BID,
-    level=int(level),
+    level=int(match.group('level')),
     strain=strain,
     announcement=announcement,
   )
@@ -254,59 +314,67 @@ def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
 def _parse_announcement(text: str, bid_strain: Strain) -> Announcement:
   """Interpret a bid's announcement markup into an `Announcement`.
 
-  `text` still carries its `_`/`^` markers. A subscript strain letter is an
-  artificial suit shown; a subscript digit is a minimum length in the bid's own
-  suit; `SF`/`F` are semi-forcing/forcing; a superscript is a notrump range
-  (`^0_2` is 10-12). Anything else unrecognized degrades to
-  `AnnouncementType.OTHER` with the raw text preserved, so a novel form never
-  fails. See models.md (Announcement decoding).
+  `text` still carries its `_`/`^` markers. A superscript is a notrump range; a
+  subscript strain letter is an artificial suit shown; a subscript digit is a
+  minimum length in the bid's own suit; `SF`/`F` are semi-forcing/forcing.
+  Anything else unrecognized degrades to `AnnouncementType.OTHER` with the raw
+  text preserved, so a novel form never fails. See models.md (Announcement
+  decoding).
   """
-  # Drop only the subscript marker: `_S` reads as `S`, while a superscript form
-  # like `^0_2` keeps its markers, matching how each is written.
-  raw = text.removeprefix('_')
+  # A superscript means a notrump range; detect it first, since its subscript
+  # ceiling would otherwise look like the bare min-length subscript below.
+  if '^' in text:
+    return _parse_notrump_range(text)
 
-  if '^' in raw:
-    return _parse_notrump_range(raw)
+  # The remaining forms are a single subscript; drop only its marker, so `_S`
+  # reads as `S`, matching how the range above keeps its markers in `raw`.
+  body = text.removeprefix('_')
 
-  if raw in _STRAIN_BY_LETTER:
+  if body in _STRAIN_BY_LETTER:
     return Announcement(
-      raw=raw,
+      raw=body,
       type=AnnouncementType.ARTIFICIAL_SUIT,
-      shown_strain=_STRAIN_BY_LETTER[raw],
+      shown_strain=_STRAIN_BY_LETTER[body],
     )
-  if raw == 'SF':
-    return Announcement(raw=raw, type=AnnouncementType.SEMI_FORCING)
-  if raw == 'F':
-    return Announcement(raw=raw, type=AnnouncementType.FORCING)
+  if body == 'SF':
+    return Announcement(raw=body, type=AnnouncementType.SEMI_FORCING)
+  if body == 'F':
+    return Announcement(raw=body, type=AnnouncementType.FORCING)
   # A digit is a minimum length in the bid's own suit; notrump has no suit for
   # the length to describe, so such a mark degrades to `other`.
-  if raw.isdigit() and bid_strain != Strain.NOTRUMP:
+  if body.isdigit() and bid_strain != Strain.NOTRUMP:
     return Announcement(
-      raw=raw,
+      raw=body,
       type=AnnouncementType.MIN_SUIT_LENGTH,
       suit=Suit(bid_strain.value),
-      minimum_length=int(raw),
+      minimum_length=int(body),
     )
-  return Announcement(raw=raw, type=AnnouncementType.OTHER)
+  return Announcement(raw=body, type=AnnouncementType.OTHER)
 
 
-def _parse_notrump_range(raw: str) -> Announcement:
+def _parse_notrump_range(text: str) -> Announcement:
   """Decode a notrump-range announcement (`^0_2` is 10-12) into `nt_range`.
 
-  The superscript is the minimum and the subscript the maximum, each a teens
-  value with the leading `1` implied (`^0` is 10, `_7` is 17). A `+` on the
-  minimum ('a good 14') is a nuance the point range can't hold, so it survives
-  only in `raw`. A superscript form that doesn't fit this shape degrades to
+  The superscript is the minimum and the subscript the maximum, written in
+  either order (`^0_2` or `_2^0` are the same range). A `+` on the minimum ('a
+  good 14') sets `minimum_points_is_soft`, a nuance the point floor alone can't
+  hold. A superscript form missing a half, or carrying extra glyphs, degrades to
   `other`, raw preserved.
   """
-  match = _NOTRUMP_RANGE_PATTERN.fullmatch(raw)
-  if not match:
-    return Announcement(raw=raw, type=AnnouncementType.OTHER)
+  floor = _NOTRUMP_FLOOR_PATTERN.search(text)
+  ceiling = _NOTRUMP_CEILING_PATTERN.search(text)
+  # Both halves must be present and together account for the whole text; a form
+  # missing a half or carrying stray glyphs is a novel form, not a range.
+  if not floor or not ceiling:
+    return Announcement(raw=text, type=AnnouncementType.OTHER)
+  matched_length = len(floor.group()) + len(ceiling.group())
+  if matched_length != len(text):
+    return Announcement(raw=text, type=AnnouncementType.OTHER)
 
-  minimum_digit, maximum_digit = match.groups()
   return Announcement(
-    raw=raw,
+    raw=text,
     type=AnnouncementType.NT_RANGE,
-    minimum_points=_TEENS_BASE + int(minimum_digit),
-    maximum_points=_TEENS_BASE + int(maximum_digit),
+    minimum_points=_TEENS_BASE + int(floor.group('floor')),
+    minimum_points_is_soft=bool(floor.group('soft')),
+    maximum_points=_TEENS_BASE + int(ceiling.group('ceiling')),
   )

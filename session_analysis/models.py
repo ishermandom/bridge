@@ -69,6 +69,9 @@ class Announcement(_FrozenModel):
   suit: Suit | None = None
   minimum_length: int | None = None
   minimum_points: int | None = None
+  # True for 'a good 14' (`^N+`): the floor is `minimum_points`, but the hand
+  # runs a shade stronger than the bare number — a nuance the number can't hold.
+  minimum_points_is_soft: bool = False
   maximum_points: int | None = None
 
 

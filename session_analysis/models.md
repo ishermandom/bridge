@@ -80,10 +80,12 @@ markers; it does not interpret them.
 - **Circled** (a call by the opponents) → parentheses: `(1D)`.
 - **Boxed** (a call to discuss with partner) → square brackets: `[2N]`. A box
   may span several calls and may wrap circled ones: `[(2C)]`, `[2N 3C]`.
-- **Alertable** (`!`) → kept as written: `2H!`.
+- **Alertable** (`!`) → kept as written, as a trailing mark: `2H!`. A `!`
+  anywhere but the end isn't a valid alert and is flagged for review.
 - **Announcement** → `_` for a subscript, `^` for a superscript, with the text
   as seen; a call may carry both: `1C_2`, `1N_SF`, `1H_S`, `1N^0_2`.
-- **Double / redouble** → `*` / `**`, each its own token: `(1H) * 2S`.
+- **Double / redouble** → `*` / `**`, or the handwritten `x` / `xx`, each its
+  own token: `(1H) * 2S`.
 - **Scratched-out** calls → omitted by the VLM entirely.
 - **Passes** → lowercase `p`, on the rare occasions they are written.
 
@@ -95,15 +97,17 @@ through verbatim and flagged downstream, leaving the rest of the auction intact.
 The contract cell is transcribed verbatim and parsed downstream. It encodes the
 final contract, any penalty, the declarer, and the result together:
 
-`<level><strain>[*|**]<declarer><result>`
+`<level><strain>[penalty]<declarer><result>`
 
 - `2H S +2` — 2♥ by South, two tricks beyond the eight needed.
-- `6H*W-1` — 6♥ **doubled** by West, down one. The `*` is the penalty, sitting
-  before the declarer.
-- `PASSOUT` (or a dash through the cell) — no contract; the board is a passout.
+- `6H*W-1` — 6♥ **doubled** by West, down one. The penalty (`*`/`**`, or the
+  handwritten `x`/`xx`) sits before the declarer.
+- `3NT W +7` — notrump is written `N` or `NT`; both read the same.
+- `PASSOUT`, any cell whose text contains 'pass' (`PASS`, `ALL PASS`), or a dash
+  through the cell — no contract; the board is a passout.
 
-The VLM extracts the characters faithfully and is prepared for the `*`/`**`
-penalty marker; segmenting the cell into fields is the parser's job.
+The VLM extracts the characters faithfully and is prepared for the penalty
+marker; segmenting the cell into fields is the parser's job.
 
 ## Parsing
 
@@ -125,20 +129,24 @@ multiple space-separated calls. The grammar:
 
 The parser strips the structural markup — which is reliable, since it is
 explicit in the string — into booleans, then parses the core. A bid core is
-expected to match `[1-7][CDHSN]`; anything else is kept as `raw` with an
-`unparseable_call` issue.
+expected to match a level `1`–`7` and a strain (`C`/`D`/`H`/`S`, and notrump as
+`N` or `NT`); anything else is kept as `raw` with an `unparseable_call` issue.
 
-Worked example — the string `(1D) 1H_S * 2N! [(2C)] 1N^0_2 ED` parses to:
+Worked example — the rank-legal string `1H (x) 2H! (2S) [3H] (p) p` parses to:
 
-| Token    | by_opp | discuss | alert | kind   | level | strain | announcement                 | issue              |
-| -------- | ------ | ------- | ----- | ------ | ----- | ------ | ---------------------------- | ------------------ |
-| `(1D)`   | yes    | no      | no    | bid    | 1     | D      | —                            | —                  |
-| `1H_S`   | no     | no      | no    | bid    | 1     | H      | artificial_suit, shows S     | —                  |
-| `*`      | no     | no      | no    | double | —     | —      | —                            | —                  |
-| `2N!`    | no     | no      | yes   | bid    | 2     | NT     | —                            | —                  |
-| `[(2C)]` | yes    | yes     | no    | bid    | 2     | C      | —                            | —                  |
-| `1N^0_2` | no     | no      | no    | bid    | 1     | NT     | nt_range, 10–12 (raw `^0_2`) | —                  |
-| `ED`     | no     | no      | no    | —      | —     | —      | —                            | `unparseable_call` |
+| Token  | by_opp | discuss | alert | kind   | level | strain | announcement | issue |
+| ------ | ------ | ------- | ----- | ------ | ----- | ------ | ------------ | ----- |
+| `1H`   | no     | no      | no    | bid    | 1     | H      | —            | —     |
+| `(x)`  | yes    | no      | no    | double | —     | —      | —            | —     |
+| `2H!`  | no     | no      | yes   | bid    | 2     | H      | —            | —     |
+| `(2S)` | yes    | no      | no    | bid    | 2     | S      | —            | —     |
+| `[3H]` | no     | yes     | no    | bid    | 3     | H      | —            | —     |
+| `(p)`  | yes    | no      | no    | pass   | —     | —      | —            | —     |
+| `p`    | no     | no      | no    | pass   | —     | —      | —            | —     |
+
+An artificial-suit or notrump-range announcement (`1H_S`, `1N^0_2`) is decoded
+by [Announcement decoding](#announcement-decoding) below; an unreadable core
+like `ED` becomes an `unparseable_call` issue with the rest of the line intact.
 
 ### Announcement decoding
 
@@ -153,9 +161,10 @@ them is the parser's job.
 - `_SF` → `semi_forcing`; `_F` → `forcing`.
 - A **superscript** is a notrump range: the superscript is the minimum and the
   subscript the maximum, each a teens value with the leading `1` implied, so
-  `^0_2` is 10–12 and `^5_7` is 15–17. A `+` on the minimum (`^4+` is 'a good
-  14') is a nuance the two point fields can't hold; the numeric floor is kept
-  (14) and the `+` survives in `raw`.
+  `^0_2` is 10–12 and `^5_7` is 15–17. The two halves may be transcribed in
+  either order — `^0_2` and `_2^0` are the same range. A `+` on the minimum
+  (`^4+` is 'a good 14') sets `minimum_points_is_soft`; the floor (14) is kept
+  and the `+` also survives in `raw`.
 - Anything else unrecognized → `other`, raw preserved, so a novel form never
   fails.
 
@@ -318,7 +327,8 @@ succeeded.
   own.
 - typed payload per type: `artificial_suit` carries the shown strain;
   `min_suit_length` the suit and minimum length; `nt_range` the min and max
-  points; `forcing` and `semi_forcing` need no payload.
+  points, plus `minimum_points_is_soft` for a 'good N' (`^N+`) floor; `forcing`
+  and `semi_forcing` need no payload.
 
 ### Lead
 

@@ -88,6 +88,15 @@ def test_alert_sets_the_entry_alerted_flag() -> None:
   assert entry.call == Call(kind=CallKind.BID, level=2, strain=Strain.HEARTS)
 
 
+def test_alert_not_at_the_end_is_flagged_for_review() -> None:
+  # `!` is a valid alert only as a trailing mark; elsewhere it isn't an alert,
+  # so the call is flagged for a human while the rest still parses best-effort.
+  (entry,) = parse_auction('2!H')
+  assert entry.alerted is False
+  assert entry.issues[0].code == 'misplaced_alert'
+  assert entry.call == Call(kind=CallKind.BID, level=2, strain=Strain.HEARTS)
+
+
 def test_subscript_strain_letter_is_an_artificial_suit_shown() -> None:
   (entry,) = parse_auction('1H_S')
   assert entry.call is not None
@@ -137,16 +146,41 @@ def test_notrump_range_decodes_to_min_and_max_points() -> None:
   )
 
 
-def test_notrump_range_good_minimum_keeps_the_plus_in_raw() -> None:
-  # `^4+` is 'a good 14'; the point floor is 14 and the `+` nuance lives in raw.
+@pytest.mark.parametrize('written', ['1N^0_2', '1N_2^0'])
+def test_notrump_range_reads_the_same_in_either_marker_order(
+  written: str,
+) -> None:
+  # The superscript floor and subscript ceiling mean the same range whichever
+  # order the vision model transcribes them in.
+  (entry,) = parse_auction(written)
+  assert entry.call is not None
+  assert entry.call.announcement is not None
+  assert entry.call.announcement.minimum_points == 10
+  assert entry.call.announcement.maximum_points == 12
+
+
+def test_notrump_range_soft_minimum_is_flagged_and_kept_in_raw() -> None:
+  # `^4+` is 'a good 14': the floor is 14, flagged soft, and the `+` also
+  # survives in raw for a reviewer.
   (entry,) = parse_auction('1N^4+_7')
   assert entry.call is not None
   assert entry.call.announcement == Announcement(
     raw='^4+_7',
     type=AnnouncementType.NT_RANGE,
     minimum_points=14,
+    minimum_points_is_soft=True,
     maximum_points=17,
   )
+
+
+@pytest.mark.parametrize('written', ['1N^0', '1N^0_2extra', '1N_S^0'])
+def test_garbled_notrump_range_degrades_to_other(written: str) -> None:
+  # A superscript form missing a half or carrying stray glyphs is a novel form,
+  # kept verbatim as `other` rather than misparsed into a range.
+  (entry,) = parse_auction(written)
+  assert entry.call is not None
+  assert entry.call.announcement is not None
+  assert entry.call.announcement.type == AnnouncementType.OTHER
 
 
 def test_unrecognized_announcement_degrades_to_other() -> None:
@@ -159,16 +193,28 @@ def test_unrecognized_announcement_degrades_to_other() -> None:
   )
 
 
+# --- auction: notrump spelling ---
+
+
+@pytest.mark.parametrize('written', ['1N', '1NT'])
+def test_notrump_bid_accepts_either_spelling(written: str) -> None:
+  # The sheet writes notrump as `N` or `NT`; both mean the same strain.
+  (entry,) = parse_auction(written)
+  assert entry.call == Call(kind=CallKind.BID, level=1, strain=Strain.NOTRUMP)
+
+
 # --- auction: pass, double, redouble ---
 
 
-def test_double_is_its_own_token() -> None:
-  (entry,) = parse_auction('*')
+@pytest.mark.parametrize('written', ['*', 'x', 'X'])
+def test_double_may_be_written_as_star_or_x(written: str) -> None:
+  (entry,) = parse_auction(written)
   assert entry.call == Call(kind=CallKind.DOUBLE)
 
 
-def test_redouble_is_its_own_token() -> None:
-  (entry,) = parse_auction('**')
+@pytest.mark.parametrize('written', ['**', 'xx', 'XX'])
+def test_redouble_may_be_written_as_stars_or_x(written: str) -> None:
+  (entry,) = parse_auction(written)
   assert entry.call == Call(kind=CallKind.REDOUBLE)
 
 
@@ -194,24 +240,25 @@ def test_an_unparseable_token_leaves_the_rest_of_the_auction_intact() -> None:
   assert third.call == Call(kind=CallKind.BID, level=2, strain=Strain.SPADES)
 
 
-# --- auction: the worked example ---
+# --- auction: composition and legality ---
 
 
-def test_parses_the_full_worked_example_line() -> None:
-  entries = parse_auction('(1D) 1H_S * 2N! [(2C)] 1N^0_2 ED')
+def test_parses_a_realistic_competitive_auction() -> None:
+  # One line composing the markup the per-feature tests cover in isolation:
+  # circles (opponents' calls), an `x` double, an alert, a box, and passes. The
+  # bids are rank-legal, so the fixture reads like a real auction.
+  entries = parse_auction('1H (x) 2H! (2S) [3H] (p) p')
 
-  assert len(entries) == 7
-  # Only the circled `(1D)` and the boxed-and-circled `[(2C)]` are opponents'.
   assert [e.by_opponents for e in entries] == [
-    True,
-    False,
-    False,
     False,
     True,
     False,
+    True,
+    False,
+    True,
     False,
   ]
-  # Only `[(2C)]` sits inside a box.
+  # Only the boxed `[3H]` is flagged for discussion.
   assert [e.flagged_for_discussion for e in entries] == [
     False,
     False,
@@ -221,15 +268,29 @@ def test_parses_the_full_worked_example_line() -> None:
     False,
     False,
   ]
-  assert entries[3].alerted is True  # `2N!`
-  assert entries[6].call is None  # `ED`, unparseable
+  assert entries[1].call == Call(kind=CallKind.DOUBLE)  # `(x)`
+  assert entries[2].alerted is True  # `2H!`
+  assert entries[4].call == Call(
+    kind=CallKind.BID, level=3, strain=Strain.HEARTS
+  )
+
+
+def test_parser_does_not_enforce_auction_legality() -> None:
+  # `1C` after `1N` is a rank reversal — illegal bridge. Legality is the
+  # validation pass's job, so the parser must still parse both cleanly.
+  first, second = parse_auction('1N 1C')
+  assert first.call == Call(kind=CallKind.BID, level=1, strain=Strain.NOTRUMP)
+  assert second.call == Call(kind=CallKind.BID, level=1, strain=Strain.CLUBS)
+  assert first.issues == () and second.issues == ()
 
 
 # --- contract: the standard forms ---
 
 
 def test_making_contract_parses_to_a_contract_and_result() -> None:
-  outcome = parse_contract_cell('2H S +2')
+  # No spaces — the vision model won't reliably include them, and the parser
+  # tolerates their absence at every seam.
+  outcome = parse_contract_cell('2HS+2')
   assert outcome.resolution == PlayedContract(
     contract=Contract(
       level=2,
@@ -249,6 +310,22 @@ def test_doubled_contract_reads_the_penalty_before_the_declarer() -> None:
   assert played.contract.penalty == Penalty.DOUBLED
   assert played.contract.declarer == Direction.WEST
   assert played.result.tricks_taken == 11  # 6-level needs 12; down one is 11.
+
+
+@pytest.mark.parametrize('written', ['6H*W-1', '6HxW-1'])
+def test_contract_penalty_may_be_written_as_star_or_x(written: str) -> None:
+  # A double may be transcribed `*` or `x`; both read as doubled.
+  played = parse_contract_cell(written).resolution
+  assert isinstance(played, PlayedContract)
+  assert played.contract.penalty == Penalty.DOUBLED
+
+
+@pytest.mark.parametrize('written', ['3N W +7', '3NT W +7'])
+def test_notrump_contract_accepts_either_spelling(written: str) -> None:
+  # Notrump is written `N` or `NT` in the contract cell, as in a bid.
+  played = parse_contract_cell(written).resolution
+  assert isinstance(played, PlayedContract)
+  assert played.contract.strain == Strain.NOTRUMP
 
 
 def test_redoubled_contract_reads_the_double_star() -> None:
@@ -287,8 +364,10 @@ def test_accepts_any_dash_glyph_in_the_result(dash: str) -> None:
 # --- contract: passout ---
 
 
-def test_passout_cell_is_an_explicit_passout() -> None:
-  outcome = parse_contract_cell('PASSOUT')
+@pytest.mark.parametrize('written', ['PASSOUT', 'PASS', 'ALL PASS', 'all pass'])
+def test_pass_in_any_wording_is_a_passout(written: str) -> None:
+  # Any cell whose text contains 'pass' is a passout, however it's phrased.
+  outcome = parse_contract_cell(written)
   assert isinstance(outcome.resolution, Passout)
 
 
