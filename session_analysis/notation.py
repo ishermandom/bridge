@@ -13,12 +13,18 @@ reconciliation needs it. See spec.md (Notation and normalization).
 
 import re
 
+from session_analysis import glyphs
+
 # Book is the first six tricks, which no contract scores. A contract's level is
 # stated above book: a 4-level contract needs ten tricks, book plus four.
 _BOOK = 6
 
 # The pattern of a result token: a sign followed by one or more digits.
 _RESULT_TOKEN_PATTERN = re.compile(r'([+-])(\d+)')
+
+# Fold every dash glyph (see glyphs.DASHES) to an ASCII hyphen, so the token
+# pattern needs to know only the one form the sheet may write a set with.
+_DASH_TO_HYPHEN = str.maketrans(glyphs.DASHES, '-' * len(glyphs.DASHES))
 
 
 def tricks_taken_from_sheet_result(result: str, contract_level: int) -> int:
@@ -35,7 +41,8 @@ def tricks_taken_from_sheet_result(result: str, contract_level: int) -> int:
 
   Args:
     result: the result token as written, e.g. '+6' or '-2'. A leading minus may
-      be an ASCII hyphen or a Unicode minus sign; surrounding space is ignored.
+      be written as any of several dash glyphs (see glyphs.DASHES); surrounding
+      space is ignored.
     contract_level: the contract level. Used by the '-N' form, which counts down
       from the contract; unused by '+N'.
 
@@ -45,9 +52,9 @@ def tricks_taken_from_sheet_result(result: str, contract_level: int) -> int:
   Raises:
     ValueError: if result is not a well-formed '+N' / '-N' token.
   """
-  # Normalize a Unicode minus (U+2212) to ASCII so both transcriptions parse
-  # alike — the sheet may be written, or transcribed, with either.
-  token = result.strip().replace(chr(0x2212), '-')
+  # Fold every dash variant to an ASCII hyphen so all transcriptions parse
+  # alike — the sheet may be written, or transcribed, with any of them.
+  token = result.strip().translate(_DASH_TO_HYPHEN)
   match = _RESULT_TOKEN_PATTERN.fullmatch(token)
   if not match:
     raise ValueError(f'malformed sheet result token: {result!r}')

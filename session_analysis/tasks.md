@@ -49,6 +49,9 @@ and verified with no OCR involved.
   - `AuctionEntry.raw` drops the box/circle markup (already captured in the
     booleans) but keeps inline glyphs; `Outcome.raw` is the verbatim cell.
   - Issue codes are plain strings pending the enum, which lands with validation.
+  - Dash handling: a new `glyphs.py` holds the one dash-glyph set (hyphen, en/em
+    dash, minus sign, …), shared by the result-minus and passout-strike patterns
+    and the notation normalizer so they can't drift.
 - [ ] Remaining field parsers and board assembly: lead (`10S` → `Card`), board
       number (`7` → `Schedule` via board_rotation), and header (date, pair);
       assemble the `Board` and `Session` envelopes. The auction and contract

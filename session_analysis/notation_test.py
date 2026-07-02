@@ -53,10 +53,19 @@ def test_down_every_trick() -> None:
 # --- transcription tolerance ---
 
 
-def test_accepts_unicode_minus_sign() -> None:
-  # The sheet's minus may be U+2212, distinct from the ASCII hyphen.
-  minus_sign = chr(0x2212)
-  assert tricks_taken_from_sheet_result(f'{minus_sign}2', 1) == 5
+@pytest.mark.parametrize(
+  'dash',
+  [
+    chr(0x2D),  # hyphen-minus (ASCII)
+    chr(0x2212),  # minus sign
+    chr(0x2013),  # en dash
+    chr(0x2014),  # em dash
+    chr(0x2015),  # horizontal bar
+  ],
+)
+def test_accepts_any_dash_glyph_as_a_minus(dash: str) -> None:
+  # The sheet's minus may be any of several dash glyphs, all read alike.
+  assert tricks_taken_from_sheet_result(f'{dash}2', 1) == 5
 
 
 def test_ignores_surrounding_whitespace() -> None:

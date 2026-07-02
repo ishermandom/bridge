@@ -13,6 +13,7 @@ import dataclasses
 import re
 from collections.abc import Sequence
 
+from session_analysis import glyphs
 from session_analysis.enums import (
   AnnouncementType,
   CallKind,
@@ -45,16 +46,21 @@ _UNPARSEABLE_CONTRACT = 'unparseable_contract'
 # trailing `!` and `_`/`^` announcement are stripped before this is matched.
 _BID_PATTERN = re.compile(r'([1-7])([CDHSN])')
 
+# The dash glyphs (see glyphs.DASHES), regex-escaped for embedding in a
+# character class: a result's minus and a passout's strike-through may each be
+# written as any of them.
+_DASHES = re.escape(glyphs.DASHES)
+
 # A whole contract cell: `<level><strain>[*|**]<declarer><result>`, with spacing
 # on the sheet inconsistent, so every seam tolerates optional whitespace. The
-# `*`/`**` penalty sits before the declarer; the result carries its own sign.
+# `*`/`**` penalty sits before the declarer; the result carries its own sign, a
+# plus or any dash.
 _CONTRACT_PATTERN = re.compile(
-  r'([1-7])\s*([CDHSN])\s*(\*{1,2})?\s*([NESW])\s*([+\-−]\d+)'
+  rf'([1-7])\s*([CDHSN])\s*(\*{{1,2}})?\s*([NESW])\s*([+{_DASHES}]\d+)'
 )
 
-# A passed-out cell: the explicit word, or a run of dashes struck through it (an
-# ASCII hyphen, a Unicode minus, or an em dash).
-_PASSOUT_PATTERN = re.compile(r'PASSOUT|[-−—]+', re.IGNORECASE)
+# A passed-out cell: the explicit word, or a run of dashes struck through it.
+_PASSOUT_PATTERN = re.compile(rf'PASSOUT|[{_DASHES}]+', re.IGNORECASE)
 
 # A notrump-range announcement: a superscript minimum and subscript maximum,
 # each a teens value with the leading `1` implied (`^0_2` is 10-12). An optional

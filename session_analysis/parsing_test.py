@@ -7,6 +7,8 @@ the canonical model, and how unparseable input becomes an issue rather than a
 failure. The worked examples in models.md (Parsing) are the oracle.
 """
 
+import pytest
+
 from session_analysis.enums import (
   AnnouncementType,
   CallKind,
@@ -264,11 +266,22 @@ def test_notrump_contract_taking_every_trick() -> None:
   assert played.result.tricks_taken == 13
 
 
-def test_accepts_a_unicode_minus_in_the_result() -> None:
-  outcome = parse_contract_cell(f'5H S {chr(0x2212)}2')
+@pytest.mark.parametrize(
+  'dash',
+  [
+    chr(0x2D),  # hyphen-minus (ASCII)
+    chr(0x2212),  # minus sign
+    chr(0x2013),  # en dash
+    chr(0x2014),  # em dash
+    chr(0x2015),  # horizontal bar
+  ],
+)
+def test_accepts_any_dash_glyph_in_the_result(dash: str) -> None:
+  # A set's minus may be transcribed with any dash glyph; all read alike.
+  outcome = parse_contract_cell(f'5H S {dash}2')
   played = outcome.resolution
   assert isinstance(played, PlayedContract)
-  assert played.result.tricks_taken == 9  # 5-level needs 11.
+  assert played.result.tricks_taken == 9  # 5-level needs 11; down two.
 
 
 # --- contract: passout ---
@@ -279,8 +292,19 @@ def test_passout_cell_is_an_explicit_passout() -> None:
   assert isinstance(outcome.resolution, Passout)
 
 
-def test_struck_through_cell_is_a_passout() -> None:
-  outcome = parse_contract_cell('—')
+@pytest.mark.parametrize(
+  'dash',
+  [
+    chr(0x2D),  # hyphen-minus (ASCII)
+    chr(0x2212),  # minus sign
+    chr(0x2013),  # en dash
+    chr(0x2014),  # em dash
+    chr(0x2015),  # horizontal bar
+  ],
+)
+def test_a_cell_struck_through_with_any_dash_is_a_passout(dash: str) -> None:
+  # A run of any dash glyph reads as a struck-through, passed-out cell.
+  outcome = parse_contract_cell(dash * 3)
   assert isinstance(outcome.resolution, Passout)
 
 
