@@ -50,10 +50,11 @@ and verified with no OCR involved.
 - [x] Board-number parser: `7` → `Schedule` via `board_rotation`, in a
       `BoardNumber` envelope. #board-number-parser
 - [x] Header parser: date and pair from the header transcription. #header-parser
-  - Open question: the sheet's date is month/day with no year (`6/29`), so
-    `parse_header` takes the year as an argument. Where that year comes from is
-    an ingest concern (scan date, or the session context) — settle it when
-    assembly/ingest wires the call. See #board-assembly.
+  - Note: the date is month/day with no year (`6/29`); `parse_header` infers the
+    year against a scan-date argument, reading the month/day as its most recent
+    past occurrence (a December sheet scanned in January is the prior year).
+    Pair cells may carry a section and direction (`A6 E/W`); only the number is
+    kept today. Assembly supplies the scan date.
 - [ ] Board and Session assembly: compose the parsed cells into `Board` and
       `Session` envelopes. #board-assembly
   - Note: the auction and contract cells — the interpretation-heavy ones — are
@@ -63,6 +64,9 @@ and verified with no OCR involved.
     auction uses `(…)` for circles). Settle the transcription, then set the flag
     here — the circle rides on the number cell but belongs to the `Board`, not
     the `BoardNumber` envelope. #vlm-prompt will need to emit it.
+  - Open question: whether to keep the pair's section and direction (`A6 E/W`),
+    which the parser reads past today — they may matter for the reconciliation
+    join. Needs a model field if kept.
 - [ ] Non-raising validation pass: returns issues with severity; never aborts.
   - Content well-formedness: each call, lead, and contract resolved to canonical
     values; contract level in 1-7; `tricks_taken` in 0-13; result notation
@@ -86,6 +90,11 @@ parsed into the canonical model.
 - [ ] VLM extraction prompt: transcribe-don't-interpret; the auction/contract
       syntax; drop scratch-outs; no score; no dealer/vul. #vlm-prompt
   - Open question: the prompt is unwritten — see models.md (Open questions).
+  - Note: the header date must be emitted as numeric month/day (`6/29`),
+    normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). The
+    parser assumes this normalized form and infers only the missing year; it
+    does not read free-form date prose. Normalizing is left to the VLM, which
+    reasons through the variants far more easily than a regex would.
 - [ ] Wire extraction output through the parser to the canonical model and the
       validation pass.
 

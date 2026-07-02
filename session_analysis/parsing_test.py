@@ -430,6 +430,18 @@ def test_ten_lead_written_as_a_letter_parses() -> None:
   assert lead.card == Card(rank=Rank.TEN, suit=Suit.HEARTS)
 
 
+def test_lead_written_with_the_of_separator_parses() -> None:
+  # `9oH` — nine 'of' hearts, the separator spelled out.
+  lead = parse_lead('9oH')
+  assert lead.card == Card(rank=Rank.NINE, suit=Suit.HEARTS)
+
+
+def test_lead_written_without_the_of_separator_parses() -> None:
+  # `9H` — the same nine of hearts with the `o` omitted.
+  lead = parse_lead('9H')
+  assert lead.card == Card(rank=Rank.NINE, suit=Suit.HEARTS)
+
+
 def test_lead_surrounding_space_is_ignored() -> None:
   lead = parse_lead(' AD ')
   assert lead.card == Card(rank=Rank.ACE, suit=Suit.DIAMONDS)
@@ -491,35 +503,63 @@ def test_non_numeric_board_number_becomes_an_issue_not_a_failure() -> None:
 
 
 def test_header_parses_date_and_pair() -> None:
-  header = parse_header('6/29', '6', year=2026)
+  # Scanned two days after the session, so `6/29` reads as the current year.
+  header = parse_header('6/29', '6', reference_date=datetime.date(2026, 7, 1))
   assert header.date == datetime.date(2026, 6, 29)
   assert header.pair_number == 6
   assert header.issues == ()
 
 
-def test_header_date_takes_its_year_from_the_argument() -> None:
-  # The sheet writes only month/day; the caller supplies the year, so the same
-  # `6/29` lands in whichever year the session belongs to.
-  header = parse_header('6/29', '6', year=2024)
-  assert header.date == datetime.date(2024, 6, 29)
+def test_header_infers_the_current_year_for_a_recent_date() -> None:
+  # `6/29` has already come this year by the scan date, so it is this year's.
+  header = parse_header('6/29', '6', reference_date=datetime.date(2026, 7, 1))
+  assert header.date == datetime.date(2026, 6, 29)
+
+
+def test_header_infers_the_prior_year_across_the_december_boundary() -> None:
+  # A December session scanned the following January: `12/28` hasn't come yet in
+  # the scan year, so it belongs to the prior year, not eleven months ahead.
+  header = parse_header('12/28', '6', reference_date=datetime.date(2026, 1, 5))
+  assert header.date == datetime.date(2025, 12, 28)
+
+
+def test_header_reads_a_january_date_as_the_scan_year() -> None:
+  # The mirror of the December case: `1/2` has come by January 5, so it is this
+  # year's, not the prior year's.
+  header = parse_header('1/2', '6', reference_date=datetime.date(2026, 1, 5))
+  assert header.date == datetime.date(2026, 1, 2)
+
+
+@pytest.mark.parametrize(
+  'pair_text',
+  ['6', 'A6 E/W', 'A6E/W', '6 E/W', 'A6 EW', 'A6EW', 'B6 N/S'],
+)
+def test_pair_number_is_read_from_its_many_written_forms(pair_text: str) -> None:
+  # The number is the kept part; a section letter and a direction may flank it,
+  # in any mix of spacing and slashes. Each of these carries pair 6.
+  header = parse_header(
+    '6/29', pair_text, reference_date=datetime.date(2026, 7, 1)
+  )
+  assert header.pair_number == 6
+  assert header.issues == ()
 
 
 def test_unreadable_date_becomes_a_session_issue_not_a_failure() -> None:
-  header = parse_header('Xyz', '6', year=2026)
+  header = parse_header('Xyz', '6', reference_date=datetime.date(2026, 7, 1))
   assert header.date is None
   assert header.pair_number == 6  # the readable pair still comes through
   assert header.issues[0].code == 'unreadable_date'
 
 
 def test_out_of_range_date_is_unreadable() -> None:
-  # `13/40` matches the month/day shape but is no calendar date.
-  header = parse_header('13/40', '6', year=2026)
+  # `13/40` matches the month/day shape but is no calendar date, in any year.
+  header = parse_header('13/40', '6', reference_date=datetime.date(2026, 7, 1))
   assert header.date is None
   assert header.issues[0].code == 'unreadable_date'
 
 
 def test_unreadable_pair_becomes_a_session_issue_not_a_failure() -> None:
-  header = parse_header('6/29', '?', year=2026)
+  header = parse_header('6/29', '?', reference_date=datetime.date(2026, 7, 1))
   # The readable date still comes through despite the unreadable pair.
   assert header.date == datetime.date(2026, 6, 29)
   assert header.pair_number is None

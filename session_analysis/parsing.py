@@ -89,23 +89,42 @@ _CONTRACT_PATTERN = re.compile(
 )
 
 # A positive integer, ASCII, no leading zero — the shape of a board number and
-# a pair number alike. The leading `[1-9]` rules out `0` and a leading-zero
-# misread in one stroke; nothing bounds it above (board numbers run past the
-# 16-board cycle, and pair counts vary by field).
-_POSITIVE_INTEGER_PATTERN = re.compile(r'[1-9][0-9]*')
+# the number within a pair cell alike. The leading `[1-9]` rules out `0` and a
+# leading-zero misread in one stroke; nothing bounds it above (board numbers run
+# past the 16-board cycle, and pair counts vary by field).
+_POSITIVE_INTEGER = r'[1-9][0-9]*'
+_POSITIVE_INTEGER_PATTERN = re.compile(_POSITIVE_INTEGER)
 
-# The header date, written month/day with no year (`6/29`) — the year is
-# supplied by the caller. Each part is one or two ASCII digits.
+# A pair-number cell. The number is the only part the model keeps today; a
+# section letter (`A`) and a direction (`E/W`) commonly flank it, in any mix of
+# spacing and slashes — `A6 E/W`, `6E/W`, `A6EW`, or a bare `6`. Section and
+# direction are matched so the whole cell is recognized, but not captured: the
+# model has no field for them yet.
+_PAIR_SECTION = r'[A-Z]?'
+_PAIR_NUMBER = rf'(?P<number>{_POSITIVE_INTEGER})'
+_PAIR_DIRECTION = r'(?:N/?S|E/?W)?'
+_PAIR_PATTERN = re.compile(
+  _SEAM + _PAIR_SECTION + _SEAM + _PAIR_NUMBER + _SEAM + _PAIR_DIRECTION + _SEAM
+)
+
+# The header date. The vision model is expected to transcribe it as numeric
+# month/day (`6/29`), normalizing whatever the human wrote ('June 9th', `6.23`);
+# see models.md. The year is absent on the sheet and inferred by the parser.
+# Each part is one or two ASCII digits.
 _HEADER_DATE_MONTH = r'(?P<month>[0-9]{1,2})'
 _HEADER_DATE_DAY = r'(?P<day>[0-9]{1,2})'
 _HEADER_DATE_PATTERN = re.compile(_HEADER_DATE_MONTH + '/' + _HEADER_DATE_DAY)
 
-# The opening-lead cell: a rank glyph then a suit letter (`10S`, `QC`). The ten
+# A card's rank and suit — the plain card glyphs, nothing lead-specific. The ten
 # is written `10` or the enum's own `T`; the `10` alternative leads so it wins
-# over a bare `1`. Suit is a letter, like the strain and declarer slots.
-_LEAD_RANK = r'(?P<rank>10|[2-9TJQKA])'
-_LEAD_SUIT = r'(?P<suit>[CDHS])'
-_LEAD_PATTERN = re.compile(_LEAD_RANK + _LEAD_SUIT)
+# over a bare `1`.
+_CARD_RANK = r'(?P<rank>10|[2-9TJQKA])'
+_CARD_SUIT = r'(?P<suit>[CDHS])'
+
+# The opening-lead cell: a card written rank-then-suit, with an optional `o` for
+# the 'of' spoken between them — `9oH` and `9H` both mean the nine of hearts.
+_LEAD_OF = r'[oO]?'
+_LEAD_PATTERN = re.compile(_CARD_RANK + _LEAD_OF + _CARD_SUIT)
 
 # A struck-through cell: a run of any dash glyph. The other passout form — the
 # word 'pass' in any wording ('PASS', 'ALL PASS') — is a substring test, not a
@@ -216,8 +235,9 @@ def parse_contract_cell(cell: str) -> Outcome:
 def parse_lead(cell: str) -> Lead:
   """Parse an opening-lead cell into its `Lead` envelope.
 
-  The cell is a rank glyph then a suit letter (`10S`, `QC`); the ten may be
-  written `10` or `T`. A cell that doesn't match yields a null card plus an
+  The cell is a card: a rank then a suit, with an optional `o` for the spoken
+  'of' between them (`9oH` and `9H` both mean the nine of hearts). The ten may
+  be written `10` or `T`. A cell that doesn't match yields a null card plus an
   `unparseable_lead` issue — the board is still stored (nothing is garbage). A
   board with no recorded lead is the assembler's concern, kept as a null
   `opening_lead`; this parser assumes a lead was written. See models.md (Lead).
@@ -282,17 +302,22 @@ class ParsedHeader:
   issues: tuple[Issue, ...]
 
 
-def parse_header(date_text: str, pair_text: str, *, year: int) -> ParsedHeader:
+def parse_header(
+  date_text: str, pair_text: str, *, reference_date: datetime.date
+) -> ParsedHeader:
   """Parse the session header's date and pair into their canonical values.
 
-  The sheet writes the date as month/day with no year (`6/29`), so `year`
-  supplies the missing year — the session's year is known at parse time. The
-  pair is our pair number. Each value is null with a session-level issue when it
-  can't be read, never a failure (nothing is garbage). See models.md (Session).
+  The sheet writes the date as month/day with no year (`6/29`); the year is
+  inferred against `reference_date` — the day of the scan — on the assumption
+  that a scanned sheet is at most a few months old and never from the future, so
+  a December sheet scanned in January reads as the prior year. The pair is our
+  pair number, taken from a cell that may also carry a section and direction
+  (`A6 E/W`). Each value is null with a session-level issue when it can't be
+  read, never a failure (nothing is garbage). See models.md (Session).
   """
   issues: list[Issue] = []
 
-  date = _date_from_header(date_text, year)
+  date = _date_from_header(date_text, reference_date)
   if not date:
     issues.append(
       Issue(
@@ -302,7 +327,7 @@ def parse_header(date_text: str, pair_text: str, *, year: int) -> ParsedHeader:
       )
     )
 
-  pair_number = _positive_integer_or_none(pair_text)
+  pair_number = _pair_number_or_none(pair_text)
   if not pair_number:
     issues.append(
       Issue(
@@ -321,24 +346,46 @@ def _positive_integer_or_none(text: str) -> int | None:
   return int(match.group()) if match else None
 
 
-def _date_from_header(text: str, year: int) -> datetime.date | None:
+def _pair_number_or_none(text: str) -> int | None:
+  """Return the pair number a pair cell holds, or None if it isn't one.
+
+  Reads the number out of the fuller cell the sheet may carry — a section letter
+  and a direction can flank it (`A6 E/W`), and only the number is kept today.
+  """
+  match = _PAIR_PATTERN.fullmatch(text.strip())
+  return int(match.group('number')) if match else None
+
+
+def _date_from_header(
+  text: str, reference_date: datetime.date
+) -> datetime.date | None:
   """Return the date a header cell holds, or None when it can't be read.
 
-  The sheet writes month/day with no year (`6/29`); `year` fills it in. An
-  out-of-range month or day (a misread `13/40`, or Feb 30) fails the date
-  construction and returns None.
+  The sheet writes month/day with no year; the year is inferred against
+  `reference_date`. A scanned sheet is assumed to be at most a few months old
+  and never from the future, so the month/day is read as its most recent past
+  occurrence: this year's if it has already come, otherwise last year's (a
+  December sheet scanned in January). An out-of-range month or day (a misread
+  `13/40`, or Feb 30) fails date construction and returns None.
   """
   match = _HEADER_DATE_PATTERN.fullmatch(text.strip())
   if not match:
     return None
-  try:
-    # An out-of-range month or day (`13/40`, Feb 30) fails here — a misread, not
-    # a date.
-    return datetime.date(
-      year, int(match.group('month')), int(match.group('day'))
-    )
-  except ValueError:
-    return None
+  month, day = int(match.group('month')), int(match.group('day'))
+
+  # This year's occurrence if it has already arrived, else last year's. Since
+  # occurrences sit a full year apart and a sheet is only ever months old, this
+  # choice is unambiguous.
+  for year in (reference_date.year, reference_date.year - 1):
+    try:
+      candidate = datetime.date(year, month, day)
+    except ValueError:
+      # Out of range for this year (a misread `13/40`, or Feb 29 in a non-leap
+      # year); try the prior year before giving up.
+      continue
+    if candidate <= reference_date:
+      return candidate
+  return None
 
 
 def _strain_from_glyphs(glyphs_text: str) -> Strain:

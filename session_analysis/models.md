@@ -68,7 +68,16 @@ trustworthy, and the traveller is authoritative (matchpoints are filled in at
 reconciliation, and are simply absent for a no-traveller session).
 
 The header fields are strings too; `date` and `pair` are parsed downstream like
-everything else.
+everything else. Two expectations on their form, so the downstream parser stays
+simple:
+
+- **Date** — emitted as numeric month/day (`6/29`), with the VLM normalizing
+  whatever the human wrote ('June 9th', `6.23`, `June 9`). A human records the
+  date many ways; a VLM reasons through the variants far more easily than a
+  regex, so that burden sits here, not in the parser. The year is absent on the
+  sheet and inferred downstream against the scan date.
+- **Pair** — the number, optionally flanked by a section letter and a direction
+  (`A6 E/W`), transcribed as written. The parser keeps the number today.
 
 ### Auction string syntax
 
