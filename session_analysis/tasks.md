@@ -93,7 +93,11 @@ parsed into the canonical model.
 - [ ] Wire extraction output through the parser to the canonical model and the
       validation pass.
   - Note: parse the VLM JSON into `assembly.RawSession`, then
-    `assembly.assemble_session` into the canonical `Session`.
+    `assembly.assemble_session` into the canonical `Session`. Per-cell and
+    per-board errors are already contained; `RawSession.model_validate_json`
+    still raises when the top-level shape is fundamentally wrong (not an object,
+    or `boards` not a list), so wrap that call and flag the whole sheet on
+    failure rather than letting it abort extraction.
 
 ---
 
