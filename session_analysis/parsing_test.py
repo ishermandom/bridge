@@ -7,6 +7,8 @@ the canonical model, and how unparseable input becomes an issue rather than a
 failure. The worked examples in models.md (Parsing) are the oracle.
 """
 
+import datetime
+
 import pytest
 
 from session_analysis.enums import (
@@ -33,6 +35,7 @@ from session_analysis.parsing import (
   parse_auction,
   parse_board_number,
   parse_contract_cell,
+  parse_header,
   parse_lead,
 )
 
@@ -482,3 +485,42 @@ def test_non_numeric_board_number_becomes_an_issue_not_a_failure() -> None:
   assert number.schedule is None
   assert number.raw == 'B?'
   assert number.issues[0].code == 'unreadable_board_number'
+
+
+# --- header ---
+
+
+def test_header_parses_date_and_pair() -> None:
+  header = parse_header('6/29', '6', year=2026)
+  assert header.date == datetime.date(2026, 6, 29)
+  assert header.pair_number == 6
+  assert header.issues == ()
+
+
+def test_header_date_takes_its_year_from_the_argument() -> None:
+  # The sheet writes only month/day; the caller supplies the year, so the same
+  # `6/29` lands in whichever year the session belongs to.
+  header = parse_header('6/29', '6', year=2024)
+  assert header.date == datetime.date(2024, 6, 29)
+
+
+def test_unreadable_date_becomes_a_session_issue_not_a_failure() -> None:
+  header = parse_header('Xyz', '6', year=2026)
+  assert header.date is None
+  assert header.pair_number == 6  # the readable pair still comes through
+  assert header.issues[0].code == 'unreadable_date'
+
+
+def test_out_of_range_date_is_unreadable() -> None:
+  # `13/40` matches the month/day shape but is no calendar date.
+  header = parse_header('13/40', '6', year=2026)
+  assert header.date is None
+  assert header.issues[0].code == 'unreadable_date'
+
+
+def test_unreadable_pair_becomes_a_session_issue_not_a_failure() -> None:
+  header = parse_header('6/29', '?', year=2026)
+  # The readable date still comes through despite the unreadable pair.
+  assert header.date == datetime.date(2026, 6, 29)
+  assert header.pair_number is None
+  assert header.issues[0].code == 'unreadable_pair'

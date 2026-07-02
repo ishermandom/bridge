@@ -49,7 +49,11 @@ and verified with no OCR involved.
 - [x] Lead parser: `10S` → `Card` in a `Lead` envelope. #lead-parser
 - [x] Board-number parser: `7` → `Schedule` via `board_rotation`, in a
       `BoardNumber` envelope. #board-number-parser
-- [ ] Header parser: date and pair from the header transcription. #header-parser
+- [x] Header parser: date and pair from the header transcription. #header-parser
+  - Open question: the sheet's date is month/day with no year (`6/29`), so
+    `parse_header` takes the year as an argument. Where that year comes from is
+    an ingest concern (scan date, or the session context) — settle it when
+    assembly/ingest wires the call. See #board-assembly.
 - [ ] Board and Session assembly: compose the parsed cells into `Board` and
       `Session` envelopes. #board-assembly
   - Note: the auction and contract cells — the interpretation-heavy ones — are
