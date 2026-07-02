@@ -47,13 +47,18 @@ and verified with no OCR involved.
       doubles, trailing-only alerts, decomposed regexes, and two refocused
       auction tests (realistic composition + legality-agnostic).
 - [x] Lead parser: `10S` → `Card` in a `Lead` envelope. #lead-parser
-- [ ] Board-number parser: `7` → `Schedule` via `board_rotation`, in a
+- [x] Board-number parser: `7` → `Schedule` via `board_rotation`, in a
       `BoardNumber` envelope. #board-number-parser
 - [ ] Header parser: date and pair from the header transcription. #header-parser
 - [ ] Board and Session assembly: compose the parsed cells into `Board` and
       `Session` envelopes. #board-assembly
   - Note: the auction and contract cells — the interpretation-heavy ones — are
     done in `parsing.py`; the cells above are the simpler remaining ones.
+  - Open question: `Board.flagged_for_review` is set when the board number was
+    circled, but how the VLM transcribes a circled number is unspecified (the
+    auction uses `(…)` for circles). Settle the transcription, then set the flag
+    here — the circle rides on the number cell but belongs to the `Board`, not
+    the `BoardNumber` envelope. #vlm-prompt will need to emit it.
 - [ ] Non-raising validation pass: returns issues with severity; never aborts.
   - Content well-formedness: each call, lead, and contract resolved to canonical
     values; contract level in 1-7; `tricks_taken` in 0-13; result notation

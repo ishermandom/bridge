@@ -13,7 +13,7 @@ import dataclasses
 import re
 from collections.abc import Sequence
 
-from session_analysis import glyphs
+from session_analysis import board_rotation, glyphs
 from session_analysis.enums import (
   AnnouncementType,
   CallKind,
@@ -27,6 +27,7 @@ from session_analysis.enums import (
 from session_analysis.models import (
   Announcement,
   AuctionEntry,
+  BoardNumber,
   Call,
   Card,
   Contract,
@@ -36,6 +37,7 @@ from session_analysis.models import (
   Passout,
   PlayedContract,
   Result,
+  Schedule,
 )
 from session_analysis.notation import tricks_taken_from_sheet_result
 
@@ -45,6 +47,7 @@ from session_analysis.notation import tricks_taken_from_sheet_result
 _UNPARSEABLE_CALL = 'unparseable_call'
 _UNPARSEABLE_CONTRACT = 'unparseable_contract'
 _UNPARSEABLE_LEAD = 'unparseable_lead'
+_UNREADABLE_BOARD_NUMBER = 'unreadable_board_number'
 _MISPLACED_ALERT = 'misplaced_alert'
 
 # The dash glyphs (see glyphs.DASHES), regex-escaped for embedding in a
@@ -81,6 +84,11 @@ _CONTRACT_PATTERN = re.compile(
   + _SEAM
   + _RESULT
 )
+
+# A board number: a positive integer, ASCII, no leading zero. The leading
+# `[1-9]` rules out `0` and a leading-zero misread in one stroke. There is no
+# upper bound — sessions run past the 16-board cycle the schedule repeats on.
+_BOARD_NUMBER_PATTERN = re.compile(r'[1-9][0-9]*')
 
 # The opening-lead cell: a rank glyph then a suit letter (`10S`, `QC`). The ten
 # is written `10` or the enum's own `T`; the `10` alternative leads so it wins
@@ -220,6 +228,36 @@ def parse_lead(cell: str) -> Lead:
     suit=Suit(match.group('suit')),
   )
   return Lead(raw=cell, card=card)
+
+
+def parse_board_number(cell: str) -> BoardNumber:
+  """Parse a board-number cell into its `BoardNumber` envelope.
+
+  The number fixes the deal: under the standard 16-board cycle it determines the
+  dealer and vulnerability, which `board_rotation` computes into the `Schedule`
+  bundled here — the envelope's parsed value is present only when the number was
+  read and valid. A non-numeric or non-positive cell yields a null schedule plus
+  an `unreadable_board_number` issue; the board is still stored and flagged for
+  review (nothing is garbage). See models.md (BoardNumber, Schedule).
+  """
+  text = cell.strip()
+
+  match = _BOARD_NUMBER_PATTERN.fullmatch(text)
+  if not match:
+    issue = Issue(
+      code=_UNREADABLE_BOARD_NUMBER,
+      severity=IssueSeverity.HIGH,
+      message=f'could not read a board number from cell: {cell!r}',
+    )
+    return BoardNumber(raw=cell, issues=(issue,))
+
+  number = int(match.group())
+  schedule = Schedule(
+    number=number,
+    dealer=board_rotation.dealer_for_board(number),
+    vulnerability=board_rotation.vulnerability_for_board(number),
+  )
+  return BoardNumber(raw=cell, schedule=schedule)
 
 
 def _strain_from_glyphs(glyphs_text: str) -> Strain:

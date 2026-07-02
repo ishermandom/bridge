@@ -17,6 +17,7 @@ from session_analysis.enums import (
   Rank,
   Strain,
   Suit,
+  Vulnerability,
 )
 from session_analysis.models import (
   Announcement,
@@ -26,9 +27,11 @@ from session_analysis.models import (
   Passout,
   PlayedContract,
   Result,
+  Schedule,
 )
 from session_analysis.parsing import (
   parse_auction,
+  parse_board_number,
   parse_contract_cell,
   parse_lead,
 )
@@ -435,3 +438,47 @@ def test_unparseable_lead_becomes_an_issue_not_a_failure() -> None:
   assert lead.card is None
   assert lead.raw == 'XZ'
   assert lead.issues[0].code == 'unparseable_lead'
+
+
+# --- board number ---
+
+
+def test_board_number_resolves_to_its_schedule() -> None:
+  # Board 7 — the models.md worked example — deals South, both vulnerable under
+  # the standard cycle. The parser computes the pair via board_rotation.
+  number = parse_board_number('7')
+  assert number.schedule == Schedule(
+    number=7, dealer=Direction.SOUTH, vulnerability=Vulnerability.BOTH
+  )
+  assert number.issues == ()
+
+
+def test_board_number_past_the_first_cycle_resolves() -> None:
+  # Board 18 is past the 16-board cycle the schedule repeats on; there is no
+  # upper bound, so it still resolves (dealer East, NS vulnerable).
+  number = parse_board_number('18')
+  assert number.schedule == Schedule(
+    number=18,
+    dealer=Direction.EAST,
+    vulnerability=Vulnerability.NORTH_SOUTH,
+  )
+
+
+def test_board_number_surrounding_space_is_ignored() -> None:
+  number = parse_board_number(' 7 ')
+  assert number.schedule is not None and number.schedule.number == 7
+  assert number.raw == ' 7 '  # the envelope keeps the verbatim transcription
+
+
+def test_zero_is_not_a_valid_board_number() -> None:
+  # A board number is 1-indexed; `0` reads as a digit but is out of range.
+  number = parse_board_number('0')
+  assert number.schedule is None
+  assert number.issues[0].code == 'unreadable_board_number'
+
+
+def test_non_numeric_board_number_becomes_an_issue_not_a_failure() -> None:
+  number = parse_board_number('B?')
+  assert number.schedule is None
+  assert number.raw == 'B?'
+  assert number.issues[0].code == 'unreadable_board_number'
