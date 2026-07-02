@@ -55,9 +55,7 @@ _DASHES = re.escape(glyphs.DASHES)
 # dash. `(?P<name>…)` groups let the extraction sites read by name.
 _LEVEL = r'(?P<level>[1-7])'
 _STRAIN = r'(?P<strain>NT|[CDHSN])'  # notrump as `N` or `NT`; see below
-_PENALTY = (
-  r'(?P<penalty>\*{1,2}|xx?|XX?)?'  # `*`/`x` doubled, `**`/`xx` redoubled
-)
+_PENALTY = r'(?P<penalty>[*xX]{1,2})?'  # one mark doubled, two redoubled
 _DECLARER = r'(?P<declarer>[NESW])'
 _RESULT = rf'(?P<result>[+{_DASHES}]\d+)'
 _SEAM = r'\s*'
@@ -107,13 +105,6 @@ _STRAIN_BY_LETTER = {
   'H': Strain.HEARTS,
   'S': Strain.SPADES,
   'N': Strain.NOTRUMP,
-}
-
-_PENALTY_BY_MARKS = {
-  '*': Penalty.DOUBLED,
-  'x': Penalty.DOUBLED,
-  '**': Penalty.REDOUBLED,
-  'xx': Penalty.REDOUBLED,
 }
 
 
@@ -197,14 +188,14 @@ def _strain_from_glyphs(glyphs_text: str) -> Strain:
 
 
 def _penalty_from_marks(marks: str | None) -> Penalty:
-  """Map a contract's penalty glyphs (`*`/`**` or `x`/`xx`) to a `Penalty`.
+  """Map a contract's penalty marks to a `Penalty`.
 
-  Any case is accepted. Absent marks are no penalty; the regex constrains a
-  present value to one of the four known forms, so the lookup cannot miss.
+  The mark is `*` or `x`/`X`; only the count matters — one is doubled, two is
+  redoubled. Absent marks are no penalty.
   """
   if not marks:
     return Penalty.NONE
-  return _PENALTY_BY_MARKS[marks.lower()]
+  return Penalty.DOUBLED if len(marks) == 1 else Penalty.REDOUBLED
 
 
 @dataclasses.dataclass(frozen=True)
