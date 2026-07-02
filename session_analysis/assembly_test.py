@@ -10,6 +10,7 @@ is the parser's behaviour, tested in parsing_test.py.
 """
 
 import datetime
+from collections.abc import Mapping
 
 from session_analysis.assembly import RawSession, assemble_session
 from session_analysis.enums import Rank, Strain, Suit
@@ -31,7 +32,7 @@ def _source() -> Source:
   return Source(image=SheetImage(path='sheet.jpg', content_hash='abc123'))
 
 
-def _raw_board(**cells: str) -> dict[str, str]:
+def _raw_board(**cells: str) -> Mapping[str, str]:
   """A raw board object, unspecified cells blank and the number defaulted.
 
   Callers pass only the cells a test asserts on; `board_number` defaults to a
@@ -179,6 +180,17 @@ def test_a_board_missing_its_number_keeps_its_other_cells() -> None:
   assert board.number.issues
   assert board.opening_lead is not None  # ...but the lead still parsed
   assert board.opening_lead.card == Card(rank=Rank.TEN, suit=Suit.SPADES)
+
+
+def test_a_numeric_board_number_is_coerced_not_dropped() -> None:
+  # The model may emit a bare number as a JSON number rather than a string;
+  # coercing it contains the type slip to the number cell, keeping the board.
+  session = _assemble({'board_number': 7, 'lead': '10S'})
+
+  (board,) = session.boards
+  assert board.number.schedule is not None
+  assert board.number.schedule.number == 7
+  assert board.opening_lead is not None  # the board survived intact
 
 
 def test_a_non_object_board_is_contained_without_losing_the_session() -> None:

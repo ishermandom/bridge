@@ -39,7 +39,18 @@ from session_analysis.parsing import (
 _MALFORMED_BOARD = 'malformed_board'
 
 
-class RawBoard(FrozenModel):
+class _RawModel(FrozenModel):
+  """Base for the raw vision-model input: frozen and number-lenient.
+
+  Coerces a cell the model emitted as a JSON number to its string form, so a
+  numeric slip (a board number sent as a number, not a string) is contained to
+  that cell rather than failing validation and costing the whole board.
+  """
+
+  model_config = pydantic.ConfigDict(coerce_numbers_to_str=True)
+
+
+class RawBoard(_RawModel):
   """The vision model's flat, all-string transcription of one board.
 
   Each field is a cell exactly as written, no interpretation. Every cell
@@ -57,7 +68,7 @@ class RawBoard(FrozenModel):
   notes: str = ''
 
 
-class RawSession(FrozenModel):
+class RawSession(_RawModel):
   """The vision model's flat output: the session header and its raw boards.
 
   Every field defaults, so a botched header never fails the whole parse: a
