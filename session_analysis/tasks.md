@@ -46,11 +46,14 @@ and verified with no OCR involved.
       `minimum_points_is_soft` field, 'pass'-substring passout, `x`/`xx`
       doubles, trailing-only alerts, decomposed regexes, and two refocused
       auction tests (realistic composition + legality-agnostic).
-- [ ] Remaining field parsers and board assembly: lead (`10S` → `Card`), board
-      number (`7` → `Schedule` via board_rotation), and header (date, pair);
-      assemble the `Board` and `Session` envelopes. The auction and contract
-      cells — the interpretation-heavy ones — are done in `parsing.py`; these
-      are the simpler remaining cells.
+- [x] Lead parser: `10S` → `Card` in a `Lead` envelope. #lead-parser
+- [ ] Board-number parser: `7` → `Schedule` via `board_rotation`, in a
+      `BoardNumber` envelope. #board-number-parser
+- [ ] Header parser: date and pair from the header transcription. #header-parser
+- [ ] Board and Session assembly: compose the parsed cells into `Board` and
+      `Session` envelopes. #board-assembly
+  - Note: the auction and contract cells — the interpretation-heavy ones — are
+    done in `parsing.py`; the cells above are the simpler remaining ones.
 - [ ] Non-raising validation pass: returns issues with severity; never aborts.
   - Content well-formedness: each call, lead, and contract resolved to canonical
     values; contract level in 1-7; `tricks_taken` in 0-13; result notation

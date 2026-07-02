@@ -14,18 +14,24 @@ from session_analysis.enums import (
   CallKind,
   Direction,
   Penalty,
+  Rank,
   Strain,
   Suit,
 )
 from session_analysis.models import (
   Announcement,
   Call,
+  Card,
   Contract,
   Passout,
   PlayedContract,
   Result,
 )
-from session_analysis.parsing import parse_auction, parse_contract_cell
+from session_analysis.parsing import (
+  parse_auction,
+  parse_contract_cell,
+  parse_lead,
+)
 
 # --- auction: structural markup ---
 
@@ -395,3 +401,37 @@ def test_unparseable_contract_becomes_an_issue_not_a_failure() -> None:
   assert outcome.resolution is None
   assert outcome.raw == '4?N'
   assert outcome.issues[0].code == 'unparseable_contract'
+
+
+# --- opening lead ---
+
+
+def test_lead_parses_rank_and_suit() -> None:
+  lead = parse_lead('QC')
+  assert lead.card == Card(rank=Rank.QUEEN, suit=Suit.CLUBS)
+  assert lead.issues == ()
+
+
+def test_ten_lead_written_as_two_digits_parses() -> None:
+  lead = parse_lead('10S')
+  assert lead.card == Card(rank=Rank.TEN, suit=Suit.SPADES)
+
+
+def test_ten_lead_written_as_a_letter_parses() -> None:
+  # The sheet may write the ten as `10` or as the rank letter `T`; both read as
+  # the same card.
+  lead = parse_lead('TH')
+  assert lead.card == Card(rank=Rank.TEN, suit=Suit.HEARTS)
+
+
+def test_lead_surrounding_space_is_ignored() -> None:
+  lead = parse_lead(' AD ')
+  assert lead.card == Card(rank=Rank.ACE, suit=Suit.DIAMONDS)
+  assert lead.raw == ' AD '  # the envelope keeps the verbatim transcription
+
+
+def test_unparseable_lead_becomes_an_issue_not_a_failure() -> None:
+  lead = parse_lead('XZ')
+  assert lead.card is None
+  assert lead.raw == 'XZ'
+  assert lead.issues[0].code == 'unparseable_lead'

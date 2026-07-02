@@ -20,6 +20,7 @@ from session_analysis.enums import (
   Direction,
   IssueSeverity,
   Penalty,
+  Rank,
   Strain,
   Suit,
 )
@@ -27,8 +28,10 @@ from session_analysis.models import (
   Announcement,
   AuctionEntry,
   Call,
+  Card,
   Contract,
   Issue,
+  Lead,
   Outcome,
   Passout,
   PlayedContract,
@@ -41,6 +44,7 @@ from session_analysis.notation import tricks_taken_from_sheet_result
 # models.md); these are the parser's contribution to that set.
 _UNPARSEABLE_CALL = 'unparseable_call'
 _UNPARSEABLE_CONTRACT = 'unparseable_contract'
+_UNPARSEABLE_LEAD = 'unparseable_lead'
 _MISPLACED_ALERT = 'misplaced_alert'
 
 # The dash glyphs (see glyphs.DASHES), regex-escaped for embedding in a
@@ -78,6 +82,13 @@ _CONTRACT_PATTERN = re.compile(
   + _RESULT
 )
 
+# The opening-lead cell: a rank glyph then a suit letter (`10S`, `QC`). The ten
+# is written `10` or the enum's own `T`; the `10` alternative leads so it wins
+# over a bare `1`. Suit is a letter, like the strain and declarer slots.
+_LEAD_RANK = r'(?P<rank>10|[2-9TJQKA])'
+_LEAD_SUIT = r'(?P<suit>[CDHS])'
+_LEAD_PATTERN = re.compile(_LEAD_RANK + _LEAD_SUIT)
+
 # A struck-through cell: a run of any dash glyph. The other passout form — the
 # word 'pass' in any wording ('PASS', 'ALL PASS') — is a substring test, not a
 # pattern.
@@ -106,6 +117,10 @@ _STRAIN_BY_LETTER = {
   'S': Strain.SPADES,
   'N': Strain.NOTRUMP,
 }
+
+# Card ranks keyed by their sheet glyph. The enum values cover every rank (the
+# ten as `T`); the sheet also writes the ten as `10`, mapped in alongside.
+_RANK_BY_GLYPH = {rank.value: rank for rank in Rank} | {'10': Rank.TEN}
 
 
 def parse_auction(auction: str) -> Sequence[AuctionEntry]:
@@ -178,6 +193,33 @@ def parse_contract_cell(cell: str) -> Outcome:
   return Outcome(
     raw=cell, resolution=PlayedContract(contract=contract, result=result)
   )
+
+
+def parse_lead(cell: str) -> Lead:
+  """Parse an opening-lead cell into its `Lead` envelope.
+
+  The cell is a rank glyph then a suit letter (`10S`, `QC`); the ten may be
+  written `10` or `T`. A cell that doesn't match yields a null card plus an
+  `unparseable_lead` issue — the board is still stored (nothing is garbage). A
+  board with no recorded lead is the assembler's concern, kept as a null
+  `opening_lead`; this parser assumes a lead was written. See models.md (Lead).
+  """
+  text = cell.strip()
+
+  match = _LEAD_PATTERN.fullmatch(text)
+  if not match:
+    issue = Issue(
+      code=_UNPARSEABLE_LEAD,
+      severity=IssueSeverity.MEDIUM,
+      message=f'could not parse opening lead: {cell!r}',
+    )
+    return Lead(raw=cell, issues=(issue,))
+
+  card = Card(
+    rank=_RANK_BY_GLYPH[match.group('rank')],
+    suit=Suit(match.group('suit')),
+  )
+  return Lead(raw=cell, card=card)
 
 
 def _strain_from_glyphs(glyphs_text: str) -> Strain:
