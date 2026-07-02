@@ -100,11 +100,11 @@ parser between them, and the validation pass — is specified in
   resolved from the travellers at reconciliation (see
   [models.md](models.md#vlm-output)).
 - **Each board** carries its number; the computed dealer and vulnerability; the
-  opponent pair; the opening lead; the contract, penalty, declarer, and result
-  (canonicalized to tricks taken); the auction as an ordered list of calls; the
-  freetext notes; and the review flags — a circled board number, and per-call
-  "discuss with partner" markers lifted from boxed bids. Matchpoints are
-  traveller-sourced and filled at reconciliation.
+  opening lead; the contract, penalty, declarer, and result (canonicalized to
+  tricks taken); the auction as an ordered list of calls; the freetext notes;
+  and the review flags — a circled board number, and per-call "discuss with
+  partner" markers lifted from boxed bids. Matchpoints are traveller-sourced and
+  filled at reconciliation.
 - **Nothing is discarded as garbage**: each written token sits in an envelope
   beside its raw text, so a misread is captured and flagged, never rejected (see
   [Validation](#validation)).
@@ -182,9 +182,10 @@ reconciliation instead.
 
 ## Reconciliation
 
-Join the digitized session to its travellers on `session_key` plus the per-board
-opponent pair (`Vs`), and cross-check the traveller-recoverable fields
-(contract, declarer, result, matchpoints) against the sheet. Disagreement raises
+Join the digitized session to its travellers on `session_key` plus per-board
+content, and cross-check the traveller-recoverable fields (contract, declarer,
+result, matchpoints) against the sheet. The match recovers both pair identities
+(ours and the opponents'), which the sheet does not record. Disagreement raises
 a board's review priority.
 
 Row-order errors are the expected failure mode (the user swapped boards 20 and

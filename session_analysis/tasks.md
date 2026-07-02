@@ -58,20 +58,6 @@ and verified with no OCR involved.
     identifier is number + direction (sometimes a section), not a bare int, and
     it comes more directly from the travellers. Resolved at reconciliation; see
     the reconciliation phase.
-- [ ] Board and Session assembly: compose the parsed cells into `Board` and
-      `Session` envelopes. #board-assembly
-  - Note: the auction and contract cells — the interpretation-heavy ones — are
-    done in `parsing.py`; the cells above are the simpler remaining ones.
-  - Decided: the VLM's flat output is modeled as a raw Pydantic type
-    (`RawSession`/`RawBoard`, all string fields), parsed board-by-board for the
-    malformed-skeleton containment. Assembly reads it into the canonical model.
-  - Decided: a circled board number is transcribed with parentheses — `(7)`,
-    reusing the auction's circle convention. The parser strips them and sets
-    `Board.flagged_for_review`; the circle rides on the number cell but belongs
-    to the `Board`, not the `BoardNumber` envelope. #vlm-prompt must emit it.
-  - Note: `Board.opponent_pair` (the `Vs` cell) is still read from the sheet as
-    the reconciliation join key, but it is a pair identifier too — revisit its
-    `int` type when the `Vs` parser lands here.
 - [ ] Non-raising validation pass: returns issues with severity; never aborts.
   - Content well-formedness: each call, lead, and contract resolved to canonical
     values; contract level in 1-7; `tricks_taken` in 0-13; result notation
@@ -93,8 +79,12 @@ parsed into the canonical model.
       the `Read` tool on the scan path, `--output-format json`,
       `claude-sonnet-5`.
 - [ ] VLM extraction prompt: transcribe-don't-interpret; the auction/contract
-      syntax; drop scratch-outs; no score; no dealer/vul. #vlm-prompt
+      syntax; drop scratch-outs; no score; no dealer/vul; no pair numbers.
+      #vlm-prompt
   - Open question: the prompt is unwritten — see models.md (Open questions).
+  - Note: a circled board number is emitted with parentheses — `(7)`, reusing
+    the auction's circle convention; assembly strips them and sets
+    `Board.flagged_for_review`.
   - Note: the header date must be emitted as numeric month/day (`6/29`),
     normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). The
     parser assumes this normalized form and infers only the missing year; it
@@ -102,6 +92,8 @@ parsed into the canonical model.
     reasons through the variants far more easily than a regex would.
 - [ ] Wire extraction output through the parser to the canonical model and the
       validation pass.
+  - Note: parse the VLM JSON into `assembly.RawSession`, then
+    `assembly.assemble_session` into the canonical `Session`.
 
 ---
 
@@ -113,11 +105,12 @@ likely row swaps.
 - [ ] Traveller HTML parsers (ACBL Live, club site) → recoverable fields.
   - Note: this phase defines the richer traveller type that replaces
     `Source.travellers`, currently a placeholder `tuple[str]` of path/URL refs.
-- [ ] Join on session + `Vs` (+ board content); cross-check recoverable fields;
-      raise review priority on disagreement.
-  - Note: our own pair identity is not on the digitized session — it is resolved
-    here from the matched traveller (number + direction, sometimes section), not
-    read from the sheet. Settle its type alongside the traveller type above.
+- [ ] Join on session + board content; cross-check recoverable fields; raise
+      review priority on disagreement.
+  - Note: neither pair identity is on the digitized session — both ours and the
+    opponents' are resolved here from the matched traveller (number + direction,
+    sometimes section), not read from the sheet. Settle their type alongside the
+    traveller type above.
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
       Test against the 6/29 board-20/21 swap.
 - [ ] Graceful degradation: run to completion with zero travellers.

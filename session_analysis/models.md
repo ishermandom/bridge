@@ -51,7 +51,6 @@ a session header.
   "boards": [
     {
       "board_number": "7",
-      "vs": "3",
       "lead": "10S",
       "contract": "2H S +2",
       "auction": "(1N) 2H!",
@@ -73,11 +72,11 @@ records the date many ways; a VLM reasons through the variants far more easily
 than a regex, so that burden sits here, not in the parser. The year is absent on
 the sheet and inferred downstream against the scan date.
 
-Our own pair is deliberately **not** transcribed. A pair is identified by number
-and direction (sometimes a section too), not a bare number, and that identity is
-recovered far more directly from the travellers — so it is resolved at
-reconciliation, not read from the sheet. The opponent pair (`vs`) is still
-transcribed per board: the reconciliation join needs it.
+Neither pair is transcribed — not our own, and not the opponents'. A pair is
+identified by number and direction (sometimes a section too), not the bare
+number the sheet records, and the traveller is authoritative for who sat where.
+Both identities are recovered at reconciliation from the matched traveller, not
+read from the sheet; the reconciliation join leans on board content instead.
 
 ### Auction string syntax
 
@@ -263,8 +262,6 @@ travellers at reconciliation, not read from the sheet (see
 - `number` — a `BoardNumber` envelope: the parsed board number and the dealer
   and vulnerability it fixes.
 - `flagged_for_review` — true when the board number was circled.
-- `opponent_pair` — their pair, parsed from the `Vs` cell to an int; null with
-  an issue when unreadable.
 - `opening_lead` — a `Lead` envelope, or null when no lead was recorded.
 - `outcome` — an `Outcome` envelope (the contract cell), or null.
 - `matchpoints` — traveller-sourced, filled at reconciliation; null until then

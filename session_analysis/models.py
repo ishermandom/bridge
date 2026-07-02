@@ -32,20 +32,10 @@ from session_analysis.enums import (
   Suit,
   Vulnerability,
 )
+from session_analysis.frozen_model import FrozenModel
 
 
-class _FrozenModel(pydantic.BaseModel):
-  """Base for the canonical models: frozen, so instances are immutable.
-
-  Every canonical model inherits this, so a whole record is immutable and
-  hashable once built. Collection fields use `tuple` rather than `list` so the
-  immutability is deep, not just a block on reassigning the field.
-  """
-
-  model_config = pydantic.ConfigDict(frozen=True)
-
-
-class Issue(_FrozenModel):
+class Issue(FrozenModel):
   """A review flag: one item worth a human's attention on a board."""
 
   code: str
@@ -54,7 +44,7 @@ class Issue(_FrozenModel):
   location: str | None = None
 
 
-class Announcement(_FrozenModel):
+class Announcement(FrozenModel):
   """The meaning announced for a bid.
 
   A tagged value: `type` selects the meaning and the matching payload fields
@@ -75,14 +65,14 @@ class Announcement(_FrozenModel):
   maximum_points: int | None = None
 
 
-class Card(_FrozenModel):
+class Card(FrozenModel):
   """A single card, whole only when both rank and suit were understood."""
 
   rank: Rank
   suit: Suit
 
 
-class Contract(_FrozenModel):
+class Contract(FrozenModel):
   """A final contract, present only when it was fully understood."""
 
   level: int
@@ -91,13 +81,13 @@ class Contract(_FrozenModel):
   penalty: Penalty
 
 
-class Result(_FrozenModel):
+class Result(FrozenModel):
   """A contract's result, as the canonical trick count."""
 
   tricks_taken: int
 
 
-class Call(_FrozenModel):
+class Call(FrozenModel):
   """An understood call: a bid, pass, double, or redouble.
 
   `level` and `strain` are set for bids and absent for the other kinds — a
@@ -111,7 +101,7 @@ class Call(_FrozenModel):
   announcement: Announcement | None = None
 
 
-class AuctionEntry(_FrozenModel):
+class AuctionEntry(FrozenModel):
   """One written token of the auction.
 
   Carries the always-available transcription and marks, plus the understood
@@ -128,7 +118,7 @@ class AuctionEntry(_FrozenModel):
   issues: tuple[Issue, ...] = ()
 
 
-class Lead(_FrozenModel):
+class Lead(FrozenModel):
   """The opening lead as written: transcription, issues, and the parsed card."""
 
   raw: str
@@ -136,7 +126,7 @@ class Lead(_FrozenModel):
   issues: tuple[Issue, ...] = ()
 
 
-class PlayedContract(_FrozenModel):
+class PlayedContract(FrozenModel):
   """A contract that was played, with the result it produced."""
 
   kind: Literal['played'] = 'played'
@@ -144,7 +134,7 @@ class PlayedContract(_FrozenModel):
   result: Result
 
 
-class Passout(_FrozenModel):
+class Passout(FrozenModel):
   """A passed-out board: every player passed, so no contract was played."""
 
   kind: Literal['passout'] = 'passout'
@@ -157,7 +147,7 @@ Resolution = Annotated[
 ]
 
 
-class Outcome(_FrozenModel):
+class Outcome(FrozenModel):
   """A board's contract cell: what its auction resolved to.
 
   `resolution` is the understood outcome — a `PlayedContract` or a `Passout` —
@@ -170,7 +160,7 @@ class Outcome(_FrozenModel):
   issues: tuple[Issue, ...] = ()
 
 
-class Schedule(_FrozenModel):
+class Schedule(FrozenModel):
   """A resolved board number and the deal parameters it fixes.
 
   The board number determines the dealer and vulnerability under the standard
@@ -186,7 +176,7 @@ class Schedule(_FrozenModel):
   vulnerability: Vulnerability
 
 
-class BoardNumber(_FrozenModel):
+class BoardNumber(FrozenModel):
   """The board-number cell envelope: its transcription and resolved schedule.
 
   Follows the parse-envelope pattern — `raw` plus a parsed value that is null
@@ -202,7 +192,7 @@ class BoardNumber(_FrozenModel):
   issues: tuple[Issue, ...] = ()
 
 
-class Board(_FrozenModel):
+class Board(FrozenModel):
   """One board's fully parsed record: its number, auction, lead, and outcome.
 
   Groups the board's envelopes alongside its board-level context. The `number`
@@ -213,8 +203,6 @@ class Board(_FrozenModel):
 
   number: BoardNumber
   flagged_for_review: bool = False
-  # Their pair, parsed from the `Vs` cell; null with an issue when unreadable.
-  opponent_pair: int | None = None
   auction: tuple[AuctionEntry, ...] = ()
   opening_lead: Lead | None = None
   outcome: Outcome | None = None
@@ -225,14 +213,14 @@ class Board(_FrozenModel):
   issues: tuple[Issue, ...] = ()
 
 
-class SheetImage(_FrozenModel):
+class SheetImage(FrozenModel):
   """The scanned sheet a session was digitized from."""
 
   path: str
   content_hash: str
 
 
-class Source(_FrozenModel):
+class Source(FrozenModel):
   """Provenance for a digitized session: its image and travellers consulted.
 
   `travellers` records which travellers the reconciliation pass consulted; it is
@@ -245,7 +233,7 @@ class Source(_FrozenModel):
   travellers: tuple[str, ...] = ()
 
 
-class Session(_FrozenModel):
+class Session(FrozenModel):
   """A whole digitized session: its header, provenance, and boards.
 
   Like the rest of the models, the parsed header date never hard-fails: a value
