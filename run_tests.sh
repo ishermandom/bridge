@@ -28,7 +28,9 @@ if [ "$palo_alto_status" -ne 0 ]; then
   exit "$palo_alto_status"
 fi
 
-# session_analysis: a Python package tested with pytest. Pointing pytest at the
-# package directory lets it insert the repo root on the import path, so the
-# `session_analysis.*` imports resolve regardless of the caller's directory.
-exec python3 -m pytest "$repo_root/session_analysis"
+# session_analysis: a Python package tested with pytest, run through the uv
+# workspace so it picks up the shared lockfile/venv regardless of the caller's
+# directory. Pointing pytest at the package directory lets it insert the repo
+# root on the import path, so the `session_analysis.*` imports resolve
+# regardless of the caller's directory.
+exec uv run --project "$repo_root" pytest "$repo_root/session_analysis"
