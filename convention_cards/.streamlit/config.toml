@@ -1,0 +1,12 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# Many users of this app are likely older with limited eyesight, so this
+# favors larger text and maximum text/background contrast over the default
+# theme.
+
+[theme]
+base = "light"
+baseFontSize = 20
+textColor = "#000000"
+backgroundColor = "#FFFFFF"

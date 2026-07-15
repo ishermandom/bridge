@@ -27,15 +27,16 @@ The output is one US Letter page: your card on the bottom 8.5", your
 reminders on the top 2.5" so they fold behind the card and stay hidden from
 opponents in a card holder.
 """
-REMINDERS_FORMAT_GUIDE = (
-  'Format: a line starting with `#` is a section header; other lines are '
-  'bullet items (a leading `- ` is optional); wrap text in `**...**` for '
-  'bold.'
-)
+REMINDERS_FORMAT_GUIDE = """
+**Format:**
+- A line starting with `#` is a section header.
+- Other lines are bullet items — a leading `- ` is optional.
+- Wrap text in `**...**` for bold.
+"""
 REMINDERS_EDITOR_NOTE = (
-  'The box may show a red outline and a "press ⌘+Enter to apply" hint '
-  "while you type — that's just the text editor; clicking **Generate** "
-  'applies your changes regardless.'
+  'The box above may show a red outline and a "press ⌘+Enter to apply" '
+  "hint while you type — that's just the text editor. Clicking "
+  '**Generate** applies your changes regardless.'
 )
 REMINDERS_PLACEHOLDER = """# Opening bids
 - 1NT = 15-17
@@ -54,8 +55,8 @@ card_file = st.file_uploader('Convention card PDF', type='pdf')
 reminders_text = st.text_area(
   'Reminders', placeholder=REMINDERS_PLACEHOLDER, height=300
 )
-st.caption(REMINDERS_FORMAT_GUIDE)
-st.caption(REMINDERS_EDITOR_NOTE)
+st.markdown(REMINDERS_FORMAT_GUIDE)
+st.markdown(REMINDERS_EDITOR_NOTE)
 
 if st.button('Generate'):
   if not (card_file and reminders_text):
