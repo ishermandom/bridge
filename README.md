@@ -98,6 +98,17 @@ from opponents when tucked into a card holder.
 The card content and reminders themselves are personal/partnership data and kept
 in a private companion repository — only the generation tool lives here.
 
+A Streamlit webapp wrapping the tool is deployed on Render at
+https://ruffdraft.onrender.com. Render deploys from
+`convention_cards/requirements.txt`, a `uv export` snapshot rather than the
+workspace's own `uv.lock` (Streamlit Community Cloud was the original hosting
+choice, but its GitHub OAuth integration requires write access to every public
+repo on the account; Render's GitHub App can be scoped to this repo alone).
+Regenerate that file after any dependency change:
+
+    uv export --format requirements.txt --package convention-cards --no-dev \
+      --no-hashes -o convention_cards/requirements.txt
+
 ### Session analysis (exploratory)
 
 `session_analysis/` — Python
