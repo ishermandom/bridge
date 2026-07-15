@@ -1,0 +1,9 @@
+{
+  "name": "convention-cards-verify-ui",
+  "private": true,
+  "type": "module",
+  "description": "Headless-browser verification driver for the convention-card-maker Streamlit app.",
+  "dependencies": {
+    "playwright-core": "^1"
+  }
+}
