@@ -8,7 +8,7 @@ print-ready PDF suitable for printing on US Letter paper.
 
 Layout of the output page (8.5" x 11"):
   - Top 2.5" (180pt): reminders strip — fold this behind the card and tuck
-                        it into the holder so it is hidden from opponents.
+                        it into the holder so it is hidden away.
   - Bottom 8.5" (612pt): convention card scaled to 93%.
 
 The right 0.5" (beyond the 8" cut guide) is trimmed off when inserting the card

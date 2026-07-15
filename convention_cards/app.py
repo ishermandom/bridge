@@ -27,6 +27,10 @@ HOW_TO_USE = """
 The output is one US Letter page: your card on the bottom 8.5", your reminders
 on the top 2.5" so they fold behind the card and fit comfortably in a card
 holder.
+
+**Note:** Only the modern convention card format is supported. The classic
+format on BridgeWinners generates a PDF with different dimensions, and this tool
+does not currently support that alternative.
 """
 REMINDERS_FORMAT_GUIDE = """
 **Format:**

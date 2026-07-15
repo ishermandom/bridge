@@ -1,12 +1,13 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
 
-# Many users of this app are likely older with limited eyesight, so this
-# favors larger text and maximum text/background contrast over the default
-# theme.
+# Many users of this app are likely older with limited eyesight, so this uses
+# a larger base font size than Streamlit's default. Dark mode is a deliberate
+# choice by the app's owner (personal preference despite general legibility
+# research favoring light for astigmatism/low-vision users) — left as
+# Streamlit's own default dark palette rather than a custom one, since that
+# default already avoids the harsher pure-black/pure-white extremes.
 
 [theme]
-base = "light"
+base = "dark"
 baseFontSize = 20
-textColor = "#000000"
-backgroundColor = "#FFFFFF"
