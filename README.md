@@ -92,8 +92,8 @@ own subdirectory.
 Merges a convention card PDF (as downloaded from
 [BridgeWinners](https://bridgewinners.com/)) with a fold-over strip of personal
 bidding reminders, producing a single print-ready PDF: the card on the bottom
-8.5", the reminders on the top 2.5" so they fold behind the card and stay hidden
-from opponents when tucked into a card holder.
+8.5", the reminders on the top 2.5" so they fold behind the card and tuck away
+in a card holder.
 
 The card content and reminders themselves are personal/partnership data and kept
 in a private companion repository — only the generation tool lives here.
