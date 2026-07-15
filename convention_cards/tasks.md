@@ -6,9 +6,6 @@ https://ruffdraft.onrender.com).
 
 Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped
 
-- [ ] Set a custom favicon via `st.set_page_config(page_icon=...)` — deferred by
-      the owner to revisit later.
-
 ## Reference
 
 `verify_ui.mjs` drives the app end to end in a headless browser (upload, fill

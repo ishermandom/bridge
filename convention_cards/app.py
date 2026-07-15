@@ -49,7 +49,11 @@ REMINDERS_PLACEHOLDER = """Replace this placeholder with your desired reminders:
 - **1M 2C** = 2+ clubs, any game force (alertable)
 """
 
-st.set_page_config(page_title='Bridge Convention Card Maker')
+FAVICON_PATH = Path(__file__).parent / 'favicon.png'
+
+st.set_page_config(
+  page_title='Bridge Convention Card Maker', page_icon=str(FAVICON_PATH)
+)
 st.title('Convention Card Maker')
 st.write(
   'Merges a bridge convention card PDF with a fold-over strip of your own '
