@@ -6,7 +6,7 @@ name = "convention-cards"
 version = "0.0.0"
 description = "Merge a bridge convention card PDF with a fold-over reminder strip."
 requires-python = ">=3.14"
-dependencies = ["pypdf", "reportlab"]
+dependencies = ["pypdf", "reportlab", "streamlit"]
 
 [tool.uv]
 package = false
