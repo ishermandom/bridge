@@ -16,9 +16,26 @@ from pathlib import Path
 import streamlit as st
 from make_card import make_print_card
 
-REMINDERS_HELP = (
-  "Lines starting with '#' are section headers. Other lines are bullet "
-  "items — a leading '- ' is optional. Wrap text in '**...**' for bold."
+HOW_TO_USE = """
+1. Download your convention card as a PDF — e.g. from
+   [BridgeWinners](https://bridgewinners.com/).
+2. Upload it below.
+3. Write your bidding reminders (format guide below the box).
+4. Click **Generate**, then download the print-ready PDF.
+
+The output is one US Letter page: your card on the bottom 8.5", your
+reminders on the top 2.5" so they fold behind the card and stay hidden from
+opponents in a card holder.
+"""
+REMINDERS_FORMAT_GUIDE = (
+  'Format: a line starting with `#` is a section header; other lines are '
+  'bullet items (a leading `- ` is optional); wrap text in `**...**` for '
+  'bold.'
+)
+REMINDERS_EDITOR_NOTE = (
+  'The box may show a red outline and a "press ⌘+Enter to apply" hint '
+  "while you type — that's just the text editor; clicking **Generate** "
+  'applies your changes regardless.'
 )
 REMINDERS_PLACEHOLDER = """# Opening bids
 - 1NT = 15-17
@@ -31,31 +48,37 @@ st.write(
   'Merges a convention card PDF with a fold-over strip of your own bidding '
   'reminders, producing one print-ready page.'
 )
+st.markdown(HOW_TO_USE)
 
 card_file = st.file_uploader('Convention card PDF', type='pdf')
 reminders_text = st.text_area(
-  'Reminders',
-  placeholder=REMINDERS_PLACEHOLDER,
-  height=300,
-  help=REMINDERS_HELP,
+  'Reminders', placeholder=REMINDERS_PLACEHOLDER, height=300
 )
+st.caption(REMINDERS_FORMAT_GUIDE)
+st.caption(REMINDERS_EDITOR_NOTE)
 
-if st.button('Generate', disabled=not (card_file and reminders_text)):
-  assert card_file is not None  # guaranteed by the disabled= condition above
-  with tempfile.TemporaryDirectory() as tmp:
-    tmp_dir = Path(tmp)
-    card_path = tmp_dir / 'card.pdf'
-    reminders_path = tmp_dir / 'reminders.txt'
-    output_path = tmp_dir / 'print-ready.pdf'
+if st.button('Generate'):
+  if not (card_file and reminders_text):
+    st.error('Upload a card PDF and enter reminders first.')
+  else:
+    with (
+      st.spinner('Generating your PDF...'),
+      tempfile.TemporaryDirectory() as tmp,
+    ):
+      tmp_dir = Path(tmp)
+      card_path = tmp_dir / 'card.pdf'
+      reminders_path = tmp_dir / 'reminders.txt'
+      output_path = tmp_dir / 'print-ready.pdf'
 
-    card_path.write_bytes(card_file.getvalue())
-    reminders_path.write_text(reminders_text, encoding='utf-8')
+      card_path.write_bytes(card_file.getvalue())
+      reminders_path.write_text(reminders_text, encoding='utf-8')
 
-    make_print_card(card_path, reminders_path, output_path)
+      make_print_card(card_path, reminders_path, output_path)
+      pdf_bytes = output_path.read_bytes()
 
     st.download_button(
       'Download print-ready.pdf',
-      data=output_path.read_bytes(),
+      data=pdf_bytes,
       file_name='print-ready.pdf',
       mime='application/pdf',
     )
