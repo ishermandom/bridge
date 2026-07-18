@@ -407,23 +407,48 @@ tested across a full cycle.
 ## Validation
 
 A non-raising pass over a built board: pure functions that return `Issue`s,
-composed into one `find_issues(board) -> list[Issue]`. Failures never abort;
-they rank the board in the review queue. The checks, by concern:
+composed into `find_issues(board)`. Failures never abort; they rank the board in
+the review queue. `validate_board` / `validate_session` wrap it to merge the
+found issues onto the frozen models (via `model_copy`), for callers that want an
+annotated copy. Because passes are usually not written on the sheet, the auction
+checks lean only on the recorded bid order and each call's `by_opponents` flag
+(the circle convention), never on a reconstructed seat. The checks, by concern:
 
-- **Content well-formedness** — each `Call`, the lead, and the contract parsed
-  to canonical values; `level` in `1`–`7`; `tricks_taken` in `0`–`13`. A failure
-  here means a `raw` value the parser couldn't resolve.
-- **Auction legality** — bid rank is non-decreasing across successive bids (a
-  pass/double/redouble does not advance rank); the last non-pass call equals the
-  stated contract; the declarer is derivable from the auction and consistent
-  with the contract's declarer.
-- **Card legality** — the opening lead is a real card.
+- **Content well-formedness** — each `Call`, the lead, and the contract resolved
+  to a canonical value; `level` in `1`–`7`; `tricks_taken` in `0`–`13`. An
+  unresolved value is a `raw` the parser couldn't read. Card legality — "the
+  lead is a real card" — collapses into lead resolvability, since a `Card` is
+  built from enum-typed rank and suit.
+- **Transcription completeness** — a played board should carry an opening lead
+  and a transcribed auction; both are legitimately absent only on a passout, so
+  on a played board their absence is a review prompt rather than an error (a
+  forgotten lead is often recoverable if flagged early).
+- **Auction legality** — bid rank strictly increases across successive bids (a
+  bid must outrank the one before it; passes, doubles, and redoubles don't
+  advance it); a double follows a bid and a redouble follows a double, each made
+  by the correct side (read from `by_opponents`); the last bid equals the stated
+  contract, with a penalty matching the auction's trailing double state. The
+  auction and contract cells are transcribed independently, so these are
+  cross-checks between two transcriptions.
 
-Each check owns an `IssueCode` and assigns a severity. Because the pass operates
-on a fully-built board, it is tested with hand-constructed boards — legal ones
-asserting no issues, and deliberately broken ones (rank reversal, contract
-disagreeing with the last call, an impossible lead) asserting the exact issue —
-with zero OCR involved.
+Two judgments the pass deliberately leaves alone:
+
+- **The declarer is not derived.** Passes are usually unwritten, so the seat
+  rotation can't be reconstructed and even the opening side is ambiguous; the
+  contract cell's stated declarer is taken as given and cross-checked against
+  the travellers at reconciliation, where neither source is assumed correct.
+- **Whether a `+N` make reaches its contract is judged in the parser, not
+  here.** The sheet's `+`/`-` sign survives in `Outcome.raw`, but is already
+  gone from the typed `Result.tricks_taken` this pass reads, so checking it here
+  would mean re-parsing raw cell text. `parse_contract_cell` already has the
+  sign in hand mid-parse, with no re-parsing needed, so the check lives there
+  instead (see `parsing.py`).
+
+Each check owns an issue code (`validation.py` holds the set) and a severity:
+structural violations certain from the token order are high; side checks that
+lean on the circle convention are medium. Because the pass operates on a fully
+built board, it is tested with hand-constructed boards — legal ones asserting no
+issues, deliberately broken ones asserting the exact issue — with zero OCR.
 
 ## Why Pydantic
 

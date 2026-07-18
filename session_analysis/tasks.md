@@ -58,15 +58,33 @@ and verified with no OCR involved.
     identifier is number + direction (sometimes a section), not a bare int, and
     it comes more directly from the travellers. Resolved at reconciliation; see
     the reconciliation phase.
-- [ ] Non-raising validation pass: returns issues with severity; never aborts.
-  - Content well-formedness: each call, lead, and contract resolved to canonical
-    values; contract level in 1-7; `tricks_taken` in 0-13; result notation
-    consistent with the contract (a `+N` make must not imply fewer tricks than
-    the contract needed). These range and consistency checks are deferred here
-    from the notation translator, which only parses.
-  - Auction legality: rank monotonicity, contract = last call, declarer
-    derivable and consistent.
-  - Card legality: the opening lead is a real card.
+- [x] Non-raising validation pass: `find_issues(board)` plus `validate_board`/
+      `validate_session` that annotate frozen copies. See `validation.py` and
+      models.md (Validation).
+  - Note: `validation.py`/`validation_test.py` are written and green but
+    uncommitted, awaiting an `/ownership-walkthrough` deferred to a later
+    session — the diff hasn't had its ownership review yet.
+  - Note: the `+N`-make-reaches-the-contract check is deliberately left for the
+    parser rather than done here. The `+`/`-` sign is still recoverable from
+    `Outcome.raw`, but is already gone from the typed `Result.tricks_taken` this
+    pass reads, so checking it here would mean re-parsing raw cell text.
+    `parse_contract_cell` already has the sign in hand mid-parse, so the check
+    belongs there instead.
+  - Note: card legality collapses into lead resolvability — a `Card` is built
+    from enum-typed rank and suit, so any resolved lead is already a real card.
+  - Note: the declarer is not derived from the auction — passes are usually
+    unwritten, so seats can't be reconstructed and even the opening side is
+    ambiguous. The contract cell's declarer stands; cross-checking it moves to
+    reconciliation against the travellers. Auction legality instead leans on
+    `by_opponents` (the circle convention) for its double/redouble side checks.
+- [ ] Make-vs-set result consistency, in the parser: when a contract cell's
+      result reads `+N`, verify the make reaches the contract — `tricks_taken`
+      at least `level + 6` — and attach an `Outcome` issue when it doesn't.
+      #make-reaches-contract
+  - Rationale: the sign survives in `Outcome.raw`, so the validator could
+    re-parse it, but only by duplicating parsing logic on text the parser
+    already parsed. `parse_contract_cell` holds both the sign and the level
+    mid-parse without any re-parsing, so the check belongs there.
 
 ---
 
@@ -115,6 +133,11 @@ likely row swaps.
     opponents' are resolved here from the matched traveller (number + direction,
     sometimes section), not read from the sheet. Settle their type alongside the
     traveller type above.
+  - Note: the declarer is one such recoverable field — the validator can't check
+    it (an auction with implicit passes gives no seats), so it's cross-checked
+    here. Neither the sheet nor the traveller is the source of truth: travellers
+    are sometimes wrong where the local notes are right, so surface a
+    disagreement for review rather than trusting either side.
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
       Test against the 6/29 board-20/21 swap.
 - [ ] Graceful degradation: run to completion with zero travellers.
