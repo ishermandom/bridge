@@ -61,12 +61,6 @@ and verified with no OCR involved.
 - [x] Non-raising validation pass: `find_issues(board)` plus `validate_board`/
       `validate_session` that annotate frozen copies. See `validation.py` and
       models.md (Validation).
-  - Note: the `+N`-make-reaches-the-contract check is deliberately left for the
-    parser rather than done here. The `+`/`-` sign is still recoverable from
-    `Outcome.raw`, but is already gone from the typed `Result.tricks_taken` this
-    pass reads, so checking it here would mean re-parsing raw cell text.
-    `parse_contract_cell` already has the sign in hand mid-parse, so the check
-    belongs there instead.
   - Note: card legality collapses into lead resolvability — a `Card` is built
     from enum-typed rank and suit, so any resolved lead is already a real card.
   - Note: the declarer is not derived from the auction — passes are usually
@@ -74,14 +68,6 @@ and verified with no OCR involved.
     ambiguous. The contract cell's declarer stands; cross-checking it moves to
     reconciliation against the travellers. Auction legality instead leans on
     `by_opponents` (the circle convention) for its double/redouble side checks.
-- [ ] Make-vs-set result consistency, in the parser: when a contract cell's
-      result reads `+N`, verify the make reaches the contract — `tricks_taken`
-      at least `level + 6` — and attach an `Outcome` issue when it doesn't.
-      #make-reaches-contract
-  - Rationale: the sign survives in `Outcome.raw`, so the validator could
-    re-parse it, but only by duplicating parsing logic on text the parser
-    already parsed. `parse_contract_cell` holds both the sign and the level
-    mid-parse without any re-parsing, so the check belongs there.
 
 ---
 

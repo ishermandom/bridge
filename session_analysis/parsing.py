@@ -40,7 +40,7 @@ from session_analysis.models import (
   Result,
   Schedule,
 )
-from session_analysis.notation import tricks_taken_from_sheet_result
+from session_analysis.notation import BOOK, tricks_taken_from_sheet_result
 
 # Issue codes this module raises. `Issue.code` stays a plain string until the
 # parser and validation pass together settle the full set into an enum (see
@@ -51,6 +51,7 @@ _UNPARSEABLE_LEAD = 'unparseable_lead'
 _UNREADABLE_BOARD_NUMBER = 'unreadable_board_number'
 _UNREADABLE_DATE = 'unreadable_date'
 _MISPLACED_ALERT = 'misplaced_alert'
+_MAKE_BELOW_CONTRACT = 'make_below_contract'
 
 # The dash glyphs (see glyphs.DASHES), regex-escaped for embedding in a
 # character class: a result's minus and a passout's strike-through may each be
@@ -207,13 +208,35 @@ def parse_contract_cell(cell: str) -> Outcome:
   )
   # The result normalizer needs the level to convert a `-N` set; the regex has
   # already constrained the token to a `±N` form, so it cannot raise here.
+  result_token = match.group('result')
   result = Result(
-    tricks_taken=tricks_taken_from_sheet_result(
-      match.group('result'), contract.level
-    )
+    tricks_taken=tricks_taken_from_sheet_result(result_token, contract.level)
   )
+
+  issues: list[Issue] = []
+  # A `+N` result claims a make; verify it actually reaches the contract (level
+  # plus book). A `-N` result is a set by construction, so it needs no check
+  # here. The sign survives only in `result_token` — `Result` already dropped it
+  # down to a plain trick count.
+  tricks_needed = contract.level + BOOK
+  if result_token[0] == '+' and result.tricks_taken < tricks_needed:
+    issues.append(
+      Issue(
+        code=_MAKE_BELOW_CONTRACT,
+        severity=IssueSeverity.HIGH,
+        message=(
+          f'contract {contract.level}{contract.strain.value} needs '
+          f'{tricks_needed} tricks but the make result {result_token!r} '
+          f'is only {result.tricks_taken}'
+        ),
+        location='outcome',
+      )
+    )
+
   return Outcome(
-    raw=cell, resolution=PlayedContract(contract=contract, result=result)
+    raw=cell,
+    resolution=PlayedContract(contract=contract, result=result),
+    issues=tuple(issues),
   )
 
 

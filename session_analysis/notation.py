@@ -16,8 +16,9 @@ import re
 from session_analysis import glyphs
 
 # Book is the first six tricks, which no contract scores. A contract's level is
-# stated above book: a 4-level contract needs ten tricks, book plus four.
-_BOOK = 6
+# stated above book: a 4-level contract needs ten tricks, book plus four. Public
+# — other modules need it to compute the tricks a contract requires.
+BOOK = 6
 
 # The pattern of a result token: a sign followed by one or more digits.
 _RESULT_TOKEN_PATTERN = re.compile(r'([+-])(\d+)')
@@ -52,8 +53,8 @@ def tricks_taken_from_sheet_result(result: str, contract_level: int) -> int:
   Raises:
     ValueError: if result is not a well-formed '+N' / '-N' token.
   """
-  # Fold every dash variant to an ASCII hyphen so all transcriptions parse
-  # alike — the sheet may be written, or transcribed, with any of them.
+  # Fold every dash variant to an ASCII hyphen so all transcriptions parse alike
+  # — the sheet may be written, or transcribed, with any of them.
   token = result.strip().translate(_DASH_TO_HYPHEN)
   match = _RESULT_TOKEN_PATTERN.fullmatch(token)
   if not match:
@@ -62,6 +63,6 @@ def tricks_taken_from_sheet_result(result: str, contract_level: int) -> int:
   sign, count = match.group(1), int(match.group(2))
   if sign == '+':
     # '+N' counts up from book, independent of the contract level.
-    return _BOOK + count
+    return BOOK + count
   # '-N' counts down from the tricks the contract needed: level plus book.
-  return contract_level + _BOOK - count
+  return contract_level + BOOK - count

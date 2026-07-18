@@ -373,6 +373,31 @@ def test_accepts_any_dash_glyph_in_the_result(dash: str) -> None:
   assert played.result.tricks_taken == 9  # 5-level needs 11; down two.
 
 
+# --- contract: make-vs-set consistency ---
+
+
+def test_make_reaching_exactly_the_contract_has_no_issue() -> None:
+  outcome = parse_contract_cell('4SS+4')
+  played = outcome.resolution
+  assert isinstance(played, PlayedContract)
+  assert played.result.tricks_taken == 10  # book six plus four: exactly makes.
+  assert outcome.issues == ()
+
+
+def test_make_below_the_contract_level_is_flagged() -> None:
+  # `+2` is eight tricks; a 4-level contract needs ten. The `+` marks it a make,
+  # so the shortfall is an inconsistency worth a review flag.
+  outcome = parse_contract_cell('4SS+2')
+  assert outcome.issues[0].code == 'make_below_contract'
+
+
+def test_set_contract_is_never_flagged_as_a_short_make() -> None:
+  # A `-N` result is short of the contract by construction — that's what a set
+  # means — so it must never trip the make-vs-set check.
+  outcome = parse_contract_cell('4SS-2')
+  assert outcome.issues == ()
+
+
 # --- contract: passout ---
 
 

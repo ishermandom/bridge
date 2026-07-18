@@ -188,6 +188,11 @@ the one raw cell). `*`/`**` before the declarer set the penalty; the trailing
 [Result normalization](#result-normalization)). `PASSOUT` or a struck-through
 cell yields a null contract and result — the board is a passout.
 
+A `+N` result claims a make; if the resulting `tricks_taken` still falls short
+of `level + 6`, the parser attaches a `make_below_contract` issue rather than
+silently accepting the contradiction. A `-N` result is a set by construction, so
+it needs no such check.
+
 | Raw cell  | level | strain | penalty | declarer | tricks_taken |
 | --------- | ----- | ------ | ------- | -------- | ------------ |
 | `2H S +2` | 2     | H      | none    | S        | 8            |
