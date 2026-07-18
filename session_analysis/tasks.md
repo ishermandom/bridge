@@ -61,9 +61,6 @@ and verified with no OCR involved.
 - [x] Non-raising validation pass: `find_issues(board)` plus `validate_board`/
       `validate_session` that annotate frozen copies. See `validation.py` and
       models.md (Validation).
-  - Note: `validation.py`/`validation_test.py` are written and green but
-    uncommitted, awaiting an `/ownership-walkthrough` deferred to a later
-    session — the diff hasn't had its ownership review yet.
   - Note: the `+N`-make-reaches-the-contract check is deliberately left for the
     parser rather than done here. The `+`/`-` sign is still recoverable from
     `Outcome.raw`, but is already gone from the typed `Result.tricks_taken` this
@@ -168,8 +165,19 @@ parsed value.
     questions).
 - [ ] Triage-ranked field list with image crop beside the parsed value and
       keyboard accept/fix.
+  - Note: an unresolved auction token is currently flagged twice with no shared
+    identity — once as `unparseable_call` on the `AuctionEntry` itself
+    (parsing.py) and again as `unresolved_call` at the board level
+    (validation.py). A priority score built from raw issue counts would
+    double-count it; worth a shared issue-identity scheme (see models.md's open
+    question on firming up issue codes) before triage math depends on counts.
 - [ ] Row-level fixups (swap, renumber, reorder) as first-class operations.
 - [ ] Re-validate after edits; auto-open or notify after a sheet is processed.
+  - Note: `validate_board` appends freshly found issues onto `board.issues`
+    unconditionally, with no de-duplication. Re-validating the same board twice
+    (an edit that didn't touch the flagged field, or a retry) will accumulate
+    duplicate `Issue` entries unless this task also strips prior
+    validation-origin issues before re-running the checks.
 
 ---
 
