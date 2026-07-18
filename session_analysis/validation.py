@@ -95,12 +95,26 @@ _STRAIN_RANK = {
 _CONTRACT_LEVELS = range(1, 7 + 1)
 _POSSIBLE_TRICKS = range(0, 13 + 1)
 
-# One auction token whose call resolved: the envelope (for its `by_opponents`
-# side flag) paired with its parsed `Call`.
-_ResolvedCall = tuple[AuctionEntry, Call]
 
-# A well-formed bid's index in the resolved auction, level, and strain.
-_ResolvedBid = tuple[int, int, Strain]
+@dataclasses.dataclass(frozen=True)
+class _ResolvedCall:
+  """One auction token whose call resolved.
+
+  Keeps the envelope (for its `by_opponents` side flag) alongside its parsed
+  `Call`.
+  """
+
+  entry: AuctionEntry
+  call: Call
+
+
+@dataclasses.dataclass(frozen=True)
+class _ResolvedBid:
+  """A well-formed bid's position in the resolved auction, level, and strain."""
+
+  index: int
+  level: int
+  strain: Strain
 
 
 def find_issues(board: Board) -> Sequence[Issue]:
@@ -269,7 +283,7 @@ def _check_auction_legality(board: Board) -> Iterator[Issue]:
   # a hole. The `if entry.call` filter also narrows the call type from
   # `Call | None` to `Call` for the checks below.
   resolved: list[_ResolvedCall] = [
-    (entry, entry.call) for entry in entries if entry.call
+    _ResolvedCall(entry, entry.call) for entry in entries if entry.call
   ]
   yield from _check_rank_monotonicity(resolved)
   if len(resolved) != len(entries):
@@ -285,7 +299,7 @@ def _check_auction_legality(board: Board) -> Iterator[Issue]:
 
   if isinstance(resolution, Passout):
     # A passed-out board has no bids; any bid contradicts the contract cell.
-    if any(call.kind == CallKind.BID for _, call in resolved):
+    if any(r.call.kind == CallKind.BID for r in resolved):
       yield Issue(
         code=_PASSOUT_HAS_BIDS,
         severity=IssueSeverity.HIGH,
@@ -306,16 +320,15 @@ def _check_rank_monotonicity(
   without changing it. Each bid must strictly exceed its predecessor.
   """
   bids = _bids(resolved)
-  for previous, (index, current_level, current_strain) in pairwise(bids):
-    _, previous_level, previous_strain = previous
-    if _bid_rank(current_level, current_strain) <= _bid_rank(
-      previous_level, previous_strain
+  for previous, current in pairwise(bids):
+    if _bid_rank(current.level, current.strain) <= _bid_rank(
+      previous.level, previous.strain
     ):
       yield Issue(
         code=_AUCTION_RANK_NOT_INCREASING,
         severity=IssueSeverity.HIGH,
         message='bid does not outrank the preceding bid',
-        location=f'auction[{index}]',
+        location=f'auction[{current.index}]',
       )
 
 
@@ -366,21 +379,21 @@ def _check_double_redouble_legality(
   between calls are usually not written down. The side test reads each call's
   `by_opponents` flag rather than a seat, which omitted passes make unknowable.
   """
-  for index, (entry, call) in enumerate(resolved):
-    rule = _CALL_LEGALITY_RULES.get(call.kind)
+  for index, resolved_call in enumerate(resolved):
+    rule = _CALL_LEGALITY_RULES.get(resolved_call.call.kind)
     if not rule:
       continue
     preceding = _preceding_non_pass(resolved, index)
     location = f'auction[{index}]'
 
-    if preceding is None or preceding[1].kind != rule.required_preceding_kind:
+    if preceding is None or preceding.call.kind != rule.required_preceding_kind:
       yield Issue(
         code=rule.without_code,
         severity=IssueSeverity.HIGH,
         message=rule.without_message,
         location=location,
       )
-    elif entry.by_opponents == preceding[0].by_opponents:
+    elif resolved_call.entry.by_opponents == preceding.entry.by_opponents:
       yield Issue(
         code=rule.wrong_side_code,
         severity=IssueSeverity.MEDIUM,
@@ -409,18 +422,18 @@ def _check_contract_matches_auction(
     )
     return
 
-  last_index, last_level, last_strain = bids[-1]
-  if (last_level, last_strain) != (contract.level, contract.strain):
+  last_bid = bids[-1]
+  if (last_bid.level, last_bid.strain) != (contract.level, contract.strain):
     yield Issue(
       code=_CONTRACT_NOT_LAST_BID,
       severity=IssueSeverity.HIGH,
       message=f'contract {contract.level}{contract.strain.value} does not '
-      f'match the last bid {last_level}{last_strain.value}',
+      f'match the last bid {last_bid.level}{last_bid.strain.value}',
       location='outcome',
     )
 
   # The penalty is whatever double or redouble trails the final bid.
-  trailing_calls = [call for _, call in resolved[last_index + 1 :]]
+  trailing_calls = [r.call for r in resolved[last_bid.index + 1 :]]
   trailing_penalty = _trailing_penalty(trailing_calls)
   if trailing_penalty != contract.penalty:
     yield Issue(
@@ -440,11 +453,11 @@ def _bids(resolved: Sequence[_ResolvedCall]) -> Sequence[_ResolvedBid]:
   by `_check_content` — rather than crashing this pass.
   """
   return [
-    (index, call.level, call.strain)
-    for index, (_, call) in enumerate(resolved)
-    if call.kind == CallKind.BID
-    and call.level is not None
-    and call.strain is not None
+    _ResolvedBid(index, r.call.level, r.call.strain)
+    for index, r in enumerate(resolved)
+    if r.call.kind == CallKind.BID
+    and r.call.level is not None
+    and r.call.strain is not None
   ]
 
 
@@ -453,7 +466,7 @@ def _preceding_non_pass(
 ) -> _ResolvedCall | None:
   """Return the nearest resolved call before `index` that is not a pass."""
   for candidate in reversed(resolved[:index]):
-    if candidate[1].kind != CallKind.PASS:
+    if candidate.call.kind != CallKind.PASS:
       return candidate
   return None
 
