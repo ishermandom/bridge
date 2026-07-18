@@ -153,14 +153,27 @@ def test_passed_out_board_is_clean() -> None:
 
 def test_unresolved_call_is_flagged() -> None:
   board = _make_board(
-    auction=[_make_bid(1, Strain.CLUBS), _make_unresolved_call()]
+    auction=[_make_bid(1, Strain.CLUBS), _make_unresolved_call()],
+    outcome=_make_played(1, Strain.CLUBS, Direction.NORTH, tricks=7),
+    opening_lead=_make_lead(),
   )
   assert _codes(board) == {'unresolved_call'}
 
 
 def test_unresolved_lead_is_flagged() -> None:
-  board = _make_board(opening_lead=Lead(raw='??'))
+  board = _make_legal_board().model_copy(
+    update={'opening_lead': Lead(raw='??')}
+  )
   assert _codes(board) == {'unresolved_lead'}
+
+
+def test_malformed_bid_call_is_flagged() -> None:
+  # A `Call` the frozen model permits but the parser never produces: a bid
+  # missing its level and strain.
+  board = _make_board(
+    auction=[AuctionEntry(raw='?', call=Call(kind=CallKind.BID))]
+  )
+  assert 'malformed_bid_call' in _codes(board)
 
 
 def test_unresolved_contract_is_flagged() -> None:
@@ -212,6 +225,21 @@ def test_unresolved_contract_does_not_prompt_for_lead_or_auction() -> None:
   assert _codes(board) == {'unresolved_contract'}
 
 
+def test_missing_contract_cell_is_flagged() -> None:
+  # A blank cell (no outcome at all) is distinct from one that resolved but
+  # didn't parse — either way, it's a review prompt.
+  board = _make_board(
+    auction=[_make_bid(1, Strain.CLUBS)], opening_lead=_make_lead()
+  )
+  assert _codes(board) == {'contract_missing'}
+
+
+def test_opening_lead_on_passout_is_flagged() -> None:
+  # No one leads to a board that was passed out.
+  board = _make_board(outcome=_make_passout(), opening_lead=_make_lead())
+  assert _codes(board) == {'lead_on_passout'}
+
+
 # --- auction legality: rank monotonicity ---
 
 
@@ -238,7 +266,9 @@ def test_ascending_bids_without_written_passes_are_clean() -> None:
       _make_bid(1, Strain.CLUBS),
       _make_bid(1, Strain.HEARTS),
       _make_bid(2, Strain.DIAMONDS),
-    ]
+    ],
+    outcome=_make_played(2, Strain.DIAMONDS, Direction.NORTH, tricks=8),
+    opening_lead=_make_lead(),
   )
   assert find_issues(board) == ()
 
@@ -260,20 +290,32 @@ def test_intervening_written_pass_does_not_advance_rank() -> None:
 
 def test_double_of_the_opponents_bid_is_clean() -> None:
   board = _make_board(
-    auction=[_make_bid(1, Strain.HEARTS), _make_double(by_opponents=True)]
+    auction=[_make_bid(1, Strain.HEARTS), _make_double(by_opponents=True)],
+    outcome=_make_played(
+      1, Strain.HEARTS, Direction.NORTH, tricks=7, penalty=Penalty.DOUBLED
+    ),
+    opening_lead=_make_lead(),
   )
   assert find_issues(board) == ()
 
 
 def test_double_not_following_a_bid_is_flagged() -> None:
-  board = _make_board(auction=[_make_double(by_opponents=True)])
+  # No lead recorded either: a passout is the neutral "no contract" outcome for
+  # an auction with no bid at all.
+  board = _make_board(
+    auction=[_make_double(by_opponents=True)], outcome=_make_passout()
+  )
   assert _codes(board) == {'double_without_bid'}
 
 
 def test_double_of_own_side_is_flagged() -> None:
   # Both calls are ours (uncircled): you cannot double your partner's bid.
   board = _make_board(
-    auction=[_make_bid(1, Strain.HEARTS), _make_double(by_opponents=False)]
+    auction=[_make_bid(1, Strain.HEARTS), _make_double(by_opponents=False)],
+    outcome=_make_played(
+      1, Strain.HEARTS, Direction.NORTH, tricks=7, penalty=Penalty.DOUBLED
+    ),
+    opening_lead=_make_lead(),
   )
   assert _codes(board) == {'double_by_wrong_side'}
 
@@ -284,7 +326,11 @@ def test_double_skips_an_intervening_written_pass() -> None:
       _make_bid(1, Strain.HEARTS),
       _make_pass(),
       _make_double(by_opponents=True),
-    ]
+    ],
+    outcome=_make_played(
+      1, Strain.HEARTS, Direction.NORTH, tricks=7, penalty=Penalty.DOUBLED
+    ),
+    opening_lead=_make_lead(),
   )
   assert find_issues(board) == ()
 
@@ -295,14 +341,22 @@ def test_redouble_of_a_double_is_clean() -> None:
       _make_bid(1, Strain.HEARTS),
       _make_double(by_opponents=True),
       _make_redouble(by_opponents=False),
-    ]
+    ],
+    outcome=_make_played(
+      1, Strain.HEARTS, Direction.NORTH, tricks=7, penalty=Penalty.REDOUBLED
+    ),
+    opening_lead=_make_lead(),
   )
   assert find_issues(board) == ()
 
 
 def test_redouble_not_following_a_double_is_flagged() -> None:
   board = _make_board(
-    auction=[_make_bid(1, Strain.HEARTS), _make_redouble(by_opponents=False)]
+    auction=[_make_bid(1, Strain.HEARTS), _make_redouble(by_opponents=False)],
+    outcome=_make_played(
+      1, Strain.HEARTS, Direction.NORTH, tricks=7, penalty=Penalty.REDOUBLED
+    ),
+    opening_lead=_make_lead(),
   )
   assert _codes(board) == {'redouble_without_double'}
 
@@ -314,7 +368,11 @@ def test_redouble_by_the_doubling_side_is_flagged() -> None:
       _make_bid(1, Strain.HEARTS),
       _make_double(by_opponents=True),
       _make_redouble(by_opponents=True),
-    ]
+    ],
+    outcome=_make_played(
+      1, Strain.HEARTS, Direction.NORTH, tricks=7, penalty=Penalty.REDOUBLED
+    ),
+    opening_lead=_make_lead(),
   )
   assert _codes(board) == {'redouble_by_wrong_side'}
 
@@ -386,18 +444,32 @@ def test_contract_cell_with_a_bidless_auction_is_flagged() -> None:
   assert 'contract_without_bid' in _codes(board)
 
 
-# --- a hole in the auction suppresses the legality checks ---
+# --- a hole in the auction limits which legality checks run ---
 
 
-def test_unresolved_token_suppresses_auction_legality() -> None:
-  # A descending pair of bids would fail monotonicity, but the hole between them
-  # makes the sequence untrustworthy, so only the unresolved token is reported.
+def test_unresolved_token_still_flags_a_rank_violation() -> None:
+  # Rank is checked between adjacent *known* bids, so a hole elsewhere can't
+  # hide a violation between them: 2H fails to outrank 3S regardless of what the
+  # unresolved token in between turns out to be.
   board = _make_board(
     auction=[
       _make_bid(3, Strain.SPADES),
       _make_unresolved_call(),
       _make_bid(2, Strain.HEARTS),
-    ]
+    ],
+    outcome=_make_played(2, Strain.HEARTS, Direction.NORTH, tricks=8),
+    opening_lead=_make_lead(),
+  )
+  assert _codes(board) == {'unresolved_call', 'auction_rank_not_increasing'}
+
+
+def test_unresolved_token_suppresses_double_redouble_legality() -> None:
+  # Unlike rank, a double's legality depends on its immediate predecessor —
+  # which the hole itself might have been — so this check stays silent rather
+  # than risk a false positive, leaving the hole to the content check.
+  board = _make_board(
+    auction=[_make_unresolved_call(), _make_double(by_opponents=True)],
+    outcome=_make_passout(),
   )
   assert _codes(board) == {'unresolved_call'}
 

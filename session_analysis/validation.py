@@ -44,6 +44,7 @@ recorded bid order and each call's `by_opponents` flag (the circle convention),
 never on an absolute seat.
 """
 
+import dataclasses
 from collections.abc import Iterator, Sequence
 from itertools import pairwise
 
@@ -62,11 +63,14 @@ from session_analysis.models import (
 # already emits (see parsing.py); a shared enum spanning both modules is a
 # possible future consolidation.
 _UNRESOLVED_CALL = 'unresolved_call'
+_MALFORMED_BID_CALL = 'malformed_bid_call'
 _UNRESOLVED_LEAD = 'unresolved_lead'
 _UNRESOLVED_CONTRACT = 'unresolved_contract'
 _CONTRACT_LEVEL_OUT_OF_RANGE = 'contract_level_out_of_range'
 _TRICKS_OUT_OF_RANGE = 'tricks_out_of_range'
+_CONTRACT_MISSING = 'contract_missing'
 _LEAD_MISSING = 'lead_missing'
+_LEAD_ON_PASSOUT = 'lead_on_passout'
 _AUCTION_MISSING = 'auction_missing'
 _AUCTION_RANK_NOT_INCREASING = 'auction_rank_not_increasing'
 _DOUBLE_WITHOUT_BID = 'double_without_bid'
@@ -94,6 +98,9 @@ _POSSIBLE_TRICKS = range(0, 13 + 1)
 # One auction token whose call resolved: the envelope (for its `by_opponents`
 # side flag) paired with its parsed `Call`.
 _ResolvedCall = tuple[AuctionEntry, Call]
+
+# A well-formed bid's index in the resolved auction, level, and strain.
+_ResolvedBid = tuple[int, int, Strain]
 
 
 def find_issues(board: Board) -> Sequence[Issue]:
@@ -143,6 +150,18 @@ def _check_content(board: Board) -> Iterator[Issue]:
         message=f'auction token did not resolve to a call: {entry.raw!r}',
         location=f'auction[{index}]',
       )
+    # `Call` doesn't itself enforce that a bid carries both a level and a
+    # strain; the parser always sets both together, but a hand-edited board (see
+    # the module docstring) might not.
+    elif entry.call.kind == CallKind.BID and (
+      entry.call.level is None or entry.call.strain is None
+    ):
+      yield Issue(
+        code=_MALFORMED_BID_CALL,
+        severity=IssueSeverity.HIGH,
+        message=f'bid is missing its level or strain: {entry.raw!r}',
+        location=f'auction[{index}]',
+      )
 
   # A present lead that failed to resolve is a problem; a missing lead is the
   # completeness check's concern, not this one.
@@ -183,16 +202,36 @@ def _check_content(board: Board) -> Iterator[Issue]:
 
 
 def _check_completeness(board: Board) -> Iterator[Issue]:
-  """Yield review prompts for a played board missing its lead or auction.
+  """Yield review prompts for missing or mismatched-to-outcome content.
 
   A lead and an auction are expected on any board that was actually played; both
-  are legitimately absent only on a passout. When the contract cell didn't
-  resolve we can't tell which case it is, so the unresolved-contract issue
-  stands alone and this check keeps quiet.
+  are legitimately absent only on a passout, so their absence is a review prompt
+  only when the outcome resolved to a `PlayedContract`. A `Passout` runs the
+  opposite check: a lead is unexpected there, since no one led to a passed-out
+  board. A blank contract cell — no outcome at all, distinct from an unparseable
+  one — is always a review prompt, since without it we can't even tell which of
+  the two cases applies.
   """
-  if not board.outcome or not isinstance(
-    board.outcome.resolution, PlayedContract
-  ):
+  if not board.outcome:
+    yield Issue(
+      code=_CONTRACT_MISSING,
+      severity=IssueSeverity.MEDIUM,
+      message='no contract cell transcribed for this board',
+      location='outcome',
+    )
+    return
+
+  if isinstance(board.outcome.resolution, Passout):
+    if board.opening_lead:
+      yield Issue(
+        code=_LEAD_ON_PASSOUT,
+        severity=IssueSeverity.MEDIUM,
+        message='opening lead recorded for a board marked as passed out',
+        location='opening_lead',
+      )
+    return
+
+  if not isinstance(board.outcome.resolution, PlayedContract):
     return
 
   if not board.opening_lead:
@@ -215,24 +254,27 @@ def _check_completeness(board: Board) -> Iterator[Issue]:
 def _check_auction_legality(board: Board) -> Iterator[Issue]:
   """Yield issues for an illegal or contract-inconsistent auction.
 
-  Runs only on a transcribed auction whose every token resolved: a hole would
-  make the bid sequence untrustworthy, so the pass stays silent and lets the
-  content check own the unresolved token.
+  Rank monotonicity only compares adjacent known bids, so a hole elsewhere in
+  the auction can't hide a genuine violation between them — it runs regardless.
+  The remaining checks reason about a call's immediate predecessor or the
+  auction's true final bid, where a hole could be exactly the missing piece;
+  they run only on an auction whose every token resolved, and otherwise leave
+  the hole itself to the content check.
   """
   entries = board.auction
   if not entries:
     return
 
   # Pair each entry with its resolved call; a shorter list means the auction had
-  # a hole, so we bail. The `if entry.call` filter also narrows the call type
-  # from `Call | None` to `Call` for the checks below.
+  # a hole. The `if entry.call` filter also narrows the call type from
+  # `Call | None` to `Call` for the checks below.
   resolved: list[_ResolvedCall] = [
     (entry, entry.call) for entry in entries if entry.call
   ]
+  yield from _check_rank_monotonicity(resolved)
   if len(resolved) != len(entries):
     return
 
-  yield from _check_rank_monotonicity(resolved)
   yield from _check_double_redouble_legality(resolved)
 
   # The remaining checks cross the auction against the contract cell, so they
@@ -264,14 +306,53 @@ def _check_rank_monotonicity(
   without changing it. Each bid must strictly exceed its predecessor.
   """
   bids = _bids(resolved)
-  for (_, previous), (index, current) in pairwise(bids):
-    if _bid_rank(current) <= _bid_rank(previous):
+  for previous, (index, current_level, current_strain) in pairwise(bids):
+    _, previous_level, previous_strain = previous
+    if _bid_rank(current_level, current_strain) <= _bid_rank(
+      previous_level, previous_strain
+    ):
       yield Issue(
         code=_AUCTION_RANK_NOT_INCREASING,
         severity=IssueSeverity.HIGH,
         message='bid does not outrank the preceding bid',
         location=f'auction[{index}]',
       )
+
+
+@dataclasses.dataclass(frozen=True)
+class _CallLegalityRule:
+  """The shape a double or redouble's legality check shares.
+
+  `required_preceding_kind` is what the nearest preceding non-pass call must be;
+  the two issue codes and messages cover that requirement failing, and the
+  requirement holding but the wrong side making the call.
+  """
+
+  required_preceding_kind: CallKind
+  without_code: str
+  without_message: str
+  wrong_side_code: str
+  wrong_side_message: str
+
+
+_CALL_LEGALITY_RULES = {
+  CallKind.DOUBLE: _CallLegalityRule(
+    required_preceding_kind=CallKind.BID,
+    without_code=_DOUBLE_WITHOUT_BID,
+    without_message='double does not follow a bid',
+    wrong_side_code=_DOUBLE_BY_WRONG_SIDE,
+    wrong_side_message='double is by the same side as the bid it doubles',
+  ),
+  CallKind.REDOUBLE: _CallLegalityRule(
+    required_preceding_kind=CallKind.DOUBLE,
+    without_code=_REDOUBLE_WITHOUT_DOUBLE,
+    without_message='redouble does not follow a double',
+    wrong_side_code=_REDOUBLE_BY_WRONG_SIDE,
+    wrong_side_message=(
+      'redouble is by the same side as the double it answers'
+    ),
+  ),
+}
 
 
 def _check_double_redouble_legality(
@@ -286,41 +367,26 @@ def _check_double_redouble_legality(
   `by_opponents` flag rather than a seat, which omitted passes make unknowable.
   """
   for index, (entry, call) in enumerate(resolved):
-    if call.kind not in (CallKind.DOUBLE, CallKind.REDOUBLE):
+    rule = _CALL_LEGALITY_RULES.get(call.kind)
+    if not rule:
       continue
     preceding = _preceding_non_pass(resolved, index)
     location = f'auction[{index}]'
 
-    if call.kind == CallKind.DOUBLE:
-      if preceding is None or preceding[1].kind != CallKind.BID:
-        yield Issue(
-          code=_DOUBLE_WITHOUT_BID,
-          severity=IssueSeverity.HIGH,
-          message='double does not follow a bid',
-          location=location,
-        )
-      elif entry.by_opponents == preceding[0].by_opponents:
-        yield Issue(
-          code=_DOUBLE_BY_WRONG_SIDE,
-          severity=IssueSeverity.MEDIUM,
-          message='double is by the same side as the bid it doubles',
-          location=location,
-        )
-    else:  # A redouble.
-      if preceding is None or preceding[1].kind != CallKind.DOUBLE:
-        yield Issue(
-          code=_REDOUBLE_WITHOUT_DOUBLE,
-          severity=IssueSeverity.HIGH,
-          message='redouble does not follow a double',
-          location=location,
-        )
-      elif entry.by_opponents == preceding[0].by_opponents:
-        yield Issue(
-          code=_REDOUBLE_BY_WRONG_SIDE,
-          severity=IssueSeverity.MEDIUM,
-          message='redouble is by the same side as the double it answers',
-          location=location,
-        )
+    if preceding is None or preceding[1].kind != rule.required_preceding_kind:
+      yield Issue(
+        code=rule.without_code,
+        severity=IssueSeverity.HIGH,
+        message=rule.without_message,
+        location=location,
+      )
+    elif entry.by_opponents == preceding[0].by_opponents:
+      yield Issue(
+        code=rule.wrong_side_code,
+        severity=IssueSeverity.MEDIUM,
+        message=rule.wrong_side_message,
+        location=location,
+      )
 
 
 def _check_contract_matches_auction(
@@ -343,16 +409,13 @@ def _check_contract_matches_auction(
     )
     return
 
-  last_index, last_bid = bids[-1]
-  # A bid always carries a level and strain (see Call); assert it for the type
-  # checker, since `_bids` already selected only bids.
-  assert last_bid.level is not None and last_bid.strain is not None
-  if (last_bid.level, last_bid.strain) != (contract.level, contract.strain):
+  last_index, last_level, last_strain = bids[-1]
+  if (last_level, last_strain) != (contract.level, contract.strain):
     yield Issue(
       code=_CONTRACT_NOT_LAST_BID,
       severity=IssueSeverity.HIGH,
       message=f'contract {contract.level}{contract.strain.value} does not '
-      f'match the last bid {last_bid.level}{last_bid.strain.value}',
+      f'match the last bid {last_level}{last_strain.value}',
       location='outcome',
     )
 
@@ -369,12 +432,19 @@ def _check_contract_matches_auction(
     )
 
 
-def _bids(resolved: Sequence[_ResolvedCall]) -> Sequence[tuple[int, Call]]:
-  """Return each bid paired with its index in the resolved auction."""
+def _bids(resolved: Sequence[_ResolvedCall]) -> Sequence[_ResolvedBid]:
+  """Return each well-formed bid's index, level, and strain.
+
+  A `Call` with `kind=BID` should always carry both, but `Call` doesn't enforce
+  that pairing; a bid missing either is excluded here — and flagged separately
+  by `_check_content` — rather than crashing this pass.
+  """
   return [
-    (index, call)
+    (index, call.level, call.strain)
     for index, (_, call) in enumerate(resolved)
     if call.kind == CallKind.BID
+    and call.level is not None
+    and call.strain is not None
   ]
 
 
@@ -388,14 +458,9 @@ def _preceding_non_pass(
   return None
 
 
-def _bid_rank(call: Call) -> tuple[int, int]:
-  """Return a bid's sort key: level first, then strain order.
-
-  Assumes a bid call, so level and strain are both present; the auction-legality
-  pass only reaches this with resolved bids.
-  """
-  assert call.level is not None and call.strain is not None
-  return (call.level, _STRAIN_RANK[call.strain])
+def _bid_rank(level: int, strain: Strain) -> tuple[int, int]:
+  """Return a bid's sort key: level first, then strain order."""
+  return (level, _STRAIN_RANK[strain])
 
 
 def _trailing_penalty(trailing_calls: Sequence[Call]) -> Penalty:
