@@ -62,6 +62,7 @@ class VisionModelInvocationError(Exception):
 def _run_claude(
   command: Sequence[str], stdin_text: str, cwd: pathlib.Path
 ) -> subprocess.CompletedProcess[str]:
+  cwd.mkdir(exist_ok=True)
   return subprocess.run(
     command, input=stdin_text, capture_output=True, text=True, cwd=cwd
   )
@@ -127,7 +128,8 @@ def _parse_result(stdout: str) -> str:
 
 
 def invoke_vision_model(
-  image_path: pathlib.Path,
+  image_bytes: bytes,
+  media_type: str,
   system_prompt: str,
   json_schema: Mapping[str, object],
   *,
@@ -137,8 +139,10 @@ def invoke_vision_model(
   """Run one scoresheet image through headless Claude Code.
 
   Args:
-    image_path: the scan to transcribe. Read locally and embedded in the
-      request as base64, rather than left to a `Read` tool call.
+    image_bytes: the scan to transcribe, embedded in the request as base64
+      rather than left to a `Read` tool call.
+    media_type: the image's MIME type, e.g. `'image/png'`. See
+      `media_type_for_suffix` to derive it from a file extension.
     system_prompt: replaces the CLI's default agentic-coding system prompt
       entirely, scoping the model to transcription.
     json_schema: a JSON Schema the response must validate against, enforced by
@@ -146,8 +150,9 @@ def invoke_vision_model(
       markdown-fenced JSON.
     model: the model alias or full name to invoke.
     run_command: the subprocess runner to use. Defaults to a real
-      `subprocess.run` call; tests substitute a fake that returns a scripted
-      `CompletedProcess` with no process ever spawned.
+      `subprocess.run` call, which creates the scratch directory if missing;
+      tests substitute a fake that returns a scripted `CompletedProcess` with
+      no process ever spawned and no directory ever touched.
 
   Returns:
     The model's response, as a JSON string conforming to `json_schema`.
@@ -156,16 +161,7 @@ def invoke_vision_model(
     VisionModelInvocationError: the `claude` process exited nonzero, or its output
       failed to yield a successful result event — see `_parse_result`.
   """
-  suffix = image_path.suffix.lower()
-  try:
-    media_type = _MEDIA_TYPE_BY_SUFFIX[suffix]
-  except KeyError:
-    raise ValueError(
-      f'unsupported image suffix {suffix!r} for {image_path}: expected one '
-      f'of {sorted(_MEDIA_TYPE_BY_SUFFIX)}'
-    ) from None
-
-  request = _build_request(image_path.read_bytes(), media_type)
+  request = _build_request(image_bytes, media_type)
 
   command = [
       'claude', '-p',
@@ -180,7 +176,6 @@ def invoke_vision_model(
       '--max-turns', '1',
   ]  # fmt: skip
 
-  _SCRATCH_DIRECTORY.mkdir(exist_ok=True)
   process = run_command(command, request, _SCRATCH_DIRECTORY)
 
   if process.returncode != 0:
@@ -189,3 +184,43 @@ def invoke_vision_model(
     )
 
   return _parse_result(process.stdout)
+
+
+def media_type_for_suffix(suffix: str) -> str:
+  """Return the MIME type for a lowercase image file suffix (e.g. `'.png'`).
+
+  Raises:
+    ValueError: the suffix isn't one of the supported image types.
+  """
+  try:
+    return _MEDIA_TYPE_BY_SUFFIX[suffix]
+  except KeyError:
+    raise ValueError(
+      f'unsupported image suffix {suffix!r}: expected one of '
+      f'{sorted(_MEDIA_TYPE_BY_SUFFIX)}'
+    ) from None
+
+
+def invoke_vision_model_for_scan(
+  image_path: pathlib.Path,
+  system_prompt: str,
+  json_schema: Mapping[str, object],
+  *,
+  model: str = _DEFAULT_MODEL,
+  run_command: CommandRunner = _run_claude,
+) -> str:
+  """Thin wrapper: read `image_path` and delegate to `invoke_vision_model`.
+
+  The only job here is resolving a scan file to bytes and a media type; see
+  `invoke_vision_model` for the actual invocation, which takes bytes directly so
+  it can be tested without touching the filesystem.
+  """
+  media_type = media_type_for_suffix(image_path.suffix.lower())
+  return invoke_vision_model(
+      image_path.read_bytes(),
+      media_type,
+      system_prompt,
+      json_schema,
+      model=model,
+      run_command=run_command,
+  )  # fmt: skip
