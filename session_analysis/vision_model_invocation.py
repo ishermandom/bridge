@@ -97,6 +97,11 @@ def _parse_result(stdout: str) -> str:
     VisionModelInvocationError: no line parses as JSON, no line is a `result` event,
       or the result event's `is_error` flag is set.
   """
+  # TODO: this aborts on the first non-JSON line, even if a valid `result` event
+  # follows later in the stream. Accepted for now — observed CLI output is
+  # always clean JSON lines — but a stray non-JSON line (a warning printed to
+  # stdout, a partial write) would surface a confusing error instead of the real
+  # result.
   result_event = None
   for line in stdout.splitlines():
     try:
