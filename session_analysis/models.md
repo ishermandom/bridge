@@ -7,8 +7,8 @@ notation convention live there and are not repeated here.
 
 The chain this document specifies, in order:
 
-1. **VLM output** — the faithful, minimally-interpreted JSON the vision model
-   returns.
+1. **Vision model output** — the faithful, minimally-interpreted JSON the vision
+   model returns.
 2. **Parsing** — pure code that turns that output into the canonical model,
    logging an issue per thing it can't parse rather than failing.
 3. **Canonical model** — the typed, stored shape, where every parsed value sits
@@ -19,10 +19,10 @@ The chain this document specifies, in order:
 
 A handwritten sheet is _expected_ to contain errors — that is the entire reason
 the review step exists. So no single misread ever aborts a parse. A bid
-transcribed `IC` instead of `1C`, a contract the VLM couldn't segment, a glyph
-that isn't a real strain — each is **captured verbatim, flagged, and left beside
-its eleven healthy neighbors**. The board is stored as a best-effort parse ahead
-of review; review corrects the flagged fields; the parse re-runs.
+transcribed `IC` instead of `1C`, a contract the vision model couldn't segment,
+a glyph that isn't a real strain — each is **captured verbatim, flagged, and
+left beside its eleven healthy neighbors**. The board is stored as a best-effort
+parse ahead of review; review corrects the flagged fields; the parse re-runs.
 
 This principle drives two structural decisions throughout:
 
@@ -37,7 +37,7 @@ This principle drives two structural decisions throughout:
   even malformed content is captured rather than rejected (see
   [Why Pydantic](#why-pydantic)).
 
-## VLM output
+## Vision model output
 
 The vision model's job is faithful perception, not interpretation. It
 transcribes what each cell shows; it does not parse bids, map circles to
@@ -66,11 +66,11 @@ trustworthy, and the traveller is authoritative (matchpoints are filled in at
 reconciliation, and are simply absent for a no-traveller session).
 
 The header carries `event` and `date`. `event` is stored raw; `date` is parsed
-downstream, and the VLM is expected to emit it as numeric month/day (`6/29`),
-normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). A human
-records the date many ways; a VLM reasons through the variants far more easily
-than a regex, so that burden sits here, not in the parser. The year is absent on
-the sheet and inferred downstream against the scan date.
+downstream, and the vision model is expected to emit it as numeric month/day
+(`6/29`), normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). A
+human records the date many ways; a vision model reasons through the variants
+far more easily than a regex, so that burden sits here, not in the parser. The
+year is absent on the sheet and inferred downstream against the scan date.
 
 Neither pair is transcribed — not our own, and not the opponents'. A pair is
 identified by number and direction (sometimes a section too), not the bare
@@ -81,8 +81,8 @@ read from the sheet; the reconciliation join leans on board content instead.
 ### Auction string syntax
 
 The auction is a single faithful transcription of the bidding line, mirroring
-how it is written on the sheet. The VLM emits the characters and these inline
-markers; it does not interpret them.
+how it is written on the sheet. The vision model emits the characters and these
+inline markers; it does not interpret them.
 
 - Calls are space-separated: `1C 1D 1N`.
 - **Circled** (a call by the opponents) → parentheses: `(1D)`.
@@ -94,7 +94,7 @@ markers; it does not interpret them.
   as seen; a call may carry both: `1C_2`, `1N_SF`, `1H_S`, `1N^0_2`.
 - **Double / redouble** → `*` / `**`, or the handwritten `x` / `xx`, each its
   own token: `(1H) * 2S`.
-- **Scratched-out** calls → omitted by the VLM entirely.
+- **Scratched-out** calls → omitted by the vision model entirely.
 - **Passes** → lowercase `p`, on the rare occasions they are written.
 
 Glyph mistakes are expected and tolerated: a misread `3D` written `ED` is passed
@@ -114,15 +114,15 @@ final contract, any penalty, the declarer, and the result together:
 - `PASSOUT`, any cell whose text contains 'pass' (`PASS`, `ALL PASS`), or a dash
   through the cell — no contract; the board is a passout.
 
-The VLM extracts the characters faithfully and is prepared for the penalty
-marker; segmenting the cell into fields is the parser's job.
+The vision model extracts the characters faithfully and is prepared for the
+penalty marker; segmenting the cell into fields is the parser's job.
 
 ## Parsing
 
-A single, pure, unit-testable module turns VLM output into the canonical model.
-It is the project's "interpretation layer": all bridge convention lives here,
-not in the model and not in the VLM. It never raises; unparseable input yields a
-null parsed value plus an `Issue`.
+A single, pure, unit-testable module turns vision model output into the
+canonical model. It is the project's "interpretation layer": all bridge
+convention lives here, not in the model and not in the vision model. It never
+raises; unparseable input yields a null parsed value plus an `Issue`.
 
 ### Auction grammar
 
@@ -260,7 +260,7 @@ validation pass define the concrete code set (see
 
 Our own pair identity is intentionally not a field here: it is resolved from the
 travellers at reconciliation, not read from the sheet (see
-[VLM output](#vlm-output)).
+[Vision model output](#vision-model-output)).
 
 ### Board
 
@@ -472,11 +472,11 @@ is **not** the gatekeeper for content. Its job is narrower and honest:
 It is configured so content never raises: every parsed value is optional — an
 envelope's parsed value, and the header `date` parsed straight into `Session` —
 so a misread is captured as a null rather than rejected, and the genuinely
-malformed skeleton — the rare case where the VLM returns something that isn't
-shaped like a board at all — is contained by parsing board-by-board, so one
-broken board is captured and flagged while the rest succeed. The errors Pydantic
-catches are _shape_ errors ("this isn't a board record"), never _content_ errors
-("this isn't legal bridge") — those belong to validation.
+malformed skeleton — the rare case where the vision model returns something that
+isn't shaped like a board at all — is contained by parsing board-by-board, so
+one broken board is captured and flagged while the rest succeed. The errors
+Pydantic catches are _shape_ errors ("this isn't a board record"), never
+_content_ errors ("this isn't legal bridge") — those belong to validation.
 
 The alternative considered was stdlib `dataclasses` plus hand-written JSON
 mapping: viable, but it hand-rolls the nested (de)serialization and coercion
@@ -490,15 +490,15 @@ These models are plain data holders — no validators, computed fields, or custo
 serializers — so constructing one and reading a field back tests Pydantic, not
 us. Their tests pin only what is genuinely ours: the serialization contract,
 chiefly the `kind`-tagged `Outcome` union keeping a played contract, a passout,
-and an unparsed cell distinct in the JSON. Turning VLM strings into these models
-is the parser's behaviour, and is tested there.
+and an unparsed cell distinct in the JSON. Turning vision model strings into
+these models is the parser's behaviour, and is tested there.
 
 ## Open questions and TODOs
 
-- **VLM extraction prompt** — the system prompt that elicits the
-  [VLM output](#vlm-output) faithfully (transcribe-don't-interpret, the auction
-  and contract syntax, scratch-outs dropped). To be written when extraction is
-  built; deferred for now.
+- **Vision model extraction prompt** — the system prompt that elicits the
+  [Vision model output](#vision-model-output) faithfully
+  (transcribe-don't-interpret, the auction and contract syntax, scratch-outs
+  dropped). To be written when extraction is built; deferred for now.
 - **Announcement type set** — `AnnouncementType` will grow as new announcement
   forms appear; `other` absorbs the unrecognized in the meantime.
 - **Issue codes and severities** — the concrete `IssueCode` set and each check's

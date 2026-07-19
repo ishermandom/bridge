@@ -91,14 +91,14 @@ model is designed to port cleanly into tables, but the **final storage format is
 an open question** (see [Open questions](#open-questions)). Treat JSON as the
 stable interchange contract, not necessarily the stable store.
 
-The field-level schema — the canonical record, the VLM's output contract, the
-parser between them, and the validation pass — is specified in
+The field-level schema — the canonical record, the vision model's output
+contract, the parser between them, and the validation pass — is specified in
 [models.md](models.md). At pipeline altitude:
 
 - **One session is one record**: a header (event, date, provenance) plus a list
   of board records. Our own pair identity is not read from the sheet — it is
   resolved from the travellers at reconciliation (see
-  [models.md](models.md#vlm-output)).
+  [models.md](models.md#vision-model-output)).
 - **Each board** carries its number; the computed dealer and vulnerability; the
   opening lead; the contract, penalty, declarer, and result (canonicalized to
   tricks taken); the auction as an ordered list of calls; the freetext notes;
@@ -145,20 +145,33 @@ mode**, on the existing Claude subscription — no separate API billing.
   the digest's Sonnet-workhorse-plus-Opus-escalation tiering is deliberately
   deferred as premature for 1–2 sheets/week. Revisit if accuracy on the auction
   column proves insufficient.
-- **Invocation**: `claude -p` (non-interactive). The default agentic-coding
-  system prompt is **fully replaced** via `--system-prompt` with a prompt scoped
-  to scoresheet transcription, and `--bare` makes the run ignore hooks, MCP
-  servers, and `CLAUDE.md` so the extraction is not polluted by the interactive
-  coding context. The scan image is provided by allowing the `Read` tool on the
-  scan path. Output is requested as JSON (`--output-format json`).
+- **Invocation**: `claude -p` (non-interactive); see
+  `vision_model_invocation.py`. The default agentic-coding system prompt is
+  **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet
+  transcription. `--setting-sources ""` and
+  `--strict-mcp-config --mcp-config '{"mcpServers":{}}'` keep the run from being
+  polluted by `CLAUDE.md`, hooks, or MCP servers — the isolation `--bare` was
+  originally meant to give. `--bare` itself turned out not to work here: it
+  requires `ANTHROPIC_API_KEY`/`apiKeyHelper` or `CLAUDE_CODE_OAUTH_TOKEN`, and
+  on this personal (non-org) account, even a known-good, currently-valid access
+  token supplied via `CLAUDE_CODE_OAUTH_TOKEN` 401s under it — found by
+  live-testing the CLI while chasing an auth failure. Plain `-p` with normal
+  OAuth reaches the same low-overhead floor without that broken path. The scan
+  image is embedded as base64 in a `--input-format stream-json` message rather
+  than read through the `Read` tool — one turn instead of two, and no
+  tool-definition token cost. `stream-json` input requires
+  `--output-format stream-json` in turn, so the response is a `result` event
+  parsed out of a JSON-lines stream rather than a single `--output-format json`
+  envelope; `--json-schema` keeps that event's payload schema-conformant JSON.
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
   markup (parens, `!`, `_`/`^`, `*`, `[ ]`), the contract cell verbatim, and the
   lead and header as written. It does not parse bids, map circles to
   "opponents," or normalize results; all of that is the downstream parser's job.
-  The full output contract and syntax are in [models.md](models.md#vlm-output).
-  Keeping the model's job to transcription minimizes schema-conformance failures
-  and keeps interpretation testable without it.
+  The full output contract and syntax are in
+  [models.md](models.md#vision-model-output). Keeping the model's job to
+  transcription minimizes schema-conformance failures and keeps interpretation
+  testable without it.
 - Score is **not** extracted (estimated on the sheet; traveller-authoritative),
   and dealer/vul are **not** extracted (computed). Both are stated in the prompt
   to keep the model off redundant columns.
@@ -311,8 +324,8 @@ everything downstream:
 2. Pydantic models, the dealer/vul computation, and the non-raising validation
    pass.
 3. Extraction: the headless invocation and the mechanical transcription prompt.
-4. Parser: VLM strings → canonical model (auction grammar, contract cell,
-   announcements).
+4. Parser: vision model strings → canonical model (auction grammar, contract
+   cell, announcements).
 5. Reconciliation and swap detection against traveller fixtures.
 6. Ingest spine and the "process inbox" trigger.
 7. Review UI.
