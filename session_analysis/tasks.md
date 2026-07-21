@@ -38,6 +38,12 @@ output, parsed into the canonical model.
       all-empty objects and each draws a medium `contract_missing` issue —
       either the prompt omits rows with no writing, or downstream treats an
       all-blank board as unplayed rather than flagging it.
+- [ ] Experiment: have the vision model interpret a missing date instead of
+      leaving it to the parser. Validate quality before adopting — this is a
+      trial, not a settled direction.
+  - Rationale: the date is often not written on the sheet at all, and a vision
+    model can plausibly infer it from available context in a way static code
+    can't do accurately.
 
 ---
 
