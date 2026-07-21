@@ -27,9 +27,13 @@ output, parsed into the canonical model.
     dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
     violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
     model-escalation backlog item.
-- [ ] Give the extraction JSON schema a production home: the session/board
-      schema passed as `--json-schema` exists only in the live-test scratch
-      driver; the "process inbox" command will need it in the package.
+- [ ] Tokenize glued calls in the auction parser: the vision model sometimes
+      omits the space between adjacent tokens, and the parser should split them
+      locally rather than expect the model to police spacing. Observed live:
+  - Adjacent circled calls: `(1D)(1S)`, `(1D)(1N)`, `(1D)(1H)`, `(3S)(4S)`,
+    `(1N)(3N)`, `(1D)(1S)(1N)`, `(1C!)(1S!)(1N)`, `(1D)(1H)(1N)(2H)`.
+  - A double glued to its call: `1H*` (a circled `*` on the sheet, emitted fused
+    with the preceding call).
 - [ ] Decide handling for unplayed pre-printed rows: boards 25–28 come back as
       all-empty objects and each draws a medium `contract_missing` issue —
       either the prompt omits rows with no writing, or downstream treats an
