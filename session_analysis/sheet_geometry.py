@@ -14,8 +14,8 @@ passes (see spec.md, Extraction):
   rectangle at native scale.
 - **Detect** (`detect_sheet_geometry`): in dewarped space the rules are near
   horizontal, so a projection profile finds them, and the row grid is identified
-  structurally — the longest run of near-uniformly-spaced rules — with no
-  positional template.
+  structurally — the longest uniform-pitch chain of rules — with no positional
+  template.
 
 The resulting `SheetGeometry` holds tight rule-to-rule boxes in dewarped-image
 coordinates; handwriting routinely bleeds past the printed rules, so each
@@ -27,11 +27,14 @@ archived scan — rather than being recomputed per consumer.
 
 import collections
 import dataclasses
+import enum
 import itertools
 import math
 import statistics
 from collections.abc import Sequence
+from typing import Annotated, NamedTuple
 
+import pydantic
 from PIL import Image
 
 from session_analysis.frozen_model import FrozenModel
@@ -56,11 +59,14 @@ _GAP_TOLERANCE_FRACTION = 0.2
 _CHAIN_SEED_NEIGHBOR_LIMIT = 10
 
 # A plausible row pitch is at least the profile length over this; smaller
-# reference gaps (adjacent handwriting dips) are never the grid's.
+# reference gaps (adjacent handwriting dips) are never the grid's. This bakes in
+# the assumption that the grid spans a substantial fraction of the frame — a
+# sheet photographed small in a tall frame pushes its real pitch under the
+# floor, and detection then refuses the scan loudly.
 _MINIMUM_PITCH_DIVISOR = 120
 
 # After the first rule-line fit, slices missing the fit by more than this many
-# row pitches are outliers — typically a run that chained one dip too many at an
+# row pitches are outliers — typically a chain that kept one dip too many at an
 # end — and are dropped for the refit.
 _FIT_RESIDUAL_TOLERANCE_IN_PITCHES = 0.5
 
@@ -69,7 +75,7 @@ _FIT_RESIDUAL_TOLERANCE_IN_PITCHES = 0.5
 _FOOTER_HEIGHT_IN_ROW_PITCHES = 2.5
 
 # How many column slices the dewarp pass cuts the scan into, and how many must
-# individually resolve the grid for the line fits to be trusted.
+# individually resolve the grid for the consensus to be trusted.
 _SLICE_COUNT = 12
 _MINIMUM_VALID_SLICES = 4
 
@@ -119,7 +125,7 @@ class Point(FrozenModel):
 class Quad(FrozenModel):
   """The grid's corner quad in original-scan pixels.
 
-  Corner order matches `Image.transform`'s `QUAD` data: top-left, bottom-left,
+  Corner order matches `Image.transform`'s convention: top-left, bottom-left,
   bottom-right, top-right.
   """
 
@@ -130,29 +136,85 @@ class Quad(FrozenModel):
 
 
 class SheetGeometry(FrozenModel):
-  """One scan's detected grid: tight per-row boxes plus the footer region.
+  """One scan's detected grid: tight per-row boxes, in dewarped-image space.
 
-  Coordinates are in dewarped-image space. Row boxes run rule-to-rule with no
-  padding — consumers pad at cut time, each to its own needs (see the module
-  docstring).
+  Row boxes run rule-to-rule with no padding — consumers pad at cut time, each
+  to its own needs (see the module docstring). The footer region is derived from
+  the grid (`footer_box`) rather than stored.
   """
 
   image_width: int
   image_height: int
-  row_boxes: tuple[Box, ...]
-  footer_box: Box
+  row_boxes: Annotated[tuple[Box, ...], pydantic.Field(min_length=1)]
 
   def row_pitch(self) -> float:
     """The median tight row height — the padding unit for consumers."""
     return statistics.median(box.bottom - box.top for box in self.row_boxes)
 
+  def footer_box(self) -> Box:
+    """The footer region: one handwritten line just below the grid.
+
+    Spans the grid's width, from the bottom rule down
+    `_FOOTER_HEIGHT_IN_ROW_PITCHES` pitches, clamped to the image — sized with
+    margin already, so consumers cut it unpadded.
+    """
+    bottom_row = self.row_boxes[-1]
+    footer_height = round(_FOOTER_HEIGHT_IN_ROW_PITCHES * self.row_pitch())
+    return Box(
+      left=bottom_row.left,
+      top=bottom_row.bottom,
+      right=bottom_row.right,
+      bottom=min(self.image_height, bottom_row.bottom + footer_height),
+    )
+
 
 @dataclasses.dataclass(frozen=True)
 class DewarpedSheet:
-  """A scan mapped upright: the transformed image plus the quad it came from."""
+  """A scan mapped upright: the transformed image and how it was derived.
+
+  `row_count` is the grid size the quad fit resolved — callers cross-check it
+  against what detection later finds in the dewarped frame.
+  """
 
   image: Image.Image
   source_quad: Quad
+  row_count: int
+
+
+class _SliceChain(NamedTuple):
+  """One column slice's resolved rule chain, at the slice's center x."""
+
+  center_x: float
+  rule_ys: list[int]
+
+
+@dataclasses.dataclass(frozen=True)
+class _GridConsensus:
+  """The slices' agreement: the voted row count and the chains matching it."""
+
+  row_count: int
+  chains: list[_SliceChain]
+
+
+class _RuleLines(NamedTuple):
+  """The grid's top and bottom rules, each as a `y(x)` line."""
+
+  top: statistics.LinearRegression
+  bottom: statistics.LinearRegression
+
+
+class _BorderLines(NamedTuple):
+  """The grid's side borders, each as an `x(y)` line."""
+
+  left: statistics.LinearRegression
+  right: statistics.LinearRegression
+
+
+class _SheetSide(enum.Enum):
+  """Which side border a fit concerns — names the side in error messages."""
+
+  LEFT = 'left'
+  RIGHT = 'right'
 
 
 def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
@@ -168,32 +230,24 @@ def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
       corner quad from.
   """
   gray = image.convert('L')
-  row_count, slice_runs = _resolve_slice_runs(gray)
-  top_line, bottom_line = _fit_rule_lines(slice_runs, row_count)
+  consensus = _resolve_grid_consensus(gray)
+  rule_lines = _fit_rule_lines(consensus)
 
   # The rules' vertical span at mid-image gives the row pitch, which sizes the
   # dewarp margins and the border-sampling bands below.
   x_middle = gray.width / 2
-  top_y = _line_value(top_line, x_middle)
-  bottom_y = _line_value(bottom_line, x_middle)
-  pitch = (bottom_y - top_y) / row_count
+  top_y = _line_value(rule_lines.top, x_middle)
+  bottom_y = _line_value(rule_lines.bottom, x_middle)
+  pitch = (bottom_y - top_y) / consensus.row_count
 
-  left_border, right_border = _fit_border_lines(gray, top_y, bottom_y, pitch)
-  quad = _extended_quad(top_line, bottom_line, left_border, right_border, pitch)
+  borders = _fit_border_lines(gray, top_y, bottom_y, pitch)
+  quad = _extended_quad(rule_lines, borders, pitch)
 
-  width = round(
-    (
-      _distance(quad.top_left, quad.top_right)
-      + _distance(quad.bottom_left, quad.bottom_right)
-    )
-    / 2
+  width = _mean_edge_length(
+    quad.top_left, quad.top_right, quad.bottom_left, quad.bottom_right
   )
-  height = round(
-    (
-      _distance(quad.top_left, quad.bottom_left)
-      + _distance(quad.top_right, quad.bottom_right)
-    )
-    / 2
+  height = _mean_edge_length(
+    quad.top_left, quad.bottom_left, quad.top_right, quad.bottom_right
   )
   # A true perspective transform, not `Image.Transform.QUAD`: QUAD interpolates
   # bilinearly, which leaves mid-grid rules visibly slanted when the distortion
@@ -205,31 +259,36 @@ def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
     data=_perspective_coefficients(quad, width, height),
     resample=Image.Resampling.BICUBIC,
   )
-  return DewarpedSheet(image=dewarped, source_quad=quad)
+  return DewarpedSheet(
+    image=dewarped, source_quad=quad, row_count=consensus.row_count
+  )
 
 
 def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
-  """Detect a dewarped scan's printed row grid and footer region.
+  """Detect a dewarped scan's printed row grid.
 
   The row count comes from the scan itself — the column slices' consensus —
-  so forms with more or fewer rows resolve without configuration; the count
-  surfaces as `len(row_boxes)`. Rule positions are per-rule medians across
-  the slices' chains rather than one full-width profile: even after the
-  dewarp, gentle page curl leaves a rule drifting a fraction of a pitch
-  across the width — enough to smear a full-width dip below detectability,
-  while each slice still sees it sharply. The strip padding absorbs the
-  residual drift the median glosses over. (The form's printed header row
-  never counts as a row — it is taller than a board row, so the pitch chain
-  excludes it on its own.)
+  so any form with at least `_MINIMUM_ROW_COUNT` rows resolves without
+  configuration; the count surfaces as `len(row_boxes)`. Rule positions are
+  per-rule medians across the slices' chains rather than one full-width
+  profile: even after the dewarp, gentle page curl leaves a rule drifting a
+  fraction of a pitch across the width — enough to smear a full-width dip
+  below detectability, while each slice still sees it sharply. The strip
+  padding absorbs the residual drift the median glosses over. (On the live
+  form the printed header row is taller than a board row, so the pitch chain
+  excludes it on its own; a form whose header row height falls within the
+  pitch tolerance would count it as an extra row.)
 
   Raises:
     SheetGeometryError: the column slices couldn't agree on a grid.
   """
   gray = image.convert('L')
-  row_count, slice_runs = _resolve_slice_runs(gray)
+  consensus = _resolve_grid_consensus(gray)
   rules = [
-    round(statistics.median(run[index] for _, run in slice_runs))
-    for index in range(row_count + 1)
+    round(
+      statistics.median(chain.rule_ys[index] for chain in consensus.chains)
+    )
+    for index in range(consensus.row_count + 1)
   ]
 
   # The grid's horizontal extent: the outermost dark columns of the grid band,
@@ -247,29 +306,12 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
     Box(left=grid_left, top=top, right=grid_right, bottom=bottom)
     for top, bottom in itertools.pairwise(rules)
   )
-  row_pitch = statistics.median(
-    bottom - top for top, bottom in itertools.pairwise(rules)
-  )
-  footer_box = Box(
-    left=grid_left,
-    top=rules[-1],
-    right=grid_right,
-    bottom=min(
-      gray.height,
-      rules[-1] + round(_FOOTER_HEIGHT_IN_ROW_PITCHES * row_pitch),
-    ),
-  )
   return SheetGeometry(
-    image_width=gray.width,
-    image_height=gray.height,
-    row_boxes=row_boxes,
-    footer_box=footer_box,
+    image_width=gray.width, image_height=gray.height, row_boxes=row_boxes
   )
 
 
-def _resolve_slice_runs(
-  gray: Image.Image,
-) -> tuple[int, list[tuple[float, list[int]]]]:
+def _resolve_grid_consensus(gray: Image.Image) -> _GridConsensus:
   """Resolve the grid per column slice, inferring the row count by consensus.
 
   Each slice is narrow enough that a slanted or curled rule stays sharp in its
@@ -279,16 +321,12 @@ def _resolve_slice_runs(
   rule, or background at the sheet's edge hid part of the grid — and is
   skipped rather than guessed at.
 
-  Returns:
-    The consensus row count, and the `(slice-center x, rule chain)` pair of
-    each slice that matches it.
-
   Raises:
     SheetGeometryError: no slice resolved a plausible grid, the slices split
       evenly between two row counts, or too few match the consensus.
   """
   slice_width = gray.width // _SLICE_COUNT
-  chains: list[tuple[float, list[int]]] = []
+  chains: list[_SliceChain] = []
   row_counts: list[int] = []
   for slice_index in range(_SLICE_COUNT):
     left = slice_index * slice_width
@@ -297,14 +335,16 @@ def _resolve_slice_runs(
     if len(centers) < 2:
       row_counts.append(0)
       continue
-    run = _longest_uniform_run(
+    chain = _longest_uniform_chain(
       centers, minimum_gap=gray.height // _MINIMUM_PITCH_DIVISOR
     )
-    row_counts.append(len(run) - 1)
-    chains.append((left + slice_width / 2, run))
+    row_counts.append(len(chain) - 1)
+    chains.append(_SliceChain(center_x=left + slice_width / 2, rule_ys=chain))
 
   votes = collections.Counter(
-    len(run) - 1 for _, run in chains if len(run) - 1 >= _MINIMUM_ROW_COUNT
+    len(chain.rule_ys) - 1
+    for chain in chains
+    if len(chain.rule_ys) - 1 >= _MINIMUM_ROW_COUNT
   )
   if not votes:
     raise SheetGeometryError(
@@ -320,41 +360,45 @@ def _resolve_slice_runs(
     )
   row_count = ranked[0][0]
 
-  slice_runs = [(x, run) for x, run in chains if len(run) - 1 == row_count]
-  if len(slice_runs) < _MINIMUM_VALID_SLICES:
+  matching = [
+    chain for chain in chains if len(chain.rule_ys) - 1 == row_count
+  ]
+  if len(matching) < _MINIMUM_VALID_SLICES:
     raise SheetGeometryError(
-      f'grid resolved in only {len(slice_runs)} of {_SLICE_COUNT} column '
+      f'grid resolved in only {len(matching)} of {_SLICE_COUNT} column '
       f'slices (row counts per slice: {row_counts}); need at least '
       f'{_MINIMUM_VALID_SLICES}'
     )
-  return row_count, slice_runs
+  return _GridConsensus(row_count=row_count, chains=matching)
 
 
-def _fit_rule_lines(
-  slice_runs: Sequence[tuple[float, list[int]]], row_count: int
-) -> tuple[tuple[float, float], tuple[float, float]]:
+def _fit_rule_lines(consensus: _GridConsensus) -> _RuleLines:
   """Fit the grid's top and bottom rules as `y = intercept + slope * x` lines.
 
   The slices' top and bottom rule positions anchor the fits.
   """
-  observations = [(x, run[0], run[-1]) for x, run in slice_runs]
+  observations = [
+    (chain.center_x, chain.rule_ys[0], chain.rule_ys[-1])
+    for chain in consensus.chains
+  ]
 
   pitch_estimate = statistics.median(
-    (bottom - top) / row_count for _, top, bottom in observations
+    (bottom - top) / consensus.row_count for _, top, bottom in observations
   )
   residual_tolerance = _FIT_RESIDUAL_TOLERANCE_IN_PITCHES * pitch_estimate
-  top_line = _fit_line_without_outliers(
-    [(x, top) for x, top, _ in observations], residual_tolerance
+  return _RuleLines(
+    top=_fit_line_without_outliers(
+      [(x, top) for x, top, _ in observations], residual_tolerance
+    ),
+    bottom=_fit_line_without_outliers(
+      [(x, bottom) for x, _, bottom in observations], residual_tolerance
+    ),
   )
-  bottom_line = _fit_line_without_outliers(
-    [(x, bottom) for x, _, bottom in observations], residual_tolerance
-  )
-  return top_line, bottom_line
 
 
 def _fit_border_lines(
   gray: Image.Image, grid_top_y: float, grid_bottom_y: float, pitch: float
-) -> tuple[tuple[float, float], tuple[float, float]]:
+) -> _BorderLines:
   """Fit the grid's side borders as `x = intercept + slope * y` lines.
 
   The outermost vertical rules are sampled per horizontal band across the
@@ -378,18 +422,19 @@ def _fit_border_lines(
       continue
     samples.append((band_top + band_height / 2, centers[0], centers[-1]))
 
-  left_border = _fit_border(
-    [(y, left) for y, left, _ in samples], pitch, 'left'
+  return _BorderLines(
+    left=_fit_border(
+      [(y, left) for y, left, _ in samples], pitch, _SheetSide.LEFT
+    ),
+    right=_fit_border(
+      [(y, right) for y, _, right in samples], pitch, _SheetSide.RIGHT
+    ),
   )
-  right_border = _fit_border(
-    [(y, right) for y, _, right in samples], pitch, 'right'
-  )
-  return left_border, right_border
 
 
 def _fit_border(
-  samples: Sequence[tuple[float, float]], pitch: float, side_name: str
-) -> tuple[float, float]:
+  samples: Sequence[tuple[float, float]], pitch: float, side: _SheetSide
+) -> statistics.LinearRegression:
   """Fit one border line from per-band samples, discarding bands that missed.
 
   Raises:
@@ -397,25 +442,21 @@ def _fit_border(
   """
   if not samples:
     raise SheetGeometryError(
-      f'no vertical rules found anywhere for the {side_name} border'
+      f'no vertical rules found anywhere for the {side.value} border'
     )
   median_x = statistics.median(x for _, x in samples)
   tolerance = _BORDER_OUTLIER_TOLERANCE_IN_PITCHES * pitch
   kept = [(y, x) for y, x in samples if abs(x - median_x) <= tolerance]
   if len(kept) < 2:
     raise SheetGeometryError(
-      f'only {len(kept)} band(s) located the {side_name} border near '
+      f'only {len(kept)} band(s) located the {side.value} border near '
       f'x={median_x:.0f}; samples: {[round(x) for _, x in samples]}'
     )
   return _fit_line(kept)
 
 
 def _extended_quad(
-  top_line: tuple[float, float],
-  bottom_line: tuple[float, float],
-  left_border: tuple[float, float],
-  right_border: tuple[float, float],
-  pitch: float,
+  rule_lines: _RuleLines, borders: _BorderLines, pitch: float
 ) -> Quad:
   """The grid's corner quad, pushed outward by the dewarp margins.
 
@@ -428,8 +469,8 @@ def _extended_quad(
   side_margin = _DEWARP_SIDE_MARGIN_IN_PITCHES * pitch
 
   def corner(
-    rule_line: tuple[float, float],
-    border: tuple[float, float],
+    rule_line: statistics.LinearRegression,
+    border: statistics.LinearRegression,
     y_shift: float,
     x_shift: float,
   ) -> Point:
@@ -437,10 +478,16 @@ def _extended_quad(
     return Point(x=_line_value(border, y) + x_shift, y=y)
 
   return Quad(
-    top_left=corner(top_line, left_border, -top_margin, -side_margin),
-    bottom_left=corner(bottom_line, left_border, bottom_margin, -side_margin),
-    bottom_right=corner(bottom_line, right_border, bottom_margin, side_margin),
-    top_right=corner(top_line, right_border, -top_margin, side_margin),
+    top_left=corner(rule_lines.top, borders.left, -top_margin, -side_margin),
+    bottom_left=corner(
+      rule_lines.bottom, borders.left, bottom_margin, -side_margin
+    ),
+    bottom_right=corner(
+      rule_lines.bottom, borders.right, bottom_margin, side_margin
+    ),
+    top_right=corner(
+      rule_lines.top, borders.right, -top_margin, side_margin
+    ),
   )
 
 
@@ -479,7 +526,7 @@ def _dip_centers(profile: Sequence[int]) -> list[int]:
   return centers
 
 
-def _longest_uniform_run(
+def _longest_uniform_chain(
   centers: Sequence[int], *, minimum_gap: int
 ) -> list[int]:
   """Return the longest chain of centers spaced by one near-uniform gap.
@@ -542,12 +589,17 @@ def _extend_chain(
 
 def _fit_line_without_outliers(
   points: Sequence[tuple[float, float]], residual_tolerance: float
-) -> tuple[float, float]:
+) -> statistics.LinearRegression:
   """Least-squares fit, refit once without gross outliers.
 
   A slice whose chain is shifted by a rule (a missed top rule plus a chained
   footer stroke, say) sits a whole row pitch off the true line; one rejection
-  pass keeps such slices from bending the fit.
+  pass keeps such slices from bending the fit. Two inliers — a line's minimum
+  — suffice for the refit; fewer means the observations are mutually
+  inconsistent, which is an error rather than something to fit through.
+
+  Raises:
+    SheetGeometryError: fewer than two points survive the rejection pass.
   """
   line = _fit_line(points)
   kept = [
@@ -555,45 +607,54 @@ def _fit_line_without_outliers(
     for point in points
     if abs(_line_value(line, point[0]) - point[1]) <= residual_tolerance
   ]
-  if _MINIMUM_VALID_SLICES <= len(kept) < len(points):
+  if len(kept) < 2:
+    raise SheetGeometryError(
+      f'no consistent rule line: all but {len(kept)} of {len(points)} slice '
+      f'observations sit more than {residual_tolerance:.0f}px from the fit'
+    )
+  if len(kept) < len(points):
     line = _fit_line(kept)
   return line
 
 
-def _fit_line(points: Sequence[tuple[float, float]]) -> tuple[float, float]:
-  """Least-squares `(intercept, slope)` for `(independent, dependent)` points.
-  """
-  independent_mean = statistics.fmean(x for x, _ in points)
-  dependent_mean = statistics.fmean(y for _, y in points)
-  covariance = sum(
-    (x - independent_mean) * (y - dependent_mean) for x, y in points
+def _fit_line(
+  points: Sequence[tuple[float, float]],
+) -> statistics.LinearRegression:
+  """Least-squares line for `(independent, dependent)` points."""
+  return statistics.linear_regression(
+    [independent for independent, _ in points],
+    [dependent for _, dependent in points],
   )
-  variance = sum((x - independent_mean) ** 2 for x, _ in points)
-  slope = covariance / variance
-  return dependent_mean - slope * independent_mean, slope
 
 
-def _line_value(line: tuple[float, float], at: float) -> float:
-  """Evaluate an `(intercept, slope)` line at a point."""
-  intercept, slope = line
-  return intercept + slope * at
+def _line_value(line: statistics.LinearRegression, at: float) -> float:
+  """Evaluate a fitted line at a point."""
+  return line.intercept + line.slope * at
 
 
 def _intersect(
-  rule_line: tuple[float, float], border_line: tuple[float, float]
+  rule_line: statistics.LinearRegression,
+  border_line: statistics.LinearRegression,
 ) -> Point:
   """Intersect a rule line `y(x)` with a border line `x(y)`."""
-  rule_intercept, rule_slope = rule_line
-  border_intercept, border_slope = border_line
-  x = (border_intercept + border_slope * rule_intercept) / (
-    1 - rule_slope * border_slope
+  x = (border_line.intercept + border_line.slope * rule_line.intercept) / (
+    1 - rule_line.slope * border_line.slope
   )
-  return Point(x=x, y=rule_intercept + rule_slope * x)
+  return Point(x=x, y=rule_line.intercept + rule_line.slope * x)
 
 
 def _distance(a: Point, b: Point) -> float:
   """Euclidean distance between two points."""
   return math.hypot(a.x - b.x, a.y - b.y)
+
+
+def _mean_edge_length(
+  edge_start: Point, edge_end: Point, other_start: Point, other_end: Point
+) -> int:
+  """Average length of two opposite quad edges, rounded to whole pixels."""
+  return round(
+    (_distance(edge_start, edge_end) + _distance(other_start, other_end)) / 2
+  )
 
 
 def _perspective_coefficients(

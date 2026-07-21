@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw
 from session_analysis.sheet_geometry import Box, SheetGeometry
 from session_analysis.strip_extraction import cut_strips, transcribe_sheet
 
-# Three tight 20px rows and a footer on a 100x200 page.
+# Three tight 20px rows on a 100x200 page.
 _GEOMETRY = SheetGeometry(
   image_width=100,
   image_height=200,
@@ -28,7 +28,6 @@ _GEOMETRY = SheetGeometry(
     Box(left=10, top=70, right=90, bottom=90),
     Box(left=10, top=90, right=90, bottom=110),
   ),
-  footer_box=Box(left=10, top=110, right=90, bottom=140),
 )
 
 
@@ -70,7 +69,6 @@ def test_strip_padding_clamps_at_the_image_edges() -> None:
     image_width=100,
     image_height=24,
     row_boxes=(Box(left=10, top=2, right=90, bottom=22),),
-    footer_box=Box(left=10, top=22, right=90, bottom=24),
   )
 
   parts = cut_strips(image, geometry)
@@ -84,7 +82,8 @@ def test_the_footer_strip_is_cut_unpadded() -> None:
 
   parts = cut_strips(image, _GEOMETRY)
 
-  assert _decode(parts[-1].image_bytes).size == (80, 30)
+  # The derived footer box: 2.5 pitches (50px) below the bottom rule at 110.
+  assert _decode(parts[-1].image_bytes).size == (80, 50)
 
 
 # --- transcribe_sheet ---

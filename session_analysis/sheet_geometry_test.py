@@ -61,13 +61,13 @@ def test_footer_box_spans_below_the_bottom_rule() -> None:
   geometry = detect_sheet_geometry(_draw_sheet(_STANDARD_RULE_YS))
 
   # 2.5 row pitches (pitch 20) below the bottom rule at y=660.
-  assert geometry.footer_box == Box(left=40, top=660, right=560, bottom=710)
+  assert geometry.footer_box() == Box(left=40, top=660, right=560, bottom=710)
 
 
 def test_footer_box_clamps_to_the_image_bottom() -> None:
   geometry = detect_sheet_geometry(_draw_sheet(_STANDARD_RULE_YS, height=700))
 
-  assert geometry.footer_box.bottom == 700
+  assert geometry.footer_box().bottom == 700
 
 
 def test_row_count_is_inferred_from_the_grid() -> None:
@@ -115,6 +115,21 @@ def test_a_short_run_of_lines_is_not_a_grid() -> None:
 
   with pytest.raises(SheetGeometryError, match='plausible grid'):
     detect_sheet_geometry(_draw_sheet(five_rules))
+
+
+def test_a_grid_spanning_too_few_slices_raises() -> None:
+  # A grid confined to the sheet's left quarter resolves in only ~3 of the 12
+  # column slices — a consensus, but without enough independent slices to trust
+  # it.
+  image = Image.new('L', (600, 800), color=255)
+  draw = ImageDraw.Draw(image)
+  for rule_y in _STANDARD_RULE_YS:
+    draw.line([(40, rule_y), (140, rule_y)], fill=0)
+  for border_x in (40, 140):
+    draw.line([(border_x, 100), (border_x, 660)], fill=0)
+
+  with pytest.raises(SheetGeometryError, match='only 3 of 12'):
+    detect_sheet_geometry(image)
 
 
 def test_dark_lines_off_the_grid_pitch_are_ignored() -> None:
@@ -195,7 +210,6 @@ def test_row_pitch_is_the_median_tight_row_height() -> None:
       Box(left=0, top=18, right=100, bottom=38),
       Box(left=0, top=38, right=100, bottom=61),
     ),
-    footer_box=Box(left=0, top=61, right=100, bottom=100),
   )
 
   assert geometry.row_pitch() == 20

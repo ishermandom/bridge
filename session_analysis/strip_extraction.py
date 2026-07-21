@@ -10,6 +10,7 @@ labels preserve board identity, which the cutting destroys. See spec.md
 """
 
 import io
+from collections.abc import Sequence
 
 from PIL import Image
 
@@ -17,8 +18,10 @@ from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.frozen_model import FrozenModel
 from session_analysis.sheet_geometry import (
+  Box,
   Quad,
   SheetGeometry,
+  SheetGeometryError,
   detect_sheet_geometry,
   dewarp_sheet,
 )
@@ -58,7 +61,7 @@ class SheetTranscription(FrozenModel):
 
 def cut_strips(
   image: Image.Image, geometry: SheetGeometry
-) -> tuple[LabeledImage, ...]:
+) -> Sequence[LabeledImage]:
   """Cut a scan into labeled request parts: padded row strips, then the footer.
 
   Each row strip expands its tight row box vertically by
@@ -68,40 +71,30 @@ def cut_strips(
   rgb = image.convert('RGB')
   padding = round(_STRIP_PADDING_FRACTION * geometry.row_pitch())
 
-  parts = []
-  for row_number, box in enumerate(geometry.row_boxes, start=1):
-    strip = rgb.crop(
-      (
-        box.left,
-        max(0, box.top - padding),
-        box.right,
-        min(rgb.height, box.bottom + padding),
-      )
-    )
-    parts.append(
-      LabeledImage(
-        label=f'Strip for printed row {row_number}:',
-        image_bytes=_encode_jpeg(strip),
-        media_type='image/jpeg',
-      )
-    )
-
-  footer = rgb.crop(
+  labeled_boxes = [
     (
-      geometry.footer_box.left,
-      geometry.footer_box.top,
-      geometry.footer_box.right,
-      geometry.footer_box.bottom,
+      f'Strip for printed row {row_number}:',
+      Box(
+        left=box.left,
+        top=max(0, box.top - padding),
+        right=box.right,
+        bottom=min(rgb.height, box.bottom + padding),
+      ),
     )
-  )
-  parts.append(
+    for row_number, box in enumerate(geometry.row_boxes, start=1)
+  ]
+  labeled_boxes.append(('Strip for the footer:', geometry.footer_box()))
+
+  return tuple(
     LabeledImage(
-      label='Strip for the footer:',
-      image_bytes=_encode_jpeg(footer),
+      label=label,
+      image_bytes=_encode_jpeg(
+        rgb.crop((box.left, box.top, box.right, box.bottom))
+      ),
       media_type='image/jpeg',
     )
+    for label, box in labeled_boxes
   )
-  return tuple(parts)
 
 
 def transcribe_sheet(
@@ -115,15 +108,25 @@ def transcribe_sheet(
   The extraction entry point for one scan: the returned `raw_json` is what
   `assembly.parse_and_assemble_session` consumes, and the returned geometry
   and source quad are the artifacts later consumers (voting reruns, review
-  crops) share. The grid's row count comes from the scan itself, so forms of
-  any length transcribe without configuration.
+  crops) share. The grid's row count comes from the scan itself, so any form
+  with a plausible row count (eight or more rows) transcribes without
+  configuration.
 
   Raises:
-    SheetGeometryError: the scan's grid could not be resolved.
+    SheetGeometryError: the scan's grid could not be resolved, or the dewarp
+      and detection passes disagreed on it.
     VisionModelInvocationError: the headless `claude` invocation failed.
   """
   dewarped = dewarp_sheet(image)
   geometry = detect_sheet_geometry(dewarped.image)
+  # The two passes read the grid independently (raw scan vs dewarped frame); a
+  # disagreement means at least one misread it, so refuse rather than send
+  # strips cut against an untrusted grid.
+  if len(geometry.row_boxes) != dewarped.row_count:
+    raise SheetGeometryError(
+      f'the dewarp pass resolved {dewarped.row_count} rows but detection in '
+      f'the dewarped frame resolved {len(geometry.row_boxes)}'
+    )
   raw_json = invoke_vision_model(
     cut_strips(dewarped.image, geometry),
     VISION_MODEL_SYSTEM_PROMPT,
