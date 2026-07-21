@@ -171,3 +171,25 @@ settled as open questions in [spec.md](spec.md#open-questions).
     columns, so the extraction prompt, output schema, and parser contract are
     club-form-specific too — supporting a new format is a form-template
     decision, not only cropping.
+- [ ] Maybe: grid-extent cross-check in `transcribe_sheet` — compare the
+      detected `grid_left`/`grid_right` against where the dewarp placed the
+      borders by construction (`_DEWARP_SIDE_MARGIN_IN_PITCHES` from the frame
+      edges); deviation beyond ~1 pitch raises rather than cutting strips.
+  - Rationale: catches asymmetric border failures — a border only partly visible
+    resolves in the dewarp's median-filtered bands but dilutes out of
+    detection's single full-height column profile, which today silently crops
+    the `Bd` column and makes the model substitute `Vs` numbers (observed live).
+    Also catches future drift between the two derivations.
+  - Note: does not catch uniformly faint borders — both stages then agree on the
+    same wrong interior line and the `Bd` column is lost at dewarp time. The
+    check lives in `transcribe_sheet`, not `detect_sheet_geometry`, which also
+    runs on images that never went through the dewarp.
+- [ ] Maybe: board-number continuity check in validation — flag a session whose
+      transcribed board numbers don't run consecutively from their start.
+  - Rationale: output-side catch-all for geometry failures no pixel check can
+    see — a silently truncated grid (washed-out top rows), a shifted grid (a
+    header row voted in as row 1), or `Bd`-column loss (substituted `Vs` numbers
+    don't run consecutively).
+  - Open question: team games may play non-consecutive board sets, so the check
+    may need to be format-aware or advisory-only — part of why this is deferred
+    rather than queued.
