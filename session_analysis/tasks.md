@@ -51,7 +51,8 @@ output, parsed into the canonical model.
     blank rows.
   - Note: the experiment hand-tuned this one scan's row geometry; production
     needs the grid found per scan (the printed horizontal rules are strong — a
-    projection profile or similar should do) plus the footer region.
+    projection profile or similar should do) plus the footer region. The working
+    prototype, geometry included, is `scratch/strip_extraction_experiment.py`.
   - Note: residual errors after the fix are markup-interpretation, not
     resolution: strikethrough-vs-box confusion and one dense overwritten row.
     Those are the target of the voting task below.

@@ -18,3 +18,6 @@ node_modules/
 # Captured page HTML — may include other members' names; keep local.
 club_sites/palo_alto/fixtures/raw/
 session_analysis/travellers/
+
+# Scoresheet crops cut by the strip-extraction experiment; keep local.
+session_analysis/scratch/strips/
