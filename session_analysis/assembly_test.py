@@ -12,7 +12,11 @@ is the parser's behaviour, tested in parsing_test.py.
 import datetime
 from collections.abc import Mapping
 
-from session_analysis.assembly import RawSession, assemble_session
+from session_analysis.assembly import (
+  RawSession,
+  assemble_session,
+  parse_and_assemble_session,
+)
 from session_analysis.enums import Rank, Strain, Suit
 from session_analysis.models import (
   Card,
@@ -215,3 +219,58 @@ def test_the_source_is_carried_onto_the_session() -> None:
   session = assemble_session(raw, source, reference_date=_REFERENCE_DATE)
 
   assert session.source == source
+
+
+# --- the JSON entry point ---
+
+
+def test_well_formed_json_assembles_into_a_session() -> None:
+  raw_json = (
+    '{"event": "PABC mon", "date": "6/29", '
+    '"boards": [{"board_number": "7", "lead": "10S"}]}'
+  )
+
+  session = parse_and_assemble_session(
+    raw_json, _source(), reference_date=_REFERENCE_DATE
+  )
+
+  assert session.event == 'PABC mon'
+  (board,) = session.boards
+  assert board.number.schedule is not None
+  assert board.number.schedule.number == 7
+
+
+def test_the_json_entry_point_also_runs_validation() -> None:
+  # A played board with no auction transcribed should come back flagged, the
+  # same way `validate_session` flags it directly — the JSON entry point must
+  # not skip the validation pass.
+  raw_json = (
+    '{"boards": [{"board_number": "7", "contract": "4S N +6", "lead": "10S"}]}'
+  )
+
+  session = parse_and_assemble_session(
+    raw_json, _source(), reference_date=_REFERENCE_DATE
+  )
+
+  (board,) = session.boards
+  assert 'auction_missing' in {issue.code for issue in board.issues}
+
+
+def test_a_non_object_top_level_json_is_contained_as_a_session_issue() -> None:
+  # `RawSession.model_validate_json` has nothing to hand `assemble_session` when
+  # the top level isn't an object at all; contain it here rather than raising.
+  session = parse_and_assemble_session(
+    '"garbage"', _source(), reference_date=_REFERENCE_DATE
+  )
+
+  assert session.boards == ()
+  assert [issue.code for issue in session.issues] == ['malformed_session']
+
+
+def test_a_non_list_boards_field_is_contained_as_a_session_issue() -> None:
+  session = parse_and_assemble_session(
+    '{"boards": "not-a-list"}', _source(), reference_date=_REFERENCE_DATE
+  )
+
+  assert session.boards == ()
+  assert [issue.code for issue in session.issues] == ['malformed_session']

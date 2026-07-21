@@ -12,6 +12,11 @@ costs the rest of the session (nothing is garbage).
 `RawSession`/`RawBoard` model that flat vision-model output: all-string cells,
 distinct from the canonical models this produces. They live here, with their
 only consumer, rather than in `models` (which is canonical-only).
+
+`parse_and_assemble_session` is the extraction entry point: it takes the vision
+model's raw JSON string, parses it, assembles it, and runs `validate_session`
+over the result, so a caller gets one call from raw output to a validated
+`Session`.
 """
 
 import datetime
@@ -34,9 +39,11 @@ from session_analysis.parsing import (
   parse_footer,
   parse_lead,
 )
+from session_analysis.validation import validate_session
 
-# Issue code this module raises; see parsing.py for the shared code-set note.
+# Issue codes this module raises; see parsing.py for the shared code-set note.
 _MALFORMED_BOARD = 'malformed_board'
+_MALFORMED_SESSION = 'malformed_session'
 
 
 class _RawModel(FrozenModel):
@@ -102,6 +109,38 @@ def assemble_session(
     source=source,
     boards=boards,
     issues=footer.issues,
+  )
+
+
+def parse_and_assemble_session(
+  raw_json: str, source: Source, *, reference_date: datetime.date
+) -> Session:
+  """Parse the vision model's raw JSON output into a validated `Session`.
+
+  The extraction entry point: `RawSession.model_validate_json` still raises
+  where `_assemble_board` cannot help — the top-level shape is fundamentally
+  wrong (not an object, or `boards` not a list), so there is no raw boards list
+  to hand to `assemble_session` at all. That case is contained here as a single
+  session-level issue rather than aborting extraction, the same nothing-is-
+  garbage contract the rest of this module keeps. A session that does parse is
+  run through `validate_session` before being returned, so the caller always
+  gets a session with every board-level check already applied.
+  """
+  try:
+    raw = RawSession.model_validate_json(raw_json)
+  except pydantic.ValidationError as error:
+    issue = Issue(
+      code=_MALFORMED_SESSION,
+      severity=IssueSeverity.HIGH,
+      message=(
+        f'could not read a session from the vision model output: '
+        f'{raw_json!r} ({error})'
+      ),
+    )
+    return Session(event='', source=source, issues=(issue,))
+
+  return validate_session(
+    assemble_session(raw, source, reference_date=reference_date)
   )
 
 
