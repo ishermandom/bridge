@@ -54,7 +54,25 @@ output, parsed into the canonical model.
     projection profile or similar should do) plus the footer region.
   - Note: residual errors after the fix are markup-interpretation, not
     resolution: strikethrough-vs-box confusion and one dense overwritten row.
-    Those are the target of voting/escalation if pursued later.
+    Those are the target of the voting task below.
+- [ ] Make Opus (`claude-opus-4-8`) the default extraction model
+      (`vision_model_invocation._DEFAULT_MODEL`, currently `claude-sonnet-5`).
+      On the live strips comparison Opus read markup semantics better —
+      strikethrough correctly omitted, circles and cursive notes right — at
+      ~$0.25–0.30/run vs Sonnet's ~$0.21.
+- [ ] Run extraction twice and vote: two Opus runs over the same strips,
+      auto-accept cells that agree, flag disagreements for review.
+      #extraction-voting
+  - Note: validated live on the 6/29 sheet — the two runs' disagreement sites
+    were exactly the error sites (a contract digit, a dropped box and alert, a
+    stray call, a note misread), while the agreed-but-wrong residue was two
+    dropped `!` marks on one dense row plus a cell the parser already flags.
+    ~$0.55/sheet at subscription-notional rates.
+  - Note: compare parsed values, not raw strings — runs legitimately vary
+    between equivalent notations (`(*)` vs `(x)` for a circled double), which
+    the parser normalizes; raw-string voting would flag them falsely.
+  - Note: supersedes the Backlog's model-escalation item if it works — that item
+    stays parked until this settles.
 - [ ] Experiment: have the vision model interpret a missing date instead of
       leaving it to the parser. Validate quality before adopting — this is a
       trial, not a settled direction.
