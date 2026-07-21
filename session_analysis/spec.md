@@ -156,13 +156,56 @@ mode**, on the existing Claude subscription — no separate API billing.
   on this personal (non-org) account, even a known-good, currently-valid access
   token supplied via `CLAUDE_CODE_OAUTH_TOKEN` 401s under it — found by
   live-testing the CLI while chasing an auth failure. Plain `-p` with normal
-  OAuth reaches the same low-overhead floor without that broken path. The scan
-  image is embedded as base64 in a `--input-format stream-json` message rather
+  OAuth reaches the same low-overhead floor without that broken path. Scan
+  images are embedded as base64 in a `--input-format stream-json` message rather
   than read through the `Read` tool — one turn instead of two, and no
   tool-definition token cost. `stream-json` input requires
   `--output-format stream-json` in turn, so the response is a `result` event
   parsed out of a JSON-lines stream rather than a single `--output-format json`
   envelope; `--json-schema` keeps that event's payload schema-conformant JSON.
+- **Input format: labeled per-row strips at native resolution.** The CLI
+  downscales a full 12MP scan to ~56% linear before the model sees it, and a
+  live comparison on the 6/29 sheet showed every resolution-class error (a
+  misread contract digit, dropped announcements, box-vs-circle swaps on dense
+  rows) vanishing when the sheet arrives as native-resolution crops instead — at
+  lower cost than the full-sheet run ($0.21 vs $0.29). The request is an ordered
+  sequence of labeled parts: one crop per printed board row, each preceded by a
+  text label naming its printed row, then the footer crop. Three details are
+  load-bearing, found by live experiment: each crop includes the printed `Bd`
+  column (without it the model substitutes the adjacent `Vs` number), the labels
+  fix board identity, and the prompt says explicitly to emit blank rows. Per-row
+  is the tile size because the review UI needs per-row crops regardless, so
+  row-precision geometry exists either way; coarser bands would save only the
+  labeling machinery.
+- **The scan is dewarped from its own printed grid before anything else reads
+  it.** The live 6/29 scan (a raw phone photo) showed why: perspective slants
+  the top rules ~1.5 row pitches across the sheet's width, tapering to flat at
+  the bottom — no straight horizontal profile or straight crop survives that,
+  and the prototype's straight strips worked only because the transcribed
+  columns cluster where the drift is small. Narrow column slices each resolve
+  the rules sharply; the fitted top/bottom rule lines and side border lines
+  intersect into the grid's corner quad; and a true perspective transform (not
+  PIL's bilinear `QUAD`, which measurably under-corrects mid-grid) maps the
+  quad, extended with margins for footer and padding, to an upright rectangle at
+  native scale. This supersedes the earlier reliance on the scanner app's
+  perspective correction (see Ingest): good capture still helps, but correctness
+  no longer depends on it.
+- **Row geometry is detected per scan in dewarped space, and padding is the
+  consumer's job.** Rule positions are per-rule medians across the column
+  slices' chains — a full-width profile stays blind to a rule that page curl
+  still drifts a fraction of a pitch, while each slice sees it sharply. The grid
+  is identified structurally: the longest chain of near-uniform-pitch dips,
+  skipping handwriting's interloper dips, must bound exactly the expected row
+  count (the form's printed header row is taller than a board row, so it never
+  joins the chain). The result is a typed `SheetGeometry` of tight rule-to-rule
+  row boxes plus the footer box, persisted with the source quad alongside the
+  processed session: extraction cuts strips from it, a voting rerun reuses the
+  same strips, and the review UI crops from it. Handwriting bleeds past the
+  printed rules and curl leaves residual drift, so each consumer pads the tight
+  boxes at cut time — extraction expands each strip by a fraction of the row
+  pitch into its neighbors, and the prompt's "transcribe the row whose middle
+  line the strip shows" rule disambiguates the duplicated content that padding
+  creates.
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
   markup (parens, `!`, `_`/`^`, `*`, `[ ]`), the contract cell verbatim, and the
@@ -246,8 +289,9 @@ Whichever is chosen:
 
 - **Convention**: one sheet is one scan file; multiple pages allowed (the
   scanner's native multi-page container absorbs glare and binding splits with no
-  pipeline logic). The scanner's on-device perspective correction is relied on,
-  so classical preprocessing is omitted; PDF pages are rasterized as needed.
+  pipeline logic). The scanner's on-device perspective correction improves
+  capture quality but is no longer load-bearing — extraction dewarps from the
+  printed grid itself (see Extraction); PDF pages are rasterized as needed.
 - **Self-naming**: the footer (event, date) is read first so the file names
   itself by session key — no manual tagging. The key is confirmed in review
   before it commits to the filesystem.

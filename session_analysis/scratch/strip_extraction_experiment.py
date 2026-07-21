@@ -119,7 +119,7 @@ def main() -> None:
       '--json-schema', json.dumps(dict(VISION_MODEL_OUTPUT_SCHEMA)),
       '--max-turns', '3',
   ]  # fmt: skip
-  process = vision_model_invocation._run_claude(
+  process = vision_model_invocation.run_claude(
     command, request, vision_model_invocation._SCRATCH_DIRECTORY
   )
   for line in process.stdout.splitlines():

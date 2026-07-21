@@ -8,15 +8,18 @@ transcription-scoped system prompt and a JSON Schema for its output. See spec.md
 (Extraction) for why headless Claude Code was chosen and how the invocation is
 shaped.
 
-The image is embedded directly in the request rather than left to a `Read` tool
-call: that collapses the exchange to one turn and skips the tool definition's
-token cost entirely. Embedding requires `--input-format stream-json`, which the
-CLI only allows paired with `--output-format stream-json` — so the response is
-parsed as one JSON object per line, ending in a `result` event, rather than the
+The request is an ordered sequence of `LabeledImage` parts — per-row strips, in
+production — followed by a caller-supplied closing instruction. Images are
+embedded directly in the request rather than left to `Read` tool calls: that
+collapses the exchange to one turn and skips the tool definition's token cost
+entirely. Embedding requires `--input-format stream-json`, which the CLI only
+allows paired with `--output-format stream-json` — so the response is parsed as
+one JSON object per line, ending in a `result` event, rather than the
 single-object envelope `--output-format json` gives.
 """
 
 import base64
+import dataclasses
 import json
 import pathlib
 import subprocess
@@ -32,13 +35,19 @@ _SCRATCH_DIRECTORY = (
   pathlib.Path(tempfile.gettempdir()) / 'session_analysis_vision_model_scratch'
 )
 
-_DEFAULT_MODEL = 'claude-sonnet-5'
+DEFAULT_MODEL = 'claude-sonnet-5'
 
-_MEDIA_TYPE_BY_SUFFIX = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-}
+
+@dataclasses.dataclass(frozen=True)
+class LabeledImage:
+  """One request part: an image preceded by a text label naming what it shows
+  (e.g. which printed row a strip covers).
+  """
+
+  label: str
+  image_bytes: bytes
+  media_type: str
+
 
 # The shape a scripted test fake must match: given the `claude` command line and
 # the stream-json request to feed it on stdin, return the completed process.
@@ -59,34 +68,33 @@ class VisionModelInvocationError(Exception):
   """
 
 
-def _run_claude(
+def run_claude(
   command: Sequence[str], stdin_text: str, cwd: pathlib.Path
 ) -> subprocess.CompletedProcess[str]:
+  """The production `CommandRunner`: run the real `claude` subprocess."""
   cwd.mkdir(exist_ok=True)
   return subprocess.run(
     command, input=stdin_text, capture_output=True, text=True, cwd=cwd
   )
 
 
-def _build_request(image_bytes: bytes, media_type: str) -> str:
-  """Return the stream-json request line embedding the image as base64."""
-  message = {
-    'type': 'user',
-    'message': {
-      'role': 'user',
-      'content': [
-        {
-          'type': 'image',
-          'source': {
-            'type': 'base64',
-            'media_type': media_type,
-            'data': base64.b64encode(image_bytes).decode('ascii'),
-          },
+def _build_request(parts: Sequence[LabeledImage], instruction: str) -> str:
+  """Return the stream-json request line carrying the labeled images."""
+  content: list[dict[str, object]] = []
+  for part in parts:
+    content.append({'type': 'text', 'text': part.label})
+    content.append(
+      {
+        'type': 'image',
+        'source': {
+          'type': 'base64',
+          'media_type': part.media_type,
+          'data': base64.b64encode(part.image_bytes).decode('ascii'),
         },
-        {'type': 'text', 'text': 'Transcribe the attached scan.'},
-      ],
-    },
-  }
+      }
+    )
+  content.append({'type': 'text', 'text': instruction})
+  message = {'type': 'user', 'message': {'role': 'user', 'content': content}}
   return json.dumps(message) + '\n'
 
 
@@ -133,23 +141,24 @@ def _parse_result(stdout: str) -> str:
 
 
 def invoke_vision_model(
-  image_bytes: bytes,
-  media_type: str,
+  parts: Sequence[LabeledImage],
   system_prompt: str,
+  instruction: str,
   json_schema: Mapping[str, object],
   *,
-  model: str = _DEFAULT_MODEL,
-  run_command: CommandRunner = _run_claude,
+  model: str = DEFAULT_MODEL,
+  run_command: CommandRunner = run_claude,
 ) -> str:
-  """Run one scoresheet image through headless Claude Code.
+  """Run one scoresheet transcription through headless Claude Code.
 
   Args:
-    image_bytes: the scan to transcribe, embedded in the request as base64
+    parts: the images to transcribe, in request order, each embedded as base64
       rather than left to a `Read` tool call.
-    media_type: the image's MIME type, e.g. `'image/png'`. See
-      `media_type_for_suffix` to derive it from a file extension.
     system_prompt: replaces the CLI's default agentic-coding system prompt
       entirely, scoping the model to transcription.
+    instruction: the user-turn text closing the request, after the last image —
+      prompt content, so it lives with the prompt (`extraction_prompt`), not
+      here.
     json_schema: a JSON Schema the response must validate against, enforced by
       `--json-schema` so the result is directly parseable rather than prose or
       markdown-fenced JSON.
@@ -166,7 +175,7 @@ def invoke_vision_model(
     VisionModelInvocationError: the `claude` process exited nonzero, or its output
       failed to yield a successful result event — see `_parse_result`.
   """
-  request = _build_request(image_bytes, media_type)
+  request = _build_request(parts, instruction)
 
   command = [
       'claude', '-p',
@@ -195,43 +204,3 @@ def invoke_vision_model(
     )
 
   return _parse_result(process.stdout)
-
-
-def media_type_for_suffix(suffix: str) -> str:
-  """Return the MIME type for a lowercase image file suffix (e.g. `'.png'`).
-
-  Raises:
-    ValueError: the suffix isn't one of the supported image types.
-  """
-  try:
-    return _MEDIA_TYPE_BY_SUFFIX[suffix]
-  except KeyError:
-    raise ValueError(
-      f'unsupported image suffix {suffix!r}: expected one of '
-      f'{sorted(_MEDIA_TYPE_BY_SUFFIX)}'
-    ) from None
-
-
-def invoke_vision_model_for_scan(
-  image_path: pathlib.Path,
-  system_prompt: str,
-  json_schema: Mapping[str, object],
-  *,
-  model: str = _DEFAULT_MODEL,
-  run_command: CommandRunner = _run_claude,
-) -> str:
-  """Thin wrapper: read `image_path` and delegate to `invoke_vision_model`.
-
-  The only job here is resolving a scan file to bytes and a media type; see
-  `invoke_vision_model` for the actual invocation, which takes bytes directly so
-  it can be tested without touching the filesystem.
-  """
-  media_type = media_type_for_suffix(image_path.suffix.lower())
-  return invoke_vision_model(
-      image_path.read_bytes(),
-      media_type,
-      system_prompt,
-      json_schema,
-      model=model,
-      run_command=run_command,
-  )  # fmt: skip

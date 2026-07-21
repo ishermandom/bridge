@@ -31,6 +31,14 @@ Emit every board row on the sheet, in order, even if one or more of its cells
 are blank or illegible — leave the cell an empty string rather than omitting the
 board. Every value is a string.
 
+## Input format
+
+The sheet arrives as horizontal strips cut from one scan at full resolution: one
+strip per printed board row, each preceded by a text label naming the printed
+row it shows, followed by a final strip of the footer. Adjacent strips overlap a
+little vertically — transcribe each board row from the strip whose middle line
+it occupies, and emit one board object per row strip, blank rows included.
+
 ## What to leave out
 
 Three things a printed sheet carries are deliberately not part of your output —

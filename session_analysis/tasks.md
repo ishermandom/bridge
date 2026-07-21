@@ -38,22 +38,14 @@ output, parsed into the canonical model.
       all-empty objects and each draws a medium `contract_missing` issue —
       either the prompt omits rows with no writing, or downstream treats an
       all-blank board as unplayed rather than flagging it.
-- [ ] Productionize strip-based extraction: send the sheet as per-row crops at
-      native resolution instead of one full-sheet image. Validated live on the
-      6/29 sheet — the API downscales the full 12MP scan to ~56% linear
-      (~3.75MP), and every resolution-class error (the persistent `+4`-for-`+3`
-      contract, dropped `_H`/`_E` announcements, box-vs-circle swaps on dense
-      rows) vanished with native-resolution strips, at lower cost than the
-      full-sheet run ($0.21 vs $0.29).
-  - Note: what made the experiment work — include the printed `Bd` column in the
-    crop (a crop without it made the model substitute the `Vs` number), precede
-    each strip with a text label naming its row, and say explicitly to emit
-    blank rows.
-  - Note: the experiment hand-tuned this one scan's row geometry; production
-    needs the grid found per scan (the printed horizontal rules are strong — a
-    projection profile or similar should do) plus the footer region. The working
-    prototype, geometry included, is `scratch/strip_extraction_experiment.py`.
-  - Note: residual errors after the fix are markup-interpretation, not
+- [~] Productionize strip-based extraction: grid-quad dewarp plus row-grid
+  detection into a persisted `SheetGeometry` (built, validated offline on the
+  6/29 scan), padded strip cutting, the labeled-parts invocation generalization,
+  and the prompt's strip input-format section. Remaining: a live end-to-end
+  transcription run, and review.
+  - Note: design settled — see spec.md (Extraction). The validated prototype is
+    `scratch/strip_extraction_experiment.py`.
+  - Note: residual errors after the strips fix are markup-interpretation, not
     resolution: strikethrough-vs-box confusion and one dense overwritten row.
     Those are the target of the voting task below.
 - [ ] Make Opus (`claude-opus-4-8`) the default extraction model

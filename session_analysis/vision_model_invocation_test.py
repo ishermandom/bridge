@@ -5,9 +5,8 @@
 No real `claude` process is ever spawned: `invoke_vision_model` takes an
 injectable `run_command`, which these tests fake with a canned
 `CompletedProcess` — mirroring how this codebase fakes other external clients.
-`invoke_vision_model` itself takes image bytes directly, so most tests need no
-filesystem at all. `invoke_vision_model_for_scan`, the thin wrapper whose only
-job is reading a scan file, is tested separately with `tmp_path`.
+`invoke_vision_model` takes `LabeledImage` parts directly, so no test needs the
+filesystem at all.
 """
 
 import base64
@@ -20,16 +19,16 @@ import pytest
 
 from session_analysis.vision_model_invocation import (
   CommandRunner,
+  LabeledImage,
   VisionModelInvocationError,
   invoke_vision_model,
-  invoke_vision_model_for_scan,
-  media_type_for_suffix,
 )
 
 _SCHEMA = {'type': 'object', 'properties': {'board': {'type': 'string'}}}
 _IMAGE_BYTES = b'not a real image, just test bytes'
 _MEDIA_TYPE = 'image/png'
 _SYSTEM_PROMPT = 'transcribe this'
+_INSTRUCTION = 'go transcribe'
 _MODEL = 'claude-sonnet-5'
 
 
@@ -73,12 +72,19 @@ def _make_successful_runner(result: str = '{}') -> _RecordingRunner:
   )
 
 
+_SINGLE_PART = (
+  LabeledImage(
+    label='Scan:', image_bytes=_IMAGE_BYTES, media_type=_MEDIA_TYPE
+  ),
+)
+
+
 def _invoke_vision_model(
   *,
   run_command: CommandRunner,
-  image_bytes: bytes = _IMAGE_BYTES,
-  media_type: str = _MEDIA_TYPE,
+  parts: Sequence[LabeledImage] = _SINGLE_PART,
   system_prompt: str = _SYSTEM_PROMPT,
+  instruction: str = _INSTRUCTION,
   json_schema: Mapping[str, object] = _SCHEMA,
   model: str = _MODEL,
 ) -> str:
@@ -86,9 +92,9 @@ def _invoke_vision_model(
   about — callers pass only what they're testing.
   """
   return invoke_vision_model(
-    image_bytes,
-    media_type,
+    parts,
     system_prompt,
+    instruction,
     json_schema,
     model=model,
     run_command=run_command,
@@ -120,12 +126,47 @@ def test_request_embeds_the_image_as_base64() -> None:
 
   assert runner.stdin_text is not None
   request = json.loads(runner.stdin_text)
-  image_block = request['message']['content'][0]
+  image_block = request['message']['content'][1]
   assert image_block['type'] == 'image'
   assert image_block['source']['media_type'] == _MEDIA_TYPE
   assert image_block['source']['data'] == base64.b64encode(_IMAGE_BYTES).decode(
     'ascii'
   )
+
+
+def test_request_precedes_each_image_with_its_label() -> None:
+  runner = _make_successful_runner()
+  parts = [
+    LabeledImage(label='Row 1:', image_bytes=b'one', media_type='image/jpeg'),
+    LabeledImage(label='Row 2:', image_bytes=b'two', media_type='image/jpeg'),
+  ]
+
+  _invoke_vision_model(run_command=runner, parts=parts)
+
+  assert runner.stdin_text is not None
+  content = json.loads(runner.stdin_text)['message']['content']
+  assert [block['type'] for block in content] == [
+    'text',
+    'image',
+    'text',
+    'image',
+    'text',
+  ]
+  assert content[0]['text'] == 'Row 1:'
+  assert content[2]['text'] == 'Row 2:'
+  assert content[3]['source']['data'] == base64.b64encode(b'two').decode(
+    'ascii'
+  )
+
+
+def test_request_closes_with_the_given_instruction() -> None:
+  runner = _make_successful_runner()
+
+  _invoke_vision_model(run_command=runner, instruction='read the sheet')
+
+  assert runner.stdin_text is not None
+  content = json.loads(runner.stdin_text)['message']['content']
+  assert content[-1] == {'type': 'text', 'text': 'read the sheet'}
 
 
 def test_command_carries_the_model_prompt_and_schema() -> None:
@@ -195,50 +236,3 @@ def test_is_error_result_raises() -> None:
     _invoke_vision_model(run_command=runner)
 
 
-# --- media_type_for_suffix ---
-
-
-def test_media_type_for_known_suffix() -> None:
-  assert media_type_for_suffix('.png') == 'image/png'
-  assert media_type_for_suffix('.jpeg') == 'image/jpeg'
-
-
-def test_media_type_for_unsupported_suffix_raises() -> None:
-  with pytest.raises(ValueError, match=r'\.gif'):
-    media_type_for_suffix('.gif')
-
-
-# --- invoke_vision_model_for_scan (thin file-reading wrapper) ---
-
-
-def _make_scan(tmp_path: pathlib.Path, suffix: str = '.png') -> pathlib.Path:
-  scan_path = tmp_path / f'scan{suffix}'
-  scan_path.write_bytes(_IMAGE_BYTES)
-  return scan_path
-
-
-def test_for_scan_reads_the_file_and_delegates(tmp_path: pathlib.Path) -> None:
-  scan_path = _make_scan(tmp_path)
-  runner = _make_successful_runner(result='{"board": "7"}')
-
-  result = invoke_vision_model_for_scan(
-    scan_path, _SYSTEM_PROMPT, _SCHEMA, run_command=runner
-  )
-
-  assert result == '{"board": "7"}'
-  assert runner.stdin_text is not None
-  image_block = json.loads(runner.stdin_text)['message']['content'][0]
-  assert image_block['source']['media_type'] == 'image/png'
-  assert image_block['source']['data'] == base64.b64encode(_IMAGE_BYTES).decode(
-    'ascii'
-  )
-
-
-def test_for_scan_unsupported_suffix_raises(tmp_path: pathlib.Path) -> None:
-  scan_path = _make_scan(tmp_path, suffix='.gif')
-  runner = _make_successful_runner()
-
-  with pytest.raises(ValueError, match=r'\.gif'):
-    invoke_vision_model_for_scan(
-      scan_path, _SYSTEM_PROMPT, _SCHEMA, run_command=runner
-    )
