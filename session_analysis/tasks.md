@@ -39,10 +39,11 @@ output, parsed into the canonical model.
       either the prompt omits rows with no writing, or downstream treats an
       all-blank board as unplayed rather than flagging it.
 - [~] Productionize strip-based extraction: grid-quad dewarp plus row-grid
-  detection into a persisted `SheetGeometry` (built, validated offline on the
-  6/29 scan), padded strip cutting, the labeled-parts invocation generalization,
-  and the prompt's strip input-format section. Remaining: a live end-to-end
-  transcription run, and review.
+  detection into a persisted `SheetGeometry`, padded strip cutting, the
+  labeled-parts invocation generalization, and the prompt's strip input-format
+  section. Validated live end to end on the 6/29 scan ($0.18, Sonnet): clean
+  footer and board numbers, all 28 rows accounted for, parser flags only where
+  expected. Remaining: user review of the `sheet_geometry` files.
   - Note: design settled — see spec.md (Extraction). The validated prototype is
     `scratch/strip_extraction_experiment.py`.
   - Note: residual errors after the strips fix are markup-interpretation, not
