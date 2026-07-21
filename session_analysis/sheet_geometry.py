@@ -252,12 +252,16 @@ def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
   # A true perspective transform, not `Image.Transform.QUAD`: QUAD interpolates
   # bilinearly, which leaves mid-grid rules visibly slanted when the distortion
   # is projective (measured ~30px of residual on the live scan); a homography
-  # flattens every rule, not just the two anchoring ones.
+  # flattens every rule, not just the two anchoring ones. Quad regions the photo
+  # didn't capture (a tightly cropped scan) are filled with paper-white, not
+  # PIL's default black: every detector here hunts for dark marks, and a black
+  # seam at the fill boundary would read as a rule.
   dewarped = image.transform(
     (width, height),
     Image.Transform.PERSPECTIVE,
     data=_perspective_coefficients(quad, width, height),
     resample=Image.Resampling.BICUBIC,
+    fillcolor='white',
   )
   return DewarpedSheet(
     image=dewarped, source_quad=quad, row_count=consensus.row_count
@@ -285,9 +289,7 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   gray = image.convert('L')
   consensus = _resolve_grid_consensus(gray)
   rules = [
-    round(
-      statistics.median(chain.rule_ys[index] for chain in consensus.chains)
-    )
+    round(statistics.median(chain.rule_ys[index] for chain in consensus.chains))
     for index in range(consensus.row_count + 1)
   ]
 
@@ -360,9 +362,7 @@ def _resolve_grid_consensus(gray: Image.Image) -> _GridConsensus:
     )
   row_count = ranked[0][0]
 
-  matching = [
-    chain for chain in chains if len(chain.rule_ys) - 1 == row_count
-  ]
+  matching = [chain for chain in chains if len(chain.rule_ys) - 1 == row_count]
   if len(matching) < _MINIMUM_VALID_SLICES:
     raise SheetGeometryError(
       f'grid resolved in only {len(matching)} of {_SLICE_COUNT} column '
@@ -485,9 +485,7 @@ def _extended_quad(
     bottom_right=corner(
       rule_lines.bottom, borders.right, bottom_margin, side_margin
     ),
-    top_right=corner(
-      rule_lines.top, borders.right, -top_margin, side_margin
-    ),
+    top_right=corner(rule_lines.top, borders.right, -top_margin, side_margin),
   )
 
 

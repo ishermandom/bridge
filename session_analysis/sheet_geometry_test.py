@@ -198,6 +198,20 @@ def test_dewarp_of_a_blank_image_raises() -> None:
     dewarp_sheet(blank)
 
 
+def test_missing_margin_is_filled_with_paper_white() -> None:
+  # A photo cropped just below the grid lacks the footer margin the quad extends
+  # into; the filler must read as blank paper, not as dark marks the detectors
+  # would mistake for rules.
+  cropped = _draw_sheet(_STANDARD_RULE_YS, height=700)
+
+  dewarped = dewarp_sheet(cropped).image
+
+  bottom_center = (dewarped.width // 2, dewarped.height - 1)
+  fill_value = dewarped.getpixel(bottom_center)
+  assert isinstance(fill_value, int)
+  assert fill_value > 240
+
+
 # --- SheetGeometry.row_pitch ---
 
 
