@@ -88,14 +88,16 @@ def build_request(strip_paths: list[pathlib.Path]) -> str:
       else f'Strip for printed row {int(path.stem.removeprefix("row_"))}:'
     )
     content.append({'type': 'text', 'text': label})
-    content.append({
-      'type': 'image',
-      'source': {
-        'type': 'base64',
-        'media_type': 'image/jpeg',
-        'data': base64.b64encode(path.read_bytes()).decode('ascii'),
-      },
-    })
+    content.append(
+      {
+        'type': 'image',
+        'source': {
+          'type': 'base64',
+          'media_type': 'image/jpeg',
+          'data': base64.b64encode(path.read_bytes()).decode('ascii'),
+        },
+      }
+    )
   content.append({'type': 'text', 'text': 'Transcribe the attached scan.'})
   message = {'type': 'user', 'message': {'role': 'user', 'content': content}}
   return json.dumps(message) + '\n'
