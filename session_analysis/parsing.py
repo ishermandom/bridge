@@ -93,13 +93,13 @@ _CONTRACT_PATTERN = re.compile(
 # it above (sessions run past the 16-board cycle the schedule repeats on).
 _BOARD_NUMBER_PATTERN = re.compile(r'[1-9][0-9]*')
 
-# The header date. The vision model is expected to transcribe it as numeric
+# The footer date. The vision model is expected to transcribe it as numeric
 # month/day (`6/29`), normalizing whatever the human wrote ('June 9th', `6.23`);
 # see models.md. The year is absent on the sheet and inferred by the parser.
 # Each part is one or two ASCII digits.
-_HEADER_DATE_MONTH = r'(?P<month>[0-9]{1,2})'
-_HEADER_DATE_DAY = r'(?P<day>[0-9]{1,2})'
-_HEADER_DATE_PATTERN = re.compile(_HEADER_DATE_MONTH + '/' + _HEADER_DATE_DAY)
+_FOOTER_DATE_MONTH = r'(?P<month>[0-9]{1,2})'
+_FOOTER_DATE_DAY = r'(?P<day>[0-9]{1,2})'
+_FOOTER_DATE_PATTERN = re.compile(_FOOTER_DATE_MONTH + '/' + _FOOTER_DATE_DAY)
 
 # A card's rank and suit — the plain card glyphs, nothing lead-specific. The ten
 # is written `10` or the enum's own `T`; the `10` alternative leads so it wins
@@ -297,13 +297,13 @@ def parse_board_number(cell: str) -> BoardNumber:
 
 
 @dataclasses.dataclass(frozen=True)
-class ParsedHeader:
-  """The parsed session header: its date and any issues.
+class ParsedFooter:
+  """The parsed session footer: its date and any issues.
 
   These feed the session-level fields directly — `Session.date` and
-  `Session.issues`. The header carries no envelope of its own, so a misread date
+  `Session.issues`. The footer carries no envelope of its own, so a misread date
   is null with a session-level issue. `event` is absent here: it is the raw
-  header text, stored verbatim and never parsed. Our pair identity is not read
+  footer text, stored verbatim and never parsed. Our pair identity is not read
   from the sheet at all — it is resolved from the travellers at reconciliation
   (see models.md, Session).
   """
@@ -312,10 +312,10 @@ class ParsedHeader:
   issues: tuple[Issue, ...]
 
 
-def parse_header(
+def parse_footer(
   date_text: str, *, reference_date: datetime.date
-) -> ParsedHeader:
-  """Parse the session header's date into its canonical value.
+) -> ParsedFooter:
+  """Parse the session footer's date into its canonical value.
 
   The sheet writes the date as month/day with no year (`6/29`); the year is
   inferred against `reference_date` — the day of the scan — on the assumption
@@ -324,22 +324,22 @@ def parse_header(
   with a session-level issue when it can't be read, never a failure (nothing is
   garbage). See models.md (Session).
   """
-  date = _date_from_header(date_text, reference_date)
+  date = _date_from_footer(date_text, reference_date)
   if date:
-    return ParsedHeader(date=date, issues=())
+    return ParsedFooter(date=date, issues=())
 
   issue = Issue(
     code=_UNREADABLE_DATE,
     severity=IssueSeverity.MEDIUM,
-    message=f'could not read a date from header: {date_text!r}',
+    message=f'could not read a date from footer: {date_text!r}',
   )
-  return ParsedHeader(date=None, issues=(issue,))
+  return ParsedFooter(date=None, issues=(issue,))
 
 
-def _date_from_header(
+def _date_from_footer(
   text: str, reference_date: datetime.date
 ) -> datetime.date | None:
-  """Return the date a header cell holds, or None when it can't be read.
+  """Return the date a footer cell holds, or None when it can't be read.
 
   The sheet writes month/day with no year; the year is inferred against
   `reference_date`. A scanned sheet is assumed to be at most a few months old
@@ -348,7 +348,7 @@ def _date_from_header(
   December sheet scanned in January). An out-of-range month or day (a misread
   `13/40`, or Feb 30) fails date construction and returns None.
   """
-  match = _HEADER_DATE_PATTERN.fullmatch(text.strip())
+  match = _FOOTER_DATE_PATTERN.fullmatch(text.strip())
   if not match:
     return None
   month, day = int(match.group('month')), int(match.group('day'))

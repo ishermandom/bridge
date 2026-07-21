@@ -23,7 +23,7 @@ from session_analysis.models import (
 )
 
 # A fixed scan date: the sample sheets are from June, comfortably in the past of
-# this reference, so a `6/29` header resolves to the same calendar year.
+# this reference, so a `6/29` footer resolves to the same calendar year.
 _REFERENCE_DATE = datetime.date(2026, 7, 1)
 
 
@@ -89,7 +89,7 @@ def test_a_well_formed_board_composes_into_its_parsed_cells() -> None:
   assert board.notes == 'nice defense'
 
 
-def test_session_header_is_carried_onto_the_session() -> None:
+def test_session_footer_is_carried_onto_the_session() -> None:
   session = _assemble(_raw_board(), event='PABC mon', date='6/29')
 
   assert session.event == 'PABC mon'
@@ -155,8 +155,8 @@ def test_an_unreadable_date_becomes_a_session_issue() -> None:
   assert session.issues
 
 
-def test_a_session_missing_its_header_still_assembles() -> None:
-  # A botched header — no `event` or `date` keys at all — must not drop the
+def test_a_session_missing_its_footer_still_assembles() -> None:
+  # A botched footer — no `event` or `date` keys at all — must not drop the
   # boards. This exercises the JSON boundary directly, the way extraction will.
   raw = RawSession.model_validate({'boards': [{'board_number': '7'}]})
 

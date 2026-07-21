@@ -42,7 +42,7 @@ This principle drives two structural decisions throughout:
 The vision model's job is faithful perception, not interpretation. It
 transcribes what each cell shows; it does not parse bids, map circles to
 "opponents," or normalize results. Its output is one flat object per board plus
-a session header.
+a session footer.
 
 ```json
 {
@@ -65,12 +65,14 @@ deliberately **no score field**: the sheet's matchpoint estimate is not
 trustworthy, and the traveller is authoritative (matchpoints are filled in at
 reconciliation, and are simply absent for a no-traveller session).
 
-The header carries `event` and `date`. `event` is stored raw; `date` is parsed
-downstream, and the vision model is expected to emit it as numeric month/day
-(`6/29`), normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). A
-human records the date many ways; a vision model reasons through the variants
-far more easily than a regex, so that burden sits here, not in the parser. The
-year is absent on the sheet and inferred downstream against the scan date.
+The footer — handwritten below the board grid, alongside a pair number that
+isn't transcribed (see below) — carries `event` and `date`. `event` is stored
+raw; `date` is parsed downstream, and the vision model is expected to emit it as
+numeric month/day (`6/29`), normalizing whatever the human wrote ('June 9th',
+`6.23`, `June 9`). A human records the date many ways; a vision model reasons
+through the variants far more easily than a regex, so that burden sits here, not
+in the parser. The year is absent on the sheet and inferred downstream against
+the scan date.
 
 Neither pair is transcribed — not our own, and not the opponents'. A pair is
 identified by number and direction (sometimes a section too), not the bare
@@ -252,7 +254,7 @@ validation pass define the concrete code set (see
 - `session_key` — stable identifier derived from event and date, e.g.
   `pabc-mon-2026-06-29`; the filename and the reconciliation join. Null until
   ingest assigns it, downstream of parsing.
-- `event` — raw header text.
+- `event` — raw footer text.
 - `date` — parsed date, or null with an issue if unparseable.
 - `source` — provenance: the sheet image (path + content hash) and the
   travellers consulted.
@@ -470,7 +472,7 @@ is **not** the gatekeeper for content. Its job is narrower and honest:
   code and the validation pass can rely on shape without re-checking it.
 
 It is configured so content never raises: every parsed value is optional — an
-envelope's parsed value, and the header `date` parsed straight into `Session` —
+envelope's parsed value, and the footer `date` parsed straight into `Session` —
 so a misread is captured as a null rather than rejected, and the genuinely
 malformed skeleton — the rare case where the vision model returns something that
 isn't shaped like a board at all — is contained by parsing board-by-board, so
@@ -495,10 +497,6 @@ these models is the parser's behaviour, and is tested there.
 
 ## Open questions and TODOs
 
-- **Vision model extraction prompt** — the system prompt that elicits the
-  [Vision model output](#vision-model-output) faithfully
-  (transcribe-don't-interpret, the auction and contract syntax, scratch-outs
-  dropped). To be written when extraction is built; deferred for now.
 - **Announcement type set** — `AnnouncementType` will grow as new announcement
   forms appear; `other` absorbs the unrecognized in the meantime.
 - **Issue codes and severities** — the concrete `IssueCode` set and each check's

@@ -35,7 +35,7 @@ from session_analysis.parsing import (
   parse_auction,
   parse_board_number,
   parse_contract_cell,
-  parse_header,
+  parse_footer,
   parse_lead,
 )
 
@@ -524,44 +524,44 @@ def test_non_numeric_board_number_becomes_an_issue_not_a_failure() -> None:
   assert number.issues[0].code == 'unreadable_board_number'
 
 
-# --- header ---
+# --- footer ---
 
 
-def test_header_parses_the_date() -> None:
+def test_footer_parses_the_date() -> None:
   # Scanned two days after the session, so `6/29` reads as the current year.
-  header = parse_header('6/29', reference_date=datetime.date(2026, 7, 1))
-  assert header.date == datetime.date(2026, 6, 29)
-  assert header.issues == ()
+  footer = parse_footer('6/29', reference_date=datetime.date(2026, 7, 1))
+  assert footer.date == datetime.date(2026, 6, 29)
+  assert footer.issues == ()
 
 
-def test_header_infers_the_current_year_for_a_recent_date() -> None:
+def test_footer_infers_the_current_year_for_a_recent_date() -> None:
   # `6/29` has already come this year by the scan date, so it is this year's.
-  header = parse_header('6/29', reference_date=datetime.date(2026, 7, 1))
-  assert header.date == datetime.date(2026, 6, 29)
+  footer = parse_footer('6/29', reference_date=datetime.date(2026, 7, 1))
+  assert footer.date == datetime.date(2026, 6, 29)
 
 
-def test_header_infers_the_prior_year_across_the_december_boundary() -> None:
+def test_footer_infers_the_prior_year_across_the_december_boundary() -> None:
   # A December session scanned the following January: `12/28` hasn't come yet in
   # the scan year, so it belongs to the prior year, not eleven months ahead.
-  header = parse_header('12/28', reference_date=datetime.date(2026, 1, 5))
-  assert header.date == datetime.date(2025, 12, 28)
+  footer = parse_footer('12/28', reference_date=datetime.date(2026, 1, 5))
+  assert footer.date == datetime.date(2025, 12, 28)
 
 
-def test_header_reads_a_january_date_as_the_scan_year() -> None:
+def test_footer_reads_a_january_date_as_the_scan_year() -> None:
   # The mirror of the December case: `1/2` has come by January 5, so it is this
   # year's, not the prior year's.
-  header = parse_header('1/2', reference_date=datetime.date(2026, 1, 5))
-  assert header.date == datetime.date(2026, 1, 2)
+  footer = parse_footer('1/2', reference_date=datetime.date(2026, 1, 5))
+  assert footer.date == datetime.date(2026, 1, 2)
 
 
 def test_unreadable_date_becomes_a_session_issue_not_a_failure() -> None:
-  header = parse_header('Xyz', reference_date=datetime.date(2026, 7, 1))
-  assert header.date is None
-  assert header.issues[0].code == 'unreadable_date'
+  footer = parse_footer('Xyz', reference_date=datetime.date(2026, 7, 1))
+  assert footer.date is None
+  assert footer.issues[0].code == 'unreadable_date'
 
 
 def test_out_of_range_date_is_unreadable() -> None:
   # `13/40` matches the month/day shape but is no calendar date, in any year.
-  header = parse_header('13/40', reference_date=datetime.date(2026, 7, 1))
-  assert header.date is None
-  assert header.issues[0].code == 'unreadable_date'
+  footer = parse_footer('13/40', reference_date=datetime.date(2026, 7, 1))
+  assert footer.date is None
+  assert footer.issues[0].code == 'unreadable_date'

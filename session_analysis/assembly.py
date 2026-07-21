@@ -31,7 +31,7 @@ from session_analysis.parsing import (
   parse_auction,
   parse_board_number,
   parse_contract_cell,
-  parse_header,
+  parse_footer,
   parse_lead,
 )
 
@@ -69,9 +69,9 @@ class RawBoard(_RawModel):
 
 
 class RawSession(_RawModel):
-  """The vision model's flat output: the session header and its raw boards.
+  """The vision model's flat output: the session footer and its raw boards.
 
-  Every field defaults, so a botched header never fails the whole parse: a
+  Every field defaults, so a botched footer never fails the whole parse: a
   missing `date` degrades to a session-level issue downstream, a missing `event`
   to an empty string, missing `boards` to none. The boards stay unvalidated
   objects, not `RawBoard`s, so each is validated one at a time in assembly and a
@@ -88,20 +88,20 @@ def assemble_session(
 ) -> Session:
   """Assemble a `RawSession` into the canonical `Session` record.
 
-  Drives the header and per-cell parsers over the raw transcription. `source` is
+  Drives the footer and per-cell parsers over the raw transcription. `source` is
   provenance the vision model never sees (the scan and travellers consulted);
-  `reference_date` is the scan date the header's yearless date is resolved
-  against. The session is always produced — an unreadable header date is a
+  `reference_date` is the scan date the footer's yearless date is resolved
+  against. The session is always produced — an unreadable footer date is a
   session-level issue, a malformed board a board-level one, never a failure.
   """
-  header = parse_header(raw.date, reference_date=reference_date)
+  footer = parse_footer(raw.date, reference_date=reference_date)
   boards = tuple(_assemble_board(board) for board in raw.boards)
   return Session(
     event=raw.event,
-    date=header.date,
+    date=footer.date,
     source=source,
     boards=boards,
-    issues=header.issues,
+    issues=footer.issues,
   )
 
 

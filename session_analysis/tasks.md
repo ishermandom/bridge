@@ -19,18 +19,11 @@ output, parsed into the canonical model.
 
 - [x] Headless Claude invocation: `claude -p` with `--system-prompt`,
       `claude-sonnet-5`. See `vision_model_invocation.py`.
-- [ ] Vision model extraction prompt: transcribe-don't-interpret; the
+- [x] Vision model extraction prompt: transcribe-don't-interpret; the
       auction/contract syntax; drop scratch-outs; no score; no dealer/vul; no
-      pair numbers. #vision-model-prompt
-  - Open question: the prompt is unwritten — see models.md (Open questions).
-  - Note: a circled board number is emitted with parentheses — `(7)`, reusing
-    the auction's circle convention; assembly strips them and sets
-    `Board.flagged_for_review`.
-  - Note: the header date must be emitted as numeric month/day (`6/29`),
-    normalizing whatever the human wrote ('June 9th', `6.23`, `June 9`). The
-    parser assumes this normalized form and infers only the missing year; it
-    does not read free-form date prose. Normalizing is left to the vision model,
-    which reasons through the variants far more easily than a regex would.
+      pair numbers. See `extraction_prompt.md`. #vision-model-prompt
+  - Note: not yet exercised against a live model or wired into extraction — see
+    the next task.
 - [ ] Wire extraction output through the parser to the canonical model and the
       validation pass.
   - Note: parse the vision model's JSON into `assembly.RawSession`, then
@@ -39,6 +32,24 @@ output, parsed into the canonical model.
     still raises when the top-level shape is fundamentally wrong (not an object,
     or `boards` not a list), so wrap that call and flag the whole sheet on
     failure rather than letting it abort extraction.
+- [ ] Parser support for boxed and struck-through cells outside the auction.
+      #boxed-and-struck-through
+  - Note: the prompt now has the vision model transcribe a struck-through cell —
+    contract, lead, or auction — as the fixed token `---`, and wrap a boxed lead
+    or contract in square brackets (`[10oS]`, `[6H*W-1]`), the same convention
+    already used for boxed auction calls. See `extraction_prompt.md`. The model
+    transcribes; this task is where the parser catches up to what it can now
+    produce.
+  - Note: `parse_contract_cell` already treats a run of dash glyphs as a passout
+    (`_STRUCK_THROUGH_PATTERN`, `parsing.py`), and `---` fullmatches it, so the
+    contract side needs no change. `parse_lead` and `parse_auction` have no
+    equivalent — a struck-through lead or auction cell currently fails to parse
+    and raises a spurious issue instead of resolving cleanly, the way an empty
+    cell already does in `assembly.py`.
+  - Note: `Lead` has no `flagged_for_discussion`-style field for a boxed lead
+    (only `AuctionEntry` does). Decide whether `Lead`/`Outcome` need one, or
+    whether a boxed lead/contract should fall back to the same review-flagging a
+    parse failure already gives.
 
 ---
 
@@ -75,8 +86,8 @@ likely row swaps.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
 - [ ] Inbox spine: `inbox/` → `processed/<session-key>.json` + image →
-      `archive/`, idempotent on header + content hash.
-- [ ] Header self-naming → session key, confirmed in review before commit.
+      `archive/`, idempotent on footer + content hash.
+- [ ] Footer self-naming → session key, confirmed in review before commit.
 - [ ] The "process inbox" command.
 
 ---

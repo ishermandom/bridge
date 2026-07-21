@@ -234,12 +234,12 @@ class Source(FrozenModel):
 
 
 class Session(FrozenModel):
-  """A whole digitized session: its header, provenance, and boards.
+  """A whole digitized session: its footer, provenance, and boards.
 
-  Like the rest of the models, the parsed header date never hard-fails: a value
+  Like the rest of the models, the parsed footer date never hard-fails: a value
   the parser couldn't read is null with an issue, not a construction error, so a
   session is always stored and reviewable (nothing is garbage). `event` and
-  `source` are the always-present exceptions — `event` is the raw header
+  `source` are the always-present exceptions — `event` is the raw footer
   transcription, `source` is file provenance, neither a parse that can fail.
 
   Our own pair identity is deliberately not read from the sheet: a pair is
@@ -254,7 +254,7 @@ class Session(FrozenModel):
   # downstream of parsing and review.
   session_key: str | None = None
   event: str
-  # Parsed from the header, or null with an issue when unreadable.
+  # Parsed from the footer, or null with an issue when unreadable.
   date: datetime.date | None = None
   source: Source
   boards: tuple[Board, ...] = ()

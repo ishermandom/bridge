@@ -95,7 +95,7 @@ The field-level schema — the canonical record, the vision model's output
 contract, the parser between them, and the validation pass — is specified in
 [models.md](models.md). At pipeline altitude:
 
-- **One session is one record**: a header (event, date, provenance) plus a list
+- **One session is one record**: a footer (event, date, provenance) plus a list
   of board records. Our own pair identity is not read from the sheet — it is
   resolved from the travellers at reconciliation (see
   [models.md](models.md#vision-model-output)).
@@ -166,7 +166,7 @@ mode**, on the existing Claude subscription — no separate API billing.
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
   markup (parens, `!`, `_`/`^`, `*`, `[ ]`), the contract cell verbatim, and the
-  lead and header as written. It does not parse bids, map circles to
+  lead and footer as written. It does not parse bids, map circles to
   "opponents," or normalize results; all of that is the downstream parser's job.
   The full output contract and syntax are in
   [models.md](models.md#vision-model-output). Keeping the model's job to
@@ -248,11 +248,11 @@ Whichever is chosen:
   scanner's native multi-page container absorbs glare and binding splits with no
   pipeline logic). The scanner's on-device perspective correction is relied on,
   so classical preprocessing is omitted; PDF pages are rasterized as needed.
-- **Self-naming**: the header (event, date) is read first so the file names
+- **Self-naming**: the footer (event, date) is read first so the file names
   itself by session key — no manual tagging. The key is confirmed in review
   before it commits to the filesystem.
 - **Spine**: `inbox/` → `processed/<session-key>.json` + image → `archive/`.
-  Idempotent on header plus content hash, so re-scanning a sheet is a no-op.
+  Idempotent on footer plus content hash, so re-scanning a sheet is a no-op.
 - **Trigger**: an explicit "process inbox" command, not a watcher daemon. At
   this volume a silent daemon debugged twice a year is more total friction than
   a one-tap trigger, and failures should be visible rather than silent.
@@ -290,7 +290,10 @@ contract.
 Traveller HTML and scoresheet photos contain **other club members' names and
 results**. They are kept local-only, never committed — consistent with the
 existing `club_sites/palo_alto/fixtures/raw/` gitignore. Captures live under
-`session_analysis/travellers/`, which is gitignored.
+`session_analysis/travellers/`, which is gitignored. Example scoresheet photos
+(for reference while building extraction) live in the sibling `bridge-private`
+repo's `scoresheets/` directory, kept out of this public repo for the same
+reason.
 
 The captures are saved-from-the-browser HTML against third-party servers (ACBL
 Live, the club site). Eventually this stage should **archive and index the
