@@ -9,13 +9,13 @@ transcription-scoped system prompt and a JSON Schema for its output. See spec.md
 shaped.
 
 The request is an ordered sequence of `LabeledImage` parts — per-row strips, in
-production — followed by a caller-supplied closing instruction. Images are
-embedded directly in the request rather than left to `Read` tool calls: that
-collapses the exchange to one turn and skips the tool definition's token cost
-entirely. Embedding requires `--input-format stream-json`, which the CLI only
-allows paired with `--output-format stream-json` — so the response is parsed as
-one JSON object per line, ending in a `result` event, rather than the
-single-object envelope `--output-format json` gives.
+production — closed by the fixed transcription ask. Images are embedded directly
+in the request rather than left to `Read` tool calls: that collapses the
+exchange to one turn and skips the tool definition's token cost entirely.
+Embedding requires `--input-format stream-json`, which the CLI only allows
+paired with `--output-format stream-json` — so the response is parsed as one
+JSON object per line, ending in a `result` event, rather than the single-object
+envelope `--output-format json` gives.
 """
 
 import base64
@@ -36,6 +36,12 @@ _SCRATCH_DIRECTORY = (
 )
 
 DEFAULT_MODEL = 'claude-sonnet-5'
+
+# The user-turn ask that closes each request, after the images. All real
+# instruction lives in the system prompt; the user turn exists because the API
+# needs one to respond to, and this line makes its ask explicit rather than
+# sending images with no request.
+_TRANSCRIPTION_INSTRUCTION = 'Transcribe the attached scan.'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -78,7 +84,7 @@ def run_claude(
   )
 
 
-def _build_request(parts: Sequence[LabeledImage], instruction: str) -> str:
+def _build_request(parts: Sequence[LabeledImage]) -> str:
   """Return the stream-json request line carrying the labeled images."""
   content: list[dict[str, object]] = []
   for part in parts:
@@ -93,7 +99,7 @@ def _build_request(parts: Sequence[LabeledImage], instruction: str) -> str:
         },
       }
     )
-  content.append({'type': 'text', 'text': instruction})
+  content.append({'type': 'text', 'text': _TRANSCRIPTION_INSTRUCTION})
   message = {'type': 'user', 'message': {'role': 'user', 'content': content}}
   return json.dumps(message) + '\n'
 
@@ -143,7 +149,6 @@ def _parse_result(stdout: str) -> str:
 def invoke_vision_model(
   parts: Sequence[LabeledImage],
   system_prompt: str,
-  instruction: str,
   json_schema: Mapping[str, object],
   *,
   model: str = DEFAULT_MODEL,
@@ -156,9 +161,6 @@ def invoke_vision_model(
       rather than left to a `Read` tool call.
     system_prompt: replaces the CLI's default agentic-coding system prompt
       entirely, scoping the model to transcription.
-    instruction: the user-turn text closing the request, after the last image —
-      prompt content, so it lives with the prompt (`extraction_prompt`), not
-      here.
     json_schema: a JSON Schema the response must validate against, enforced by
       `--json-schema` so the result is directly parseable rather than prose or
       markdown-fenced JSON.
@@ -175,7 +177,7 @@ def invoke_vision_model(
     VisionModelInvocationError: the `claude` process exited nonzero, or its output
       failed to yield a successful result event — see `_parse_result`.
   """
-  request = _build_request(parts, instruction)
+  request = _build_request(parts)
 
   command = [
       'claude', '-p',

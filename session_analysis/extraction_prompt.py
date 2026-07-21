@@ -15,8 +15,3 @@ import pathlib
 VISION_MODEL_SYSTEM_PROMPT: str = (
   pathlib.Path(__file__).parent / 'extraction_prompt.md'
 ).read_text()
-
-# The user-turn text closing the request, after the last image part. Prompt
-# content, kept here with the rest of the prompt rather than baked into the
-# request plumbing.
-TRANSCRIPTION_INSTRUCTION = 'Transcribe the attached scan.'

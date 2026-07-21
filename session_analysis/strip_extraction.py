@@ -13,10 +13,7 @@ import io
 
 from PIL import Image
 
-from session_analysis.extraction_prompt import (
-  TRANSCRIPTION_INSTRUCTION,
-  VISION_MODEL_SYSTEM_PROMPT,
-)
+from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.frozen_model import FrozenModel
 from session_analysis.sheet_geometry import (
@@ -132,7 +129,6 @@ def transcribe_sheet(
   raw_json = invoke_vision_model(
     cut_strips(dewarped.image, geometry),
     VISION_MODEL_SYSTEM_PROMPT,
-    TRANSCRIPTION_INSTRUCTION,
     VISION_MODEL_OUTPUT_SCHEMA,
     model=model,
     run_command=run_command,

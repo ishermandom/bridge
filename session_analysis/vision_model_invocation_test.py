@@ -28,7 +28,6 @@ _SCHEMA = {'type': 'object', 'properties': {'board': {'type': 'string'}}}
 _IMAGE_BYTES = b'not a real image, just test bytes'
 _MEDIA_TYPE = 'image/png'
 _SYSTEM_PROMPT = 'transcribe this'
-_INSTRUCTION = 'go transcribe'
 _MODEL = 'claude-sonnet-5'
 
 
@@ -73,9 +72,7 @@ def _make_successful_runner(result: str = '{}') -> _RecordingRunner:
 
 
 _SINGLE_PART = (
-  LabeledImage(
-    label='Scan:', image_bytes=_IMAGE_BYTES, media_type=_MEDIA_TYPE
-  ),
+  LabeledImage(label='Scan:', image_bytes=_IMAGE_BYTES, media_type=_MEDIA_TYPE),
 )
 
 
@@ -84,7 +81,6 @@ def _invoke_vision_model(
   run_command: CommandRunner,
   parts: Sequence[LabeledImage] = _SINGLE_PART,
   system_prompt: str = _SYSTEM_PROMPT,
-  instruction: str = _INSTRUCTION,
   json_schema: Mapping[str, object] = _SCHEMA,
   model: str = _MODEL,
 ) -> str:
@@ -94,7 +90,6 @@ def _invoke_vision_model(
   return invoke_vision_model(
     parts,
     system_prompt,
-    instruction,
     json_schema,
     model=model,
     run_command=run_command,
@@ -159,14 +154,17 @@ def test_request_precedes_each_image_with_its_label() -> None:
   )
 
 
-def test_request_closes_with_the_given_instruction() -> None:
+def test_request_closes_with_the_transcription_ask() -> None:
   runner = _make_successful_runner()
 
-  _invoke_vision_model(run_command=runner, instruction='read the sheet')
+  _invoke_vision_model(run_command=runner)
 
   assert runner.stdin_text is not None
   content = json.loads(runner.stdin_text)['message']['content']
-  assert content[-1] == {'type': 'text', 'text': 'read the sheet'}
+  assert content[-1] == {
+    'type': 'text',
+    'text': 'Transcribe the attached scan.',
+  }
 
 
 def test_command_carries_the_model_prompt_and_schema() -> None:
@@ -234,5 +232,3 @@ def test_is_error_result_raises() -> None:
 
   with pytest.raises(VisionModelInvocationError, match='Invalid API key'):
     _invoke_vision_model(run_command=runner)
-
-

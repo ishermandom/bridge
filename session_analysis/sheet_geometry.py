@@ -174,9 +174,7 @@ def dewarp_sheet(
   pitch = (bottom_y - top_y) / expected_row_count
 
   left_border, right_border = _fit_border_lines(gray, top_y, bottom_y, pitch)
-  quad = _extended_quad(
-    top_line, bottom_line, left_border, right_border, pitch
-  )
+  quad = _extended_quad(top_line, bottom_line, left_border, right_border, pitch)
 
   width = round(
     (
@@ -317,7 +315,8 @@ def _fit_rule_lines(
     SheetGeometryError: too few slices resolved the grid.
   """
   observations = [
-    (x, run[0], run[-1]) for x, run in _resolve_slice_runs(gray, expected_row_count)
+    (x, run[0], run[-1])
+    for x, run in _resolve_slice_runs(gray, expected_row_count)
   ]
 
   pitch_estimate = statistics.median(
@@ -420,9 +419,7 @@ def _extended_quad(
   return Quad(
     top_left=corner(top_line, left_border, -top_margin, -side_margin),
     bottom_left=corner(bottom_line, left_border, bottom_margin, -side_margin),
-    bottom_right=corner(
-      bottom_line, right_border, bottom_margin, side_margin
-    ),
+    bottom_right=corner(bottom_line, right_border, bottom_margin, side_margin),
     top_right=corner(top_line, right_border, -top_margin, side_margin),
   )
 
@@ -543,11 +540,8 @@ def _fit_line_without_outliers(
   return line
 
 
-def _fit_line(
-  points: Sequence[tuple[float, float]]
-) -> tuple[float, float]:
-  """Least-squares `(intercept, slope)` for `(independent, dependent)` points.
-  """
+def _fit_line(points: Sequence[tuple[float, float]]) -> tuple[float, float]:
+  """Least-squares `(intercept, slope)` for `(independent, dependent)` points."""
   independent_mean = statistics.fmean(x for x, _ in points)
   dependent_mean = statistics.fmean(y for _, y in points)
   covariance = sum(
