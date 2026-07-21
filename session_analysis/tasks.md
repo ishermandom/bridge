@@ -17,22 +17,23 @@ reconciliation, ingest, and the review UI.
 **Goal:** a sheet image becomes the vision model's compact per-board string
 output, parsed into the canonical model.
 
-- [x] Headless Claude invocation: `claude -p` with `--system-prompt`,
-      `claude-sonnet-5`. See `vision_model_invocation.py`.
-- [x] Vision model extraction prompt: transcribe-don't-interpret; the
-      auction/contract syntax; drop scratch-outs; no score; no dealer/vul; no
-      pair numbers. See `extraction_prompt.md`. #vision-model-prompt
-- [x] Parser support for boxed and struck-through cells outside the auction.
-      #boxed-and-struck-through
-- [ ] Exercise extraction against a real scoresheet photo end to end: run
-      `vision_model_invocation.py` with `extraction_prompt.md` on an actual
-      scan, then feed the output through `parse_and_assemble_session` and check
-      the result against the sheet by hand. #live-extraction-test
-  - Note: everything so far has been tested against hand-written fixture
-    strings, not the vision model's actual output — this is the first check that
-    the prompt and parser hold up against real transcription behavior
-    (formatting quirks, markup it gets wrong, edge cases the fixtures don't
-    cover).
+- [x] Build the pipeline: headless invocation (`vision_model_invocation.py`),
+      extraction prompt (`extraction_prompt.md`), per-cell parsers, and the
+      `parse_and_assemble_session` entry point — exercised end to end against a
+      real scan (the 6/29 sheet). #live-extraction-test
+  - Note: live transcription error profile (24 played boards): footer, leads,
+    and board numbers all correct; one contract-result misread (`+4` for `+3`);
+    every auction error was markup, not calls — dropped circles (3 boards), a
+    dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
+    violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
+    model-escalation backlog item.
+- [ ] Give the extraction JSON schema a production home: the session/board
+      schema passed as `--json-schema` exists only in the live-test scratch
+      driver; the "process inbox" command will need it in the package.
+- [ ] Decide handling for unplayed pre-printed rows: boards 25–28 come back as
+      all-empty objects and each draws a medium `contract_missing` issue —
+      either the prompt omits rows with no writing, or downstream treats an
+      all-blank board as unplayed rather than flagging it.
 
 ---
 
