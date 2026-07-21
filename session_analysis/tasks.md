@@ -38,6 +38,13 @@ output, parsed into the canonical model.
       all-empty objects and each draws a medium `contract_missing` issue —
       either the prompt omits rows with no writing, or downstream treats an
       all-blank board as unplayed rather than flagging it.
+- [ ] Treat a struck-through lead on a passed-out board as consistent: `---` in
+      the lead cell alongside a `PASSOUT` outcome means "no lead", so record no
+      lead and raise no issue (or at most one advisory), instead of today's
+      `unresolved_lead` plus `lead_on_passout` pair.
+  - Note: observed live on the 6/29 sheet (board 21): the player struck the lead
+    cell precisely because the board was passed out — the row is
+    self-consistent, and both flags are review noise a human clears at a glance.
 - [~] Productionize strip-based extraction: grid-quad dewarp plus row-grid
   detection into a persisted `SheetGeometry`, padded strip cutting, the
   labeled-parts invocation generalization, and the prompt's strip input-format
