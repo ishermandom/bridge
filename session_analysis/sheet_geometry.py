@@ -25,6 +25,7 @@ alongside the processed session — the dewarped frame stays reproducible from t
 archived scan — rather than being recomputed per consumer.
 """
 
+import collections
 import dataclasses
 import itertools
 import math
@@ -71,6 +72,10 @@ _FOOTER_HEIGHT_IN_ROW_PITCHES = 2.5
 # individually resolve the grid for the line fits to be trusted.
 _SLICE_COUNT = 12
 _MINIMUM_VALID_SLICES = 4
+
+# A scoresheet grid has at least this many rows; a shorter chain is noise (a
+# header box, a run of handwriting dips) and doesn't vote for the row count.
+_MINIMUM_ROW_COUNT = 8
 
 # How many horizontal bands sample the side borders, and how far (in row
 # pitches) a band's border sample may sit from the per-side median before it is
@@ -150,28 +155,28 @@ class DewarpedSheet:
   source_quad: Quad
 
 
-def dewarp_sheet(
-  image: Image.Image, *, expected_row_count: int = 28
-) -> DewarpedSheet:
+def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
   """Map the scan's grid region to an upright rectangle at native scale.
 
   The perspective is estimated from the printed grid itself — no capture-side
-  correction is assumed. The output size matches the quad's own edge lengths,
-  so content keeps its native resolution through the transform.
+  correction is assumed, and the grid's row count is inferred from the scan
+  rather than fixed. The output size matches the quad's own edge lengths, so
+  content keeps its native resolution through the transform.
 
   Raises:
-    SheetGeometryError: too few column slices resolved the grid to fit its
-      corner quad.
+    SheetGeometryError: the column slices couldn't agree on a grid to fit the
+      corner quad from.
   """
   gray = image.convert('L')
-  top_line, bottom_line = _fit_rule_lines(gray, expected_row_count)
+  row_count, slice_runs = _resolve_slice_runs(gray)
+  top_line, bottom_line = _fit_rule_lines(slice_runs, row_count)
 
   # The rules' vertical span at mid-image gives the row pitch, which sizes the
   # dewarp margins and the border-sampling bands below.
   x_middle = gray.width / 2
   top_y = _line_value(top_line, x_middle)
   bottom_y = _line_value(bottom_line, x_middle)
-  pitch = (bottom_y - top_y) / expected_row_count
+  pitch = (bottom_y - top_y) / row_count
 
   left_border, right_border = _fit_border_lines(gray, top_y, bottom_y, pitch)
   quad = _extended_quad(top_line, bottom_line, left_border, right_border, pitch)
@@ -203,28 +208,28 @@ def dewarp_sheet(
   return DewarpedSheet(image=dewarped, source_quad=quad)
 
 
-def detect_sheet_geometry(
-  image: Image.Image, *, expected_row_count: int = 28
-) -> SheetGeometry:
+def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   """Detect a dewarped scan's printed row grid and footer region.
 
-  Rule positions are per-rule medians across the column slices' chains rather
-  than one full-width profile: even after the dewarp, gentle page curl leaves
-  a rule drifting a fraction of a pitch across the width — enough to smear a
-  full-width dip below detectability, while each slice still sees it sharply.
-  The strip padding absorbs the residual drift the median glosses over.
+  The row count comes from the scan itself — the column slices' consensus —
+  so forms with more or fewer rows resolve without configuration; the count
+  surfaces as `len(row_boxes)`. Rule positions are per-rule medians across
+  the slices' chains rather than one full-width profile: even after the
+  dewarp, gentle page curl leaves a rule drifting a fraction of a pitch
+  across the width — enough to smear a full-width dip below detectability,
+  while each slice still sees it sharply. The strip padding absorbs the
+  residual drift the median glosses over. (The form's printed header row
+  never counts as a row — it is taller than a board row, so the pitch chain
+  excludes it on its own.)
 
   Raises:
-    SheetGeometryError: too few column slices resolved a grid of exactly
-      `expected_row_count` rows. The form's printed header row never counts
-      toward that — it is taller than a board row, so the pitch chain excludes
-      it on its own.
+    SheetGeometryError: the column slices couldn't agree on a grid.
   """
   gray = image.convert('L')
-  slice_runs = _resolve_slice_runs(gray, expected_row_count)
+  row_count, slice_runs = _resolve_slice_runs(gray)
   rules = [
     round(statistics.median(run[index] for _, run in slice_runs))
-    for index in range(expected_row_count + 1)
+    for index in range(row_count + 1)
   ]
 
   # The grid's horizontal extent: the outermost dark columns of the grid band,
@@ -263,22 +268,27 @@ def detect_sheet_geometry(
 
 
 def _resolve_slice_runs(
-  gray: Image.Image, expected_row_count: int
-) -> list[tuple[float, list[int]]]:
-  """Resolve the grid per column slice: `(slice-center x, rule chain)` pairs.
+  gray: Image.Image,
+) -> tuple[int, list[tuple[float, list[int]]]]:
+  """Resolve the grid per column slice, inferring the row count by consensus.
 
   Each slice is narrow enough that a slanted or curled rule stays sharp in its
-  profile. A slice whose chain doesn't bound exactly `expected_row_count` rows
-  is untrustworthy — most often the footer's handwriting chained on as a ghost
-  rule, or background at the sheet's edge hid the grid — and is skipped rather
-  than guessed at.
+  profile. The grid's row count is not assumed: each slice's chain votes, and
+  the modal count wins. A slice whose chain disagrees with the mode is
+  untrustworthy — most often the footer's handwriting chained on as a ghost
+  rule, or background at the sheet's edge hid part of the grid — and is
+  skipped rather than guessed at.
+
+  Returns:
+    The consensus row count, and the `(slice-center x, rule chain)` pair of
+    each slice that matches it.
 
   Raises:
-    SheetGeometryError: fewer than `_MINIMUM_VALID_SLICES` slices resolved the
-      grid.
+    SheetGeometryError: no slice resolved a plausible grid, the slices split
+      evenly between two row counts, or too few match the consensus.
   """
   slice_width = gray.width // _SLICE_COUNT
-  slice_runs: list[tuple[float, list[int]]] = []
+  chains: list[tuple[float, list[int]]] = []
   row_counts: list[int] = []
   for slice_index in range(_SLICE_COUNT):
     left = slice_index * slice_width
@@ -291,36 +301,46 @@ def _resolve_slice_runs(
       centers, minimum_gap=gray.height // _MINIMUM_PITCH_DIVISOR
     )
     row_counts.append(len(run) - 1)
-    if len(run) - 1 != expected_row_count:
-      continue
-    slice_runs.append((left + slice_width / 2, run))
+    chains.append((left + slice_width / 2, run))
 
+  votes = collections.Counter(
+    len(run) - 1 for _, run in chains if len(run) - 1 >= _MINIMUM_ROW_COUNT
+  )
+  if not votes:
+    raise SheetGeometryError(
+      f'none of the {_SLICE_COUNT} column slices resolved a plausible grid '
+      f'(row counts per slice: {row_counts}, minimum {_MINIMUM_ROW_COUNT})'
+    )
+  ranked = votes.most_common()
+  if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+    raise SheetGeometryError(
+      f'ambiguous row count: {ranked[0][1]} slice(s) found {ranked[0][0]} '
+      f'rows and as many found {ranked[1][0]} (row counts per slice: '
+      f'{row_counts})'
+    )
+  row_count = ranked[0][0]
+
+  slice_runs = [(x, run) for x, run in chains if len(run) - 1 == row_count]
   if len(slice_runs) < _MINIMUM_VALID_SLICES:
     raise SheetGeometryError(
       f'grid resolved in only {len(slice_runs)} of {_SLICE_COUNT} column '
-      f'slices (row counts per slice: {row_counts}, expected '
-      f'{expected_row_count}); need at least {_MINIMUM_VALID_SLICES}'
+      f'slices (row counts per slice: {row_counts}); need at least '
+      f'{_MINIMUM_VALID_SLICES}'
     )
-  return slice_runs
+  return row_count, slice_runs
 
 
 def _fit_rule_lines(
-  gray: Image.Image, expected_row_count: int
+  slice_runs: Sequence[tuple[float, list[int]]], row_count: int
 ) -> tuple[tuple[float, float], tuple[float, float]]:
   """Fit the grid's top and bottom rules as `y = intercept + slope * x` lines.
 
   The slices' top and bottom rule positions anchor the fits.
-
-  Raises:
-    SheetGeometryError: too few slices resolved the grid.
   """
-  observations = [
-    (x, run[0], run[-1])
-    for x, run in _resolve_slice_runs(gray, expected_row_count)
-  ]
+  observations = [(x, run[0], run[-1]) for x, run in slice_runs]
 
   pitch_estimate = statistics.median(
-    (bottom - top) / expected_row_count for _, top, bottom in observations
+    (bottom - top) / row_count for _, top, bottom in observations
   )
   residual_tolerance = _FIT_RESIDUAL_TOLERANCE_IN_PITCHES * pitch_estimate
   top_line = _fit_line_without_outliers(
@@ -541,7 +561,8 @@ def _fit_line_without_outliers(
 
 
 def _fit_line(points: Sequence[tuple[float, float]]) -> tuple[float, float]:
-  """Least-squares `(intercept, slope)` for `(independent, dependent)` points."""
+  """Least-squares `(intercept, slope)` for `(independent, dependent)` points.
+  """
   independent_mean = statistics.fmean(x for x, _ in points)
   dependent_mean = statistics.fmean(y for _, y in points)
   covariance = sum(

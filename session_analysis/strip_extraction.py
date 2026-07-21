@@ -107,7 +107,6 @@ def cut_strips(
 def transcribe_sheet(
   image: Image.Image,
   *,
-  expected_row_count: int = 28,
   model: str = DEFAULT_MODEL,
   run_command: CommandRunner = run_claude,
 ) -> SheetTranscription:
@@ -116,16 +115,15 @@ def transcribe_sheet(
   The extraction entry point for one scan: the returned `raw_json` is what
   `assembly.parse_and_assemble_session` consumes, and the returned geometry
   and source quad are the artifacts later consumers (voting reruns, review
-  crops) share.
+  crops) share. The grid's row count comes from the scan itself, so forms of
+  any length transcribe without configuration.
 
   Raises:
     SheetGeometryError: the scan's grid could not be resolved.
     VisionModelInvocationError: the headless `claude` invocation failed.
   """
-  dewarped = dewarp_sheet(image, expected_row_count=expected_row_count)
-  geometry = detect_sheet_geometry(
-    dewarped.image, expected_row_count=expected_row_count
-  )
+  dewarped = dewarp_sheet(image)
+  geometry = detect_sheet_geometry(dewarped.image)
   raw_json = invoke_vision_model(
     cut_strips(dewarped.image, geometry),
     VISION_MODEL_SYSTEM_PROMPT,

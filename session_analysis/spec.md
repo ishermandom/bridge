@@ -195,17 +195,19 @@ mode**, on the existing Claude subscription — no separate API billing.
   slices' chains — a full-width profile stays blind to a rule that page curl
   still drifts a fraction of a pitch, while each slice sees it sharply. The grid
   is identified structurally: the longest chain of near-uniform-pitch dips,
-  skipping handwriting's interloper dips, must bound exactly the expected row
-  count (the form's printed header row is taller than a board row, so it never
-  joins the chain). The result is a typed `SheetGeometry` of tight rule-to-rule
-  row boxes plus the footer box, persisted with the source quad alongside the
-  processed session: extraction cuts strips from it, a voting rerun reuses the
-  same strips, and the review UI crops from it. Handwriting bleeds past the
-  printed rules and curl leaves residual drift, so each consumer pads the tight
-  boxes at cut time — extraction expands each strip by a fraction of the row
-  pitch into its neighbors, and the prompt's "transcribe the row whose middle
-  line the strip shows" rule disambiguates the duplicated content that padding
-  creates.
+  skipping handwriting's interloper dips. The row count is not configured but
+  voted — each column slice's chain length votes and the modal count wins, so
+  forms with more or fewer rows resolve unchanged, and a slice that chained a
+  ghost rule (footer handwriting) is outvoted (the form's printed header row is
+  taller than a board row, so it never joins the chain). The result is a typed
+  `SheetGeometry` of tight rule-to-rule row boxes plus the footer box, persisted
+  with the source quad alongside the processed session: extraction cuts strips
+  from it, a voting rerun reuses the same strips, and the review UI crops from
+  it. Handwriting bleeds past the printed rules and curl leaves residual drift,
+  so each consumer pads the tight boxes at cut time — extraction expands each
+  strip by a fraction of the row pitch into its neighbors, and the prompt's
+  "transcribe the row whose middle line the strip shows" rule disambiguates the
+  duplicated content that padding creates.
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
   markup (parens, `!`, `_`/`^`, `*`, `[ ]`), the contract cell verbatim, and the

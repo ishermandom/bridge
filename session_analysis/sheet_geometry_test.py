@@ -33,7 +33,8 @@ def _draw_sheet(
   width: int = 600,
   height: int = 800,
 ) -> Image.Image:
-  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders."""
+  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders.
+  """
   image = Image.new('L', (width, height), color=255)
   draw = ImageDraw.Draw(image)
   for rule_y in rule_ys:
@@ -69,16 +70,51 @@ def test_footer_box_clamps_to_the_image_bottom() -> None:
   assert geometry.footer_box.bottom == 700
 
 
-def test_an_extra_rule_at_the_grid_pitch_raises() -> None:
-  # Which end an extra at-pitch rule belongs to is unknowable from the run
-  # alone, so detection refuses to guess. (The form's printed header row never
-  # triggers this: it is taller than a board row, so the chain excludes it.)
+def test_row_count_is_inferred_from_the_grid() -> None:
+  twenty_one_rules = _STANDARD_RULE_YS[:21]
+
+  geometry = detect_sheet_geometry(_draw_sheet(twenty_one_rules))
+
+  assert len(geometry.row_boxes) == 20
+
+
+def test_a_full_width_rule_at_the_grid_pitch_extends_the_grid() -> None:
+  # A full-width rule one pitch above the grid is indistinguishable from a 29th
+  # row, so it becomes one — the row count is read from the scan.
   rule_ys = [80, *_STANDARD_RULE_YS]
 
-  with pytest.raises(
-    SheetGeometryError, match=r'row counts per slice.*29.*expected 28'
-  ):
-    detect_sheet_geometry(_draw_sheet(rule_ys))
+  geometry = detect_sheet_geometry(_draw_sheet(rule_ys))
+
+  assert len(geometry.row_boxes) == 29
+  assert geometry.row_boxes[0] == Box(left=40, top=80, right=560, bottom=100)
+
+
+def test_a_partial_width_ghost_rule_is_outvoted() -> None:
+  # Footer handwriting can mimic one extra rule below the grid in a few column
+  # slices; the other slices' row count wins and the ghost is ignored.
+  image = _draw_sheet(_STANDARD_RULE_YS)
+  ImageDraw.Draw(image).line([(40, 680), (140, 680)], fill=0)
+
+  geometry = detect_sheet_geometry(image)
+
+  assert len(geometry.row_boxes) == 28
+  assert geometry.row_boxes[-1].bottom == 660
+
+
+def test_an_even_split_on_row_count_raises() -> None:
+  # A ghost rule spanning exactly half the slices leaves no majority to trust.
+  image = _draw_sheet(_STANDARD_RULE_YS)
+  ImageDraw.Draw(image).line([(300, 680), (560, 680)], fill=0)
+
+  with pytest.raises(SheetGeometryError, match='ambiguous row count'):
+    detect_sheet_geometry(image)
+
+
+def test_a_short_run_of_lines_is_not_a_grid() -> None:
+  five_rules = _STANDARD_RULE_YS[:5]
+
+  with pytest.raises(SheetGeometryError, match='plausible grid'):
+    detect_sheet_geometry(_draw_sheet(five_rules))
 
 
 def test_dark_lines_off_the_grid_pitch_are_ignored() -> None:
@@ -89,15 +125,6 @@ def test_dark_lines_off_the_grid_pitch_are_ignored() -> None:
 
   assert len(geometry.row_boxes) == 28
   assert geometry.row_boxes[0].top == 100
-
-
-def test_wrong_row_count_raises_with_both_counts() -> None:
-  twenty_one_rules = _STANDARD_RULE_YS[:21]
-
-  with pytest.raises(
-    SheetGeometryError, match=r'row counts per slice.*20.*expected 28'
-  ):
-    detect_sheet_geometry(_draw_sheet(twenty_one_rules))
 
 
 def test_blank_image_raises() -> None:
