@@ -88,9 +88,11 @@ parsed value.
   - Note: an unresolved auction token is currently flagged twice with no shared
     identity — once as `unparseable_call` on the `AuctionEntry` itself
     (parsing.py) and again as `unresolved_call` at the board level
-    (validation.py). A priority score built from raw issue counts would
-    double-count it; worth a shared issue-identity scheme (see models.md's open
-    question on firming up issue codes) before triage math depends on counts.
+    (validation.py). Worth a shared issue-identity scheme (see models.md's open
+    question on firming up issue codes) so it isn't listed twice.
+  - Note: a session has few enough boards that raw issue counts barely move
+    triage order either way; `Issue.severity` is the real priority signal, so
+    triage should rank by severity, not by a count.
 - [ ] Row-level fixups (swap, renumber, reorder) as first-class operations.
 - [ ] Re-validate after edits; auto-open or notify after a sheet is processed.
   - Note: `validate_board` appends freshly found issues onto `board.issues`
