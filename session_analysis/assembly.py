@@ -9,9 +9,10 @@ the parsers, it never raises — a board object the vision model returned
 malformed is contained to one issue-bearing `Board`, so a single bad board never
 costs the rest of the session (nothing is garbage).
 
-`RawSession`/`RawBoard` model that flat vision-model output: all-string cells,
-distinct from the canonical models this produces. They live here, with their
-only consumer, rather than in `models` (which is canonical-only).
+`RawSheet`/`RawSession`/`RawBoard` model that flat vision-model output: a single
+`sheet` envelope of all-string cells, distinct from the canonical models this
+produces. They live here, with their only consumer, rather than in `models`
+(which is canonical-only).
 
 `parse_and_assemble_session` is the extraction entry point: it takes the vision
 model's raw JSON string, parses it, assembles it, and runs `validate_session`
@@ -90,6 +91,19 @@ class RawSession(_RawModel):
   boards: tuple[object, ...] = ()
 
 
+class RawSheet(_RawModel):
+  """The vision model's top-level output: one session under a `sheet` key.
+
+  The envelope exists because models deliver tool input as `{parameter_name:
+  payload}` — see extraction_schema.py for why the wire contract leans into
+  that. `sheet` has no default: output with the envelope missing is malformed,
+  and the entry point contains it as a session-level issue rather than passing
+  an empty session off as a parse.
+  """
+
+  sheet: RawSession
+
+
 def assemble_session(
   raw: RawSession, source: Source, *, reference_date: datetime.date
 ) -> Session:
@@ -117,17 +131,17 @@ def parse_and_assemble_session(
 ) -> Session:
   """Parse the vision model's raw JSON output into a validated `Session`.
 
-  The extraction entry point: `RawSession.model_validate_json` still raises
-  where `_assemble_board` cannot help — the top-level shape is fundamentally
-  wrong (not an object, or `boards` not a list), so there is no raw boards list
-  to hand to `assemble_session` at all. That case is contained here as a single
-  session-level issue rather than aborting extraction, the same nothing-is-
-  garbage contract the rest of this module keeps. A session that does parse is
-  run through `validate_session` before being returned, so the caller always
-  gets a session with every board-level check already applied.
+  The extraction entry point: `RawSheet.model_validate_json` still raises where
+  `_assemble_board` cannot help — the top-level shape is fundamentally wrong
+  (not an object, no `sheet` envelope, or `boards` not a list), so there is no
+  raw boards list to hand to `assemble_session` at all. That case is contained
+  here as a single session-level issue rather than aborting extraction, the same
+  nothing-is-garbage contract the rest of this module keeps. A session that does
+  parse is run through `validate_session` before being returned, so the caller
+  always gets a session with every board-level check already applied.
   """
   try:
-    raw = RawSession.model_validate_json(raw_json)
+    raw = RawSheet.model_validate_json(raw_json).sheet
   except pydantic.ValidationError as error:
     issue = Issue(
       code=_MALFORMED_SESSION,

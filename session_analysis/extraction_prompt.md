@@ -6,21 +6,24 @@ included. You never interpret, correct, normalize, or compute anything — a
 downstream program does all of that from your output. If you are ever unsure
 whether to transcribe literally or "fix" something, transcribe literally.
 
-Return one JSON object, matching this shape exactly:
+Return one JSON object, matching this shape exactly — the whole transcription
+sits under a single top-level `sheet` key:
 
 ```json
 {
-  "event": "<footer text, as written>",
-  "date": "<footer date, normalized to numeric month/day>",
-  "boards": [
-    {
-      "board_number": "<as written>",
-      "auction": "<the bidding line, with inline markup>",
-      "contract": "<the contract cell, verbatim>",
-      "lead": "<the opening lead card, as written>",
-      "notes": "<any freetext annotation, or empty>"
-    }
-  ]
+  "sheet": {
+    "event": "<footer text, as written>",
+    "date": "<footer date, normalized to numeric month/day>",
+    "boards": [
+      {
+        "board_number": "<as written>",
+        "auction": "<the bidding line, with inline markup>",
+        "contract": "<the contract cell, verbatim>",
+        "lead": "<the opening lead card, as written>",
+        "notes": "<any freetext annotation, or empty>"
+      }
+    ]
+  }
 }
 ```
 

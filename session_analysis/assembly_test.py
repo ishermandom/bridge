@@ -226,8 +226,8 @@ def test_the_source_is_carried_onto_the_session() -> None:
 
 def test_well_formed_json_assembles_into_a_session() -> None:
   raw_json = (
-    '{"event": "PABC mon", "date": "6/29", '
-    '"boards": [{"board_number": "7", "lead": "10S"}]}'
+    '{"sheet": {"event": "PABC mon", "date": "6/29", '
+    '"boards": [{"board_number": "7", "lead": "10S"}]}}'
   )
 
   session = parse_and_assemble_session(
@@ -245,7 +245,8 @@ def test_the_json_entry_point_also_runs_validation() -> None:
   # same way `validate_session` flags it directly — the JSON entry point must
   # not skip the validation pass.
   raw_json = (
-    '{"boards": [{"board_number": "7", "contract": "4S N +6", "lead": "10S"}]}'
+    '{"sheet": {"boards": '
+    '[{"board_number": "7", "contract": "4S N +6", "lead": "10S"}]}}'
   )
 
   session = parse_and_assemble_session(
@@ -257,7 +258,7 @@ def test_the_json_entry_point_also_runs_validation() -> None:
 
 
 def test_a_non_object_top_level_json_is_contained_as_a_session_issue() -> None:
-  # `RawSession.model_validate_json` has nothing to hand `assemble_session` when
+  # `RawSheet.model_validate_json` has nothing to hand `assemble_session` when
   # the top level isn't an object at all; contain it here rather than raising.
   session = parse_and_assemble_session(
     '"garbage"', _source(), reference_date=_REFERENCE_DATE
@@ -267,9 +268,24 @@ def test_a_non_object_top_level_json_is_contained_as_a_session_issue() -> None:
   assert [issue.code for issue in session.issues] == ['malformed_session']
 
 
+def test_a_missing_sheet_envelope_is_contained_as_a_session_issue() -> None:
+  # Output that skips the `sheet` envelope is malformed, not an empty session —
+  # `RawSheet.sheet` has no default precisely so this cannot pass silently.
+  session = parse_and_assemble_session(
+    '{"event": "PABC mon", "date": "6/29", "boards": []}',
+    _source(),
+    reference_date=_REFERENCE_DATE,
+  )
+
+  assert session.boards == ()
+  assert [issue.code for issue in session.issues] == ['malformed_session']
+
+
 def test_a_non_list_boards_field_is_contained_as_a_session_issue() -> None:
   session = parse_and_assemble_session(
-    '{"boards": "not-a-list"}', _source(), reference_date=_REFERENCE_DATE
+    '{"sheet": {"boards": "not-a-list"}}',
+    _source(),
+    reference_date=_REFERENCE_DATE,
   )
 
   assert session.boards == ()

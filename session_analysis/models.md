@@ -42,21 +42,25 @@ This principle drives two structural decisions throughout:
 The vision model's job is faithful perception, not interpretation. It
 transcribes what each cell shows; it does not parse bids, map circles to
 "opponents," or normalize results. Its output is one flat object per board plus
-a session footer.
+a session footer, all under a single top-level `sheet` key — models deliver tool
+input as `{parameter_name: payload}` so reliably that the envelope is part of
+the contract rather than fought with retries (see `extraction_schema.py`).
 
 ```json
 {
-  "event": "PABC mon",
-  "date": "6/29",
-  "boards": [
-    {
-      "board_number": "7",
-      "lead": "10S",
-      "contract": "2H S +2",
-      "auction": "(1N) 2H!",
-      "notes": ""
-    }
-  ]
+  "sheet": {
+    "event": "PABC mon",
+    "date": "6/29",
+    "boards": [
+      {
+        "board_number": "7",
+        "lead": "10oS",
+        "contract": "2H S +2",
+        "auction": "(1N) 2H!",
+        "notes": ""
+      }
+    ]
+  }
 }
 ```
 
@@ -350,7 +354,7 @@ succeeded.
 
 The envelope for the opening lead.
 
-- `raw` — the lead as transcribed (`10S`, `QC`).
+- `raw` — the lead as transcribed (`10oS`, `QoC`).
 - `card` — the understood `Card`, or null on parse failure.
 - `issues` — per-lead issues.
 
