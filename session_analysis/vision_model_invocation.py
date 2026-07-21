@@ -177,8 +177,14 @@ def invoke_vision_model(
       '--setting-sources', '',
       '--input-format', 'stream-json',
       '--output-format', 'stream-json',
+      # The CLI refuses `-p` with stream-json output unless verbose; the extra
+      # events it emits are skipped by `_parse_result` anyway.
+      '--verbose',
       '--json-schema', json.dumps(dict(json_schema)),
-      '--max-turns', '1',
+      # A response violating the schema comes back as an error tool result the
+      # model corrects on its next turn, so leave room for a retry or two; live
+      # runs hit this (a first attempt shaped as `{"boards": {...}}`).
+      '--max-turns', '3',
   ]  # fmt: skip
 
   process = run_command(command, request, _SCRATCH_DIRECTORY)
