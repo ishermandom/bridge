@@ -123,6 +123,7 @@ class Lead(FrozenModel):
 
   raw: str
   card: Card | None = None
+  flagged_for_discussion: bool = False
   issues: tuple[Issue, ...] = ()
 
 
@@ -157,6 +158,7 @@ class Outcome(FrozenModel):
 
   raw: str
   resolution: Resolution | None = None
+  flagged_for_discussion: bool = False
   issues: tuple[Issue, ...] = ()
 
 

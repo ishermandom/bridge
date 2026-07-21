@@ -22,25 +22,17 @@ output, parsed into the canonical model.
 - [x] Vision model extraction prompt: transcribe-don't-interpret; the
       auction/contract syntax; drop scratch-outs; no score; no dealer/vul; no
       pair numbers. See `extraction_prompt.md`. #vision-model-prompt
-  - Note: not yet exercised against a live model.
-- [ ] Parser support for boxed and struck-through cells outside the auction.
+- [x] Parser support for boxed and struck-through cells outside the auction.
       #boxed-and-struck-through
-  - Note: the prompt now has the vision model transcribe a struck-through cell —
-    contract, lead, or auction — as the fixed token `---`, and wrap a boxed lead
-    or contract in square brackets (`[10oS]`, `[6H*W-1]`), the same convention
-    already used for boxed auction calls. See `extraction_prompt.md`. The model
-    transcribes; this task is where the parser catches up to what it can now
-    produce.
-  - Note: `parse_contract_cell` already treats a run of dash glyphs as a passout
-    (`_STRUCK_THROUGH_PATTERN`, `parsing.py`), and `---` fullmatches it, so the
-    contract side needs no change. `parse_lead` and `parse_auction` have no
-    equivalent — a struck-through lead or auction cell currently fails to parse
-    and raises a spurious issue instead of resolving cleanly, the way an empty
-    cell already does in `assembly.py`.
-  - Note: `Lead` has no `flagged_for_discussion`-style field for a boxed lead
-    (only `AuctionEntry` does). Decide whether `Lead`/`Outcome` need one, or
-    whether a boxed lead/contract should fall back to the same review-flagging a
-    parse failure already gives.
+- [ ] Exercise extraction against a real scoresheet photo end to end: run
+      `vision_model_invocation.py` with `extraction_prompt.md` on an actual
+      scan, then feed the output through `parse_and_assemble_session` and check
+      the result against the sheet by hand. #live-extraction-test
+  - Note: everything so far has been tested against hand-written fixture
+    strings, not the vision model's actual output — this is the first check that
+    the prompt and parser hold up against real transcription behavior
+    (formatting quirks, markup it gets wrong, edge cases the fixtures don't
+    cover).
 
 ---
 
@@ -116,7 +108,7 @@ settled as open questions in [spec.md](spec.md#open-questions).
 
 - [ ] Final storage format (queryable DB) and the JSON → DB migration.
 - [ ] Local traveller archive and index, so access doesn't depend on third-party
-      servers.
+      servers: store in the bridge-private repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital
       traveller.
 - [ ] Model escalation: a stronger-model fallback for low-confidence auction

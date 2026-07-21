@@ -155,7 +155,13 @@ def parse_auction(auction: str) -> Sequence[AuctionEntry]:
   booleans (`flagged_for_discussion`, `by_opponents`); the remaining call core
   is parsed into a `Call`, or kept as `raw` with an `unparseable_call` issue
   when it can't be understood. See models.md (Auction grammar).
+
+  A struck-through auction (the whole cell transcribed as `---`) resolves to no
+  entries, the same as an empty auction — not an unparseable call.
   """
+  if _STRUCK_THROUGH_PATTERN.fullmatch(auction.strip()):
+    return ()
+
   entries: list[AuctionEntry] = []
   is_in_box = False
   for chunk in auction.split():
@@ -183,13 +189,21 @@ def parse_contract_cell(cell: str) -> Outcome:
   passout. Anything else that doesn't parse yields a null resolution plus an
   `unparseable_contract` issue — the board is still stored (nothing is garbage).
   See models.md (Contract parsing).
+
+  A boxed cell (`[6H*W-1]`) sets `flagged_for_discussion` and is unwrapped
+  before the checks above run.
   """
   text = cell.strip()
+  is_boxed = text.startswith('[') and text.endswith(']')
+  if is_boxed:
+    text = text[1:-1]
 
   # 'PASS' / 'ALL PASS' anywhere in the cell, or a run of dashes struck through
   # it, both mean the board was passed out.
   if 'pass' in text.lower() or _STRUCK_THROUGH_PATTERN.fullmatch(text):
-    return Outcome(raw=cell, resolution=Passout())
+    return Outcome(
+      raw=cell, resolution=Passout(), flagged_for_discussion=is_boxed
+    )
 
   match = _CONTRACT_PATTERN.fullmatch(text)
   if not match:
@@ -198,7 +212,7 @@ def parse_contract_cell(cell: str) -> Outcome:
       severity=IssueSeverity.HIGH,
       message=f'could not parse contract cell: {cell!r}',
     )
-    return Outcome(raw=cell, issues=(issue,))
+    return Outcome(raw=cell, flagged_for_discussion=is_boxed, issues=(issue,))
 
   contract = Contract(
     level=int(match.group('level')),
@@ -236,6 +250,7 @@ def parse_contract_cell(cell: str) -> Outcome:
   return Outcome(
     raw=cell,
     resolution=PlayedContract(contract=contract, result=result),
+    flagged_for_discussion=is_boxed,
     issues=tuple(issues),
   )
 
@@ -249,8 +264,18 @@ def parse_lead(cell: str) -> Lead:
   `unparseable_lead` issue — the board is still stored (nothing is garbage). A
   board with no recorded lead is the assembler's concern, kept as a null
   `opening_lead`; this parser assumes a lead was written. See models.md (Lead).
+
+  A boxed cell (`[9oH]`) sets `flagged_for_discussion` and is unwrapped before
+  parsing the card underneath. A struck-through cell resolves to a null card
+  with no issue — the lead was recorded as not played, not illegible.
   """
   text = cell.strip()
+  is_boxed = text.startswith('[') and text.endswith(']')
+  if is_boxed:
+    text = text[1:-1]
+
+  if _STRUCK_THROUGH_PATTERN.fullmatch(text):
+    return Lead(raw=cell, flagged_for_discussion=is_boxed)
 
   match = _LEAD_PATTERN.fullmatch(text)
   if not match:
@@ -259,13 +284,13 @@ def parse_lead(cell: str) -> Lead:
       severity=IssueSeverity.MEDIUM,
       message=f'could not parse opening lead: {cell!r}',
     )
-    return Lead(raw=cell, issues=(issue,))
+    return Lead(raw=cell, flagged_for_discussion=is_boxed, issues=(issue,))
 
   card = Card(
     rank=_RANK_BY_GLYPH[match.group('rank')],
     suit=Suit(match.group('suit')),
   )
-  return Lead(raw=cell, card=card)
+  return Lead(raw=cell, card=card, flagged_for_discussion=is_boxed)
 
 
 def parse_board_number(cell: str) -> BoardNumber:

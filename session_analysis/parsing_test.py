@@ -252,6 +252,14 @@ def test_an_unparseable_token_leaves_the_rest_of_the_auction_intact() -> None:
   assert third.call == Call(kind=CallKind.BID, level=2, strain=Strain.SPADES)
 
 
+# --- auction: struck through ---
+
+
+def test_struck_through_auction_resolves_to_no_entries() -> None:
+  # The whole cell was struck through — a passout, not an unparseable call.
+  assert parse_auction('---') == ()
+
+
 # --- auction: composition and legality ---
 
 
@@ -424,6 +432,11 @@ def test_a_cell_struck_through_with_any_dash_is_a_passout(dash: str) -> None:
   assert isinstance(outcome.resolution, Passout)
 
 
+def test_unboxed_struck_through_is_not_flagged_for_discussion() -> None:
+  outcome = parse_contract_cell('---')
+  assert outcome.flagged_for_discussion is False
+
+
 # --- contract: unparseable ---
 
 
@@ -432,6 +445,34 @@ def test_unparseable_contract_becomes_an_issue_not_a_failure() -> None:
   assert outcome.resolution is None
   assert outcome.raw == '4?N'
   assert outcome.issues[0].code == 'unparseable_contract'
+
+
+# --- contract: boxed ---
+
+
+def test_boxed_contract_flags_for_discussion_and_still_parses() -> None:
+  outcome = parse_contract_cell('[4SS-2]')
+  assert outcome.flagged_for_discussion is True
+  assert outcome.resolution == PlayedContract(
+    contract=Contract(
+      level=4,
+      strain=Strain.SPADES,
+      declarer=Direction.SOUTH,
+      penalty=Penalty.NONE,
+    ),
+    result=Result(tricks_taken=8),
+  )
+
+
+def test_unboxed_contract_is_not_flagged_for_discussion() -> None:
+  outcome = parse_contract_cell('4SS-2')
+  assert outcome.flagged_for_discussion is False
+
+
+def test_boxed_struck_through_contract_flags_for_discussion() -> None:
+  outcome = parse_contract_cell('[---]')
+  assert outcome.flagged_for_discussion is True
+  assert isinstance(outcome.resolution, Passout)
 
 
 # --- opening lead ---
@@ -478,6 +519,34 @@ def test_unparseable_lead_becomes_an_issue_not_a_failure() -> None:
   assert lead.card is None
   assert lead.raw == 'XZ'
   assert lead.issues[0].code == 'unparseable_lead'
+
+
+# --- lead: boxed and struck through ---
+
+
+def test_boxed_lead_flags_for_discussion_and_still_parses() -> None:
+  lead = parse_lead('[9oH]')
+  assert lead.flagged_for_discussion is True
+  assert lead.card == Card(rank=Rank.NINE, suit=Suit.HEARTS)
+
+
+def test_unboxed_lead_is_not_flagged_for_discussion() -> None:
+  lead = parse_lead('9H')
+  assert lead.flagged_for_discussion is False
+
+
+def test_struck_through_lead_resolves_to_no_card_with_no_issue() -> None:
+  lead = parse_lead('---')
+  assert lead.card is None
+  assert lead.issues == ()
+  assert lead.flagged_for_discussion is False
+
+
+def test_boxed_struck_through_lead_flags_for_discussion() -> None:
+  lead = parse_lead('[---]')
+  assert lead.flagged_for_discussion is True
+  assert lead.card is None
+  assert lead.issues == ()
 
 
 # --- board number ---
