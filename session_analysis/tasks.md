@@ -154,3 +154,20 @@ settled as open questions in [spec.md](spec.md#open-questions).
       traveller.
 - [ ] Model escalation: a stronger-model fallback for low-confidence auction
       rows, if single-model accuracy proves insufficient.
+- [ ] Multi-format sheet geometry: support two-column scoresheet layouts (the
+      Baron Barclay and Bridge Buddy samples in `bridge-private/scoresheets`).
+      Not a detection tweak — needs column-grid segmentation before row
+      detection, `SheetGeometry` reshaped as multiple grids with per-grid row
+      counts (Baron Barclay prints 16 rows left, 20 right), strip labels that
+      carry column identity, and exclusion of the printed VP/IMP scale tables,
+      which are themselves uniform grids that pollute the row-count vote.
+  - Note: current behavior on the samples — both Baron Barclay forms error
+    loudly (ambiguous row count; too few slices), but both Bridge Buddy forms
+    return confidently wrong geometry: row boxes spanning both columns (a strip
+    would mix two boards) with scale-table rows chained into the grid. Until
+    this lands, that silent-wrong mode is the hazard if a two-column scan ever
+    enters the pipeline.
+  - Note: geometry is the smaller half. These forms have no auction or notes
+    columns, so the extraction prompt, output schema, and parser contract are
+    club-form-specific too — supporting a new format is a form-template
+    decision, not only cropping.
