@@ -24,7 +24,7 @@ from session_analysis.sheet_geometry import (
 _GRID_LEFT = 40
 _GRID_RIGHT = 560
 
-# 29 rules bounding 28 rows, pitch 20, on a 600x800 page.
+# 29 rules bounding 28 board rows at a 20px pitch, on a 600x800-pixel page.
 _STANDARD_RULE_YS = list(range(100, 661, 20))
 
 
@@ -34,7 +34,8 @@ def _draw_sheet(
   width: int = 600,
   height: int = 800,
 ) -> Image.Image:
-  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders."""
+  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders.
+  """
   image = Image.new('L', (width, height), color=255)
   draw = ImageDraw.Draw(image)
   for rule_y in rule_ys:

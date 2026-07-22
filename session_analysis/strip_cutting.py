@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: MIT
 """Cut a dewarped scan into the labeled per-row strips the model transcribes.
 
-The CLI downscales a full-sheet scan below legibility for dense handwriting, so
-the sheet is sent as native-resolution crops instead: one strip per printed
-board row, cut from the detected `SheetGeometry`, plus the footer. Each strip is
-preceded by a text label naming its printed row — the row's printed board number
-is inside the crop too, but the label is what pins strip-to-row correspondence,
-so the model emits exactly one board object per strip, in order, with no
-counting left to chance. See spec.md (Extraction) for the design and the live
-comparison behind it.
+Sent whole, a scan reaches the vision model downscaled below legibility for
+dense handwriting, so the sheet is sent as native-resolution crops instead: one
+strip per printed board row, cut from the detected `SheetGeometry`, plus the
+footer. Each strip is preceded by a text label naming its printed row — the
+row's printed board number is inside the crop too, but the label is what pins
+strip-to-row correspondence, so the model emits exactly one board object per
+strip, in order, with no counting left to chance. See spec.md (Extraction) for
+the design and the measurements behind it.
 """
 
 import io

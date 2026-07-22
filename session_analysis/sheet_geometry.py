@@ -28,7 +28,7 @@ from session_analysis.frozen_model import FrozenModel
 from session_analysis.rule_grid import (
   SheetGeometryError,
   dip_centers,
-  mean_luminance_per_column,
+  pixel_column_profile,
   resolve_grid_consensus,
 )
 
@@ -107,14 +107,15 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
     for index in range(consensus.row_count + 1)
   ]
 
-  # The grid's horizontal extent: the outermost dark columns of the grid band,
-  # i.e. the table's vertical border rules.
+  # The grid's horizontal extent: within the band between the top and bottom
+  # rules, the outermost dark column lines are the table's vertical border
+  # rules.
   grid_band = gray.crop((0, rules[0], gray.width, rules[-1]))
-  column_centers = dip_centers(mean_luminance_per_column(grid_band))
+  column_centers = dip_centers(pixel_column_profile(grid_band))
   if len(column_centers) < 2:
     raise SheetGeometryError(
       f'no vertical border rules found in the grid band '
-      f'(rows {rules[0]}..{rules[-1]})'
+      f'(pixel rows {rules[0]}..{rules[-1]})'
     )
   grid_left, grid_right = column_centers[0], column_centers[-1]
 

@@ -11,8 +11,8 @@ crop survives. The fix maps the grid region onto an upright rectangle:
   rule position; straight lines fitted through those anchor the grid's top and
   bottom edges.
 - The side borders are found the way rules are, rotated 90 degrees: horizontal
-  bands are averaged into per-column profiles, and the outermost dips mark the
-  outermost printed vertical lines.
+  bands are averaged into per-pixel-column profiles, and the outermost dips mark
+  the outermost printed vertical lines.
 - The four fitted lines intersect into the grid's corner quad. The quad is
   pushed outward by margins (see the margin constants) and a true perspective
   transform maps it onto a rectangle sized to the quad's own edge lengths, so
@@ -38,7 +38,7 @@ from session_analysis.rule_grid import (
   GridConsensus,
   SheetGeometryError,
   dip_centers,
-  mean_luminance_per_column,
+  pixel_column_profile,
   resolve_grid_consensus,
 )
 from session_analysis.sheet_geometry import FOOTER_HEIGHT_IN_ROW_PITCHES
@@ -73,7 +73,7 @@ _DEWARP_SIDE_MARGIN_IN_PITCHES = 0.5
 
 
 class Point(FrozenModel):
-  """A pixel position, in the coordinates of whichever image it came from."""
+  """A pixel position: `x` grows rightward, `y` downward."""
 
   x: float
   y: float
@@ -106,14 +106,19 @@ class DewarpedSheet:
 
 
 class _RuleLines(NamedTuple):
-  """The grid's top and bottom rules, each as a `y(x)` line."""
+  """The grid's top and bottom rules, each fitted as a line giving y as a
+  function of x.
+  """
 
   top: statistics.LinearRegression
   bottom: statistics.LinearRegression
 
 
 class _BorderLines(NamedTuple):
-  """The grid's side borders, each as an `x(y)` line."""
+  """The grid's side borders, each fitted as a line giving x as a function of y
+  — the sideways form, because a near-vertical line has no workable slope the
+  other way around.
+  """
 
   left: statistics.LinearRegression
   right: statistics.LinearRegression
@@ -178,9 +183,12 @@ def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
 
 
 def _fit_rule_lines(consensus: GridConsensus) -> _RuleLines:
-  """Fit the grid's top and bottom rules as `y = intercept + slope * x` lines.
+  """Fit the grid's top and bottom edges as straight lines.
 
-  The slices' top and bottom rule positions anchor the fits.
+  Each agreeing slice contributes one observation: its center x paired with its
+  chain's first and last rule pixel rows. A least-squares line through the
+  first-rule observations is the grid's top edge, and likewise the bottom; each
+  fit drops gross outliers once (see `_fit_line_without_outliers`).
   """
   observations = [
     (chain.center_x, chain.rule_ys[0], chain.rule_ys[-1])
@@ -204,12 +212,14 @@ def _fit_rule_lines(consensus: GridConsensus) -> _RuleLines:
 def _fit_border_lines(
   gray: Image.Image, grid_top_y: float, grid_bottom_y: float, pitch: float
 ) -> _BorderLines:
-  """Fit the grid's side borders as `x = intercept + slope * y` lines.
+  """Fit the grid's side borders as straight lines.
 
-  The outermost vertical rules are sampled per horizontal band across the
-  grid's height. A band can miss a border (background swallowing the dip,
-  dense writing), reporting some interior rule instead, so each side keeps
-  only the samples near its median before fitting.
+  The grid's height is cut into horizontal bands, and each band is averaged
+  into a per-pixel-column profile — `rule_grid`'s dip machinery rotated 90
+  degrees — whose outermost dips mark the outermost printed vertical lines.
+  A band can miss a border (background swallowing the dip, dense writing),
+  reporting some interior column line instead, so each side keeps only the
+  samples near its median before fitting.
 
   Raises:
     SheetGeometryError: a border was located in too few bands to fit a line.
@@ -222,7 +232,7 @@ def _fit_border_lines(
     band = gray.crop(
       (0, round(band_top), gray.width, round(band_top + band_height))
     )
-    centers = dip_centers(mean_luminance_per_column(band))
+    centers = dip_centers(pixel_column_profile(band))
     if len(centers) < 2:
       continue
     samples.append((band_top + band_height / 2, centers[0], centers[-1]))
@@ -265,9 +275,12 @@ def _extended_quad(
 ) -> Quad:
   """The grid's corner quad, pushed outward by the dewarp margins.
 
-  Vertical margins slide each corner along its border line; the small side
-  margin then shifts x directly — at these margins the rule slope would move y
-  by at most a pixel or two, so that correction is skipped.
+  Each corner starts at the intersection of a rule line and a border line. The
+  vertical margin moves the corner up or down along its border line, so the
+  corner stays on the border; the side margin then shifts plain x. Strictly that
+  x shift should also nudge y by the rule line's slope, but at half a pitch of
+  shift and rule slopes under ~0.05 the nudge is a pixel or two, so it is
+  skipped.
   """
   top_margin = _DEWARP_TOP_MARGIN_IN_PITCHES * pitch
   bottom_margin = _DEWARP_BOTTOM_MARGIN_IN_PITCHES * pitch
@@ -343,7 +356,9 @@ def _intersect(
   rule_line: statistics.LinearRegression,
   border_line: statistics.LinearRegression,
 ) -> Point:
-  """Intersect a rule line `y(x)` with a border line `x(y)`."""
+  """Intersect a rule line (y as a function of x) with a border line (x as a
+  function of y).
+  """
   x = (border_line.intercept + border_line.slope * rule_line.intercept) / (
     1 - rule_line.slope * border_line.slope
   )
@@ -398,9 +413,9 @@ def _solve_linear_system(
 ) -> list[float]:
   """Solve `matrix @ solution = right_hand_side` by Gaussian elimination.
 
-  Partial pivoting keeps the 8x8 homography solve stable; a zero pivot means
-  the quad was degenerate (collinear corners), which real detection never
-  produces.
+  Partial pivoting keeps the 8x8 homography solve stable. A zero pivot means
+  the quad was degenerate (collinear corners) — no detected grid should
+  produce one, and raising keeps the failure loud if one ever does.
 
   Raises:
     SheetGeometryError: the system is singular.

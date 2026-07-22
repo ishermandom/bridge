@@ -103,7 +103,11 @@ class SheetGeometryError(Exception):
 
 
 class SliceChain(NamedTuple):
-  """One column slice's resolved rule chain, at the slice's center x."""
+  """One column slice's resolved rule chain.
+
+  `center_x` is the slice's horizontal center in image pixels; `rule_ys` are the
+  detected rules' pixel rows, top to bottom.
+  """
 
   center_x: float
   rule_ys: list[int]
@@ -111,7 +115,9 @@ class SliceChain(NamedTuple):
 
 @dataclasses.dataclass(frozen=True)
 class GridConsensus:
-  """The slices' agreement: the voted row count and the chains matching it."""
+  """The slices' agreement: the voted row count, and the chains of the slices
+  that agree with it.
+  """
 
   row_count: int
   chains: list[SliceChain]
@@ -119,6 +125,8 @@ class GridConsensus:
 
 def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
   """Resolve the grid per column slice, inferring the row count by consensus.
+
+  `gray` is the scan already converted to grayscale (PIL mode `'L'`).
 
   The grid's row count is not assumed: each slice's chain votes, and the
   modal count wins. A slice whose chain disagrees with the mode is
@@ -136,7 +144,7 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
   for slice_index in range(_SLICE_COUNT):
     left = slice_index * slice_width
     band = gray.crop((left, 0, left + slice_width, gray.height))
-    centers = dip_centers(mean_luminance_per_row(band))
+    centers = dip_centers(pixel_row_profile(band))
     if len(centers) < 2:
       row_counts.append(0)
       continue
@@ -175,13 +183,17 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
   return GridConsensus(row_count=row_count, chains=matching)
 
 
-def mean_luminance_per_row(gray: Image.Image) -> Sequence[int]:
-  """Average each pixel row to one value — horizontal rules show up dark."""
+def pixel_row_profile(gray: Image.Image) -> Sequence[int]:
+  """Average each pixel row to one luminance value — the profile in which a
+  horizontal rule shows up as a dip.
+  """
   return list(gray.resize((1, gray.height), Image.Resampling.BOX).tobytes())
 
 
-def mean_luminance_per_column(gray: Image.Image) -> Sequence[int]:
-  """Average each pixel column to one value — vertical rules show up dark."""
+def pixel_column_profile(gray: Image.Image) -> Sequence[int]:
+  """Average each pixel column to one luminance value — the profile in which a
+  vertical rule shows up as a dip.
+  """
   return list(gray.resize((gray.width, 1), Image.Resampling.BOX).tobytes())
 
 
@@ -213,7 +225,10 @@ def dip_centers(profile: Sequence[int]) -> list[int]:
 def _longest_uniform_chain(
   centers: Sequence[int], *, minimum_gap: int
 ) -> list[int]:
-  """Return the longest chain of centers spaced by one near-uniform gap.
+  """Return the longest chain of dip centers spaced by one near-uniform gap.
+
+  `centers` are dip positions as profile-entry indices in ascending order;
+  `minimum_gap` is in the same units.
 
   Each pair of nearby centers seeds a candidate chain and its reference gap;
   the chain then extends step by step, each time taking the center closest to

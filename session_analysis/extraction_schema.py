@@ -10,9 +10,9 @@ the two are written separately rather than one derived from the other.
 The whole transcription sits under a single top-level `sheet` key. Models
 deliver tool input as `{parameter_name: payload}` so reliably that a schema with
 `event`/`date`/`boards` at the root got wrapped under an invented key on every
-observed live run, costing a correction turn each time; making the envelope
-explicit matches that instinct instead of fighting it. See models.md (Vision
-model output) for the full output contract.
+observed transcription run, costing a correction turn each time; making the
+envelope explicit matches that instinct instead of fighting it. See models.md
+(Vision model output) for the full output contract.
 """
 
 from collections.abc import Mapping

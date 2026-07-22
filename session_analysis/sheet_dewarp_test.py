@@ -19,7 +19,7 @@ from session_analysis.sheet_geometry import detect_sheet_geometry
 _GRID_LEFT = 40
 _GRID_RIGHT = 560
 
-# 29 rules bounding 28 rows, pitch 20, on a 600x800 page.
+# 29 rules bounding 28 board rows at a 20px pitch, on a 600x800-pixel page.
 _STANDARD_RULE_YS = list(range(100, 661, 20))
 
 
