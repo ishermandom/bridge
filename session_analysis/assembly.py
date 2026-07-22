@@ -17,7 +17,9 @@ produces. They live here, with their only consumer, rather than in `models`
 `parse_and_assemble_session` is the extraction entry point: it takes the vision
 model's raw JSON string, parses it, assembles it, and runs `validate_session`
 over the result, so a caller gets one call from raw output to a validated
-`Session`.
+`Session`. `parse_and_assemble_voted_session` is the two-run counterpart: it
+runs that same pipeline over each of two independent transcriptions and votes
+between them (see `voting`).
 """
 
 import datetime
@@ -41,6 +43,7 @@ from session_analysis.parsing import (
   parse_lead,
 )
 from session_analysis.validation import validate_session
+from session_analysis.voting import vote_sessions
 
 # Issue codes this module raises; see parsing.py for the shared code-set note.
 _MALFORMED_BOARD = 'malformed_board'
@@ -156,6 +159,29 @@ def parse_and_assemble_session(
   return validate_session(
     assemble_session(raw, source, reference_date=reference_date)
   )
+
+
+def parse_and_assemble_voted_session(
+  raw_json_a: str,
+  raw_json_b: str,
+  source: Source,
+  *,
+  reference_date: datetime.date,
+) -> Session:
+  """Parse two independent transcriptions of one sheet and vote between them.
+
+  Runs `parse_and_assemble_session` over each raw JSON string independently — so
+  each is fully parsed and validated on its own terms — then merges them with
+  `voting.vote_sessions`: a cell both runs agree on is trusted, a cell they
+  disagree on is flagged for review rather than guessed at.
+  """
+  session_a = parse_and_assemble_session(
+    raw_json_a, source, reference_date=reference_date
+  )
+  session_b = parse_and_assemble_session(
+    raw_json_b, source, reference_date=reference_date
+  )
+  return vote_sessions(session_a, session_b)
 
 
 def _assemble_board(raw_board: object) -> Board:

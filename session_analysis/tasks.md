@@ -27,20 +27,18 @@ output, parsed into the canonical model.
     dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
     violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
     model-escalation backlog item.
-- [ ] Run extraction twice and vote: two Opus runs over the same strips,
-      auto-accept cells that agree, flag disagreements for review.
-      #extraction-voting
-  - Note: strip extraction's residual errors are markup-interpretation, not
-    resolution (strikethrough-vs-box confusion, one dense overwritten row) —
-    exactly this task's target.
-  - Note: validated live on the 6/29 sheet — the two runs' disagreement sites
-    were exactly the error sites (a contract digit, a dropped box and alert, a
-    stray call, a note misread), while the agreed-but-wrong residue was two
-    dropped `!` marks on one dense row plus a cell the parser already flags.
-    ~$0.55/sheet at subscription-notional rates.
-  - Note: compare parsed values, not raw strings — runs legitimately vary
-    between equivalent notations (`(*)` vs `(x)` for a circled double), which
-    the parser normalizes; raw-string voting would flag them falsely.
+- [~] Run extraction twice and vote: two Opus runs over the same strips,
+  auto-accept cells that agree, flag disagreements for review.
+  #extraction-voting
+  - Note: implemented — `extraction.transcribe_sheet` cuts one scan's strips
+    once and always runs two independent model calls over them;
+    `assembly.parse_and_assemble_voted_session` parses both and
+    `voting.vote_sessions` merges them, comparing each cell's parsed value
+    (never its raw transcription, so equivalent notations don't false-flag) and
+    appending a `voting_disagreement`/`voting_board_count_mismatch`/
+    `voting_uncorroborated_board` issue wherever the runs don't agree.
+  - Remaining: a live end-to-end run against a real scan, mirroring
+    `#live-extraction-test` above — only exercised against fakes so far.
   - Note: supersedes the Backlog's model-escalation item if it works — that item
     stays parked until this settles.
 - [ ] Experiment: have the vision model interpret a missing date instead of

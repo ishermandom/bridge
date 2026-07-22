@@ -16,6 +16,7 @@ from session_analysis.assembly import (
   RawSession,
   assemble_session,
   parse_and_assemble_session,
+  parse_and_assemble_voted_session,
 )
 from session_analysis.enums import Rank, Strain, Suit
 from session_analysis.models import (
@@ -290,3 +291,35 @@ def test_a_non_list_boards_field_is_contained_as_a_session_issue() -> None:
 
   assert session.boards == ()
   assert [issue.code for issue in session.issues] == ['malformed_session']
+
+
+# --- the two-run voting entry point ---
+
+
+def test_agreeing_runs_assemble_with_no_voting_issues() -> None:
+  raw_json = (
+    '{"sheet": {"event": "PABC mon", "date": "6/29", '
+    '"boards": [{"board_number": "7", "lead": "10S"}]}}'
+  )
+
+  session = parse_and_assemble_voted_session(
+    raw_json, raw_json, _source(), reference_date=_REFERENCE_DATE
+  )
+
+  (board,) = session.boards
+  assert board.number.schedule is not None
+  assert board.number.schedule.number == 7
+  assert 'voting_disagreement' not in {issue.code for issue in board.issues}
+
+
+def test_disagreeing_runs_are_flagged_by_the_voting_entry_point() -> None:
+  raw_json_a = '{"sheet": {"boards": [{"board_number": "7", "lead": "10S"}]}}'
+  raw_json_b = '{"sheet": {"boards": [{"board_number": "7", "lead": "2S"}]}}'
+
+  session = parse_and_assemble_voted_session(
+    raw_json_a, raw_json_b, _source(), reference_date=_REFERENCE_DATE
+  )
+
+  (board,) = session.boards
+  disagreements = [i for i in board.issues if i.code == 'voting_disagreement']
+  assert [i.location for i in disagreements] == ['opening_lead']

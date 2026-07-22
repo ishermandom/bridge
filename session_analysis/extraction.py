@@ -31,16 +31,17 @@ from session_analysis.vision_model_invocation import (
 
 
 class SheetTranscription(FrozenModel):
-  """One scan's transcription: the model's raw JSON plus the grid it was cut
-  from.
+  """One scan's transcription: two independent reads of the same cut strips,
+  plus the grid they were cut from.
 
-  `raw_json` feeds `assembly.parse_and_assemble_session`. `geometry` (in
-  dewarped-image coordinates) and `source_quad` persist alongside the processed
-  session, so voting reruns and the review UI reproduce the dewarped frame and
-  its grid from the archived scan rather than re-detecting them.
+  `raw_jsons` holds both runs' raw JSON, unmerged — `assembly.
+  parse_and_assemble_voted_session` is what compares them cell by cell.
+  `geometry` (in dewarped-image coordinates) and `source_quad` persist alongside
+  the processed session, so the review UI reproduces the dewarped frame and its
+  grid from the archived scan rather than re-detecting them.
   """
 
-  raw_json: str
+  raw_jsons: tuple[str, str]
   geometry: SheetGeometry
   source_quad: Quad
 
@@ -51,19 +52,20 @@ def transcribe_sheet(
   model: str = DEFAULT_MODEL,
   run_command: CommandRunner = run_claude,
 ) -> SheetTranscription:
-  """Dewarp, detect the grid, cut strips, and run one transcription.
+  """Dewarp, detect the grid, cut strips once, and transcribe twice.
 
-  The extraction entry point for one scan: the returned `raw_json` is what
-  `assembly.parse_and_assemble_session` consumes, and the returned geometry
-  and source quad are the artifacts later consumers (voting reruns, review
-  crops) share. The grid's row count comes from the scan itself, so any form
-  with a plausible row count (eight or more rows) transcribes without
-  configuration.
+  The extraction entry point for one scan: geometry detection and strip
+  cutting happen once, since both are deterministic over the same image; the
+  model then reads those same strips twice, independently, for `assembly.
+  parse_and_assemble_voted_session` to compare — see tasks.md
+  (`#extraction-voting`) for why two independent reads beat one. The grid's
+  row count comes from the scan itself, so any form with a plausible row count
+  (eight or more rows) transcribes without configuration.
 
   Raises:
     SheetGeometryError: the scan's grid could not be resolved, or the dewarp
       and detection passes disagreed on it.
-    VisionModelInvocationError: the headless `claude` invocation failed.
+    VisionModelInvocationError: a headless `claude` invocation failed.
   """
   dewarped = dewarp_sheet(image)
   geometry = detect_sheet_geometry(dewarped.image)
@@ -78,13 +80,23 @@ def transcribe_sheet(
       f'the dewarp pass resolved {dewarped.row_count} rows but detection in '
       f'the dewarped frame resolved {len(geometry.row_boxes)}'
     )
-  raw_json = invoke_vision_model(
-    cut_strips(dewarped.image, geometry),
+  strips = cut_strips(dewarped.image, geometry)
+  raw_json_a = invoke_vision_model(
+    strips,
+    VISION_MODEL_SYSTEM_PROMPT,
+    VISION_MODEL_OUTPUT_SCHEMA,
+    model=model,
+    run_command=run_command,
+  )
+  raw_json_b = invoke_vision_model(
+    strips,
     VISION_MODEL_SYSTEM_PROMPT,
     VISION_MODEL_OUTPUT_SCHEMA,
     model=model,
     run_command=run_command,
   )
   return SheetTranscription(
-    raw_json=raw_json, geometry=geometry, source_quad=dewarped.source_quad
+    raw_jsons=(raw_json_a, raw_json_b),
+    geometry=geometry,
+    source_quad=dewarped.source_quad,
   )
