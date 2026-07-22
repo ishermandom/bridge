@@ -4,10 +4,10 @@
 
 In a dewarped frame (see `sheet_dewarp`) the printed rules are nearly
 horizontal, but gentle page curl still leaves a rule drifting a fraction of a
-row pitch across the sheet's width — enough to smear it out of a single
-full-width profile. So the rules are read per column slice (`rule_grid`), and
-each rule's position is the median of the slices' readings; the strip padding
-downstream absorbs the residual drift the median glosses over.
+row pitch across the sheet's width — enough that averaging the full width would
+smear the rule into invisibility. So the rules are read per column slice
+(`rule_grid`), and each rule's position is the median of the slices' readings;
+the strip padding downstream absorbs the residual drift the median glosses over.
 
 The resulting `SheetGeometry` holds tight rule-to-rule boxes in dewarped-image
 coordinates; handwriting routinely bleeds past the printed rules, so each
@@ -115,12 +115,9 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   The row count comes from the scan itself — the column slices' consensus —
   so any form with a plausible row count (eight or more rows — see
   `rule_grid`) resolves without configuration; the count surfaces as
-  `len(row_boxes)`. Chained rows that aren't board rows are handled two ways:
-  partial-width lines at the ends (scale charts above the grid, footer guide
-  underlines below it) are trimmed by ink coverage, while a printed header
-  row at board pitch is full-width and stays — the transcription prompt
-  treats its strip as a blank row. (A header row taller than a board row,
-  like the reference scan's, never chains in the first place.)
+  `len(row_boxes)`. Non-board rows that chained in are trimmed away
+  (`_trim_to_grid_rules`), except a printed header row at board pitch, whose
+  strip the transcription prompt drops instead.
 
   Raises:
     SheetGeometryError: the column slices couldn't agree on a grid, or the
@@ -170,7 +167,8 @@ def _trim_to_grid_rules(
   falls under `_MINIMUM_COVERAGE_FRACTION` of the median rule's and they are
   trimmed from the ends; interior rules are never touched. A printed header
   row at board pitch survives deliberately — its rules are full-width — and
-  the transcription prompt handles its strip instead.
+  the transcription prompt drops its strip instead. (A header row taller than
+  a board row never chains in the first place.)
 
   Raises:
     SheetGeometryError: the trim would remove more than

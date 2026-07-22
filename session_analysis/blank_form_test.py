@@ -13,8 +13,8 @@ footer guide underlines.
 
 Both tests expect 29 rows: the 28 board rows plus the printed header row, which
 sits at board pitch on this form and is deliberately kept — the transcription
-prompt treats its strip as a blank row. The chart rows above the grid are
-trimmed by ink coverage.
+prompt drops its strip from the output instead. The chart rows above the grid
+are trimmed by ink coverage.
 """
 
 import pathlib

@@ -221,9 +221,7 @@ def _tied_readings_share_a_bottom_rule(
 
   def bottom(count: int) -> float:
     return statistics.median(
-      chain.rule_ys[-1]
-      for chain in chains
-      if len(chain.rule_ys) - 1 == count
+      chain.rule_ys[-1] for chain in chains if len(chain.rule_ys) - 1 == count
     )
 
   sample = next(chain.rule_ys for chain in chains if len(chain.rule_ys) >= 2)

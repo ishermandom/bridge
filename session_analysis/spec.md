@@ -204,7 +204,7 @@ mode**, on the existing Claude subscription — no separate API billing.
   are handled by kind: partial-width lines (the v4 form's scale charts above the
   grid, footer guide underlines below) are trimmed by ink coverage — a true grid
   rule spans the sheet's full width — while v4's board-pitch printed header row
-  stays, and the prompt has the model transcribe its strip as a blank row.
+  stays, and the prompt has the model emit no board object for its strip.
   Validated on a rendered blank v4 form, clean and synthetically degraded (the
   committed fixture in `testdata/`). The result is a typed `SheetGeometry` of
   tight rule-to-rule row boxes — the footer region is derived from them, not

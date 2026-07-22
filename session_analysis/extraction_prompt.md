@@ -40,7 +40,7 @@ little vertically — transcribe each board row from the strip whose middle line
 it occupies, and emit one board object per row strip, blank rows included.
 
 One strip may show the sheet's printed column-header row instead of a board row.
-Treat it as a blank row: emit its board object with every cell an empty string.
+It is not a board: emit no board object for it.
 
 ## What to leave out
 
