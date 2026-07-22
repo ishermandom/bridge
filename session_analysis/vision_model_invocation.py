@@ -35,7 +35,7 @@ _SCRATCH_DIRECTORY = (
   pathlib.Path(tempfile.gettempdir()) / 'session_analysis_vision_model_scratch'
 )
 
-DEFAULT_MODEL = 'claude-sonnet-5'
+DEFAULT_MODEL = 'claude-opus-4-8'
 
 # The user-turn ask that closes each request, after the images. All real
 # instruction lives in the system prompt; the user turn exists because the API

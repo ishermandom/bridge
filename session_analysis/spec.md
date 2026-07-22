@@ -140,11 +140,15 @@ the normalizer is **built and unit-tested before anything that depends on it**
 The sheet's handwriting is read by a vision model via **Claude Code in headless
 mode**, on the existing Claude subscription — no separate API billing.
 
-- **Model**: `claude-sonnet-5` (released 2026-06-30; strong vision, 1M context,
-  live in Claude Code). A **single model, no escalation fallback** to start —
-  the digest's Sonnet-workhorse-plus-Opus-escalation tiering is deliberately
-  deferred as premature for 1–2 sheets/week. Revisit if accuracy on the auction
-  column proves insufficient.
+- **Model**: `claude-opus-4-8`. A **single model, no escalation fallback** to
+  start — the digest's Sonnet-workhorse-plus-Opus-escalation tiering is
+  deliberately deferred as premature for 1–2 sheets/week. Started on
+  `claude-sonnet-5`; switched after a live strips comparison showed Opus reading
+  markup semantics more reliably (strikethrough correctly omitted, circles and
+  cursive notes right) for a modest cost delta
+  (~$0.25–0.30/run vs
+  Sonnet's ~$0.21). Revisit if accuracy on the auction
+  column proves insufficient even on Opus.
 - **Invocation**: `claude -p` (non-interactive); see
   `vision_model_invocation.py`. The default agentic-coding system prompt is
   **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet

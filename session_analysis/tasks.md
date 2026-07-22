@@ -27,11 +27,6 @@ output, parsed into the canonical model.
     dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
     violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
     model-escalation backlog item.
-- [ ] Make Opus (`claude-opus-4-8`) the default extraction model
-      (`vision_model_invocation.DEFAULT_MODEL`, currently `claude-sonnet-5`). On
-      the live strips comparison Opus read markup semantics better —
-      strikethrough correctly omitted, circles and cursive notes right — at
-      ~$0.25–0.30/run vs Sonnet's ~$0.21.
 - [ ] Run extraction twice and vote: two Opus runs over the same strips,
       auto-accept cells that agree, flag disagreements for review.
       #extraction-voting
