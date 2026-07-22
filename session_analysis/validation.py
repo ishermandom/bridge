@@ -223,10 +223,15 @@ def _check_completeness(board: Board) -> Iterator[Issue]:
   only when the outcome resolved to a `PlayedContract`. A `Passout` runs the
   opposite check: a lead is unexpected there, since no one led to a passed-out
   board. A blank contract cell — no outcome at all, distinct from an unparseable
-  one — is always a review prompt, since without it we can't even tell which of
-  the two cases applies.
+  one — is normally a review prompt, since without it we can't even tell which
+  of the two cases applies — except when the auction and lead are blank too, in
+  which case the board is a pre-printed row the pair never played rather than a
+  transcription gap, and no issue is raised at all.
   """
   if not board.outcome:
+    if not board.auction and not board.opening_lead:
+      return
+
     yield Issue(
       code=_CONTRACT_MISSING,
       severity=IssueSeverity.MEDIUM,

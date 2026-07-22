@@ -234,6 +234,13 @@ def test_missing_contract_cell_is_flagged() -> None:
   assert _codes(board) == {'contract_missing'}
 
 
+def test_fully_blank_board_is_unplayed_not_flagged() -> None:
+  # A pre-printed row the pair never got to: no auction, lead, or contract cell
+  # at all. That's an unplayed board, not a transcription gap.
+  board = _make_board()
+  assert _codes(board) == set()
+
+
 def test_opening_lead_on_passout_is_flagged() -> None:
   # No one leads to a board that was passed out.
   board = _make_board(outcome=_make_passout(), opening_lead=_make_lead())

@@ -27,10 +27,6 @@ output, parsed into the canonical model.
     dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
     violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
     model-escalation backlog item.
-- [ ] Decide handling for unplayed pre-printed rows: boards 25–28 come back as
-      all-empty objects and each draws a medium `contract_missing` issue —
-      either the prompt omits rows with no writing, or downstream treats an
-      all-blank board as unplayed rather than flagging it.
 - [ ] Treat a struck-through lead on a passed-out board as consistent: `---` in
       the lead cell alongside a `PASSOUT` outcome means "no lead", so record no
       lead and raise no issue (or at most one advisory), instead of today's
