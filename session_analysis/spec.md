@@ -198,16 +198,23 @@ mode**, on the existing Claude subscription — no separate API billing.
   skipping handwriting's interloper dips. The row count is not configured but
   voted — each column slice's chain length votes and the modal count wins, so
   forms with more or fewer rows resolve unchanged, and a slice that chained a
-  ghost rule (footer handwriting) is outvoted (the form's printed header row is
-  taller than a board row, so it never joins the chain). The result is a typed
-  `SheetGeometry` of tight rule-to-rule row boxes — the footer region is derived
-  from them, not stored — persisted with the source quad alongside the processed
-  session: extraction cuts strips from it, a voting rerun reuses the same
-  strips, and the review UI crops from it. Handwriting bleeds past the printed
-  rules and curl leaves residual drift, so each consumer pads the tight boxes at
-  cut time — extraction expands each strip by a fraction of the row pitch into
-  its neighbors, and the prompt's "transcribe the row whose middle line the
-  strip shows" rule disambiguates the duplicated content that padding creates.
+  ghost rule (the footer's printed guide underlines) is outvoted; a tie whose
+  two readings end at the same bottom rule resolves to the longer one, since the
+  shorter is the same grid missing top rows. Chained rows that aren't board rows
+  are handled by kind: partial-width lines (the v4 form's scale charts above the
+  grid, footer guide underlines below) are trimmed by ink coverage — a true grid
+  rule spans the sheet's full width — while v4's board-pitch printed header row
+  stays, and the prompt has the model transcribe its strip as a blank row.
+  Validated on a rendered blank v4 form, clean and synthetically degraded (the
+  committed fixture in `testdata/`). The result is a typed `SheetGeometry` of
+  tight rule-to-rule row boxes — the footer region is derived from them, not
+  stored — persisted with the source quad alongside the processed session:
+  extraction cuts strips from it, a voting rerun reuses the same strips, and the
+  review UI crops from it. Handwriting bleeds past the printed rules and curl
+  leaves residual drift, so each consumer pads the tight boxes at cut time —
+  extraction expands each strip by a fraction of the row pitch into its
+  neighbors, and the prompt's "transcribe the row whose middle line the strip
+  shows" rule disambiguates the duplicated content that padding creates.
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
   markup (parens, `!`, `_`/`^`, `*`, `[ ]`), the contract cell verbatim, and the

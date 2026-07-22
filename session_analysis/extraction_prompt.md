@@ -39,6 +39,9 @@ row it shows, followed by a final strip of the footer. Adjacent strips overlap a
 little vertically — transcribe each board row from the strip whose middle line
 it occupies, and emit one board object per row strip, blank rows included.
 
+One strip may show the sheet's printed column-header row instead of a board row.
+Treat it as a blank row: emit its board object with every cell an empty string.
+
 ## What to leave out
 
 Three things a printed sheet carries are deliberately not part of your output —

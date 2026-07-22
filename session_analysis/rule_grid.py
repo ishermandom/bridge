@@ -43,6 +43,7 @@ consensus into per-row boxes.
 
 import collections
 import dataclasses
+import itertools
 import statistics
 from collections.abc import Sequence
 from typing import NamedTuple
@@ -146,9 +147,17 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
   part of the grid — so its chain is excluded from the returned consensus
   rather than guessed at.
 
+  A tie between two counts is resolved by compatibility: when both readings'
+  chains end at the same bottom rule, the shorter is the same grid missing
+  some top rows (a chart printed above the grid spans only part of the
+  sheet's width, so only some slices chain it), and the longer reading
+  subsumes it. A tie between readings with different bottom rules is genuine
+  ambiguity, refused.
+
   Raises:
     SheetGeometryError: no slice resolved a plausible grid, the slices split
-      evenly between two row counts, or too few match the consensus.
+      evenly between two incompatible row counts, or too few match the
+      consensus.
   """
   slice_width = gray.width // _SLICE_COUNT
   chains: list[SliceChain] = []
@@ -178,12 +187,16 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
     )
   ranked = votes.most_common()
   if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
-    raise SheetGeometryError(
-      f'ambiguous row count: {ranked[0][1]} slice(s) found {ranked[0][0]} '
-      f'rows and as many found {ranked[1][0]} (row counts per slice: '
-      f'{row_counts})'
-    )
-  row_count = ranked[0][0]
+    if _tied_readings_share_a_bottom_rule(chains, ranked[0][0], ranked[1][0]):
+      row_count = max(ranked[0][0], ranked[1][0])
+    else:
+      raise SheetGeometryError(
+        f'ambiguous row count: {ranked[0][1]} slice(s) found {ranked[0][0]} '
+        f'rows and as many found {ranked[1][0]} (row counts per slice: '
+        f'{row_counts})'
+      )
+  else:
+    row_count = ranked[0][0]
 
   matching = [chain for chain in chains if len(chain.rule_ys) - 1 == row_count]
   if len(matching) < _MINIMUM_VALID_SLICES:
@@ -193,6 +206,31 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
       f'{_MINIMUM_VALID_SLICES}'
     )
   return GridConsensus(row_count=row_count, chains=matching)
+
+
+def _tied_readings_share_a_bottom_rule(
+  chains: Sequence[SliceChain], count_a: int, count_b: int
+) -> bool:
+  """Whether two tied row-count readings end at the same bottom rule.
+
+  If they do, the shorter reading is the same grid with some top rows unseen by
+  its slices, and the longer subsumes it; if their bottoms differ, they are
+  genuinely different structures (a footer ghost extends the bottom, for
+  example). "Same" allows half a pitch of drift.
+  """
+
+  def bottom(count: int) -> float:
+    return statistics.median(
+      chain.rule_ys[-1]
+      for chain in chains
+      if len(chain.rule_ys) - 1 == count
+    )
+
+  sample = next(chain.rule_ys for chain in chains if len(chain.rule_ys) >= 2)
+  pitch = statistics.median(
+    second - first for first, second in itertools.pairwise(sample)
+  )
+  return abs(bottom(count_a) - bottom(count_b)) <= 0.5 * pitch
 
 
 def pixel_row_profile(gray: Image.Image) -> Sequence[int]:

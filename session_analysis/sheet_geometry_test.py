@@ -34,7 +34,8 @@ def _draw_sheet(
   width: int = 600,
   height: int = 800,
 ) -> Image.Image:
-  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders."""
+  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders.
+  """
   image = Image.new('L', (width, height), color=255)
   draw = ImageDraw.Draw(image)
   for rule_y in rule_ys:
@@ -52,6 +53,33 @@ def test_detects_tight_rule_to_rule_row_boxes() -> None:
   assert geometry.row_boxes[-1] == Box(left=40, top=640, right=560, bottom=660)
   assert geometry.image_width == 600
   assert geometry.image_height == 800
+
+
+def test_partial_width_chart_rows_above_the_grid_are_trimmed() -> None:
+  # Chart-like rules spanning most (but not all) slices chain into the consensus
+  # at the grid's pitch; their partial-width lines fail the ink coverage cut and
+  # the rows are trimmed from the top.
+  image = _draw_sheet(_STANDARD_RULE_YS)
+  draw = ImageDraw.Draw(image)
+  for chart_y in (60, 80):
+    draw.line([(40, chart_y), (360, chart_y)], fill=0)
+
+  geometry = detect_sheet_geometry(image)
+
+  assert len(geometry.row_boxes) == 28
+  assert geometry.row_boxes[0].top == 100
+
+
+def test_a_wide_footer_underline_is_trimmed() -> None:
+  # A guide underline one pitch below the grid, wide enough to win the vote, is
+  # still narrower than the grid's rules and gets trimmed from the bottom.
+  image = _draw_sheet(_STANDARD_RULE_YS)
+  ImageDraw.Draw(image).line([(40, 680), (360, 680)], fill=0)
+
+  geometry = detect_sheet_geometry(image)
+
+  assert len(geometry.row_boxes) == 28
+  assert geometry.row_boxes[-1].bottom == 660
 
 
 def test_a_grid_without_vertical_border_rules_raises() -> None:

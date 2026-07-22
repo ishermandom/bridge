@@ -19,6 +19,7 @@ reproducible from the archived scan — rather than being recomputed per consume
 
 import itertools
 import statistics
+from collections.abc import Sequence
 from typing import Annotated
 
 import pydantic
@@ -37,6 +38,29 @@ from session_analysis.rule_grid import (
 # below the grid; 2.5 pitches covers it with margin. Public because the dewarp's
 # bottom margin must leave at least this much of the photo in frame.
 FOOTER_HEIGHT_IN_ROW_PITCHES = 2.5
+
+# Rows that aren't the grid's can chain in at nearly the grid's pitch — the
+# scale charts printed above it, the footer's guide underlines below — but their
+# lines carry ink across only part of the sheet's width, where every true grid
+# rule spans it fully. An edge rule is kept only if its ink coverage reaches
+# this fraction of the median rule's. Measured: the current form's chart rules
+# cover about half of what its grid rules do, and the reference scan's grid
+# rules all sit within 2% of one another.
+_MINIMUM_COVERAGE_FRACTION = 0.8
+
+# The coverage band extends this many row pitches above and below a rule's
+# median position, absorbing the page curl that drifts the rule around it.
+_COVERAGE_BAND_IN_PITCHES = 0.2
+
+# Ink, for coverage purposes: at least this many luminance levels below the
+# band's median (the paper level).
+_COVERAGE_INK_CONTRAST = 60
+
+# The most rows the coverage trim may remove in total: the charts and ghost
+# underlines are each a few rows at most, so a larger removal means the grid was
+# misread. Public because `extraction`'s dewarp-vs-detection cross-check must
+# allow detection to run short by exactly this budget.
+MAXIMUM_TRIMMED_ROWS = 6
 
 
 class Box(FrozenModel):
@@ -91,20 +115,28 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   The row count comes from the scan itself — the column slices' consensus —
   so any form with a plausible row count (eight or more rows — see
   `rule_grid`) resolves without configuration; the count surfaces as
-  `len(row_boxes)`. (On the club form digitized so far, the printed header
-  row is taller than a board row, so the pitch chain excludes it on its own; a form whose header
-  row height falls within the pitch tolerance would count it as an extra
-  row.)
+  `len(row_boxes)`. Chained rows that aren't board rows are handled two ways:
+  partial-width lines at the ends (scale charts above the grid, footer guide
+  underlines below it) are trimmed by ink coverage, while a printed header
+  row at board pitch is full-width and stays — the transcription prompt
+  treats its strip as a blank row. (A header row taller than a board row,
+  like the reference scan's, never chains in the first place.)
 
   Raises:
-    SheetGeometryError: the column slices couldn't agree on a grid.
+    SheetGeometryError: the column slices couldn't agree on a grid, or the
+      coverage trim removed implausibly many rows.
   """
   gray = image.convert('L')
   consensus = resolve_grid_consensus(gray)
-  rules = [
-    round(statistics.median(chain.rule_ys[index] for chain in consensus.chains))
-    for index in range(consensus.row_count + 1)
-  ]
+  rules = _trim_to_grid_rules(
+    gray,
+    [
+      round(
+        statistics.median(chain.rule_ys[index] for chain in consensus.chains)
+      )
+      for index in range(consensus.row_count + 1)
+    ],
+  )
 
   # The grid's horizontal extent: within the band between the top and bottom
   # rules, the outermost dark column lines are the table's vertical border
@@ -125,3 +157,69 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   return SheetGeometry(
     image_width=gray.width, image_height=gray.height, row_boxes=row_boxes
   )
+
+
+def _trim_to_grid_rules(
+  gray: Image.Image, rules: Sequence[int]
+) -> Sequence[int]:
+  """Drop leading and trailing rules whose lines carry too little ink.
+
+  The consensus can chain rows that sit at nearly the grid's pitch without
+  being board rows: scale charts printed above the grid and the footer's
+  guide underlines below it. Their lines are partial-width, so their coverage
+  falls under `_MINIMUM_COVERAGE_FRACTION` of the median rule's and they are
+  trimmed from the ends; interior rules are never touched. A printed header
+  row at board pitch survives deliberately — its rules are full-width — and
+  the transcription prompt handles its strip instead.
+
+  Raises:
+    SheetGeometryError: the trim would remove more than
+      `MAXIMUM_TRIMMED_ROWS` rules, meaning the grid itself was misread.
+  """
+  pitch = statistics.median(
+    bottom - top for top, bottom in itertools.pairwise(rules)
+  )
+  band_half_height = max(2, round(_COVERAGE_BAND_IN_PITCHES * pitch))
+  coverages = [_rule_coverage(gray, y, band_half_height) for y in rules]
+  cutoff = _MINIMUM_COVERAGE_FRACTION * statistics.median(coverages)
+
+  start, end = 0, len(rules)
+  while start < end - 1 and coverages[start] < cutoff:
+    start += 1
+  while end - 1 > start and coverages[end - 1] < cutoff:
+    end -= 1
+
+  trimmed = start + (len(rules) - end)
+  if trimmed > MAXIMUM_TRIMMED_ROWS:
+    raise SheetGeometryError(
+      f'coverage trim would remove {trimmed} rules, more than the plausible '
+      f'{MAXIMUM_TRIMMED_ROWS}; rule coverages: '
+      f'{[round(coverage, 2) for coverage in coverages]}'
+    )
+  return rules[start:end]
+
+
+def _rule_coverage(
+  gray: Image.Image, rule_y: int, band_half_height: int
+) -> float:
+  """The fraction of pixel columns with ink near a rule line.
+
+  A column counts when any pixel in the band around the rule's median position
+  is ink, meaning well below the band's own paper level; the band absorbs the
+  curl drift that moves a rule around its median.
+  """
+  band = gray.crop(
+    (
+      0,
+      max(0, rule_y - band_half_height),
+      gray.width,
+      rule_y + band_half_height + 1,
+    )
+  )
+  ink_cutoff = statistics.median(band.tobytes()) - _COVERAGE_INK_CONTRAST
+  is_ink = band.point(lambda value: 255 if value < ink_cutoff else 0)
+  # BOX-averaging the binary band down to one pixel row leaves a column nonzero
+  # exactly when any of its band pixels was ink.
+  column_ink = is_ink.resize((band.width, 1), Image.Resampling.BOX)
+  ink_columns = band.width - column_ink.histogram()[0]
+  return ink_columns / band.width

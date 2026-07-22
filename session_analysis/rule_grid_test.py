@@ -83,6 +83,21 @@ def test_a_partial_width_ghost_rule_is_outvoted() -> None:
   assert all(chain.rule_ys[-1] == 660 for chain in consensus.chains)
 
 
+def test_a_tied_shorter_reading_with_the_same_bottom_is_subsumed() -> None:
+  # A chart above the grid spans only half the slices: those slices read two
+  # extra top rows, the rest read the bare grid — a tie. Both readings end at
+  # the same bottom rule, so the longer subsumes the shorter instead of raising.
+  image = _draw_sheet(_STANDARD_RULE_YS)
+  draw = ImageDraw.Draw(image)
+  for chart_y in (60, 80):
+    draw.line([(40, chart_y), (300, chart_y)], fill=0)
+
+  consensus = resolve_grid_consensus(image)
+
+  assert consensus.row_count == 30
+  assert all(chain.rule_ys[0] == 60 for chain in consensus.chains)
+
+
 def test_an_even_split_on_row_count_raises() -> None:
   # A ghost rule spanning exactly half the slices leaves no majority to trust.
   image = _draw_sheet(_STANDARD_RULE_YS)

@@ -17,6 +17,7 @@ from session_analysis.frozen_model import FrozenModel
 from session_analysis.rule_grid import SheetGeometryError
 from session_analysis.sheet_dewarp import Quad, dewarp_sheet
 from session_analysis.sheet_geometry import (
+  MAXIMUM_TRIMMED_ROWS,
   SheetGeometry,
   detect_sheet_geometry,
 )
@@ -66,10 +67,13 @@ def transcribe_sheet(
   """
   dewarped = dewarp_sheet(image)
   geometry = detect_sheet_geometry(dewarped.image)
-  # The two passes read the grid independently (raw scan vs dewarped frame); a
-  # disagreement means at least one misread it, so refuse rather than send
-  # strips cut against an untrusted grid.
-  if len(geometry.row_boxes) != dewarped.row_count:
+  # The two passes read the grid independently (raw scan vs dewarped frame).
+  # Detection may legitimately run short of the dewarp's count by the rows its
+  # coverage trim removed (scale charts, footer underlines); any other
+  # disagreement means at least one pass misread the grid, so refuse rather than
+  # send strips cut against an untrusted grid.
+  trimmed_rows = dewarped.row_count - len(geometry.row_boxes)
+  if not 0 <= trimmed_rows <= MAXIMUM_TRIMMED_ROWS:
     raise SheetGeometryError(
       f'the dewarp pass resolved {dewarped.row_count} rows but detection in '
       f'the dewarped frame resolved {len(geometry.row_boxes)}'
