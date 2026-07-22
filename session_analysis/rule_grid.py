@@ -117,6 +117,11 @@ class SliceChain(NamedTuple):
 class GridConsensus:
   """The slices' agreement: the voted row count, and the chains of the slices
   that agree with it.
+
+  The chains are handed over unsummarized because the consumers need opposite
+  statistics from them: `sheet_dewarp` fits lines through the per-slice rule
+  positions to measure their slant, while `sheet_geometry` takes per-rule
+  medians across slices to erase it.
   """
 
   row_count: int
