@@ -75,6 +75,14 @@ output, parsed into the canonical model.
   - Rationale: the date is often not written on the sheet at all, and a vision
     model can plausibly infer it from available context in a way static code
     can't do accurately.
+- [ ] Explore replacing local geometry processing (dewarp, grid detection, strip
+      cutting) with one or more vision-model calls.
+  - Rationale: the local pipeline exists largely to work around a resolution
+    limitation in Claude's vision input. The code is fragile; solving the
+    problem natively in the vision model would be much more robust.
+  - Note: if this pans out, it reshapes the Backlog's multi-format geometry item
+    — a model-driven approach may handle two-column layouts without a hand-built
+    column-grid stage.
 
 ---
 
