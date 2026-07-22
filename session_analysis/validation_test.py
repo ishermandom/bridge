@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from session_analysis.enums import (
   CallKind,
   Direction,
+  IssueSeverity,
   Penalty,
   Rank,
   Strain,
@@ -30,6 +31,7 @@ from session_analysis.models import (
   Call,
   Card,
   Contract,
+  Issue,
   Lead,
   Outcome,
   Passout,
@@ -161,8 +163,20 @@ def test_unresolved_call_is_flagged() -> None:
 
 
 def test_unresolved_lead_is_flagged() -> None:
+  # A lead that failed to parse carries the parser's issue on the envelope —
+  # distinct from a struck-through lead's intentional, issue-free null card.
+  unparseable_lead = Lead(
+    raw='??',
+    issues=(
+      Issue(
+        code='unparseable_lead',
+        severity=IssueSeverity.MEDIUM,
+        message="could not parse opening lead: '??'",
+      ),
+    ),
+  )
   board = _make_legal_board().model_copy(
-    update={'opening_lead': Lead(raw='??')}
+    update={'opening_lead': unparseable_lead}
   )
   assert _codes(board) == {'unresolved_lead'}
 
@@ -245,6 +259,13 @@ def test_opening_lead_on_passout_is_flagged() -> None:
   # No one leads to a board that was passed out.
   board = _make_board(outcome=_make_passout(), opening_lead=_make_lead())
   assert _codes(board) == {'lead_on_passout'}
+
+
+def test_struck_through_lead_on_passout_is_not_flagged() -> None:
+  # A struck-through lead cell alongside a passout is self-consistent: the
+  # player struck it precisely because the board was passed out.
+  board = _make_board(outcome=_make_passout(), opening_lead=Lead(raw='---'))
+  assert _codes(board) == set()
 
 
 # --- auction legality: rank monotonicity ---

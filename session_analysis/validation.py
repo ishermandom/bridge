@@ -177,9 +177,13 @@ def _check_content(board: Board) -> Iterator[Issue]:
         location=f'auction[{index}]',
       )
 
-  # A present lead that failed to resolve is a problem; a missing lead is the
-  # completeness check's concern, not this one.
-  if board.opening_lead and not board.opening_lead.card:
+  # A present lead that failed to parse is a problem; a missing lead is the
+  # completeness check's concern, and a struck-through lead (card is None with
+  # no parse issue) is an intentional "no lead", not a failure. This re-emits
+  # the lead's parse issue at board level, mirroring the auction check above — a
+  # known duplication with the envelope-level issue; see tasks.md (Review UI) on
+  # the shared issue-identity scheme that would resolve it.
+  if board.opening_lead and board.opening_lead.issues:
     yield Issue(
       code=_UNRESOLVED_LEAD,
       severity=IssueSeverity.MEDIUM,
@@ -241,7 +245,7 @@ def _check_completeness(board: Board) -> Iterator[Issue]:
     return
 
   if isinstance(board.outcome.resolution, Passout):
-    if board.opening_lead:
+    if board.opening_lead and board.opening_lead.card is not None:
       yield Issue(
         code=_LEAD_ON_PASSOUT,
         severity=IssueSeverity.MEDIUM,

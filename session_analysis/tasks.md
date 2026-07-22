@@ -27,13 +27,6 @@ output, parsed into the canonical model.
     dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
     violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
     model-escalation backlog item.
-- [ ] Treat a struck-through lead on a passed-out board as consistent: `---` in
-      the lead cell alongside a `PASSOUT` outcome means "no lead", so record no
-      lead and raise no issue (or at most one advisory), instead of today's
-      `unresolved_lead` plus `lead_on_passout` pair.
-  - Note: observed live on the 6/29 sheet (board 21): the player struck the lead
-    cell precisely because the board was passed out — the row is
-    self-consistent, and both flags are review noise a human clears at a glance.
 - [ ] Make Opus (`claude-opus-4-8`) the default extraction model
       (`vision_model_invocation.DEFAULT_MODEL`, currently `claude-sonnet-5`). On
       the live strips comparison Opus read markup semantics better —
@@ -125,7 +118,10 @@ parsed value.
     identity — once as `unparseable_call` on the `AuctionEntry` itself
     (parsing.py) and again as `unresolved_call` at the board level
     (validation.py). Worth a shared issue-identity scheme (see models.md's open
-    question on firming up issue codes) so it isn't listed twice.
+    question on firming up issue codes) so it isn't listed twice. An unresolved
+    opening lead has the same duplication — `unparseable_lead` on the `Lead`
+    envelope, `unresolved_lead` again at the board level — and wants the same
+    fix.
   - Note: a session has few enough boards that raw issue counts barely move
     triage order either way; `Issue.severity` is the real priority signal, so
     triage should rank by severity, not by a count.
