@@ -5,12 +5,13 @@
 Everything here reads one simple signal. Averaging a band of pixels down to a
 single list of brightness values — one value per pixel row, together a "profile"
 — makes a printed rule spanning the band show up as a sharp dark dip a few
-entries wide. The concrete numbers in this file come from a reference scan, a
-3000x4000-pixel phone photo of a filled-in club scoresheet: its paper averages
-~200 luminance (0 is black, 255 white), a rule's ~3px-thick line pulls its
-profile entries 20-45 luminance levels below their surroundings, entries crossed
-only by handwriting sit under 10 levels deep, and rules repeat every ~73px (the
-"pitch").
+entries wide. A dip's depth scales with the fraction of the band's width the
+dark feature crosses: a rule crosses all of it, handwriting usually a sliver.
+The concrete numbers in this file come from a reference scan, a 3000x4000-pixel
+phone photo of a filled-in club scoresheet: its paper averages ~200 luminance (0
+is black, 255 white), its rules repeat every ~73px (the "pitch"), and a rule's
+~3px-thick line dips its profile entries by 20-90 luminance levels depending on
+the band's width.
 
 Three refinements make that signal trustworthy on a real photo:
 
@@ -18,13 +19,16 @@ Three refinements make that signal trustworthy on a real photo:
   a global threshold: lighting varies across a phone photo by more than a rule's
   whole dip depth, and wide dark regions (the table surface beyond the sheet's
   edge) darken their own baseline instead of reading as giant dips.
-- **Pitch chains.** Handwriting dents the profile too — any ink in the band
-  lowers its pixel row's average, so a letter's horizontal stroke or an
-  underline registers as a genuine dip, just a shallow one, because writing
-  crosses a small fraction of the band's width where a rule spans all of it. The
-  rules are therefore identified structurally: the longest chain of dips spaced
-  one near-uniform pitch apart, skipping interlopers. Only the grid repeats at
-  one spacing, dozens of times.
+- **Pitch chains.** The dip threshold alone cannot finish the job. Handwriting
+  dents the profile too — any ink in the band lowers its pixel row's average —
+  and while most such dips are shallow, in a ~250px-wide slice a bold horizontal
+  stroke can rival a rule's depth (the reference scan's densely written slices
+  show dozens of above-threshold non-rule dips). And printed lines that aren't
+  grid rules at all — a header box's lines, a title underline — are exactly as
+  dark as rules. The grid is therefore identified structurally: the longest
+  chain of dips spaced one near-uniform pitch apart, skipping interlopers. Only
+  the grid repeats at one spacing, dozens of times — and the chain's length is
+  also what counts the rows.
 - **Slice consensus.** Profiles are taken over narrow vertical slices of the
   image, never its full width: a perspective-slanted rule stays sharp within a
   slice but smears to invisibility when averaged across the whole width. Each
@@ -47,13 +51,14 @@ from PIL import Image
 
 # How much darker than its surroundings a profile entry must be to count as part
 # of a luminance dip, where "surroundings" is the rolling median over the window
-# sized by `_BASELINE_WINDOW_DIVISOR`. On the reference scan a rule's entries
-# sit 20-45 luminance levels below their surroundings and handwriting-only
-# entries under 10, so 15 falls between. That separation is structural — a rule
-# spans the band's full width while handwriting dents only a fraction of it — so
-# it should survive other captures of similar forms, but faint printing or a
-# washed-out photo compresses it; when it collapses, the failure is the loud
-# no-grid error, not wrong geometry.
+# sized by `_BASELINE_WINDOW_DIVISOR`. This is a coarse pre-filter, not a
+# complete separator: on the reference scan every rule dips 20+ luminance levels
+# and most handwriting dips stay under 10, but a bold stroke crossing much of a
+# narrow slice passes any threshold that faint rules can also pass — removing
+# those survivors is the pitch chain's job. 15 keeps every rule while pruning
+# the shallow majority of handwriting; faint printing or a washed-out photo
+# narrows that headroom, and when it collapses the failure is the loud no-grid
+# error, not wrong geometry.
 _MINIMUM_RULE_DIP = 15
 
 # Sizes the rolling-median window as the profile's length divided by this: a
@@ -110,7 +115,7 @@ class SliceChain(NamedTuple):
   """
 
   center_x: float
-  rule_ys: list[int]
+  rule_ys: Sequence[int]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -202,7 +207,7 @@ def pixel_column_profile(gray: Image.Image) -> Sequence[int]:
   return list(gray.resize((gray.width, 1), Image.Resampling.BOX).tobytes())
 
 
-def dip_centers(profile: Sequence[int]) -> list[int]:
+def dip_centers(profile: Sequence[int]) -> Sequence[int]:
   """Return the center index of each narrow dark dip in a luminance profile.
 
   A dip is a run of adjacent values at least `_MINIMUM_RULE_DIP` below the
@@ -210,6 +215,10 @@ def dip_centers(profile: Sequence[int]) -> list[int]:
   sheet's edge, a shadow band) darken their own baseline and so do not register
   — only rule-like narrow features do.
   """
+  # The floor of 4 (a nine-entry window) keeps any rule's dip a minority of its
+  # own window even on small images: were the window allowed to shrink toward
+  # the dip's own width, the median would follow the dip down and the dip would
+  # erase itself.
   half_window = max(4, len(profile) // (2 * _BASELINE_WINDOW_DIVISOR))
 
   centers: list[int] = []
@@ -229,7 +238,7 @@ def dip_centers(profile: Sequence[int]) -> list[int]:
 
 def _longest_uniform_chain(
   centers: Sequence[int], *, minimum_gap: int
-) -> list[int]:
+) -> Sequence[int]:
   """Return the longest chain of dip centers spaced by one near-uniform gap.
 
   `centers` are dip positions as profile-entry indices in ascending order;
@@ -253,7 +262,7 @@ def _longest_uniform_chain(
       f'too few rule candidates to form a grid: centers {list(centers)}'
     )
 
-  best: list[int] = []
+  best: Sequence[int] = []
   for start in range(len(centers) - 1):
     seed_limit = min(start + 1 + _CHAIN_SEED_NEIGHBOR_LIMIT, len(centers))
     for second in range(start + 1, seed_limit):
@@ -268,7 +277,7 @@ def _longest_uniform_chain(
 
 def _extend_chain(
   centers: Sequence[int], start: int, second: int, reference_gap: int
-) -> list[int]:
+) -> Sequence[int]:
   """Grow a two-center seed by near-one-gap steps, skipping interlopers."""
   tolerance = _GAP_TOLERANCE_FRACTION * reference_gap
   chain = [centers[start], centers[second]]
