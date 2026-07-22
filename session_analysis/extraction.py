@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: MIT
 """The extraction stage's entry point: one scan in, its transcription out.
 
-`transcribe_sheet` chains the stage's pieces — the dewarp (`sheet_dewarp`), grid
-detection (`sheet_geometry`), strip cutting (`strip_cutting`), and the headless
-model call (`vision_model_invocation`, prompted by `extraction_prompt` and
-constrained by `extraction_schema`) — and returns the model's raw JSON with the
+`transcribe_sheet` chains the stage's pieces — dewarp, grid detection, strip
+cutting, and the headless model call — and returns the model's raw JSON with the
 geometry artifacts later consumers share. Parsing that JSON into the canonical
 model is deliberately not part of the stage: it belongs to `assembly`, which
 never touches images.
