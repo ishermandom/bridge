@@ -140,9 +140,11 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
 
   The grid's row count is not assumed: each slice's chain votes, and the
   modal count wins. A slice whose chain disagrees with the mode is
-  untrustworthy — most often the footer's handwriting chained on as a ghost
-  rule, or background at the sheet's edge hid part of the grid — so its chain
-  is excluded from the returned consensus rather than guessed at.
+  untrustworthy — most often the footer's printed guide underlines (rule-like
+  lines one-ish pitch below the grid, darkened further by the writing on
+  them) chained on as a ghost rule, or background at the sheet's edge hid
+  part of the grid — so its chain is excluded from the returned consensus
+  rather than guessed at.
 
   Raises:
     SheetGeometryError: no slice resolved a plausible grid, the slices split

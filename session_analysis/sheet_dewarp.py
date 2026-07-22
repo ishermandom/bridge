@@ -46,8 +46,8 @@ from session_analysis.sheet_geometry import FOOTER_HEIGHT_IN_ROW_PITCHES
 # When fitting a straight line through the slices' top (or bottom) rule
 # positions, a slice whose position misses the first fit by more than this many
 # row pitches is discarded and the line refit without it. The typical outlier
-# sits a whole pitch off: a chain that started or ended one rule wrong (footer
-# handwriting chained on as a ghost bottom rule, say).
+# sits a whole pitch off: a chain that started or ended one rule wrong (the
+# footer's printed guide underline chained on as a ghost bottom rule, say).
 _FIT_RESIDUAL_TOLERANCE_IN_PITCHES = 0.5
 
 # The side borders are sampled band by band: the grid's height is cut into this
@@ -313,7 +313,7 @@ def _fit_line_without_outliers(
   """Least-squares fit, refit once without gross outliers.
 
   A slice whose chain is shifted by a rule (a missed top rule plus a chained
-  footer stroke, say) sits a whole row pitch off the true line; one rejection
+  footer underline, say) sits a whole row pitch off the true line; one rejection
   pass keeps such slices from bending the fit. Two inliers — a line's minimum
   — suffice for the refit; fewer means the observations are mutually
   inconsistent, which is an error rather than something to fit through.

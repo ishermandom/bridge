@@ -92,8 +92,7 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   so any form with a plausible row count (eight or more rows — see
   `rule_grid`) resolves without configuration; the count surfaces as
   `len(row_boxes)`. (On the club form digitized so far, the printed header
-  row is taller than a
-  board row, so the pitch chain excludes it on its own; a form whose header
+  row is taller than a board row, so the pitch chain excludes it on its own; a form whose header
   row height falls within the pitch tolerance would count it as an extra
   row.)
 

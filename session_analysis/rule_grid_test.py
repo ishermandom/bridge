@@ -30,7 +30,8 @@ def _draw_sheet(
   width: int = 600,
   height: int = 800,
 ) -> Image.Image:
-  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders."""
+  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders.
+  """
   image = Image.new('L', (width, height), color=255)
   draw = ImageDraw.Draw(image)
   for rule_y in rule_ys:
@@ -70,8 +71,9 @@ def test_a_full_width_rule_at_the_grid_pitch_extends_the_grid() -> None:
 
 
 def test_a_partial_width_ghost_rule_is_outvoted() -> None:
-  # Footer handwriting can mimic one extra rule below the grid in a few column
-  # slices; the other slices' row count wins and the ghost chains are dropped.
+  # The footer's printed guide underlines can mimic one extra rule below the
+  # grid in a few column slices; the other slices' row count wins and the ghost
+  # chains are dropped.
   image = _draw_sheet(_STANDARD_RULE_YS)
   ImageDraw.Draw(image).line([(40, 680), (140, 680)], fill=0)
 
