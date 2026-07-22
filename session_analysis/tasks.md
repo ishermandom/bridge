@@ -33,7 +33,10 @@ output, parsed into the canonical model.
   - Adjacent circled calls: `(1D)(1S)`, `(1D)(1N)`, `(1D)(1H)`, `(3S)(4S)`,
     `(1N)(3N)`, `(1D)(1S)(1N)`, `(1C!)(1S!)(1N)`, `(1D)(1H)(1N)(2H)`.
   - A double glued to its call: `1H*` (a circled `*` on the sheet, emitted fused
-    with the preceding call).
+    with the preceding call), and glued to a circled call: `(1D)(1H)*`.
+  - Note: run-to-run variance is high — one strips run spaced nearly all of
+    these, the next glued auctions on 13 of 24 played boards — so this fix, not
+    prompt tuning, is what makes flag counts stable.
 - [ ] Decide handling for unplayed pre-printed rows: boards 25–28 come back as
       all-empty objects and each draws a medium `contract_missing` issue —
       either the prompt omits rows with no writing, or downstream treats an
