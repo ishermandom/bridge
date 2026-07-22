@@ -1,29 +1,36 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Find a scoresheet's printed rules — the grid's horizontal lines — per slice.
+"""Find a scoresheet's printed rules — the grid's horizontal lines.
 
-Everything here reads one simple signal: averaging a band of pixels down to a
-single list of per-row brightness values (a "profile") makes a printed rule — a
-thin dark line spanning the band — show up as a sharp dark dip a few entries
-wide. Concrete numbers from the original live scan, a 3000x4000 phone photo:
-paper averages ~200 luminance (0 is black, 255 white), a rule's ~3px-thick line
-dips its profile entries 20-45 below their surroundings, rows crossed only by
-handwriting dip under 10, and rules repeat every ~73px (the "pitch").
+Everything here reads one simple signal. Averaging a band of pixels down to a
+single list of brightness values — one value per pixel row, together a "profile"
+— makes a printed rule spanning the band show up as a sharp dark dip a few
+entries wide. The concrete numbers in this file come from a reference scan, a
+3000x4000-pixel phone photo of a filled-in club scoresheet: its paper averages
+~200 luminance (0 is black, 255 white), a rule's ~3px-thick line pulls its
+profile entries 20-45 luminance levels below their surroundings, entries crossed
+only by handwriting sit under 10 levels deep, and rules repeat every ~73px (the
+"pitch").
 
 Three refinements make that signal trustworthy on a real photo:
 
 - **Local baselines.** A dip is judged against the rolling median around it, not
   a global threshold: lighting varies across a phone photo by more than a rule's
-  whole depth, and wide dark regions (the table surface beyond the sheet's edge)
-  darken their own baseline instead of reading as giant dips.
-- **Pitch chains.** Handwriting makes dips too, so the rules are identified
-  structurally: the longest chain of dips spaced one near-uniform pitch apart,
-  skipping interlopers. Only the grid repeats at one spacing, dozens of times.
-- **Slice consensus.** The image is read in narrow vertical slices because a
-  perspective-slanted rule stays sharp within a slice while smearing to
-  invisibility in a full-width profile. Each slice's chain votes on the grid's
-  row count; the modal count wins, and slices that disagree with it are dropped
-  rather than guessed at.
+  whole dip depth, and wide dark regions (the table surface beyond the sheet's
+  edge) darken their own baseline instead of reading as giant dips.
+- **Pitch chains.** Handwriting dents the profile too — any ink in the band
+  lowers its pixel row's average, so a letter's horizontal stroke or an
+  underline registers as a genuine dip, just a shallow one, because writing
+  crosses a small fraction of the band's width where a rule spans all of it. The
+  rules are therefore identified structurally: the longest chain of dips spaced
+  one near-uniform pitch apart, skipping interlopers. Only the grid repeats at
+  one spacing, dozens of times.
+- **Slice consensus.** Profiles are taken over narrow vertical slices of the
+  image, never its full width: a perspective-slanted rule stays sharp within a
+  slice but smears to invisibility when averaged across the whole width. Each
+  slice's chain votes on the grid's row count; the modal count wins, and the
+  chains of slices that disagree are excluded from the returned consensus rather
+  than guessed at.
 
 `resolve_grid_consensus` is the entry point. `sheet_dewarp` fits the grid's
 corner quad from the consensus; `sheet_geometry` turns a dewarped frame's
@@ -39,15 +46,21 @@ from typing import NamedTuple
 from PIL import Image
 
 # How much darker than its surroundings a profile entry must be to count as part
-# of a dip. On the live scan a rule's entries sit 20-45 below their surroundings
-# and handwriting-only entries under 10, so 15 separates them. "Surroundings" is
-# the rolling median over the window sized by `_BASELINE_WINDOW_DIVISOR`.
+# of a luminance dip, where "surroundings" is the rolling median over the window
+# sized by `_BASELINE_WINDOW_DIVISOR`. On the reference scan a rule's entries
+# sit 20-45 luminance levels below their surroundings and handwriting-only
+# entries under 10, so 15 falls between. That separation is structural — a rule
+# spans the band's full width while handwriting dents only a fraction of it — so
+# it should survive other captures of similar forms, but faint printing or a
+# washed-out photo compresses it; when it collapses, the failure is the loud
+# no-grid error, not wrong geometry.
 _MINIMUM_RULE_DIP = 15
 
-# The rolling-median window is the profile's length divided by this — an
-# ~80-entry window on a 4000-row scan. It must be much wider than a rule's few
-# dark entries (so the median inside it still reflects paper, not the rule
-# itself) yet narrow enough to track gradual lighting change across the photo.
+# Sizes the rolling-median window as the profile's length divided by this: a
+# 4000-pixel-tall photo yields a 4000-entry profile and so an ~80-entry window.
+# The window must span far more entries than a rule's dip does (so the median
+# inside it reflects paper, not the rule itself) yet few enough that it tracks
+# gradual lighting change across the photo.
 _BASELINE_WINDOW_DIVISOR = 50
 
 # How far the spacing between two chained rules may deviate from the chain's
@@ -64,17 +77,18 @@ _GAP_TOLERANCE_FRACTION = 0.2
 # quadratically.
 _CHAIN_SEED_NEIGHBOR_LIMIT = 10
 
-# No real grid's pitch is smaller than the image height divided by this (33px on
-# a 4000-row scan). Dense handwriting can produce dips every few pixels, and
-# without this floor a chain of those could outscore the real grid. This bakes
-# in the assumption that the grid spans a substantial fraction of the frame; a
-# sheet photographed small in a tall frame pushes its real pitch under the
-# floor, and resolution then refuses the scan loudly.
+# No real grid's pitch is smaller than the image height divided by this (33px
+# for a 4000-pixel-tall photo). Dense handwriting can produce dips every few
+# pixels, and without this floor a chain of those could outscore the real grid.
+# This bakes in the assumption that the grid spans a substantial fraction of the
+# frame; a sheet photographed small in a tall frame pushes its real pitch under
+# the floor, and the scan is then refused loudly rather than misread.
 _MINIMUM_PITCH_DIVISOR = 120
 
-# How many vertical slices the image is read in — each ~250px wide on the live
-# scan, narrow enough that a slanted rule drifts only a few pixels within it —
-# and how many must agree on the same grid before the consensus is trusted.
+# How many vertical slices the image is read in — each ~250px wide on the
+# reference scan, narrow enough that a slanted rule drifts only a few pixels
+# within it — and how many must agree on the same grid before the consensus is
+# trusted.
 _SLICE_COUNT = 12
 _MINIMUM_VALID_SLICES = 4
 
@@ -109,8 +123,8 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
   The grid's row count is not assumed: each slice's chain votes, and the
   modal count wins. A slice whose chain disagrees with the mode is
   untrustworthy — most often the footer's handwriting chained on as a ghost
-  rule, or background at the sheet's edge hid part of the grid — and is
-  skipped rather than guessed at.
+  rule, or background at the sheet's edge hid part of the grid — so its chain
+  is excluded from the returned consensus rather than guessed at.
 
   Raises:
     SheetGeometryError: no slice resolved a plausible grid, the slices split

@@ -91,7 +91,8 @@ def detect_sheet_geometry(image: Image.Image) -> SheetGeometry:
   The row count comes from the scan itself — the column slices' consensus —
   so any form with a plausible row count (eight or more rows — see
   `rule_grid`) resolves without configuration; the count surfaces as
-  `len(row_boxes)`. (On the live form the printed header row is taller than a
+  `len(row_boxes)`. (On the club form digitized so far, the printed header
+  row is taller than a
   board row, so the pitch chain excludes it on its own; a form whose header
   row height falls within the pitch tolerance would count it as an extra
   row.)

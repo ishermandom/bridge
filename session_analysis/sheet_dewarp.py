@@ -3,9 +3,9 @@
 """Flatten a scoresheet photo so its printed grid sits upright and straight.
 
 A raw photo carries perspective and no capture-side correction is assumed: on
-the original live sample the top rules slant ~112px across the sheet's width
-while the bottom rule is level, which no straight horizontal crop survives. The
-fix maps the grid region onto an upright rectangle:
+the reference scan (`rule_grid` describes it) the top rules slant ~112px across
+the sheet's width while the bottom rule is level, which no straight horizontal
+crop survives. The fix maps the grid region onto an upright rectangle:
 
 - The per-slice rule chains from `rule_grid` give each slice's top and bottom
   rule position; straight lines fitted through those anchor the grid's top and
@@ -52,11 +52,11 @@ _FIT_RESIDUAL_TOLERANCE_IN_PITCHES = 0.5
 
 # The side borders are sampled band by band: the grid's height is cut into this
 # many horizontal bands, each reporting the leftmost and rightmost dark column
-# line it sees. A band can miss a border outright — on the original live sample,
-# the dark background beyond the cut-off top-right sheet corner swallowed the
-# right border in the top bands, which reported an interior column line instead
-# — so per side, samples more than the tolerance (in row pitches) from that
-# side's median are discarded before the line fit.
+# line it sees. A band can miss a border outright — on the reference scan, the
+# dark background beyond the cut-off top-right sheet corner swallowed the right
+# border in the top bands, which reported an interior column line instead — so
+# per side, samples more than the tolerance (in row pitches) from that side's
+# median are discarded before the line fit.
 _BORDER_BAND_COUNT = 8
 _BORDER_OUTLIER_TOLERANCE_IN_PITCHES = 2
 
@@ -160,11 +160,11 @@ def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
   )
   # A true perspective transform, not `Image.Transform.QUAD`: QUAD interpolates
   # bilinearly, which leaves mid-grid rules visibly slanted when the distortion
-  # is projective (measured ~30px of residual on the live scan); a homography
-  # flattens every rule, not just the two anchoring ones. Quad regions the photo
-  # didn't capture (a tightly cropped scan) are filled with paper-white, not
-  # PIL's default black: every detector here hunts for dark marks, and a black
-  # seam at the fill boundary would read as a rule.
+  # is projective (~30px of residual measured on the reference scan); a
+  # homography flattens every rule, not just the two anchoring ones. Quad
+  # regions the photo didn't capture (a tightly cropped scan) are filled with
+  # paper-white, not PIL's default black: every detector here hunts for dark
+  # marks, and a black seam at the fill boundary would read as a rule.
   dewarped = image.transform(
     (width, height),
     Image.Transform.PERSPECTIVE,

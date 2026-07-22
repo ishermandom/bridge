@@ -30,8 +30,9 @@ _STRIP_PADDING_FRACTION = 0.3
 
 # JPEG suits the photographic source and keeps the embedded base64 request small
 # — a lossless encoding would be several times larger for no legibility gain.
-# Quality 92 is what the validated live experiment used: its compression
-# artifacts sit far below handwriting stroke scale.
+# Quality 92 is the setting the strip-extraction experiments validated (see
+# spec.md, Extraction): its compression artifacts sit far below handwriting
+# stroke scale.
 _STRIP_JPEG_QUALITY = 92
 
 

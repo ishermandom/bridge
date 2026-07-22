@@ -29,7 +29,8 @@ def _draw_sheet(
   width: int = 600,
   height: int = 800,
 ) -> Image.Image:
-  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders."""
+  """A synthetic scan: horizontal rules at `rule_ys` between vertical borders.
+  """
   image = Image.new('L', (width, height), color=255)
   draw = ImageDraw.Draw(image)
   for rule_y in rule_ys:
@@ -40,9 +41,9 @@ def _draw_sheet(
 
 
 def _draw_skewed_sheet() -> Image.Image:
-  """A synthetic perspective-skewed scan, mimicking the live sample: each rule
-  slants down to the right, two row pitches at the grid's top fading to flat at
-  its bottom.
+  """A synthetic perspective-skewed scan, mimicking the reference scan: each
+  rule slants down to the right, two row pitches at the grid's top fading to
+  flat at its bottom.
   """
   image = Image.new('L', (600, 800), color=255)
   draw = ImageDraw.Draw(image)
