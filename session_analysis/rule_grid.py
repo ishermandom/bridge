@@ -1,0 +1,257 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+"""Find a scoresheet's printed rules — the grid's horizontal lines — per slice.
+
+Everything here reads one simple signal: averaging a band of pixels down to a
+single list of per-row brightness values (a "profile") makes a printed rule — a
+thin dark line spanning the band — show up as a sharp dark dip a few entries
+wide. Concrete numbers from the original live scan, a 3000x4000 phone photo:
+paper averages ~200 luminance (0 is black, 255 white), a rule's ~3px-thick line
+dips its profile entries 20-45 below their surroundings, rows crossed only by
+handwriting dip under 10, and rules repeat every ~73px (the "pitch").
+
+Three refinements make that signal trustworthy on a real photo:
+
+- **Local baselines.** A dip is judged against the rolling median around it, not
+  a global threshold: lighting varies across a phone photo by more than a rule's
+  whole depth, and wide dark regions (the table surface beyond the sheet's edge)
+  darken their own baseline instead of reading as giant dips.
+- **Pitch chains.** Handwriting makes dips too, so the rules are identified
+  structurally: the longest chain of dips spaced one near-uniform pitch apart,
+  skipping interlopers. Only the grid repeats at one spacing, dozens of times.
+- **Slice consensus.** The image is read in narrow vertical slices because a
+  perspective-slanted rule stays sharp within a slice while smearing to
+  invisibility in a full-width profile. Each slice's chain votes on the grid's
+  row count; the modal count wins, and slices that disagree with it are dropped
+  rather than guessed at.
+
+`resolve_grid_consensus` is the entry point. `sheet_dewarp` fits the grid's
+corner quad from the consensus; `sheet_geometry` turns a dewarped frame's
+consensus into per-row boxes.
+"""
+
+import collections
+import dataclasses
+import statistics
+from collections.abc import Sequence
+from typing import NamedTuple
+
+from PIL import Image
+
+# How much darker than its surroundings a profile entry must be to count as part
+# of a dip. On the live scan a rule's entries sit 20-45 below their surroundings
+# and handwriting-only entries under 10, so 15 separates them. "Surroundings" is
+# the rolling median over the window sized by `_BASELINE_WINDOW_DIVISOR`.
+_MINIMUM_RULE_DIP = 15
+
+# The rolling-median window is the profile's length divided by this — an
+# ~80-entry window on a 4000-row scan. It must be much wider than a rule's few
+# dark entries (so the median inside it still reflects paper, not the rule
+# itself) yet narrow enough to track gradual lighting change across the photo.
+_BASELINE_WINDOW_DIVISOR = 50
+
+# How far the spacing between two chained rules may deviate from the chain's
+# reference gap, as a fraction. With rules ~73px apart, the next rule may sit
+# 58..88px beyond the previous one: loose enough for perspective compressing the
+# pitch across the sheet plus detection jitter, tight enough to reject
+# handwriting dips that land mid-row.
+_GAP_TOLERANCE_FRACTION = 0.2
+
+# A chain is seeded by a candidate dip pair; this caps how many of the dips
+# following the first may serve as the pair's second member. Between two rules
+# there are only ever a handful of handwriting dips, so the true next rule is
+# never far down the list — and without the cap, seeding would try every pair
+# quadratically.
+_CHAIN_SEED_NEIGHBOR_LIMIT = 10
+
+# No real grid's pitch is smaller than the image height divided by this (33px on
+# a 4000-row scan). Dense handwriting can produce dips every few pixels, and
+# without this floor a chain of those could outscore the real grid. This bakes
+# in the assumption that the grid spans a substantial fraction of the frame; a
+# sheet photographed small in a tall frame pushes its real pitch under the
+# floor, and resolution then refuses the scan loudly.
+_MINIMUM_PITCH_DIVISOR = 120
+
+# How many vertical slices the image is read in — each ~250px wide on the live
+# scan, narrow enough that a slanted rule drifts only a few pixels within it —
+# and how many must agree on the same grid before the consensus is trusted.
+_SLICE_COUNT = 12
+_MINIMUM_VALID_SLICES = 4
+
+# A scoresheet grid has at least this many rows. A shorter uniform chain is some
+# other structure (a printed header box's lines, a few aligned words) and
+# doesn't get to vote for the row count.
+_MINIMUM_ROW_COUNT = 8
+
+
+class SheetGeometryError(Exception):
+  """Raised when a scan's row grid cannot be resolved."""
+
+
+class SliceChain(NamedTuple):
+  """One column slice's resolved rule chain, at the slice's center x."""
+
+  center_x: float
+  rule_ys: list[int]
+
+
+@dataclasses.dataclass(frozen=True)
+class GridConsensus:
+  """The slices' agreement: the voted row count and the chains matching it."""
+
+  row_count: int
+  chains: list[SliceChain]
+
+
+def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
+  """Resolve the grid per column slice, inferring the row count by consensus.
+
+  The grid's row count is not assumed: each slice's chain votes, and the
+  modal count wins. A slice whose chain disagrees with the mode is
+  untrustworthy — most often the footer's handwriting chained on as a ghost
+  rule, or background at the sheet's edge hid part of the grid — and is
+  skipped rather than guessed at.
+
+  Raises:
+    SheetGeometryError: no slice resolved a plausible grid, the slices split
+      evenly between two row counts, or too few match the consensus.
+  """
+  slice_width = gray.width // _SLICE_COUNT
+  chains: list[SliceChain] = []
+  row_counts: list[int] = []
+  for slice_index in range(_SLICE_COUNT):
+    left = slice_index * slice_width
+    band = gray.crop((left, 0, left + slice_width, gray.height))
+    centers = dip_centers(mean_luminance_per_row(band))
+    if len(centers) < 2:
+      row_counts.append(0)
+      continue
+    chain = _longest_uniform_chain(
+      centers, minimum_gap=gray.height // _MINIMUM_PITCH_DIVISOR
+    )
+    row_counts.append(len(chain) - 1)
+    chains.append(SliceChain(center_x=left + slice_width / 2, rule_ys=chain))
+
+  votes = collections.Counter(
+    len(chain.rule_ys) - 1
+    for chain in chains
+    if len(chain.rule_ys) - 1 >= _MINIMUM_ROW_COUNT
+  )
+  if not votes:
+    raise SheetGeometryError(
+      f'none of the {_SLICE_COUNT} column slices resolved a plausible grid '
+      f'(row counts per slice: {row_counts}, minimum {_MINIMUM_ROW_COUNT})'
+    )
+  ranked = votes.most_common()
+  if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+    raise SheetGeometryError(
+      f'ambiguous row count: {ranked[0][1]} slice(s) found {ranked[0][0]} '
+      f'rows and as many found {ranked[1][0]} (row counts per slice: '
+      f'{row_counts})'
+    )
+  row_count = ranked[0][0]
+
+  matching = [chain for chain in chains if len(chain.rule_ys) - 1 == row_count]
+  if len(matching) < _MINIMUM_VALID_SLICES:
+    raise SheetGeometryError(
+      f'grid resolved in only {len(matching)} of {_SLICE_COUNT} column '
+      f'slices (row counts per slice: {row_counts}); need at least '
+      f'{_MINIMUM_VALID_SLICES}'
+    )
+  return GridConsensus(row_count=row_count, chains=matching)
+
+
+def mean_luminance_per_row(gray: Image.Image) -> Sequence[int]:
+  """Average each pixel row to one value — horizontal rules show up dark."""
+  return list(gray.resize((1, gray.height), Image.Resampling.BOX).tobytes())
+
+
+def mean_luminance_per_column(gray: Image.Image) -> Sequence[int]:
+  """Average each pixel column to one value — vertical rules show up dark."""
+  return list(gray.resize((gray.width, 1), Image.Resampling.BOX).tobytes())
+
+
+def dip_centers(profile: Sequence[int]) -> list[int]:
+  """Return the center index of each narrow dark dip in a luminance profile.
+
+  A dip is a run of adjacent values at least `_MINIMUM_RULE_DIP` below the
+  rolling median around them. Wide dark regions (the background beyond the
+  sheet's edge, a shadow band) darken their own baseline and so do not register
+  — only rule-like narrow features do.
+  """
+  half_window = max(4, len(profile) // (2 * _BASELINE_WINDOW_DIVISOR))
+
+  centers: list[int] = []
+  dip_start: int | None = None
+  for index, value in enumerate(profile):
+    window = profile[max(0, index - half_window) : index + half_window + 1]
+    if statistics.median(window) - value >= _MINIMUM_RULE_DIP:
+      if dip_start is None:
+        dip_start = index
+    elif dip_start is not None:
+      centers.append((dip_start + index - 1) // 2)
+      dip_start = None
+  if dip_start is not None:
+    centers.append((dip_start + len(profile) - 1) // 2)
+  return centers
+
+
+def _longest_uniform_chain(
+  centers: Sequence[int], *, minimum_gap: int
+) -> list[int]:
+  """Return the longest chain of centers spaced by one near-uniform gap.
+
+  Each pair of nearby centers seeds a candidate chain and its reference gap;
+  the chain then extends step by step, each time taking the center closest to
+  one reference gap beyond the last, within `_GAP_TOLERANCE_FRACTION`. Centers
+  between steps are skipped — handwriting cuts dips of its own between rules,
+  and a chain that broke on those would never span the grid. What separates
+  the grid's rules from every other dark line on the page (a title underline,
+  the sheet's edges, that same handwriting) is that only the grid repeats at
+  one pitch, dozens of times; `minimum_gap` keeps dense noise from posing as a
+  tiny-pitch grid of its own.
+
+  Raises:
+    SheetGeometryError: fewer than two centers, so no chain exists at all.
+  """
+  if len(centers) < 2:
+    raise SheetGeometryError(
+      f'too few rule candidates to form a grid: centers {list(centers)}'
+    )
+
+  best: list[int] = []
+  for start in range(len(centers) - 1):
+    seed_limit = min(start + 1 + _CHAIN_SEED_NEIGHBOR_LIMIT, len(centers))
+    for second in range(start + 1, seed_limit):
+      reference_gap = centers[second] - centers[start]
+      if reference_gap < minimum_gap:
+        continue
+      chain = _extend_chain(centers, start, second, reference_gap)
+      if len(chain) > len(best):
+        best = chain
+  return best
+
+
+def _extend_chain(
+  centers: Sequence[int], start: int, second: int, reference_gap: int
+) -> list[int]:
+  """Grow a two-center seed by near-one-gap steps, skipping interlopers."""
+  tolerance = _GAP_TOLERANCE_FRACTION * reference_gap
+  chain = [centers[start], centers[second]]
+  position = second
+  while True:
+    target = chain[-1] + reference_gap
+    # The candidate closest to the target, among centers within tolerance.
+    step_index: int | None = None
+    for index in range(position + 1, len(centers)):
+      if centers[index] > target + tolerance:
+        break
+      if abs(centers[index] - target) <= tolerance and (
+        step_index is None
+        or abs(centers[index] - target) < abs(centers[step_index] - target)
+      ):
+        step_index = index
+    if step_index is None:
+      return chain
+    chain.append(centers[step_index])
+    position = step_index

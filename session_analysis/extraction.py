@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: MIT
 """The extraction stage's entry point: one scan in, its transcription out.
 
-`transcribe_sheet` chains the stage's pieces — the dewarp and grid detection
-(`sheet_geometry`), strip cutting (`strip_cutting`), and the headless model call
-(`vision_model_invocation`, prompted by `extraction_prompt` and constrained by
-`extraction_schema`) — and returns the model's raw JSON with the geometry
-artifacts later consumers share. Parsing that JSON into the canonical model is
-deliberately not part of the stage: it belongs to `assembly`, which never
-touches images.
+`transcribe_sheet` chains the stage's pieces — the dewarp (`sheet_dewarp`), grid
+detection (`sheet_geometry`), strip cutting (`strip_cutting`), and the headless
+model call (`vision_model_invocation`, prompted by `extraction_prompt` and
+constrained by `extraction_schema`) — and returns the model's raw JSON with the
+geometry artifacts later consumers share. Parsing that JSON into the canonical
+model is deliberately not part of the stage: it belongs to `assembly`, which
+never touches images.
 """
 
 from PIL import Image
@@ -16,12 +16,11 @@ from PIL import Image
 from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.frozen_model import FrozenModel
+from session_analysis.rule_grid import SheetGeometryError
+from session_analysis.sheet_dewarp import Quad, dewarp_sheet
 from session_analysis.sheet_geometry import (
-  Quad,
   SheetGeometry,
-  SheetGeometryError,
   detect_sheet_geometry,
-  dewarp_sheet,
 )
 from session_analysis.strip_cutting import cut_strips
 from session_analysis.vision_model_invocation import (

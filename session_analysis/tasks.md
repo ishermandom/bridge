@@ -50,7 +50,8 @@ output, parsed into the canonical model.
   labeled-parts invocation generalization, and the prompt's strip input-format
   section. Validated live end to end on the 6/29 scan ($0.18, Sonnet): clean
   footer and board numbers, all 28 rows accounted for, parser flags only where
-  expected. Remaining: user review of the `sheet_geometry` files.
+  expected. Remaining: user review of the geometry modules (`rule_grid`,
+  `sheet_dewarp`, `sheet_geometry`).
   - Note: design settled — see spec.md (Extraction). The validated prototype is
     `scratch/strip_extraction_experiment.py`.
   - Note: residual errors after the strips fix are markup-interpretation, not
