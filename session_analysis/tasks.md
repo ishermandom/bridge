@@ -48,26 +48,17 @@ output, parsed into the canonical model.
   - Note: observed live on the 6/29 sheet (board 21): the player struck the lead
     cell precisely because the board was passed out — the row is
     self-consistent, and both flags are review noise a human clears at a glance.
-- [~] Productionize strip-based extraction: grid-quad dewarp plus row-grid
-  detection into a persisted `SheetGeometry`, padded strip cutting, the
-  labeled-parts invocation generalization, and the prompt's strip input-format
-  section. Validated live end to end on the 6/29 scan ($0.18, Sonnet): clean
-  footer and board numbers, all 28 rows accounted for, parser flags only where
-  expected. Remaining: user review of the geometry modules (`rule_grid`,
-  `sheet_dewarp`, `sheet_geometry`).
-  - Note: design settled — see spec.md (Extraction). The validated prototype is
-    `scratch/strip_extraction_experiment.py`.
-  - Note: residual errors after the strips fix are markup-interpretation, not
-    resolution: strikethrough-vs-box confusion and one dense overwritten row.
-    Those are the target of the voting task below.
 - [ ] Make Opus (`claude-opus-4-8`) the default extraction model
-      (`vision_model_invocation._DEFAULT_MODEL`, currently `claude-sonnet-5`).
-      On the live strips comparison Opus read markup semantics better —
+      (`vision_model_invocation.DEFAULT_MODEL`, currently `claude-sonnet-5`). On
+      the live strips comparison Opus read markup semantics better —
       strikethrough correctly omitted, circles and cursive notes right — at
       ~$0.25–0.30/run vs Sonnet's ~$0.21.
 - [ ] Run extraction twice and vote: two Opus runs over the same strips,
       auto-accept cells that agree, flag disagreements for review.
       #extraction-voting
+  - Note: strip extraction's residual errors are markup-interpretation, not
+    resolution (strikethrough-vs-box confusion, one dense overwritten row) —
+    exactly this task's target.
   - Note: validated live on the 6/29 sheet — the two runs' disagreement sites
     were exactly the error sites (a contract digit, a dropped box and alert, a
     stray call, a note misread), while the agreed-but-wrong residue was two
