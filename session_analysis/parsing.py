@@ -117,6 +117,18 @@ _LEAD_PATTERN = re.compile(_CARD_RANK + _LEAD_OF + _CARD_SUIT)
 # pattern.
 _STRUCK_THROUGH_PATTERN = re.compile(rf'[{_DASHES}]+')
 
+# The pieces a glued auction chunk splits into (see `_split_glued_calls`): a
+# circled call is one `( … )` group, a run of `*` penalty marks is one
+# double/redouble, and any stretch free of those seams is one bare call. An
+# `x`-written double is not currently treated as a seam — letters occur inside
+# calls and announcement text, so only the `*` spelling splits unambiguously.
+_CIRCLED_CALL = r'\([^()]*\)'
+_PENALTY_MARK_RUN = r'\*+'
+_SEAM_FREE_STRETCH = r'[^()*]+'
+_GLUED_CALL_PIECE_PATTERN = re.compile(
+  '|'.join((_CIRCLED_CALL, _PENALTY_MARK_RUN, _SEAM_FREE_STRETCH))
+)
+
 # The two halves of a notrump-range announcement, each tagged by its marker so
 # order does not matter: `^` is the superscript floor (an optional `+` marks 'a
 # good N'), `_` the subscript ceiling. The vision model may transcribe them in
@@ -151,10 +163,13 @@ def parse_auction(auction: str) -> Sequence[AuctionEntry]:
 
   Tokenizing is not a plain split on spaces: a box `[ … ]` opens a to-discuss
   span that can cover several space-separated calls, so box state is tracked
-  across tokens. A circle `( … )` wraps exactly one call. Both are stripped to
-  booleans (`flagged_for_discussion`, `by_opponents`); the remaining call core
-  is parsed into a `Call`, or kept as `raw` with an `unparseable_call` issue
-  when it can't be understood. See models.md (Auction grammar).
+  across tokens. The vision model also sometimes omits the space between
+  adjacent calls, so each space-separated chunk is further split at the seams it
+  drops (see `_split_glued_calls`). A circle `( … )` wraps exactly one call.
+  Circles and boxes are stripped to booleans (`flagged_for_discussion`,
+  `by_opponents`); the remaining call core is parsed into a `Call`, or kept as
+  `raw` with an `unparseable_call` issue when it can't be understood. See
+  models.md (Auction grammar).
 
   A struck-through auction (the whole cell transcribed as `---`) resolves to no
   entries, the same as an empty auction — not an unparseable call.
@@ -172,9 +187,9 @@ def parse_auction(auction: str) -> Sequence[AuctionEntry]:
     flagged_for_discussion = is_in_box
     core = chunk.strip('[]')
     # A bracket written with surrounding space arrives as a bare `[` or `]`
-    # chunk; it toggles the span but is not itself a call.
-    if core:
-      entries.append(_parse_auction_token(core, flagged_for_discussion))
+    # chunk, leaving an empty core; it toggles the span but adds no call.
+    for token in _split_glued_calls(core):
+      entries.append(_parse_auction_token(token, flagged_for_discussion))
     if chunk.endswith(']'):
       is_in_box = False
   return tuple(entries)
@@ -422,6 +437,27 @@ class _ParsedCore:
   call: Call | None
   alerted: bool
   issues: tuple[Issue, ...]
+
+
+def _split_glued_calls(chunk_core: str) -> Sequence[str]:
+  """Split a space-delimited auction chunk into its individual call tokens.
+
+  The vision model sometimes omits the space between adjacent calls, always at a
+  markup seam: between circled calls (`(1D)(1S)`), or between a call and a
+  penalty mark (`1H*`, `(1D)(1H)*`). Splitting at those seams here keeps flag
+  counts stable instead of depending on the model to police its spacing. A
+  seam-free chunk passes through as the single token it already is.
+
+  The split must be lossless — a chunk the piece scan cannot fully cover (an
+  unbalanced circle, say) is returned whole so the call parser flags it with the
+  raw text intact.
+  """
+  pieces = _GLUED_CALL_PIECE_PATTERN.findall(chunk_core)
+  # `findall` skips what no alternative matches (a lone `(` or `)`), so a
+  # coverage check is what makes the split lossless.
+  if ''.join(pieces) != chunk_core:
+    return (chunk_core,)
+  return tuple(pieces)
 
 
 def _parse_auction_token(

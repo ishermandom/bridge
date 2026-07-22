@@ -91,6 +91,58 @@ def test_box_written_with_spaces_still_spans_its_calls() -> None:
   assert all(entry.flagged_for_discussion for entry in entries)
 
 
+# --- auction: glued calls ---
+
+
+def test_glued_circled_calls_split_into_separate_entries() -> None:
+  first, second = parse_auction('(1D)(1S)')
+  assert first.by_opponents is True
+  assert first.call == Call(kind=CallKind.BID, level=1, strain=Strain.DIAMONDS)
+  assert second.by_opponents is True
+  assert second.call == Call(kind=CallKind.BID, level=1, strain=Strain.SPADES)
+
+
+def test_glued_circled_calls_keep_their_alerts() -> None:
+  first, second, third = parse_auction('(1C!)(1S!)(1N)')
+  assert [e.alerted for e in (first, second, third)] == [True, True, False]
+  assert third.call == Call(kind=CallKind.BID, level=1, strain=Strain.NOTRUMP)
+
+
+def test_double_glued_to_its_call_splits_off() -> None:
+  first, second = parse_auction('1H*')
+  assert first.call == Call(kind=CallKind.BID, level=1, strain=Strain.HEARTS)
+  assert second.call == Call(kind=CallKind.DOUBLE)
+
+
+def test_redouble_glued_to_its_call_splits_off() -> None:
+  first, second = parse_auction('1H**')
+  assert first.call == Call(kind=CallKind.BID, level=1, strain=Strain.HEARTS)
+  assert second.call == Call(kind=CallKind.REDOUBLE)
+
+
+def test_double_glued_to_a_circled_call_splits_off() -> None:
+  first, second, third = parse_auction('(1D)(1H)*')
+  assert second.by_opponents is True
+  # The double sits outside the circles: ours, not the opponents'.
+  assert third.by_opponents is False
+  assert third.call == Call(kind=CallKind.DOUBLE)
+
+
+def test_glued_calls_inside_a_box_all_carry_its_flag() -> None:
+  first, second = parse_auction('[(1D)(1S)]')
+  assert first.flagged_for_discussion is True
+  assert second.flagged_for_discussion is True
+
+
+def test_unbalanced_circle_is_kept_whole_as_unparseable() -> None:
+  # No lossless split exists for a dangling `(`; the chunk stays intact so the
+  # issue carries the raw text a reviewer needs.
+  (entry,) = parse_auction('(1D')
+  assert entry.call is None
+  assert entry.raw == '(1D'
+  assert entry.issues[0].code == 'unparseable_call'
+
+
 # --- auction: alerts and announcements ---
 
 
