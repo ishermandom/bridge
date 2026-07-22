@@ -140,15 +140,22 @@ the normalizer is **built and unit-tested before anything that depends on it**
 The sheet's handwriting is read by a vision model via **Claude Code in headless
 mode**, on the existing Claude subscription — no separate API billing.
 
-- **Model**: `claude-opus-4-8`. A **single model, no escalation fallback** to
-  start — the digest's Sonnet-workhorse-plus-Opus-escalation tiering is
-  deliberately deferred as premature for 1–2 sheets/week. Started on
-  `claude-sonnet-5`; switched after a live strips comparison showed Opus reading
-  markup semantics more reliably (strikethrough correctly omitted, circles and
-  cursive notes right) for a modest cost delta
-  (~$0.25–0.30/run vs
-  Sonnet's ~$0.21). Revisit if accuracy on the auction
-  column proves insufficient even on Opus.
+- **Model**: `claude-opus-4-8`. A **single model, no escalation fallback** — the
+  digest's Sonnet-workhorse-plus-Opus-escalation tiering is deliberately skipped
+  as premature for 1–2 sheets/week. Started on `claude-sonnet-5`; switched after
+  a live strips comparison showed Opus reading markup semantics more reliably
+  (strikethrough correctly omitted, circles and cursive notes right) for a
+  modest cost delta (~$0.25–0.30/run vs Sonnet's ~$0.21).
+- **Voting, not escalation**: each scan is read by two independent Opus calls
+  over its cut strips (`transcribe_sheet`), compared cell by cell and merged
+  (`voting.vote_sessions`) — a cell both runs agree on is trusted, one they
+  disagree on is flagged for review rather than guessed at. Chosen over a
+  second, stronger-model tier for low-confidence rows: validated live on the
+  6/29 sheet, the two runs' one disagreement (an announcement letter misread)
+  was the sheet's one real remaining error, correctly flagged, at a fraction of
+  the cost and complexity a second model tier would add. See `voting.py` for the
+  comparison rules — parsed values, not raw transcription, so equivalent
+  notations (`x` vs `X`, a range's marker order) don't false-flag.
 - **Invocation**: `claude -p` (non-interactive); see
   `vision_model_invocation.py`. The default agentic-coding system prompt is
   **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet
@@ -350,7 +357,9 @@ existing `club_sites/palo_alto/fixtures/raw/` gitignore. Captures live under
 `session_analysis/travellers/`, which is gitignored. Example scoresheet photos
 (for reference while building extraction) live in the sibling `bridge-private`
 repo's `scoresheets/` directory, kept out of this public repo for the same
-reason.
+reason. The live-test fixture tasks.md refers to as "the 6/29 sheet" is
+`bridge-private/scoresheets/PXL_20260630_191216837.jpg` — the directory's only
+real (non-blank, non-synthetic) photo.
 
 The captures are saved-from-the-browser HTML against third-party servers (ACBL
 Live, the club site). Eventually this stage should **archive and index the
@@ -397,9 +406,6 @@ everything downstream:
   schema are to be decided when the analysis UI is designed.
 - **Scanner app and transport** — Android scanner choice and Drive-mirror vs.
   Syncthing, per [Ingest](#ingest).
-- **Model escalation** — whether a stronger-model fallback for low-confidence
-  auction rows is worth adding, decided empirically once single-model accuracy
-  is observed.
 - **Review UI tech and interaction** — the concrete framework, keybindings, and
   commit semantics, pinned down when the UI is built.
 - **Local traveller archive and index** — the durable local store and index of

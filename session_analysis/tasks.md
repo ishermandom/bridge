@@ -20,27 +20,24 @@ output, parsed into the canonical model.
 - [x] Build the pipeline: headless invocation (`vision_model_invocation.py`),
       extraction prompt (`extraction_prompt.md`), per-cell parsers, and the
       `parse_and_assemble_session` entry point — exercised end to end against a
-      real scan (the 6/29 sheet). #live-extraction-test
+      real scan (the 6/29 sheet; see spec.md, Traveller captures and PII, for
+      its path). #live-extraction-test
   - Note: live transcription error profile (24 played boards): footer, leads,
     and board numbers all correct; one contract-result misread (`+4` for `+3`);
     every auction error was markup, not calls — dropped circles (3 boards), a
     dropped box, dropped `_H`/`_E` announcements (one surfaced as a rank
-    violation), a circled `*` glued into `1H*`. Feeds prompt tuning and the
-    model-escalation backlog item.
-- [~] Run extraction twice and vote: two Opus runs over the same strips,
-  auto-accept cells that agree, flag disagreements for review.
-  #extraction-voting
-  - Note: implemented — `extraction.transcribe_sheet` cuts one scan's strips
-    once and always runs two independent model calls over them;
-    `assembly.parse_and_assemble_voted_session` parses both and
-    `voting.vote_sessions` merges them, comparing each cell's parsed value
-    (never its raw transcription, so equivalent notations don't false-flag) and
-    appending a `voting_disagreement`/`voting_board_count_mismatch`/
-    `voting_uncorroborated_board` issue wherever the runs don't agree.
-  - Remaining: a live end-to-end run against a real scan, mirroring
-    `#live-extraction-test` above — only exercised against fakes so far.
-  - Note: supersedes the Backlog's model-escalation item if it works — that item
-    stays parked until this settles.
+    violation), a circled `*` glued into `1H*`. Fed prompt tuning and, later,
+    the extraction-voting design (`#extraction-voting`).
+- [x] Run extraction twice and vote: two Opus runs over the same strips,
+      auto-accept cells that agree, flag disagreements for review.
+      #extraction-voting
+  - Note: validated live on the 6/29 sheet (28 boards) — the runs' one
+    disagreement was a real one, an announcement letter misread on board 24
+    (`_E` vs `_F`), correctly flagged rather than silently picked; the sheet's
+    other error (board 17's `2P_H`, unparseable) was agreed-but-wrong on both
+    runs, outside what voting can catch, and was already flagged by the existing
+    unresolved-call check. Supersedes the Backlog's model-escalation item, now
+    dropped.
 - [ ] Experiment: have the vision model interpret a missing date instead of
       leaving it to the parser. Validate quality before adopting — this is a
       trial, not a settled direction.
@@ -138,8 +135,11 @@ settled as open questions in [spec.md](spec.md#open-questions).
       servers: store in the bridge-private repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital
       traveller.
-- [ ] Model escalation: a stronger-model fallback for low-confidence auction
-      rows, if single-model accuracy proves insufficient.
+- [-] Model escalation: a stronger-model fallback for low-confidence auction
+  rows, if single-model accuracy proves insufficient.
+  - Dropped: superseded by extraction voting (`#extraction-voting`), validated
+    live — two same-model runs plus disagreement flagging caught the sheet's one
+    real error without a second, more expensive model tier.
 - [ ] Multi-format sheet geometry: support two-column scoresheet layouts (the
       Baron Barclay and Bridge Buddy samples in `bridge-private/scoresheets`).
       Not a detection tweak — needs column-grid segmentation before row
