@@ -23,22 +23,32 @@ In scope — the full digitization pipeline, end to end:
 - **Extraction**: read the sheet's handwriting into the data model.
 - **Validation**: enforce bridge legality and internal consistency.
 - **Normalization**: convert the handwritten result convention to canonical.
-- **Reconciliation**: cross-check against the official travellers.
+- **Reconciliation**: capture the travellers as a durable game-record database,
+  and join the sheet to them — cross-checking recoverable fields and pulling in
+  the deal (see [travellers.md](travellers.md)).
 - **Review**: a human corrects what the machine got wrong.
 - **Export**: emit the canonical record for the analysis stage.
 
 Out of scope (separate, later projects that consume this stage's output):
 
 - The double-dummy comparison and "where did the table diverge" analysis.
-- The queryable database and the session-analysis browsing UI. This stage's
-  review UI is deliberately minimal and standalone (see [Review](#review)); it
-  is not the foundation for the eventual analysis UI.
+- The **queryable database engine** and the session-analysis browsing UI.
+  Capturing the traveller data itself is in scope — it lands as structured JSON,
+  the same interchange contract as a session (see
+  [travellers.md](travellers.md)) — but the durable queryable store and the
+  browsing UI are later projects. This stage's review UI is deliberately minimal
+  and standalone (see [Review](#review)); it is not the foundation for the
+  eventual analysis UI.
 
 ## Source-of-truth model
 
 The official **traveller is the source of truth** for everything it records:
-board, contract, declarer, result, matchpoints, and opponent pair. The **sheet
-is the sole source for what travellers lack**:
+board, contract, declarer, result, matchpoints, and opponent pair. It is also
+the **sole source of the deal** — the four hands — which the sheet never
+records, and of the double-dummy par. Full capture keeps _every_ table's row,
+not only ours, so the travellers form a game-record database in their own right
+(see [travellers.md](travellers.md)). The **sheet is the sole source for what
+travellers lack**:
 
 1. the full **auction**,
 2. the **opening lead**,
@@ -46,11 +56,12 @@ is the sole source for what travellers lack**:
    the boxed bids flagged for partnership review,
 4. the **personal review flags** — circled board numbers.
 
-Two travellers are available per session, both saved as local HTML: the ACBL
-Live traveller (e.g. `1472071.html`) and the club website capture (e.g.
-`R260629M.html`). The ACBL capture carries an `opening_lead` field, but this
-club leaves it empty for every row — so in practice the opening lead is
-sheet-only. Design for the traveller existing most weeks, but not all.
+Two travellers are available for a typical club session, both saved as local
+HTML: the ACBL Live traveller (e.g. `1472071.html`) and the club website capture
+(e.g. `R260629M.html`); tournaments have only the ACBL Live one. The ACBL
+capture carries an `opening_lead` field, but this club leaves it empty for every
+row — so in practice the opening lead is sheet-only. Design for a traveller
+existing most weeks, but not all.
 
 Corollaries:
 
@@ -64,6 +75,11 @@ Corollaries:
   consistent — but nothing external checks the _sequence_. The auction is at
   once the hardest extraction target and the one field review cannot lean on
   external truth for. Budget accuracy and human attention here.
+- **The deal makes the opening lead checkable.** Once reconciliation supplies
+  the four hands, the opening lead — otherwise sheet-only and unverifiable —
+  must be a card in declarer's left-hand-opponent hand, an integrity check the
+  sheet alone cannot provide (see
+  [travellers.md](travellers.md#reconciliation)).
 
 ## Pipeline
 
@@ -75,10 +91,15 @@ Corollaries:
 4. **Normalize** — convert the handwritten result convention to canonical
    `tricks_taken` (see
    [Notation and normalization](#notation-and-normalization)).
-5. **Reconcile** — join to the travellers, cross-check recoverable fields, and
-   surface likely row swaps (see [Reconciliation](#reconciliation)).
-6. **Review** — a human accepts or corrects flagged fields, with row-level
-   fixups as first-class operations (see [Review](#review)).
+5. **Reconcile** — a separate, re-runnable pass, not part of the ingest run:
+   when a traveller becomes available it is captured and joined to the session,
+   cross-checking recoverable fields, pulling in the deal, and surfacing likely
+   row swaps (see [Reconciliation](#reconciliation) and
+   [travellers.md](travellers.md)).
+6. **Review** — deferred until reconciliation runs, so the reviewer sees the
+   traveller cross-checks; a human accepts or corrects flagged fields, with
+   row-level fixups as first-class operations (see [Review](#review)). An escape
+   hatch finalizes a session no traveller ever arrives for.
 7. **Export** — the canonical record is written for the analysis stage (see
    [Export and storage](#export-and-storage)).
 
@@ -103,8 +124,10 @@ contract, the parser between them, and the validation pass — is specified in
   opening lead; the contract, penalty, declarer, and result (canonicalized to
   tricks taken); the auction as an ordered list of calls; the freetext notes;
   and the review flags — a circled board number, and per-call "discuss with
-  partner" markers lifted from boxed bids. Matchpoints are traveller-sourced and
-  filled at reconciliation.
+  partner" markers lifted from boxed bids. Matchpoints, the deal, and both pair
+  identities are traveller-sourced and filled at reconciliation; the
+  double-dummy par is captured in the traveller record for the analysis stage
+  (see [travellers.md](travellers.md)).
 - **Nothing is discarded as garbage**: each written token sits in an envelope
   beside its raw text, so a misread is captured and flagged, never rejected (see
   [Validation](#validation)).
@@ -258,25 +281,34 @@ reconciliation instead.
 
 ## Reconciliation
 
-Join the digitized session to its travellers on `session_key` plus per-board
-content, and cross-check the traveller-recoverable fields (contract, declarer,
-result, matchpoints) against the sheet. The match recovers both pair identities
-(ours and the opponents'), which the sheet does not record. Disagreement raises
-a board's review priority.
+Reconciliation captures the session's travellers and joins them to the digitized
+sheet — cross-checking the recoverable fields, pulling in the deal and par, and
+recovering the pair identities the sheet never records. It is a **separate,
+re-runnable pass**, not part of the ingest run: travellers are published after
+the session (sometimes days later, sometimes never), so it runs when one becomes
+available, and review is deferred until it does. The subsystem — sources,
+acquisition, the traveller data model, name-based row matching, and two-source
+merge — is specified in [travellers.md](travellers.md); at pipeline altitude:
 
-Row-order errors are the expected failure mode (the user swapped boards 20 and
-21 on the 6/29 sample). Detect them with a **best-alignment permutation** of
-sheet rows against traveller boards: if sheet row N matches traveller board M
-and vice versa, surface a "likely swap." **Suggest, never auto-apply** — two
-boards with identical results are indistinguishable, so a human confirms. The
-dealer/vul integrity check is a second, traveller-independent swap signal.
-
-Reconciliation is best-effort, not required. When no traveller exists for a
-session — some sessions ship only paper hand records (see
-[Open questions](#open-questions)) — the sheet stands alone: every traveller
-cross-check is skipped rather than failing, and the sheet plus computed
-dealer/vul carry the record. The pipeline must run to completion with zero
-travellers.
+- **Our row is found by the user's name**, not by recovering our identity from
+  content — partners vary, so only our own name is stable across a session.
+  Disagreement on a recoverable field raises a board's review priority; for the
+  declarer, neither side is authoritative, so a mismatch is surfaced, never
+  auto-resolved.
+- **Row-order errors are the expected failure mode** (the user swapped boards 20
+  and 21 on the 6/29 sample). Detect them with a **best-alignment permutation**
+  of sheet rows against traveller boards: if sheet row N matches traveller board
+  M and vice versa, surface a "likely swap." **Suggest, never auto-apply** — two
+  boards with identical results are indistinguishable, so a human confirms. The
+  computed dealer/vulnerability and the deal-versus-lead check are additional,
+  traveller-content-independent swap signals.
+- **Best-effort, never required.** With no traveller — some sessions ship only
+  paper hand records (see [Open questions](#open-questions)), some post only to
+  Pianola — every cross-check is skipped rather than failing, and the sheet plus
+  computed dealer/vulnerability carry the record. An **escape hatch** finalizes
+  such a session explicitly; the record is legitimate but analytically
+  incomplete (no deal). The pipeline must run to completion with zero
+  travellers.
 
 ## Manual fixups
 
@@ -351,22 +383,19 @@ contract.
 
 ## Traveller captures and PII
 
-Traveller HTML and scoresheet photos contain **other club members' names and
-results**. They are kept local-only, never committed — consistent with the
-existing `club_sites/palo_alto/fixtures/raw/` gitignore. Captures live under
-`session_analysis/travellers/`, which is gitignored. Example scoresheet photos
-(for reference while building extraction) live in the sibling `bridge-private`
-repo's `scoresheets/` directory, kept out of this public repo for the same
-reason. The live-test fixture tasks.md refers to as "the 6/29 sheet" is
+Traveller captures and scoresheet photos contain **other club members' names and
+results** — and a full game database accumulates them across many sessions, more
+sensitive than any single capture. They are kept out of this public repo
+entirely, consistent with the existing `club_sites/palo_alto/fixtures/raw/`
+gitignore. The `bridge-private` repo (and/or a remotely-backed service) holds
+them: the scoresheet photos already live there under `scoresheets/`, and the
+traveller captures move there too, out of the current gitignored
+`session_analysis/travellers/`. Storage layout, size handling, and the
+structured-JSON-now / queryable-store-later split are specified in
+[travellers.md](travellers.md#storage-and-pii). The live-test fixture tasks.md
+refers to as "the 6/29 sheet" is
 `bridge-private/scoresheets/PXL_20260630_191216837.jpg` — the directory's only
 real (non-blank, non-synthetic) photo.
-
-The captures are saved-from-the-browser HTML against third-party servers (ACBL
-Live, the club site). Eventually this stage should **archive and index the
-travellers locally** so access doesn't depend on those servers staying up — a
-durable local store keyed by session, parsed once rather than re-fetched. The
-raw HTML stays out of git; the local index/store is a separate decision (see
-[Open questions](#open-questions)).
 
 ## Testing strategy
 
@@ -377,9 +406,14 @@ raw HTML stays out of git; the local index/store is a separate decision (see
   auctions (rank reversal, contract/last-call mismatch, bad declarer) and bad
   cards; testable with zero OCR.
 - **Dealer/vul computation** — table-driven test across a full 16-board cycle.
-- **Reconciliation/swap detection** — fixtures with a known swap (the 6/29
-  sample) assert the swap is _suggested_, and identical-result boards assert no
-  false auto-apply.
+- **Traveller parsers** — the ACBL and club HTML parsers tested with committed
+  placeholder-name fixtures; the real captures, kept in `bridge-private`, back
+  integration checks.
+- **Reconciliation/swap detection** — name match, source merge, and the
+  deal-versus-lead check tested with hand-constructed data; swap detection
+  tested with the known 6/29 board-20/21 swap (asserting the swap is
+  _suggested_) and identical-result boards (asserting no false auto-apply). See
+  [travellers.md](travellers.md#testing).
 - **Extraction** — not unit-tested against a live model; exercised through
   fixtures and the review loop. Use placeholder member data in any committed
   fixture.
@@ -395,7 +429,10 @@ everything downstream:
 3. Extraction: the headless invocation and the mechanical transcription prompt.
 4. Parser: vision model strings → canonical model (auction grammar, contract
    cell, announcements).
-5. Reconciliation and swap detection against traveller fixtures.
+5. Traveller subsystem: the traveller data model and the ACBL/club HTML parsers,
+   then reconciliation (name match, source merge, deal capture) and swap
+   detection against fixtures. Auto-fetch is a follow-on investigation (see
+   [travellers.md](travellers.md#acquisition)).
 6. Ingest spine and the "process inbox" trigger.
 7. Review UI.
 
@@ -408,13 +445,13 @@ everything downstream:
   Syncthing, per [Ingest](#ingest).
 - **Review UI tech and interaction** — the concrete framework, keybindings, and
   commit semantics, pinned down when the UI is built.
-- **Local traveller archive and index** — the durable local store and index of
-  traveller HTML described in
-  [Traveller captures and PII](#traveller-captures-and-pii): its schema, the
-  parse-once strategy, and how it keys to sessions.
+- **Traveller storage and fetch** — the durable store beyond `bridge-private` (a
+  remote-backed, size-tolerant service; a queryable SQLite store), the ACBL
+  fetch mechanism past Cloudflare, and club index-scrape robustness, detailed in
+  [travellers.md](travellers.md#open-questions).
 - **Paper hand records as a traveller source** — some sessions have no digital
   traveller, only paper hand records (occurred as recently as the week before
   this spec). Near-term, the pipeline must degrade gracefully with no traveller
   at all (see [Reconciliation](#reconciliation)); eventually it should support
   digitizing paper hand records as an alternative source of the recoverable
-  fields.
+  fields and the deal, which they carry.

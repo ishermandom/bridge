@@ -1,18 +1,18 @@
 # Session analysis — digitization tasks
 
 Implementation tracker for the scoresheet digitization pipeline. Design and
-rationale live in [spec.md](spec.md) and [models.md](models.md); this file
-tracks work, not decisions.
+rationale live in [spec.md](spec.md), [models.md](models.md), and
+[travellers.md](travellers.md); this file tracks work, not decisions.
 
 Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped
 
 The phases follow the spec's build order: the pure-logic core first (zero OCR,
-fully testable, de-risks everything downstream), then extraction,
-reconciliation, ingest, and the review UI.
+fully testable, de-risks everything downstream), then extraction, the traveller
+subsystem (parsing, reconciliation, acquisition), ingest, and the review UI.
 
 ---
 
-## Extraction
+## Extraction follow-ups (deferred)
 
 **Goal:** a sheet image becomes the vision model's compact per-board string
 output, parsed into the canonical model.
@@ -36,26 +36,60 @@ output, parsed into the canonical model.
 
 ## Reconciliation
 
-**Goal:** cross-check the digitized session against the travellers and surface
-likely row swaps.
+**Goal:** capture the travellers as a game-record database and join them to the
+digitized sheet — enriching it with the deal, matchpoints, and pair identities,
+and surfacing disagreements and row swaps. Design in
+[travellers.md](travellers.md).
 
-- [ ] Traveller HTML parsers (ACBL Live, club site) → recoverable fields.
-  - Note: this phase defines the richer traveller type that replaces
-    `Source.travellers`, currently a placeholder `tuple[str]` of path/URL refs.
-- [ ] Join on session + board content; cross-check recoverable fields; raise
-      review priority on disagreement.
-  - Note: neither pair identity is on the digitized session — both ours and the
-    opponents' are resolved here from the matched traveller (number + direction,
-    sometimes section), not read from the sheet. Settle their type alongside the
-    traveller type above.
-  - Note: the declarer is one such recoverable field — the validator can't check
-    it (an auction with implicit passes gives no seats), so it's cross-checked
-    here. Neither the sheet nor the traveller is the source of truth: travellers
-    are sometimes wrong where the local notes are right, so surface a
-    disagreement for review rather than trusting either side.
+- [ ] Traveller data model — `Traveller`/`TravellerBoard`/`TravellerResult`,
+      plus the shared `Deal`/`Hand`/`PairIdentity` canonical types (see
+      models.md). Replaces the `Source.travellers` placeholder (`tuple[str]`).
+- [ ] ACBL Live HTML parser → full traveller (every row, deal, par).
+- [ ] Club site HTML parser → full traveller (every row, deal).
+- [ ] Find our row by the configured name — either direction, any partner; flag
+      when the name is absent.
+- [ ] Cross-check recoverable fields; raise review priority on disagreement.
+  - Note: the declarer is cross-checked here — the validator can't (an auction
+    with implicit passes gives no seats), and neither sheet nor traveller is
+    authoritative, so surface the disagreement rather than trusting either side.
+- [ ] Merge the two sources; flag disagreements, store both raw records, no
+      silent tiebreak.
+- [ ] Deal capture + the deal-versus-lead check (opening lead ∈ declarer's LHO
+      hand) and deal well-formedness (52 distinct cards, 13 per hand).
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
       Test against the 6/29 board-20/21 swap.
-- [ ] Graceful degradation: run to completion with zero travellers.
+- [ ] Graceful degradation: run to completion with zero travellers (no deal, no
+      enrichment).
+
+---
+
+## Traveller acquisition
+
+**Goal:** get travellers into the pipeline — auto-fetch where possible, manual
+save otherwise — and auto-reconcile when one lands. Design in
+[travellers.md](travellers.md#acquisition).
+
+- [ ] Move `session_analysis/travellers/` out of the public repo into
+      `bridge-private`; read it through a configurable path.
+- [ ] Match a capture to its session by parsed metadata (event + date), not the
+      filename or URL.
+- [ ] Manual-save fallback: a capture dropped in is picked up and matched.
+- [ ] Explore club auto-fetch: scrape the index at
+      `paloaltobridge.org/game-results/` and follow the session's link
+      (directories vary per director — discover, don't derive).
+- [ ] Explore ACBL auto-fetch (club + tournament, player #2475316) past
+      Cloudflare — the fetch mechanism is an open investigation.
+  - Note: `claude-in-chrome` runs as a separate OS user from the browser, so it
+    may not be viable; a headless browser with exported cookies is an
+    alternative.
+  - Note: tournaments are ACBL-only and higher-value (larger scale), so this is
+    the most valuable fetch to automate.
+- [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
+      reconciliation; review stays deferred until then.
+- [ ] Escape hatch: an explicit "finalize without traveller" action for a
+      session no traveller arrives for.
+- [ ] Store parsed travellers as structured JSON; keep raw HTML lean (drop the
+      ACBL `_files` asset bundle).
 
 ---
 
@@ -107,13 +141,16 @@ parsed value.
 ## Backlog
 
 Forward-looking items parked until their phase or trigger arrives; all are
-settled as open questions in [spec.md](spec.md#open-questions).
+settled as open questions in [spec.md](spec.md#open-questions) and
+[travellers.md](travellers.md#open-questions).
 
 - [ ] Final storage format (queryable DB) and the JSON → DB migration.
-- [ ] Local traveller archive and index, so access doesn't depend on third-party
-      servers: store in the bridge-private repo.
+- [ ] Remote-backed, size-tolerant durable store beyond `bridge-private`, if the
+      growing game database outgrows the repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital
-      traveller.
+      traveller — they carry the deal, too.
+- [ ] Pianola as a traveller source, for club games that post only there
+      (deferred: the sessions currently played don't use it).
 - [-] Model escalation: a stronger-model fallback for low-confidence auction
   rows, if single-model accuracy proves insufficient.
   - Dropped: superseded by extraction voting — see spec.md, Extraction (Voting,
@@ -125,6 +162,9 @@ settled as open questions in [spec.md](spec.md#open-questions).
       counts (Baron Barclay prints 16 rows left, 20 right), strip labels that
       carry column identity, and exclusion of the printed VP/IMP scale tables,
       which are themselves uniform grids that pollute the row-count vote.
+  - Note: the user keeps a sheet at tournaments (ACBL-only sessions), played on
+    non-club forms, so multi-format support has a concrete driver beyond the
+    sample forms — see spec.md (Scope).
   - Note: current behavior on the samples — both Baron Barclay forms error
     loudly (ambiguous row count; too few slices), but both Bridge Buddy forms
     return confidently wrong geometry: row boxes spanning both columns (a strip

@@ -261,7 +261,9 @@ validation pass define the concrete code set (see
 - `event` — raw footer text.
 - `date` — parsed date, or null with an issue if unparseable.
 - `source` — provenance: the sheet image (path + content hash) and the
-  travellers consulted.
+  travellers consulted — references to the `Traveller` records reconciliation
+  captured (see [travellers.md](travellers.md)), replacing the earlier
+  placeholder path list.
 - `boards` — the tuple of `Board`s.
 
 Our own pair identity is intentionally not a field here: it is resolved from the
@@ -277,6 +279,11 @@ travellers at reconciliation, not read from the sheet (see
 - `outcome` — an `Outcome` envelope (the contract cell), or null.
 - `matchpoints` — traveller-sourced, filled at reconciliation; null until then
   and for no-traveller sessions.
+- `deal` — the four hands, a `Deal`; traveller-sourced like `matchpoints`, null
+  until reconciliation and for no-traveller sessions.
+- `our_pair` and `opponents` — the two `PairIdentity`s at our table, recovered
+  at reconciliation, null until then. The sheet records neither (see
+  [Vision model output](#vision-model-output)).
 - `auction` — an ordered tuple of `AuctionEntry`.
 - `notes` — freetext cursive annotations (the inline questions), or null.
 - `issues` — board-level issues.
@@ -364,6 +371,28 @@ The understood card — whole only when both rank and suit were read.
 
 - `rank` — `Rank`.
 - `suit` — `Suit`.
+
+### Deal
+
+The four hands of a board — a `Hand` for each `Direction`. Traveller-sourced and
+filled at reconciliation (see [travellers.md](travellers.md)); the sheet never
+records it. Deal well-formedness — 52 distinct cards, thirteen per hand — is a
+reconciliation-time check, not a Pydantic constraint.
+
+### Hand
+
+- `cards` — the thirteen `Card`s the player held.
+
+### PairIdentity
+
+A pair as the travellers record them; the sheet records no pair identity at all.
+Shared by the canonical `Board` (our pair and the opponents') and the traveller
+records (see [travellers.md](travellers.md)).
+
+- `number` — the pair number.
+- `direction` — the pair's `Direction` for the board.
+- `section` — the section, when the event has more than one; else null.
+- `names` — the two players' names.
 
 ### Outcome
 
