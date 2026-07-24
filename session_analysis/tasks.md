@@ -44,8 +44,18 @@ and surfacing disagreements and row swaps. Design in
 - [ ] Traveller data model — `Traveller`/`TravellerBoard`/`TravellerResult`,
       plus the shared `Deal`/`Hand`/`PairIdentity` canonical types (see
       models.md). Replaces the `Source.travellers` placeholder (`tuple[str]`).
+  - Note: the par shape is settled — see travellers.md (Double-dummy par).
 - [ ] ACBL Live HTML parser → full traveller (every row, deal, par).
-- [ ] Club site HTML parser → full traveller (every row, deal).
+  - Note: the par data sits in a JSON blob embedded in the page, not the
+    rendered markup, so parsing likely reads that blob rather than scraping the
+    document. Par renders as `-450 4S-EW+1/4H-EW+1` — score first, `/` between
+    multiple contracts (escaped `\/` inside the JSON), `*` for a double
+    (`3D*-NS-1`), and a declarer that is a side (`-EW`) or a seat (`-E`).
+- [ ] Club site HTML parser → full traveller (every row, deal, par).
+  - Note: par renders as `Par −1430: E 6♦=`, with a Unicode minus (U+2212), not
+    an ASCII hyphen, and `&nbsp;` between the parts. Suits are glyphs carrying a
+    CSS class (`bcspades`), so suit identity comes from the class, not the
+    character. Declarer is a side (`EW`) or a seat (`E`), as with ACBL.
 - [ ] Find our row by the configured name — either direction, any partner; flag
       when the name is absent.
 - [ ] Cross-check recoverable fields; raise review priority on disagreement.
@@ -69,8 +79,11 @@ and surfacing disagreements and row swaps. Design in
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
-- [ ] Move `session_analysis/travellers/` out of the public repo into
-      `bridge-private`; read it through a configurable path.
+- [ ] Read traveller captures through a configurable path.
+  - Note: the captures now live in `bridge-private/travellers/`, moved out of
+    the public repo and left uncommitted there pending a storage decision — the
+    ACBL `_files` bundle is 3.4 MB of the 4.7 MB total. Nothing reads them yet,
+    so the path stays unconfigured until the first parser lands.
 - [ ] Match a capture to its session by parsed metadata (event + date), not the
       filename or URL.
 - [ ] Manual-save fallback: a capture dropped in is picked up and matched.

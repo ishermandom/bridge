@@ -35,9 +35,10 @@ Beyond the recoverable fields the traveller already owned as source of truth
   record) is its _sole_ source; the sheet says nothing about it. The canonical
   `Deal`/`Hand` types live in [models.md](models.md#deal).
 - **The double-dummy par** — the makeable-tricks table and par contract,
-  board-level. This is analysis-stage data, captured here because it rides free
-  in the ACBL capture and gives the eventual double-dummy comparison a reference
-  to check our own solver against.
+  board-level, carried by both sources. This is analysis-stage data, captured
+  here because it rides free in the captures and gives the eventual double-dummy
+  comparison a reference to check our own solver against — a partial reference,
+  for the reason given under [Double-dummy par](#double-dummy-par).
 - **Every table's row**, not just ours — the whole traveller, which is what
   makes the capture a game database rather than a per-board lookup.
 
@@ -54,7 +55,8 @@ Two sources cover a typical club session; tournaments have only ACBL Live.
   tournaments at `live.acbl.org/player-results/...`. Identifies pairs by name
   _and_ number, and carries the deal and par.
 - **Club site** (`paloaltobridge.org`) — captures published by BridgeComposer.
-  Identifies pairs by name, and carries the deal. Secondary corroboration.
+  Identifies pairs by name, and carries the deal and par. Secondary
+  corroboration.
 - **Pianola** — some club games post only here. Deferred: the sessions currently
   played do not use it.
 
@@ -103,9 +105,9 @@ storage shape; it replaces the `Source.travellers` placeholder
 
 - **`Traveller`** — `source` (ACBL / club), the source reference (URL or game
   id), event, date, section(s), and the boards.
-- **`TravellerBoard`** — the board number; the `Deal`; the double-dummy par (its
-  typed shape settled with the analysis stage); and the rows. The deal and par
-  are board-level (shared across tables); the results are per-row.
+- **`TravellerBoard`** — the board number; the `Deal`; the double-dummy par; and
+  the rows. The deal and par are board-level (shared across tables); the results
+  are per-row.
 - **`TravellerResult`** — one table's play of the board: the North-South and
   East-West `PairIdentity`, the contract, declarer, penalty, result, the
   North-South and East-West scores and matchpoints, and the opening lead when
@@ -115,6 +117,45 @@ storage shape; it replaces the `Source.travellers` placeholder
 The shared `Deal`, `Hand`, `Card`, `Direction`, and `PairIdentity` types are
 canonical-model types defined in [models.md](models.md); the traveller types
 reuse them.
+
+### Double-dummy par
+
+Each source condenses the same underlying facts its own way — ACBL writes a row
+per side with a slash where the two seats differ (`E/W: 2♣ 5/6♦ 6♥ 7♠ 6NT`), the
+club a semicolon list that collapses to the side when the seats agree
+(`W 6♦; E 5♦; EW 2♣;`). Both **normalize to one canonical shape on parse**, so
+the sources become directly comparable and a disagreement between them surfaces
+like any other.
+
+- **Makeable tricks** — one cell per `Direction` and `Strain`, twenty in all,
+  holding the trick count rather than the contract level the sources print. A
+  cell is null where the source prints a level of zero: that means fewer than
+  seven tricks without saying how many, so null is the honest value and a zero
+  trick count would be a fabrication. This is what makes the captured table a
+  _partial_ reference for checking our own solver — it pins the values at seven
+  tricks and above, and merely bounds the rest.
+- **`Par`** — the par score and the par contracts achieving it. The score is
+  always from North-South's perspective, and sits above the contracts because
+  one score is shared by all of them.
+- **Par contracts reuse `Resolution`** — the same `PlayedContract | Passout`
+  union a played board resolves to (see [models.md](models.md#outcome)). Par is
+  the contract optimal bidding would reach and play, so pairing a `Contract`
+  with its `Result` is exactly the right shape, and a deal where nothing makes
+  pars at a passout. That case is absent from the captures on hand but costs
+  nothing to support, since the union already models it.
+- **A side-level par expands to one contract per seat.** Both sources mix the
+  two forms — `6S-EW` alongside `6H-E` — and `Contract.declarer` is a single
+  seat. The expansion reads a side to mean _both_ seats achieve the score, which
+  is how the makeable lists use the same shorthand and holds on every board
+  checked so far. The parser should assert it against the normalized grid: were
+  it ever false, expansion would invent a contract the source never claimed.
+
+A par result is recoverable even where a source omits it, since a contract's
+trick count is its declarer's makeable tricks in that strain — for a sacrifice
+as much as for a making contract. ACBL writes no marker at all when the par
+contract makes exactly, showing only `+N` or `-N`; the club states the result on
+every par seen, `=` included, so where both sources cover a board the club's
+result checks the reconstruction.
 
 ## Reconciliation
 
