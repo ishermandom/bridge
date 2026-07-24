@@ -54,9 +54,11 @@ Two sources cover a typical club session; tournaments have only ACBL Live.
   player number (`2475316`): club games at `my.acbl.org/club-results/...` and
   tournaments at `live.acbl.org/player-results/...`. Identifies pairs by name
   _and_ number, and carries the deal and par.
-- **Club site** (`paloaltobridge.org`) — captures published by BridgeComposer.
-  Identifies pairs by name, and carries the deal and par. Secondary
-  corroboration.
+- **Club site** (`paloaltobridge.org`) — each game published by BridgeComposer,
+  as a PBN and as HTML. Carries the deal and par. Names a row by its pair of
+  surnames (`Bries-Doshi`); full names appear only in the standings recap that
+  both formats embed, reachable from a row by its section and pair number.
+  Secondary corroboration.
 - **Pianola** — some club games post only here. Deferred: the sessions currently
   played do not use it.
 
@@ -66,6 +68,27 @@ recoverable field, that is surfaced for review as its own signal rather than
 silently resolved. The two raw records are stored separately; the merge is a
 reconciliation-time comparison, not a destructive combine.
 
+### Which club format to parse
+
+The PBN is much the easier target — a documented, tagged format whose
+`ScoreTable` holds every row and whose board records hold the deal, the
+double-dummy table, and par. But roughly a sixth of games have no PBN, and the
+gap is concentrated in the two directors who publish their HTML under a `C`
+prefix rather than an `R` one; HTML is present for all but a handful of games.
+So the PBN is an optimization on top of an HTML parser that has to exist anyway,
+not a replacement for it.
+
+The two HTML variants differ only in presentation. Their per-board score tables
+are identical; `R` additionally carries the par contract, where `C` carries the
+par score alone, and the double-dummy opening-lead notes. A parser should key on
+the score table's own class rather than on the board container, whose class
+attribute `C` omits.
+
+A capture saved from a browser also differs from the same file fetched directly
+— attribute quoting, entity decoding, and inserted `<tbody>` elements are the
+browser's doing. Reading through a real HTML parser absorbs the difference;
+matching against raw markup would not.
+
 ## Acquisition
 
 The goal is automatic fetching, with **manual save as the fallback** for
@@ -73,9 +96,15 @@ anything the fetch can't reach. Each source has a distinct fetch problem, so
 they are separate investigations.
 
 - **Club — discover, don't derive.** Different directors upload to different
-  directories, so a date-derived URL is unreliable. The robust path is to scrape
-  the index at `paloaltobridge.org/game-results/` and follow the link for the
-  session's date and event.
+  directories, so a date-derived URL is unreliable. Fetching instead reads the
+  calendar at `paloaltobridge.org/game-results/`, which renders a month per page
+  and gives each day a cell listing that day's games with links to whatever
+  files each one has; which files exist is read from those links rather than
+  derived from the date. Plain HTTP suffices — no authentication, and
+  `robots.txt` permits the results paths. Implemented as `fetch_travellers` in
+  `club_fetching.py`, which downloads each game's PBN and HTML under the site's
+  own relative path, because two directors regularly publish the same filename
+  for games on one date.
 - **ACBL — the fetch mechanism is an open investigation.** Both ACBL surfaces
   sit behind Cloudflare and (likely) authentication, so a plain HTTP request
   won't reach them. Candidate approaches — a headless browser with exported
@@ -83,7 +112,9 @@ they are separate investigations.
   tradeoffs. Driving the user's own Chrome (e.g. the `claude-in-chrome` skill)
   is attractive because it inherits the logged-in, past-Cloudflare session, but
   Claude runs as a separate OS user from the browser, so its viability is
-  unconfirmed. Resolving this is part of the fetch task, not settled here.
+  unconfirmed. Resolving this is part of the fetch task, not settled here. The
+  club calendar is no help: the `my.acbl.org` links it carries are a fixed
+  club-level link on the online games, not per-session game ids.
 
 Whichever fetch is used:
 
@@ -269,8 +300,6 @@ the public repo.
 - **ACBL fetch past Cloudflare** — the mechanism (headless browser plus cookies,
   driving a real browser despite the separate-user boundary, or another
   approach), resolved as part of the fetch task.
-- **Club index-scrape robustness** — handling the varying director directories
-  and distinguishing morning/afternoon sessions from the index.
 - **Name-variant handling** — how many forms of the user's name appear across
   captures, and whether a normalization step is needed.
 - **Remote-backup service** — whether `bridge-private` alone suffices or a

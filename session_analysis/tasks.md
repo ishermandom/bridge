@@ -54,11 +54,17 @@ and surfacing disagreements and row swaps. Design in
     first, `/` between multiple contracts (escaped `\/` inside the JSON), `*`
     for a double (`3D*-NS-1`), and a declarer that is a side (`-EW`) or a seat
     (`-E`).
-- [ ] Club site HTML parser → full traveller (every row, deal, par).
+- [ ] Club PBN parser → full traveller (every row, deal, par, double dummy). The
+      easier of the two club formats, and the one to build first — see
+      travellers.md (Which club format to parse).
+- [ ] Club site HTML parser → full traveller (every row, deal, par). Still
+      needed: roughly a sixth of games publish no PBN.
   - Note: par renders as `Par −1430: E 6♦=`, with a Unicode minus (U+2212), not
     an ASCII hyphen, and `&nbsp;` between the parts. Suits are glyphs carrying a
     CSS class (`bcspades`), so suit identity comes from the class, not the
     character. Declarer is a side (`EW`) or a seat (`E`), as with ACBL.
+  - Note: has to read both the `R` and `C` variants, and both raw and
+    browser-saved markup — see travellers.md (Which club format to parse).
 - [ ] Find our row by the configured name — either direction, any partner; flag
       when the name is absent.
 - [ ] Cross-check recoverable fields; raise review priority on disagreement.
@@ -85,14 +91,15 @@ save otherwise — and auto-reconcile when one lands. Design in
 - [ ] Read traveller captures through a configurable path.
   - Note: the captures now live in `bridge-private/travellers/`, moved out of
     the public repo and left uncommitted there pending a storage decision — the
-    ACBL `_files` bundle is 3.4 MB of the 4.7 MB total. Nothing reads them yet,
-    so the path stays unconfigured until the first parser lands.
+    ACBL `_files` bundle is 3.4 MB of the 4.7 MB total. `club_fetching.py` takes
+    its download destination as an argument, so this task is what gives the
+    fetcher and the parsers a single configured location to share.
 - [ ] Match a capture to its session by parsed metadata (event + date), not the
       filename or URL.
+  - Note: the club calendar's label for a game (`Palo Alto Duplicate`) is not
+    the event name inside its files (`John & Will's Monday Bridge`), so the
+    label can't stand in for the metadata.
 - [ ] Manual-save fallback: a capture dropped in is picked up and matched.
-- [ ] Explore club auto-fetch: scrape the index at
-      `paloaltobridge.org/game-results/` and follow the session's link
-      (directories vary per director — discover, don't derive).
 - [ ] Explore ACBL auto-fetch (club + tournament, player #2475316) past
       Cloudflare — the fetch mechanism is an open investigation.
   - Note: `claude-in-chrome` runs as a separate OS user from the browser, so it
