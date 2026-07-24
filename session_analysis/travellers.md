@@ -105,16 +105,28 @@ they are separate investigations.
   `club_fetching.py`, which downloads each game's PBN and HTML under the site's
   own relative path, because two directors regularly publish the same filename
   for games on one date.
-- **ACBL — the fetch mechanism is an open investigation.** Both ACBL surfaces
-  sit behind Cloudflare and (likely) authentication, so a plain HTTP request
-  won't reach them. Candidate approaches — a headless browser with exported
-  cookies, an authenticated session, or driving a real browser — each have
-  tradeoffs. Driving the user's own Chrome (e.g. the `claude-in-chrome` skill)
-  is attractive because it inherits the logged-in, past-Cloudflare session, but
-  Claude runs as a separate OS user from the browser, so its viability is
-  unconfirmed. Resolving this is part of the fetch task, not settled here. The
-  club calendar is no help: the `my.acbl.org` links it carries are a fixed
-  club-level link on the online games, not per-session game ids.
+- **ACBL tournaments — a headless browser past Cloudflare.** Every ACBL page
+  sits behind a Cloudflare "managed challenge" — JavaScript a browser must run
+  before the real content loads — so a plain HTTP request is turned away. A
+  headless Playwright browser clears it with no login or cookies: the full
+  Chromium (not the lighter headless shell) given a real viewport and locale
+  runs the challenge and is let through. Tournament results are public and
+  enumerable by player number at `live.acbl.org/player-results/<number>`, a
+  table listing each session with a link to its traveller. Implemented as
+  `fetch_tournament_travellers` in `acbl_fetching.py`, which reads that index,
+  keeps the sessions played on a date, and saves each session's rendered HTML —
+  lean by construction, since driving the page ourselves skips the asset bundle
+  a browser's "save page" drags in.
+- **ACBL club games — the same fetch, one host over.** A player's club sessions
+  are public too, listed by player number at
+  `my.acbl.org/club-results/my-results/<number>` in the same shape as the
+  tournament index — a dated table of game links — so the same headless-browser
+  fetch and index walk apply, only against `my.acbl.org` and its
+  `club-results/details/<id>` travellers. A club detail page embeds its
+  traveller as a `var data = {...}` JSON blob, a cleaner parse than its HTML
+  tables. Club games also have a BridgeComposer copy on the club site that
+  `club_fetching` fetches, so the ACBL club record is corroboration rather than
+  the sole one.
 
 Whichever fetch is used:
 
@@ -297,9 +309,6 @@ the public repo.
 
 ## Open questions
 
-- **ACBL fetch past Cloudflare** — the mechanism (headless browser plus cookies,
-  driving a real browser despite the separate-user boundary, or another
-  approach), resolved as part of the fetch task.
 - **Name-variant handling** — how many forms of the user's name appear across
   captures, and whether a normalization step is needed.
 - **Remote-backup service** — whether `bridge-private` alone suffices or a

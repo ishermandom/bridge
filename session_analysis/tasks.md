@@ -54,6 +54,10 @@ and surfacing disagreements and row swaps. Design in
     first, `/` between multiple contracts (escaped `\/` inside the JSON), `*`
     for a double (`3D*-NS-1`), and a declarer that is a side (`-EW`) or a seat
     (`-E`).
+  - Note: two ACBL surfaces, two formats. The above is the club capture
+    (my.acbl.org, the `var data` blob). A tournament summary (live.acbl.org,
+    which `acbl_fetching` saves) instead renders its boards into HTML tables
+    with no such blob, so the parser needs a distinct reader for each.
 - [ ] Club PBN parser → full traveller (every row, deal, par, double dummy). The
       easier of the two club formats, and the one to build first — see
       travellers.md (Which club format to parse).
@@ -100,13 +104,16 @@ save otherwise — and auto-reconcile when one lands. Design in
     the event name inside its files (`John & Will's Monday Bridge`), so the
     label can't stand in for the metadata.
 - [ ] Manual-save fallback: a capture dropped in is picked up and matched.
-- [ ] Explore ACBL auto-fetch (club + tournament, player #2475316) past
-      Cloudflare — the fetch mechanism is an open investigation.
-  - Note: `claude-in-chrome` runs as a separate OS user from the browser, so it
-    may not be viable; a headless browser with exported cookies is an
-    alternative.
-  - Note: tournaments are ACBL-only and higher-value (larger scale), so this is
-    the most valuable fetch to automate.
+- [ ] ACBL club-game auto-fetch. A player's club sessions are public, listed by
+      player number at `my.acbl.org/club-results/my-results/<number>` — the same
+      index-and-detail shape as the tournament fetch, so the same
+      headless-browser fetcher applies, against `my.acbl.org` and its
+      `club-results/details/<id>` travellers.
+  - Note: tournament auto-fetch is done
+    (`acbl_fetching.fetch_tournament_travellers`; see travellers.md
+    Acquisition). Club detail pages carry a `var data` JSON blob, the easier
+    parse. Club games also have a club-site copy via `club_fetching`, so ACBL
+    club results are corroboration.
 - [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
       reconciliation; review stays deferred until then.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
@@ -232,3 +239,9 @@ settled as open questions in [spec.md](spec.md#open-questions) and
       entry is kept only as a guard while the traveller code is in flight, in
       case a fetch or parser defaults to writing back into the public repo.
       Remove it once acquisition and the parsers read a configured path.
+- [ ] Reorganize the raw captures under `bridge-private/travellers/raw/` by date
+      rather than by source. Both fetchers currently mirror each source's own
+      path (`live.acbl.org/event/…`, `my.acbl.org/club-results/…`,
+      `gameresults2/…`); a date-first layout would group a session's captures
+      across sources together. Decide the scheme (e.g. `<date>/<source>/…`) and
+      migrate the existing captures.
