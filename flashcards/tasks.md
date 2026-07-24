@@ -107,3 +107,9 @@ Unsequenced items and open questions from the spec.
 - [ ] Create `anki/spec.md` when the `anki/` project formalizes; move the spec's
       Deferred items there (card-text standardization, schema-change safety
       tooling mechanics, full module layout).
+- [ ] Settle which license covers `spec.md` and `tasks.md` in this directory.
+      The README and `flashcards/LICENSE` both scope CC-BY-4.0 to the flashcard
+      _content_ here, which doesn't obviously reach development docs that merely
+      live alongside it.
+  - Open question: widen CC-BY-4.0 to the whole directory, or say the docs stay
+    MIT? Their per-file headers claimed CC-BY-4.0 before the headers came out.
