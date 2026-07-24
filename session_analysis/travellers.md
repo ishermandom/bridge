@@ -145,10 +145,9 @@ like any other.
   nothing to support, since the union already models it.
 - **A side-level par expands to one contract per seat.** Both sources mix the
   two forms — `6S-EW` alongside `6H-E` — and `Contract.declarer` is a single
-  seat. The expansion reads a side to mean _both_ seats achieve the score, which
-  is how the makeable lists use the same shorthand and holds on every board
-  checked so far. The parser should assert it against the normalized grid: were
-  it ever false, expansion would invent a contract the source never claimed.
+  seat. A side means _both_ of its seats achieve the score, so expanding it
+  loses nothing; it is merely verbose, since `4S-EW+1/4H-EW+1` becomes four
+  contracts, one per seat per strain.
 
 A par result is recoverable even where a source omits it, since a contract's
 trick count is its declarer's makeable tricks in that strain — for a sacrifice

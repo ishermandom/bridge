@@ -46,11 +46,14 @@ and surfacing disagreements and row swaps. Design in
       models.md). Replaces the `Source.travellers` placeholder (`tuple[str]`).
   - Note: the par shape is settled — see travellers.md (Double-dummy par).
 - [ ] ACBL Live HTML parser → full traveller (every row, deal, par).
-  - Note: the par data sits in a JSON blob embedded in the page, not the
-    rendered markup, so parsing likely reads that blob rather than scraping the
-    document. Par renders as `-450 4S-EW+1/4H-EW+1` — score first, `/` between
-    multiple contracts (escaped `\/` inside the JSON), `*` for a double
-    (`3D*-NS-1`), and a declarer that is a side (`-EW`) or a seat (`-E`).
+  - Note: par appears twice in the capture — rendered in the markup under
+    `div.par-score`, and again in an embedded JSON blob the page appears to
+    render from. The blob is likely the easier parse: it carries the value as
+    plain text, where the rendered form spells each suit as an
+    `<i class="fa spades">` glyph. Par reads `-450 4S-EW+1/4H-EW+1` — score
+    first, `/` between multiple contracts (escaped `\/` inside the JSON), `*`
+    for a double (`3D*-NS-1`), and a declarer that is a side (`-EW`) or a seat
+    (`-E`).
 - [ ] Club site HTML parser → full traveller (every row, deal, par).
   - Note: par renders as `Par −1430: E 6♦=`, with a Unicode minus (U+2212), not
     an ASCII hyphen, and `&nbsp;` between the parts. Suits are glyphs carrying a
@@ -210,3 +213,15 @@ settled as open questions in [spec.md](spec.md#open-questions) and
   - Open question: team games may play non-consecutive board sets, so the check
     may need to be format-aware or advisory-only — part of why this is deferred
     rather than queued.
+
+---
+
+## Cleanup
+
+**Goal:** tidy-ups that only make sense once the work they trail has landed.
+
+- [ ] Drop the `session_analysis/travellers/` entry from `.gitignore`. The
+      directory is gone — the captures live in `bridge-private` now — and the
+      entry is kept only as a guard while the traveller code is in flight, in
+      case a fetch or parser defaults to writing back into the public repo.
+      Remove it once acquisition and the parsers read a configured path.
