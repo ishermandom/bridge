@@ -1,8 +1,3 @@
-<!--
-Copyright 2026 Ilya Sherman (ishermandom@)
-SPDX-License-Identifier: CC-BY-4.0
--->
-
 # Flashcard system tasks
 
 Implementation queue for the design in [spec.md](spec.md). Most code lands in

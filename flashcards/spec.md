@@ -1,8 +1,3 @@
-<!--
-Copyright 2026 Ilya Sherman (ishermandom@)
-SPDX-License-Identifier: CC-BY-4.0
--->
-
 # Flashcards layout and syncing spec
 
 This document specifies how the bridge study deck is organized, where its
