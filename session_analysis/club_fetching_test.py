@@ -8,7 +8,7 @@ comments, games separated only by a line break, and file links written both
 directly and through the download wrapper — because those shapes are exactly
 what the parsing has to survive.
 
-`fetch_travellers` is exercised through `_FakeClub`, which serves one calendar
+`fetch_travellers` is exercised through `_Recorder`, which serves one calendar
 page and a stand-in body for each file fetched and records what would be written
 — so tests touch neither the network nor the disk. Director directories are
 placeholders (`alpha`, `beta`); on the real site they are the directors' own
@@ -29,7 +29,7 @@ _JUNE_29 = datetime.date(2026, 6, 29)
 _CLUB_BASE_URL = 'https://paloaltobridge.org/'
 
 # The calendar lives under this path; every other URL the fetcher requests is a
-# file, which lets `_FakeClub` tell the two apart without counting fetches.
+# file, which lets `_Recorder` tell the two apart without counting fetches.
 _CALENDAR_URL_PREFIX = _CLUB_BASE_URL + 'game-results/'
 
 
@@ -61,7 +61,7 @@ def _make_calendar_page(
   )
 
 
-class _FakeClub:
+class _Recorder:
   """An in-memory stand-in for the club site: serves one calendar page and a
   body per file fetched, and records what would be written to disk.
 
@@ -103,15 +103,18 @@ def _run(
   *,
   date: datetime.date = _JUNE_29,
   bodies: Mapping[str, bytes] | None = None,
-) -> _FakeClub:
-  """Fetch a calendar's travellers in memory; the club records what happened.
+) -> _Recorder:
+  """Fetch a calendar's travellers in memory; the recorder captures what
+  happened.
 
-  `club.written` maps each saved path (relative to the destination) to its
-  bytes, in fetch order; `club.fetched` is every URL requested.
+  `recorder.written` maps each saved path (relative to the destination) to its
+  bytes, in fetch order; `recorder.fetched` is every URL requested.
   """
-  club = _FakeClub(calendar, bodies=bodies)
-  fetch_travellers(date, club.destination, fetch=club.fetch, write=club.write)
-  return club
+  recorder = _Recorder(calendar, bodies=bodies)
+  fetch_travellers(
+    date, recorder.destination, fetch=recorder.fetch, write=recorder.write
+  )
+  return recorder
 
 
 # --- reading a day's files ---
@@ -124,9 +127,9 @@ def test_pbn_and_html_files_are_both_fetched() -> None:
     "(<a href='../gameresults2/alpha/R260629M.htm'>R</a>)<br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
-  assert list(club.written) == [
+  assert list(recorder.written) == [
     'gameresults2/alpha/D260629M.pbn',
     'gameresults2/alpha/R260629M.htm',
   ]
@@ -139,10 +142,10 @@ def test_pdf_hand_record_and_text_recap_are_not_fetched() -> None:
     "(<a href='../gameresults2/alpha/D260629M.pbn'>D</a>)<br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
   # Neither the PDF hand record nor the text recap carries a traveller.
-  assert list(club.written) == ['gameresults2/alpha/D260629M.pbn']
+  assert list(recorder.written) == ['gameresults2/alpha/D260629M.pbn']
 
 
 def test_c_convention_html_is_fetched() -> None:
@@ -155,9 +158,9 @@ def test_c_convention_html_is_fetched() -> None:
     "(<a href='../gameresults2/beta/C260629M.htm'>C</a>)<br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
-  assert list(club.written) == ['gameresults2/beta/C260629M.htm']
+  assert list(recorder.written) == ['gameresults2/beta/C260629M.htm']
 
 
 def test_files_from_several_games_on_one_day_are_all_fetched() -> None:
@@ -168,9 +171,9 @@ def test_files_from_several_games_on_one_day_are_all_fetched() -> None:
     "(<a href='../gameresults2/beta/D260629E.pbn'>D</a>)<br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
-  assert list(club.written) == [
+  assert list(recorder.written) == [
     'gameresults2/alpha/D260629M.pbn',
     'gameresults2/beta/D260629E.pbn',
   ]
@@ -189,9 +192,9 @@ def test_files_from_several_games_on_one_day_are_all_fetched() -> None:
 def test_day_with_no_traveller_files_fetches_nothing(entries: str) -> None:
   # A day may hold no games at all, or only a `.TXT` recap (some games are
   # posted no other way) — either way there is nothing to fetch.
-  club = _run(_make_calendar_page(entries))
+  recorder = _run(_make_calendar_page(entries))
 
-  assert club.written == {}
+  assert recorder.written == {}
 
 
 def test_zero_padded_day_number_is_matched() -> None:
@@ -201,9 +204,9 @@ def test_zero_padded_day_number_is_matched() -> None:
     day='09',
   )
 
-  club = _run(page, date=datetime.date(2026, 6, 9))
+  recorder = _run(page, date=datetime.date(2026, 6, 9))
 
-  assert list(club.written) == ['gameresults2/alpha/D260609M.pbn']
+  assert list(recorder.written) == ['gameresults2/alpha/D260609M.pbn']
 
 
 # --- resolving the links the calendar writes ---
@@ -216,12 +219,12 @@ def test_wrapped_link_is_fetched_by_its_plain_path() -> None:
     'D</a>)<br>'
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
   # The wrapper only forces a browser download, so the file is fetched by its
   # plain path and saved under that path.
-  assert list(club.written) == ['gameresults2/alpha/D260629M.pbn']
-  assert club.fetched[-1] == (
+  assert list(recorder.written) == ['gameresults2/alpha/D260629M.pbn']
+  assert recorder.fetched[-1] == (
     'https://paloaltobridge.org/gameresults2/alpha/D260629M.pbn'
   )
 
@@ -232,11 +235,11 @@ def test_relative_link_resolves_against_the_calendar_page() -> None:
     "(<a href='alpha/D260629M.pbn'>D</a>)<br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
   # A link with no `../` of its own hangs off the calendar's own directory, not
   # off the site root.
-  assert list(club.written) == ['game-results/alpha/D260629M.pbn']
+  assert list(recorder.written) == ['game-results/alpha/D260629M.pbn']
 
 
 def test_percent_encoded_link_names_the_path_it_encodes() -> None:
@@ -245,12 +248,12 @@ def test_percent_encoded_link_names_the_path_it_encodes() -> None:
     "(<a href='../gameresults2/alpha/D%20260629M.pbn'>D</a>)<br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
   # The saved path holds the decoded character, while the file is fetched at the
   # re-encoded URL.
-  assert list(club.written) == ['gameresults2/alpha/D 260629M.pbn']
-  assert club.fetched[-1] == (
+  assert list(recorder.written) == ['gameresults2/alpha/D 260629M.pbn']
+  assert recorder.fetched[-1] == (
     'https://paloaltobridge.org/gameresults2/alpha/D%20260629M.pbn'
   )
 
@@ -263,11 +266,11 @@ def test_file_linked_both_ways_is_fetched_once() -> None:
     'D</a>)<br>'
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
   # Both spellings name one file, so it is fetched and saved once.
-  assert list(club.written) == ['gameresults2/alpha/D260629M.pbn']
-  pbn_fetches = [url for url in club.fetched if url.endswith('.pbn')]
+  assert list(recorder.written) == ['gameresults2/alpha/D260629M.pbn']
+  pbn_fetches = [url for url in recorder.fetched if url.endswith('.pbn')]
   assert len(pbn_fetches) == 1
 
 
@@ -277,9 +280,9 @@ def test_offsite_only_links_are_skipped() -> None:
     "<a href='http://webutil.bridgebase.com/v2/tarchive.php'>(BBO)</a><br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
-  assert club.written == {}
+  assert recorder.written == {}
 
 
 def test_on_site_file_beside_an_offsite_link_is_fetched() -> None:
@@ -288,20 +291,20 @@ def test_on_site_file_beside_an_offsite_link_is_fetched() -> None:
     "<a href='../virtualgameresults/alpha/R260629E.htm'>(R)</a><br>"
   )
 
-  club = _run(page)
+  recorder = _run(page)
 
   # The offsite link is skipped; the on-site file beside it is still fetched.
-  assert list(club.written) == ['virtualgameresults/alpha/R260629E.htm']
+  assert list(recorder.written) == ['virtualgameresults/alpha/R260629E.htm']
 
 
 def test_link_naming_no_file_is_skipped() -> None:
   page = _make_calendar_page("<a href='#'>Not a game</a><br>")
 
-  club = _run(page)
+  recorder = _run(page)
 
   # A fragment-only href resolves to the calendar's own directory, which names
   # no file — it must not read as a file published in that directory.
-  assert club.written == {}
+  assert recorder.written == {}
 
 
 def test_wrapped_path_climbing_above_the_site_root_is_skipped(
@@ -313,11 +316,11 @@ def test_wrapped_path_climbing_above_the_site_root_is_skipped(
   )
 
   with caplog.at_level(logging.WARNING):
-    club = _run(page)
+    recorder = _run(page)
 
   # A path escaping the site root would escape the destination too, so it is
   # dropped — and, being anomalous, logged rather than dropped silently.
-  assert club.written == {}
+  assert recorder.written == {}
   assert 'escapes the site root' in caplog.text
 
 
@@ -330,11 +333,11 @@ def test_wrapper_link_without_a_filename_is_skipped_and_logged(
   )
 
   with caplog.at_level(logging.WARNING):
-    club = _run(page)
+    recorder = _run(page)
 
   # A wrapper naming no file is anomalous — the page format may have changed —
   # so it is surfaced, not dropped silently.
-  assert club.written == {}
+  assert recorder.written == {}
   assert 'filename' in caplog.text
 
 
@@ -395,11 +398,11 @@ def test_day_number_printed_twice_is_rejected() -> None:
 
 
 def test_calendar_url_requests_the_months_page() -> None:
-  club = _run(_make_calendar_page(''), date=datetime.date(2026, 6, 29))
+  recorder = _run(_make_calendar_page(''), date=datetime.date(2026, 6, 29))
 
   # The day parameter only marks which day the month's page highlights, so it is
   # fixed rather than tracking the date asked for.
-  assert club.fetched[0] == (
+  assert recorder.fetched[0] == (
     'https://paloaltobridge.org/game-results/?month=6&days=1&years=2026'
   )
 
@@ -411,13 +414,13 @@ def test_page_in_another_encoding_is_read_as_it_declares() -> None:
     charset='windows-1252',
   ).encode('windows-1252')
 
-  club = _run(page)
+  recorder = _run(page)
 
   # The page reaches the parser as bytes, so bs4 honors its declared charset.
   # UTF-8 could represent the accented name, but these bytes are not UTF-8: in
   # windows-1252 the accent is the single byte 0xE9, which is invalid UTF-8, so
   # force-decoding would raise and lose the whole day.
-  assert list(club.written) == ['gameresults2/alpha/D260629M.pbn']
+  assert list(recorder.written) == ['gameresults2/alpha/D260629M.pbn']
 
 
 def test_a_files_written_bytes_are_the_bytes_fetched() -> None:
@@ -427,7 +430,7 @@ def test_a_files_written_bytes_are_the_bytes_fetched() -> None:
     "(<a href='../gameresults2/alpha/R260629M.htm'>R</a>)<br>"
   )
 
-  club = _run(
+  recorder = _run(
     page,
     bodies={
       'gameresults2/alpha/D260629M.pbn': b'% PBN 2.1',
@@ -435,7 +438,7 @@ def test_a_files_written_bytes_are_the_bytes_fetched() -> None:
     },
   )
 
-  assert club.written == {
+  assert recorder.written == {
     'gameresults2/alpha/D260629M.pbn': b'% PBN 2.1',
     'gameresults2/alpha/R260629M.htm': b'<html>the traveller</html>',
   }
@@ -450,7 +453,7 @@ def test_same_filename_from_two_directors_does_not_collide() -> None:
     "(<a href='../gameresults2/beta/R260629M.htm'>R</a>)<br>"
   )
 
-  club = _run(
+  recorder = _run(
     page,
     bodies={
       'gameresults2/alpha/R260629M.htm': b"alpha's",
@@ -460,7 +463,7 @@ def test_same_filename_from_two_directors_does_not_collide() -> None:
 
   # Mirrored under their own directories, the like-named files sit side by side
   # with their own bytes rather than one overwriting the other.
-  assert club.written == {
+  assert recorder.written == {
     'gameresults2/alpha/R260629M.htm': b"alpha's",
     'gameresults2/beta/R260629M.htm': b"beta's",
   }
