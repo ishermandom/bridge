@@ -104,16 +104,12 @@ save otherwise — and auto-reconcile when one lands. Design in
     the event name inside its files (`John & Will's Monday Bridge`), so the
     label can't stand in for the metadata.
 - [ ] Manual-save fallback: a capture dropped in is picked up and matched.
-- [ ] ACBL club-game auto-fetch. A player's club sessions are public, listed by
-      player number at `my.acbl.org/club-results/my-results/<number>` — the same
-      index-and-detail shape as the tournament fetch, so the same
-      headless-browser fetcher applies, against `my.acbl.org` and its
-      `club-results/details/<id>` travellers.
-  - Note: tournament auto-fetch is done
-    (`acbl_fetching.fetch_tournament_travellers`; see travellers.md
-    Acquisition). Club detail pages carry a `var data` JSON blob, the easier
-    parse. Club games also have a club-site copy via `club_fetching`, so ACBL
-    club results are corroboration.
+- [ ] Verify the ACBL club index isn't truncated for older dates.
+      `fetch_club_travellers` reads the index via an in-page fetch of the raw
+      server HTML, which returned every row for the tournament index (not just
+      the DataTables-visible page); the club index uses the identical mechanism,
+      so it is expected to hold — but only a recent, top-of-list club date was
+      checked. Fetch an older club date and confirm the game is found.
 - [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
       reconciliation; review stays deferred until then.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
