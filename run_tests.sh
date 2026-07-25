@@ -18,12 +18,19 @@ package="$repo_root/club_sites/palo_alto"
 # doesn't bootstrap itself the way `uv run` below does, and node_modules is
 # gitignored, so a fresh checkout — most often a new worktree — would otherwise
 # reach `tsc` and `vitest` with neither on PATH.
-node_modules="$package/node_modules"
+#
+# npm records the tree it installed in node_modules/.package-lock.json, writing
+# it last — after the packages and the .bin links — so it doubles as a
+# completion marker. Gating on it rather than on node_modules itself means an
+# install interrupted partway (a Ctrl-C, a hook killed on timeout) is retried
+# rather than mistaken for a finished one; `npm ci` clears the tree before
+# rebuilding it, so the wreckage would otherwise look newer than the lockfile.
+installed_lockfile="$package/node_modules/.package-lock.json"
 
-# `-nt` is "newer than": a lockfile edited since the last install means the
-# installed tree no longer matches what the branch asks for.
-if [ ! -d "$node_modules" ] \
-  || [ "$package/package-lock.json" -nt "$node_modules" ]; then
+# `-nt` is "newer than": a source lockfile edited since the last install means
+# the installed tree no longer matches what the branch asks for.
+if [ ! -f "$installed_lockfile" ] \
+  || [ "$package/package-lock.json" -nt "$installed_lockfile" ]; then
   # `--prefix` points npm at that package without changing directory, and `ci`
   # installs the lockfile exactly — failing on drift from package.json, where
   # `install` would quietly rewrite the lockfile to match. The remaining flags
