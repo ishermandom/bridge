@@ -14,6 +14,14 @@ there, a score printed once per side or once signed. The parsers normalize all
 of it into the shapes below, so two sources covering one session become directly
 comparable and a disagreement between them surfaces as a disagreement rather
 than as a difference in spelling.
+
+Nothing a capture says is thrown away for being unreadable — the same discipline
+the sheet models hold to (see models.md, Design principle: nothing is garbage).
+A parser that cannot read one row keeps the rest and records an `Issue` where
+the failure happened, so reconciliation surfaces it beside every other thing
+worth a person's attention. Travellers are machine-generated and so rarely
+malformed — but rarely is not never, and losing a whole capture's four hundred
+rows to one odd cell is the worse failure.
 """
 
 import datetime
@@ -22,7 +30,7 @@ from collections.abc import Mapping
 
 from session_analysis.enums import Direction, Strain
 from session_analysis.frozen_model import FrozenModel
-from session_analysis.models import Card, Deal, PairIdentity, Resolution
+from session_analysis.models import Card, Deal, Issue, PairIdentity, Resolution
 
 
 class TravellerSource(enum.StrEnum):
@@ -92,6 +100,10 @@ class TravellerResult(FrozenModel):
   # so far leaves it empty on every row, so in practice the lead stays
   # sheet-only. None means the source recorded none.
   opening_lead: Card | None = None
+  # What could not be read from this row, and why. A field left None because its
+  # source said nothing carries no issue; one left None because what the source
+  # said was unreadable carries one.
+  issues: tuple[Issue, ...] = ()
 
 
 class TravellerBoard(FrozenModel):
@@ -101,7 +113,7 @@ class TravellerBoard(FrozenModel):
   every table that played it; the results are per table. Dealer and
   vulnerability are absent because both follow from the board number (see
   board_rotation) — what the parsers do with the values a source prints anyway
-  is `traveller_notation.check_board_schedule`.
+  is `notation.board_schedule_issues`.
   """
 
   number: int
@@ -110,6 +122,10 @@ class TravellerBoard(FrozenModel):
   double_dummy_tricks: DoubleDummyTricks | None = None
   par: Par | None = None
   results: tuple[TravellerResult, ...] = ()
+  # Board-level findings: what could not be read from the deal or the analysis,
+  # and any contradiction between what the source printed and what the board
+  # number fixes. Row-level findings sit on the row.
+  issues: tuple[Issue, ...] = ()
 
 
 class Traveller(FrozenModel):
@@ -127,3 +143,6 @@ class Traveller(FrozenModel):
   # None when the capture states no date of its own.
   date: datetime.date | None = None
   boards: tuple[TravellerBoard, ...] = ()
+  # Findings about the capture as a whole rather than any one board — a page
+  # holding no boards, or one whose event is not a pairs game at all.
+  issues: tuple[Issue, ...] = ()

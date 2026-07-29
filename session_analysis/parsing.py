@@ -40,7 +40,7 @@ from session_analysis.models import (
   Result,
   Schedule,
 )
-from session_analysis.notation import BOOK, tricks_taken_from_sheet_result
+from session_analysis.notation import BOOK, ResultNotation, tricks_taken
 
 # Issue codes this module raises. `Issue.code` stays a plain string until the
 # parser and validation pass together settle the full set into an enum (see
@@ -239,7 +239,11 @@ def parse_contract_cell(cell: str) -> Outcome:
   # already constrained the token to a `±N` form, so it cannot raise here.
   result_token = match.group('result')
   result = Result(
-    tricks_taken=tricks_taken_from_sheet_result(result_token, contract.level)
+    tricks_taken=tricks_taken(
+      result_token,
+      contract_level=contract.level,
+      written_as=ResultNotation.SHEET,
+    )
   )
 
   issues: list[Issue] = []
