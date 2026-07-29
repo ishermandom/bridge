@@ -46,36 +46,25 @@ digitized sheet — enriching it with the deal, matchpoints, and pair identities
 and surfacing disagreements and row swaps. Design in
 [travellers.md](travellers.md).
 
-- [ ] Traveller data model — `Traveller`/`TravellerBoard`/`TravellerResult`,
-      plus the shared `Deal`/`Hand`/`PairIdentity` canonical types (see
-      models.md). Replaces the `Source.travellers` placeholder (`tuple[str]`).
-  - Note: the par shape is settled — see travellers.md (Double-dummy par).
-- [ ] ACBL Live HTML parser → full traveller (every row, deal, par).
-  - Note: par appears twice in the capture — rendered in the markup under
-    `div.par-score`, and again in an embedded JSON blob the page appears to
-    render from. The blob is likely the easier parse: it carries the value as
-    plain text, where the rendered form spells each suit as an
-    `<i class="fa spades">` glyph. Par reads `-450 4S-EW+1/4H-EW+1` — score
-    first, `/` between multiple contracts (escaped `\/` inside the JSON), `*`
-    for a double (`3D*-NS-1`), and a declarer that is a side (`-EW`) or a seat
-    (`-E`).
-  - Note: two ACBL surfaces, two formats. The above is the club capture
-    (my.acbl.org, the `var data` blob). A tournament summary (live.acbl.org,
-    which `acbl_fetching` saves) instead renders its boards into HTML tables
-    with no such blob, so the parser needs a distinct reader for each.
-- [ ] Club PBN parser → full traveller (every row, deal, par, double dummy). The
-      easier of the two club formats, and the one to build first — see
-      travellers.md (Which club format to parse).
-- [ ] Club site HTML parser → full traveller (every row, deal, par). Still
-      needed: roughly a sixth of games publish no PBN.
-  - Note: par renders as `Par −1430: E 6♦=`, with a Unicode minus (U+2212), not
-    an ASCII hyphen, and `&nbsp;` between the parts. Suits are glyphs carrying a
-    CSS class (`bcspades`), so suit identity comes from the class, not the
-    character. Declarer is a side (`EW`) or a seat (`E`), as with ACBL.
-  - Note: has to read both the `R` and `C` variants, and both raw and
-    browser-saved markup — see travellers.md (Which club format to parse).
+The traveller data model, the shared notation, scoring, and all four capture
+parsers have landed on `main`, each verified against the real captures. What
+remains is the join to the sheet.
+
+- [ ] Replace the `Source.travellers` placeholder (`tuple[str, ...]`) in
+      models.py with a reference to the stored traveller. Waits on the storage
+      task under Traveller acquisition, which decides what a reference is.
 - [ ] Find our row by the configured name — either direction, any partner; flag
-      when the name is absent.
+      when the name is absent. {#our-row}
+  - Note: ACBL carries a player number per player, which the parsers keep
+    nowhere — `PairIdentity` holds names only. It would be a far stronger key
+    than a name for the ACBL sources, and it is the one identity the club's
+    files do not carry; worth weighing here against the name-variant problem it
+    would sidestep.
+  - Open question: how well the name match holds on a row carrying surnames
+    alone. The two full-name lookups differ on the movements that number every
+    pair once: `acbl_club_parsing` falls back to a direction-agnostic
+    `(None, number)` key, where `club_html_parsing` has nothing equivalent — see
+    #one-winner-recap for what that costs and why it is parked.
 - [ ] Cross-check recoverable fields; raise review priority on disagreement.
   - Note: the declarer is cross-checked here — the validator can't (an auction
     with implicit passes gives no seats), and neither sheet nor traveller is
@@ -115,12 +104,35 @@ save otherwise — and auto-reconcile when one lands. Design in
       the DataTables-visible page); the club index uses the identical mechanism,
       so it is expected to hold — but only a recent, top-of-list club date was
       checked. Fetch an older club date and confirm the game is found.
+  - Note: the index walk returns all 29 rows, the oldest a year back, so the
+    reading is not truncated. What is left to confirm is the fetch of an old
+    row's game page.
+- [ ] Notice when a club fetch lands on the login page rather than a game. Three
+      of the games listed on the club index answer a fetch that has already
+      cleared Cloudflare with an `ACBL Login` page, which the fetcher saves as
+      the capture. `acbl_club_parsing` then reports `no_page_data`, so nothing
+      goes silently wrong downstream, but a login page is not worth keeping as a
+      capture.
+  - Note: reproducible in a signed-out browser at
+    `my.acbl.org/club-results/details/1430431`, and kept as `1430431.html` under
+    `bridge-private/travellers/raw`. The site redirects rather than serving the
+    login page outright — the first fetch dies with Playwright's "Execution
+    context was destroyed" and the retry lands on the redirect target.
+  - Open question: what makes a game gated. Not the club — `1438869` is gated
+    and `1441256` is not, both at Palo Alto Duplicate. A game can have more than
+    one director and they do not always upload alike, so which director
+    published it is the first thing to look at.
 - [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
       reconciliation; review stays deferred until then.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
       session no traveller arrives for.
 - [ ] Store parsed travellers as structured JSON; keep raw HTML lean (drop the
       ACBL `_files` asset bundle).
+  - Open question: what `Traveller.reference` should hold. A fetched capture has
+    both a URL it came from and a path it was saved to, and the field takes one
+    string, so this task decides which — or whether to carry both. Nothing
+    depends on the choice yet: the field is provenance, and a capture is matched
+    to its session by parsed metadata rather than by either handle.
 
 ---
 
@@ -195,14 +207,14 @@ first stage that runs extraction end to end and writes a session to disk.
 
 ---
 
-## Review UI
+## Review UI {#review-ui}
 
 **Goal:** a minimal, standalone tool to correct flagged fields, image beside
 parsed value.
 
 - [ ] Choose the tech (FastAPI + htmx, or Gradio).
-  - Open question: framework, keybindings, commit semantics — see spec.md (Open
-    questions).
+  - Open question: framework, keybindings, commit semantics — see spec.md
+    `#open-questions`.
 - [ ] Triage-ranked field list with image crop beside the parsed value and
       keyboard accept/fix.
   - Note: an unresolved auction token is currently flagged twice with no shared
@@ -228,11 +240,72 @@ parsed value.
 
 ## Backlog
 
-Forward-looking items parked until their phase or trigger arrives; all are
-settled as open questions in [spec.md](spec.md#open-questions) and
-[travellers.md](travellers.md#open-questions).
+Forward-looking items parked until their phase or trigger arrives; their
+rationale lives in the design docs' open-question sections —
+[spec.md](spec.md#open-questions),
+[travellers.md](travellers.md#open-questions), and
+[models.md](models.md#open-questions-and-todos).
 
 - [ ] Final storage format (queryable DB) and the JSON → DB migration.
+  - Note: the canonical models store cards as `Card` objects for uniformity and
+    for the in-memory checks. That is roughly an order of magnitude larger than
+    the bridge-standard packed form (a hand as `AKQJ.T98.765.432`), and pairs
+    are stored inline per row rather than through a session-level roster. Both
+    are compactness tradeoffs to weigh when the durable store is designed; they
+    do not matter for the transitional JSON.
+- [ ] Fix what an ACBL hand record with no double-dummy analysis produces.
+      Trigger: a capture with one, or a decision to harden regardless.
+      {#acbl-absent-double-dummy}
+  - Note: `acbl_notation.double_dummy_tricks` given empty analysis strings
+    returns a table of twenty nulls rather than None, which misreports "no
+    analysis published" as "analysis published, every cell unknown" —
+    `TravellerBoard.double_dummy_tricks` documents None as the former. That is
+    the whole of what remains here: a sentinel that lies about which case it is
+    in, needing a capture only to confirm what such a record looks like.
+  - Note: `club_pbn_parsing._makeable_tricks` settles the same question the
+    other way for its own source — a table with no readable rows at all comes
+    back as None, not as an empty mapping — so follow it here.
+- [ ] Report the scalar fields a capture states unreadably, instead of passing
+      them off as unstated. Trigger: a capture that exercises one, or a decision
+      to harden regardless. {#silent-none}
+  - Note: every parser has a `_number`, `_date`, or `_integer` helper that
+    returns None for anything it cannot parse — roughly ten `except ValueError:`
+    sites across `club_pbn_parsing`, `club_html_parsing`, `acbl_club_parsing`,
+    and `acbl_tournament_parsing`. So a mangled date, score, or matchpoint
+    arrives as "the source said nothing", which is the one thing
+    `TravellerResult.issues` says it must not be.
+  - Note: the reason they are lenient is that each field has a legitimate
+    absence spelled in-band, and none of these helpers can tell that absence
+    from garbage: an empty field and `??` for a PBN date, `-` for a numeric
+    cell. The fix is the shape `club_pbn_parsing._board_from_record` already
+    uses for the dealer — match the source's own absence markers first, then
+    report whatever is left over.
+  - Note: every captured file reads cleanly, so nothing exercises the path
+    today. Hardening blind would turn a format change into noise rather than a
+    signal, which is why this waits on a trigger.
+  - Note: the tournament captures name their two in-band absence markers
+    already, so that parser's `_integer` has the concrete list to match against
+    when the time comes: `PASS` for a passed-out board and `NS` for a row with
+    no result. The same pass should drop that helper's comma stripping, which no
+    score in either capture exercises.
+  - Open question: what ACBL means by the `NS` a resultless row carries. Across
+    858 rows it appears 34 times and `EW` never, always beside a blank contract
+    and declarer, zero matchpoints, and a score-correction link reading
+    `recordedContract=+&score=NS` where a played row carries a number. The code
+    describes what the page does and expands nothing, which is settled; the
+    reading itself stays open, and a capture carrying `EW` would answer it.
+- [ ] Recover full names from a one-winner club recap. Trigger: a captured
+      Howell or other one-winner movement. {#one-winner-recap}
+  - Note: `club_html_parsing` reads the standings recap only after a heading
+    naming a direction (`Section A North-South`). A one-winner movement ranks
+    its pairs as a single list, so its recap plausibly heads the standings with
+    the section alone — and that parser would then collect no standings at all,
+    leaving every pair with the surnames its board row prints. Confirmed by
+    stripping the direction from a fixture: no row is lost and nothing raises,
+    but the full names go.
+  - Open question: what such a heading actually says. Every club capture on hand
+    is a two-winner Mitchell, so the fix cannot be written without guessing at
+    the markup — hence parked rather than attempted.
 - [ ] Remote-backed, size-tolerant durable store beyond `bridge-private`, if the
       growing game database outgrows the repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital
@@ -241,8 +314,7 @@ settled as open questions in [spec.md](spec.md#open-questions) and
       (deferred: the sessions currently played don't use it).
 - [-] Model escalation: a stronger-model fallback for low-confidence auction
   rows, if single-model accuracy proves insufficient.
-  - Dropped: superseded by extraction voting — see spec.md, Extraction (Voting,
-    not escalation).
+  - Dropped: superseded by extraction voting — see spec.md `#extraction-voting`.
 - [ ] Multi-format sheet geometry: support two-column scoresheet layouts (the
       Baron Barclay and Bridge Buddy samples in `bridge-private/scoresheets`).
       Not a detection tweak — needs column-grid segmentation before row
@@ -250,9 +322,11 @@ settled as open questions in [spec.md](spec.md#open-questions) and
       counts (Baron Barclay prints 16 rows left, 20 right), strip labels that
       carry column identity, and exclusion of the printed VP/IMP scale tables,
       which are themselves uniform grids that pollute the row-count vote.
-  - Note: the user keeps a sheet at tournaments (ACBL-only sessions), played on
-    non-club forms, so multi-format support has a concrete driver beyond the
-    sample forms — see spec.md (Scope).
+  - Note: which layout a session used follows from which sheet was to hand — the
+    custom single-column form, or a double-column one provided at the venue —
+    and not from the kind of event. Club games and tournaments both turn up
+    either way, so this is a live driver rather than a sample-only concern. See
+    spec.md `#scope`.
   - Note: current behavior on the samples — both Baron Barclay forms error
     loudly (ambiguous row count; too few slices), but both Bridge Buddy forms
     return confidently wrong geometry: row boxes spanning both columns (a strip
@@ -285,6 +359,33 @@ settled as open questions in [spec.md](spec.md#open-questions) and
   - Open question: team games may play non-consecutive board sets, so the check
     may need to be format-aware or advisory-only — part of why this is deferred
     rather than queued.
+- [ ] Maybe: solve the traveller fixtures' double-dummy numbers rather than
+      writing them by hand. Every fixture's deals are legal and each par matches
+      a contract its own analysis states, but nothing checks that the trick
+      counts are what the deal actually yields. Applies to every capture
+      fixture, not the club HTML pair alone.
+  - Rationale: someone who solves a fixture deal finds it disagrees with the
+    analysis printed beside it, which reads as a parser bug until they check.
+    Nothing is wrong today — no parser compares the two.
+  - Note: would need a double-dummy solver, which the project does not depend
+    on, so the real question is whether to take one on for test data alone.
+  - Note: the ACBL and PBN fixtures were generated by throwaway scripts that
+    also assert the matchpoint arithmetic — every row's two awards summing to
+    the top, and each side's awards to the same total. The scripts were not
+    kept; regenerating one means rewriting it, so prefer editing a fixture in
+    place unless the change is wholesale.
+- [ ] Maybe: teach the PBN reader what a `{}` comment block is. `_read_records`
+      ignores one only because no table tag is open while it runs — a block
+      placed after a table tag would have its lines read as that table's rows.
+  - Rationale: every capture puts its `{}` block in the opening game, ahead of
+    any table, so nothing is wrong today. The tolerance is incidental rather
+    than intended, which is the part worth fixing or writing down.
+  - Open question: fix, or leave the tolerance and record the assumption in
+    `_read_records`?
+- [ ] Revisit the open questions in
+      [models.md](models.md#open-questions-and-todos) as their triggering work
+      lands — each is a design decision deferred to the phase that resolves it.
+      Resolve or re-defer each rather than letting the section rot.
 
 ---
 
@@ -292,17 +393,73 @@ settled as open questions in [spec.md](spec.md#open-questions) and
 
 **Goal:** tidy-ups that only make sense once the work they trail has landed.
 
+- [ ] Share the `_draw_sheet` test helper, which `rule_grid_test.py`,
+      `sheet_dewarp_test.py`, and `sheet_geometry_test.py` each carry a
+      byte-identical copy of, along with the `_GRID_LEFT` and `_GRID_RIGHT` the
+      helper draws between.
+  - Note: DAMP argues for inlining the values a test asserts on, not for copying
+    a whole builder — and none of the three varies it.
+- [ ] Check that every `file.md #slug` citation resolves to a slug that file
+      defines. Thirty-four citations exist across the code and docs; all resolve
+      today, and nothing keeps them resolving.
+  - Note: a throwaway version of this check, written during the conversion,
+    found a citation naming the wrong file entirely. Its one gap is a compound
+    citation — `models.md #board-number` and `#schedule` — where only the first
+    slug sits next to its filename.
 - [ ] Drop the `session_analysis/travellers/` entry from `.gitignore`. The
       directory is gone — the captures live in `bridge-private` now — and the
       entry is kept only as a guard while the traveller code is in flight, in
       case a fetch or parser defaults to writing back into the public repo.
-      Remove it once acquisition and the parsers read a configured path.
+      Remove it once acquisition reads a configured path; the parsers no longer
+      need the guard, since they take a capture's contents and write nothing.
+  - Note: the entry names a directory, so it does not touch the
+    `session_analysis/travellers.py` module beside it. Worth confirming when the
+    entry goes, since the two names differ only by the trailing slash.
 - [ ] Reorganize the raw captures under `bridge-private/travellers/raw/` by date
       rather than by source. Both fetchers currently mirror each source's own
       path (`live.acbl.org/event/…`, `my.acbl.org/club-results/…`,
       `gameresults2/…`); a date-first layout would group a session's captures
       across sources together. Decide the scheme (e.g. `<date>/<source>/…`) and
       migrate the existing captures.
+- [ ] Say `None` rather than `null` in Python docstrings and comments, where the
+      value being described is a Python one.
+  - Note: leave `null` where it is accurate — `models.md` uses it about the
+    stored JSON shape, and JSON has null. This is a prose rename only, so it
+    touches no behavior and wants its own commit rather than riding along with
+    unrelated work.
+- [ ] Adopt `notation.STRAIN_BY_LETTER` in `parsing.py`, which still keeps a
+      near-identical `_STRAIN_BY_LETTER` of its own. {#shared-letter-maps}
+  - Note: all four traveller parsers now use the shared maps. `parsing.py` is
+    the sheet parser and already on `main`, so it wants its own commit.
+  - Note: `acbl_notation` deliberately keeps its own penalty map — ACBL spells a
+    doubling with an asterisk where every other source trails an `X`, and a
+    publisher's peculiarities are what that module is for. The same goes for the
+    source-specific strain spellings that stay put: the club's `bcspades` CSS
+    classes and the ACBL tournament's `spades` word forms.
+- [ ] Lift local one-offs that name a durable bridge concept into shared code.
+      The example that prompted this is `acbl_club_parsing._PairKey`: a side and
+      a pair number is how every source names a pair, not something that one
+      surface alone needs. Spans the traveller parsers, so it wants a pass of
+      its own once they have all landed.
+  - Note: kin to #shared-letter-maps, which shares data where this would share a
+    type; the same judgment applies — lift what belongs to the game, leave what
+    belongs to one publisher.
+  - Note: the other candidate found so far is `_CONTRACT_PATTERN`, which
+    `acbl_club_parsing` and `acbl_tournament_parsing` spell almost identically.
+    They differ only in whether the pattern tolerates spaces between the level,
+    the strain, and the doubling, which is a difference in what each source
+    hands it rather than in what a contract is.
+  - Note: also `acbl_tournament_parsing._VULNERABLE_SIDES`, which maps a
+    vulnerability to the sides it makes vulnerable. Nothing duplicates it today
+    — `board_rotation` names which vulnerability a board carries and `notation`
+    how a source spells one, neither of which is this — but which sides a
+    vulnerability covers belongs to the game, so it reads like a `Vulnerability`
+    property beside `Side.seats` in `enums`.
+- [ ] Say which club "the club" means, in every file that leans on the phrase.
+  - Note: `club_pbn_parsing` and `club_html_parsing` name the Palo Alto club in
+    their module docstrings, and the rest of each file rides on that anchor.
+    `notation.py`, `models.py`, `spec.md`, and `travellers.md` still say "this
+    club" with nothing nearby to resolve it.
 - [ ] Mine the parked `traveller-model` worktree for anything still worth
       keeping, then delete the branch and its worktree. Sequenced last: it only
       makes sense once the traveller work it overlaps has all landed.

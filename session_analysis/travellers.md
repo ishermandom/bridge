@@ -17,7 +17,9 @@ reconciliation:
   par, and _every table's_ result — both pairs by name and number, the contract,
   declarer, result, score, and matchpoints. This is a searchable record of past
   games, valuable on its own: it stands even for a session where no sheet was
-  kept, and it is the only available record for tournaments.
+  kept, and it is the only source of the deal, which no sheet records. For
+  tournaments it is the only _traveller_ source — there is no club-site copy to
+  corroborate it — though a sheet is kept for those too.
 - **Sheets are our annotations.** The auction, opening lead, freetext notes, and
   review flags for the boards we played — the fields nothing but the sheet
   records (see [spec.md](spec.md#source-of-truth-model)).
@@ -53,10 +55,16 @@ Two sources cover a typical club session; tournaments have only ACBL Live.
 - **ACBL Live** — the official ACBL record. Two surfaces, both keyed by the
   player number (`2475316`): club games at `my.acbl.org/club-results/...` and
   tournaments at `live.acbl.org/player-results/...`. Identifies pairs by name
-  _and_ number, and carries the deal and par.
+  _and_ number, and carries the deal and par. The two are separate parses
+  despite the shared publisher: a club page carries a JSON blob and is read from
+  that blob, while a tournament page carries none and is read from the markup,
+  which arrives already built in the server's response.
+  - Only a **pairs** game publishes a traveller. A team game's page carries
+    match scores and no per-board rows at all, so there is nothing in it to
+    parse — reported as such rather than passed off as an empty traveller.
 - **Club site** (`paloaltobridge.org`) — each game published by BridgeComposer,
   as a PBN and as HTML. Carries the deal and par. Names a row by its pair of
-  surnames (`Bries-Doshi`); full names appear only in the standings recap that
+  surnames (`Alfa-Bravo`); full names appear only in the standings recap that
   both formats embed, reachable from a row by its section and pair number.
   Secondary corroboration.
 - **Pianola** — some club games post only here. Deferred: the sessions currently
@@ -70,13 +78,24 @@ reconciliation-time comparison, not a destructive combine.
 
 ### Which club format to parse {#club-format}
 
-The PBN is much the easier target — a documented, tagged format whose
-`ScoreTable` holds every row and whose board records hold the deal, the
-double-dummy table, and par. But roughly a sixth of games have no PBN, and the
-gap is concentrated in the two directors who publish their HTML under a `C`
-prefix rather than an `R` one; HTML is present for all but a handful of games.
-So the PBN is an optimization on top of an HTML parser that has to exist anyway,
-not a replacement for it.
+The PBN is much the easier target — a documented, tagged format whose board
+records hold the deal, the double-dummy table, and par, and whose `ScoreTable`
+section holds every row. But it is a supplement rather than a substitute, for
+two reasons:
+
+- Roughly a sixth of games have no PBN at all, and the gap is concentrated in
+  the two directors who publish their HTML under a `C` prefix rather than an `R`
+  one; HTML is present for all but a handful of games.
+- **Most PBNs that do exist carry no traveller.** Several directors upload a
+  hand record — deals, double dummy, and par, with no `ScoreTable` at all. Of
+  the captures on hand, only one of five has the rows. So for most games the PBN
+  supplies the deal and the analysis while the HTML supplies the rows.
+
+The HTML parser therefore has to exist regardless, and the PBN parser is worth
+having anyway: it is far more robust than markup scraping for the fields it does
+carry, and its `ScoreTable` gives a second independent reading of the rows
+wherever both files exist. Across the one game published both ways, the two
+parsers agree on every deal, par, contract, result, score, and matchpoint.
 
 The two HTML variants differ only in presentation. Their per-board score tables
 are identical; `R` additionally carries the par contract, where `C` carries the
@@ -146,20 +165,64 @@ Structured JSON, one record per source per session. This is the game database's
 storage shape; it replaces the `Source.travellers` placeholder
 (`tuple[str, ...]`) in [models.md](models.md).
 
-- **`Traveller`** — `source` (ACBL / club), the source reference (URL or game
-  id), event, date, section(s), and the boards.
-- **`TravellerBoard`** — the board number; the `Deal`; the double-dummy par; and
-  the rows. The deal and par are board-level (shared across tables); the results
-  are per-row.
-- **`TravellerResult`** — one table's play of the board: the North-South and
-  East-West `PairIdentity`, the contract, declarer, penalty, result, the
-  North-South and East-West scores and matchpoints, and the opening lead when
-  the source records one. The sheet records none of the pair, contract, result,
-  or deal fields; they come entirely from the traveller.
+Three types, defined in `travellers.py`, which is where each field's meaning
+lives: a **`Traveller`** per source per session, holding **`TravellerBoard`**s,
+each holding a **`TravellerResult`** per table that played it. The deal and the
+double-dummy analysis sit on the board, shared by every table; the pairs,
+contract, result, and scores sit on the row. The shared `Deal`, `Hand`, `Card`,
+`Direction`, `Side`, and `PairIdentity` types are canonical-model types from
+[models.md](models.md).
 
-The shared `Deal`, `Hand`, `Card`, `Direction`, and `PairIdentity` types are
-canonical-model types defined in [models.md](models.md); the traveller types
-reuse them.
+The design decisions behind that shape, which the types themselves cannot
+explain:
+
+- **`TravellerSource` names all four capture formats**, not the two publishers,
+  because each is a distinct parse: club PBN, club HTML, ACBL club, ACBL
+  tournament.
+- **The score is one signed number from North-South's perspective**, not one per
+  side. The sources spell it two ways — a value in one side's column and a blank
+  in the other, or the same number written twice with opposite signs — and both
+  collapse to the signed form without loss. Matchpoints stay per side: they are
+  genuinely two numbers, and what they sum to varies by source (see
+  [the top](#tournament-top)).
+- **Dealer and vulnerability are stored nowhere**, because both follow from the
+  board number (see [models.md](models.md#dealer-and-vulnerability)). What a
+  source prints is read only to be checked against the computed value, which is
+  how a board read off the wrong part of a capture surfaces.
+- **A section is a property of a row, not of the capture.** Each `PairIdentity`
+  carries the section its pair sat in, which is what tells pair 3 in section A
+  from pair 3 in section B. There is deliberately no session-level list of
+  sections: it would only restate what the rows already say. If a use appears —
+  telling a half-saved capture from a whole one is the plausible one — it can be
+  derived then, or added back with a caller that needs it.
+- **Nothing a capture says is discarded for being unreadable.** A parser that
+  cannot read a row keeps the rest and records an `Issue` on the row or board,
+  so reconciliation surfaces it; the public parse entry points do not raise for
+  anything a capture contains. See travellers.py.
+
+### Reporting what could not be read {#issue-reporting}
+
+Every parser ranks an issue by what the failure cost, on one ladder shared by
+all four so the same trouble reads the same whichever source it came from:
+
+- **High** — a structural loss: a capture that yielded no game, a board record
+  nothing can place. The file or the parser's grasp of the format is wrong, and
+  what else the capture says is in doubt.
+- **Medium** — part of the record of play: a row that would not split, a
+  contract that would not read, a deal.
+- **Low** — analysis alone: par, or a cell of the double-dummy table. The play
+  is still fully read; only the commentary on it is short.
+
+Within a parser a helper may raise, where it sits below the level that knows
+what its failure costs — but the raise is caught at the row or the board it came
+from, never at the entry point, which would trade an exception for an empty
+traveller and lose the same rows. `notation` and `acbl_notation` are the shared
+translators and so always raise; their callers catch.
+
+`issue_reporting` holds the `Failure` and `Read` types every parser needs to
+work this way. Each parser declares its own table of `Failure` constants,
+because what a source can fail at is particular to that source where the ladder
+above is not.
 
 ### Double-dummy par
 
@@ -172,11 +235,18 @@ like any other.
 
 - **Makeable tricks** — one cell per `Direction` and `Strain`, twenty in all,
   holding the trick count rather than the contract level the sources print. A
-  cell is null where the source prints a level of zero: that means fewer than
-  seven tricks without saying how many, so null is the honest value and a zero
-  trick count would be a fabrication. This is what makes the captured table a
-  _partial_ reference for checking our own solver — it pins the values at seven
-  tricks and above, and merely bounds the rest.
+  cell is null only where its source declined to say how many, so how complete
+  the table is varies by source:
+  - The **club's HTML** lists the contracts that make and nothing else, so every
+    cell below seven tricks is unstated and therefore null. Its table pins the
+    values at seven tricks and above and merely bounds the rest — a _partial_
+    reference for checking our own solver.
+  - The **club's PBN** states all twenty exactly, in its `OptimumResultTable`.
+  - **ACBL** states all twenty too, switching notation below seven tricks: a
+    number _before_ the strain is a makeable level, a number _after_ it is the
+    trick count itself. The one genuinely-null case is ACBL's `1/-S`, where a
+    dash stands in for the level of a seat that makes nothing — and even that is
+    accompanied by a trick-count cell wherever it has been seen.
 - **`Par`** — the par score and the par contracts achieving it. The score is
   always from North-South's perspective, and sits above the contracts because
   one score is shared by all of them.
@@ -184,8 +254,17 @@ like any other.
   union a played board resolves to (see [models.md](models.md#outcome)). Par is
   the contract optimal bidding would reach and play, so pairing a `Contract`
   with its `Result` is exactly the right shape, and a deal where nothing makes
-  pars at a passout. That case is absent from the captures on hand but costs
-  nothing to support, since the union already models it.
+  pars at a passout.
+
+  No parser produces that `Passout` yet: no capture on hand shows a passed-out
+  par, so how a source would spell one is unknown. Whether it can occur at all
+  is open — the tempting argument that someone always makes at least 1NT does
+  not hold, because double-dummy tricks depend on which seat declares, so the
+  four notrump cells are not complementary. Across 196 boards stating all twenty
+  cells, none has every cell below seven, but the lowest board maximum seen is
+  exactly seven. The union stays; producing one is pending feature work, waiting
+  on a live example.
+
 - **A side-level par expands to one contract per seat.** Both sources mix the
   two forms — `6S-EW` alongside `6H-E` — and `Contract.declarer` is a single
   seat. A side means _both_ of its seats achieve the score, so expanding it
@@ -198,6 +277,35 @@ as much as for a making contract. ACBL writes no marker at all when the par
 contract makes exactly, showing only `+N` or `-N`; the club states the result on
 every par seen, `=` included, so where both sources cover a board the club's
 result checks the reconstruction.
+
+### The trick count a tournament does not publish
+
+ACBL's tournament pages print a score on every row but no trick count — the
+results column is commented out of their markup. The canonical `Result` is
+therefore **recovered by scoring**: score all fourteen possible results of the
+contract and take the one matching the published score. For a fixed contract and
+vulnerability every extra trick is worth strictly more than the last, so exactly
+one can match and no inverse has to be written or maintained. The vulnerability
+comes from the board number, as everywhere else.
+
+Recovering a trick count this way is what `scoring.py` exists for, ahead of the
+analysis stage that will want scoring anyway. The independent evidence is the
+captures themselves: every row of both tournament sessions reconciles, so ACBL's
+own scores agree with the scoring table throughout.
+
+### The top a tournament scales its matchpoints to {#tournament-top}
+
+A row's two sides' matchpoints sum to the board's top, and on ACBL's tournament
+pages that top is one number for the whole session rather than one per board. A
+board played fewer times than the rest is scaled up to it, which is what stops
+its matchpoints from being halves: both captured sessions top at 15, and a board
+played 14 times carries 0.07, 1.21, 8.64, and 14.93 among its values.
+
+Worth knowing before reading an odd-looking matchpoint as a parse fault. The
+constant total is also what makes a mis-joined row visible from outside, since
+each row is printed once in either side's table and the two are joined on the
+pair numbers they both name — though a director awarding an average to both
+sides puts a row off the total legitimately.
 
 ## Reconciliation
 
@@ -214,9 +322,9 @@ configured name, in either direction, with any partner. Name match is
 authoritative; when the name is found in no row (a wrong-session traveller, a
 misspelling), the board is flagged for review rather than guessed at.
 
-This dissolves the harder "recover our identity by content" problem: we know who
-we are, so reconciliation recovers only the _opponents'_ identity (the other
-pair in our row) and the matchpoints.
+Matching on the configured name dissolves the harder "recover our identity by
+content" problem: we know who we are, so reconciliation recovers only the
+_opponents'_ identity (the other pair in our row) and the matchpoints.
 
 ### Cross-checks and enrichment
 
@@ -298,10 +406,44 @@ the public repo.
 
 ## Testing
 
-- **HTML parsers** — committed fixtures with placeholder member names exercise
-  the parse logic in the public repo; the real captures, kept in
+- **Capture parsers** — committed fixtures with placeholder member names
+  exercise the parse logic in the public repo; the real captures, kept in
   `bridge-private`, back integration checks. This mirrors the extraction
   fixtures' placeholder convention (see [spec.md](spec.md#testing-strategy)).
+  Each test file writes out the few fields or elements a test turns on, and
+  keeps a small minority that parse a whole captured file end to end — one per
+  distinct published shape, which is why the club HTML has two (its `R` and `C`
+  variants) and the ACBL club has two (its one- and two-winner movements, which
+  differ in whether a pair number names one pair or two). A test's builders take
+  domain values and serialize themselves, so a test never spells out markup or
+  JSON it is not about. Surnames come from the NATO alphabet in its own
+  spellings — `Alfa`, `Juliett` — so a name reads as a placeholder on sight.
+- **Fixture markup keeps the source's shape** — BridgeComposer emits one line
+  per table row, so a club HTML fixture carries lines of several hundred columns
+  and the real captures run past two thousand. Wrapping them for readability
+  would make a fixture less like its input, and the standings recap is a `<pre>`
+  block whose line breaks the parser splits on. A PBN's name columns are padded
+  to the widths its `ScoreTable` header declares, so a placeholder there cannot
+  change length without being repadded to match.
+- **Which real capture is which** — worth knowing before reaching for "an ACBL
+  club capture" to check something against. Only a pairs game carries a
+  traveller: `1484015.html` is a team game, whose page has no per-board rows at
+  all. Of the two pairs games, `1472071.html` ran a one-winner movement and
+  `1441256.html` a two-winner one, so only the second names a direction on its
+  pair summaries. `1441256.html` is also the only capture that does not parse
+  clean: ACBL wrote board 18's par as `Par: 660 4NT-NT+1`, repeating the strain
+  where the declarer belongs, which the parser reports and the board survives.
+  `1430431.html` is not a game page at all — it is the ACBL login page the fetch
+  came back with, kept as the example of what a gated game saves as. The two
+  tournament captures are the two sessions of one event, 26 boards and a single
+  section apiece, and both parse clean.
+- **Showing a parser change alters nothing** — dump every real capture through
+  `model_dump_json` before and after, and diff the two. The committed fixtures
+  are too small to be the whole check; the captures under
+  `bridge-private/travellers` are what exercise the shapes a publisher actually
+  emits. For a rewritten regex, also run the old pattern against the new over
+  generated inputs that include near-misses, since a capture only exercises what
+  it happens to contain.
 - **Name match, source merge, and the deal-versus-lead check** — pure logic,
   unit-tested with hand-constructed travellers and boards, with zero fetching.
 - **Swap detection** — a fixture with the known 6/29 board-20/21 swap asserts
