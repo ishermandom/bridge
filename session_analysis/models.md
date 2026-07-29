@@ -238,7 +238,11 @@ passout).
 
 ### Enums
 
-- `Direction` — `N` / `E` / `S` / `W`.
+- `Direction` — `N` / `E` / `S` / `W`. A single seat.
+- `Side` — `NS` / `EW`. The two seats that play as one pair, which is what a
+  pair identity and a par contract's declaring side are stated in terms of.
+  Carries the seats it covers, so a source that states something for a whole
+  side can expand it.
 - `Strain` — `C` / `D` / `H` / `S` / `NT`.
 - `Suit` — `C` / `D` / `H` / `S`.
 - `Rank` — `2`…`9`, `T`, `J`, `Q`, `K`, `A`.
@@ -261,10 +265,12 @@ validation pass define the concrete code set (see
 - `event` — raw footer text.
 - `date` — parsed date, or null with an issue if unparseable.
 - `source` — provenance: the sheet image (path + content hash) and the
-  travellers consulted — references to the `Traveller` records reconciliation
-  captured (see [travellers.md](travellers.md)), replacing the earlier
-  placeholder path list.
+  travellers consulted — still a placeholder path list, until the storage task
+  settles what a reference to a stored `Traveller` is (see
+  [travellers.md](travellers.md)).
 - `boards` — the tuple of `Board`s.
+- `issues` — session-level issues, such as an unreadable date; board- and
+  token-level issues live on the board and its envelopes.
 
 Our own pair identity is intentionally not a field here: it is resolved from the
 travellers at reconciliation, not read from the sheet (see
@@ -290,8 +296,7 @@ travellers at reconciliation, not read from the sheet (see
 
 A board's boxed calls aren't a separate field: each boxed call's `AuctionEntry`
 carries `flagged_for_discussion`, and the "calls to discuss with partner" list
-is a filter over the auction. This supersedes the earlier decision to fold boxes
-into `notes`.
+is a filter over the auction.
 
 ### BoardNumber
 
@@ -381,18 +386,23 @@ reconciliation-time check, not a Pydantic constraint.
 
 ### Hand
 
-- `cards` — the thirteen `Card`s the player held.
+- `cards` — the `Card`s the player held.
 
 ### PairIdentity
 
-A pair as the travellers record them; the sheet records no pair identity at all.
-Shared by the canonical `Board` (our pair and the opponents') and the traveller
-records (see [travellers.md](travellers.md)).
+A pair as a traveller records them, on one board. Shared by the canonical
+`Board` (our pair and the opponents') and the traveller records (see
+[travellers.md](travellers.md)).
 
 - `number` — the pair number.
-- `direction` — the pair's `Direction` for the board.
-- `section` — the section, when the event has more than one; else null.
-- `names` — the two players' names.
+- `side` — the `Side` the pair sat.
+- `section` — the section, when the event has more than one; else omitted.
+- `names` — the two players, as the source names them.
+
+Per-board — and `PairIdentity`'s docstring explains why that is not a
+session-wide handle even _within_ one session, which is the part that isn't
+obvious. Anything summarizing a session, or comparing across them, therefore
+keys on the players.
 
 ### Outcome
 

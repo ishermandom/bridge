@@ -17,6 +17,7 @@ whole, rather than each field being independently absent. Content validation
 """
 
 import datetime
+from collections.abc import Mapping
 from typing import Annotated, Literal
 
 import pydantic
@@ -28,6 +29,7 @@ from session_analysis.enums import (
   IssueSeverity,
   Penalty,
   Rank,
+  Side,
   Strain,
   Suit,
   Vulnerability,
@@ -70,6 +72,59 @@ class Card(FrozenModel):
 
   rank: Rank
   suit: Suit
+
+
+class Hand(FrozenModel):
+  """The cards one player held on a board.
+
+  Thirteen of them, in a well-formed deal — but that is not a constraint here,
+  for the reason `Deal` gives: a source printing a malformed hand is surfaced at
+  reconciliation rather than refused at parse time.
+  """
+
+  cards: tuple[Card, ...]
+
+
+class Deal(FrozenModel):
+  """A board's four hands, one per seat.
+
+  Traveller-sourced: the sheet records nothing about the deal, so a deal is
+  filled at reconciliation or not at all. Well-formedness — fifty-two distinct
+  cards, thirteen to a hand — is a reconciliation-time check rather than a
+  constraint here, so a source that prints a malformed deal still parses and is
+  surfaced rather than rejected.
+  """
+
+  hands: Mapping[Direction, Hand]
+
+
+class PairIdentity(FrozenModel):
+  """Who a traveller says a pair was, on one board.
+
+  A per-board identity, not a session-wide one. `number` and `side` together
+  name a pair on the row they were read from: a two-winner movement numbers its
+  two directions separately, so the side is what tells pair 5 North-South from
+  pair 5 East-West — but a one-winner movement sits one pair both ways over a
+  session, and the same two players then surface under two identities. What is
+  stable across a session is the players, not this.
+
+  Traveller-sourced. The sheet does carry a pair number, but the vision model is
+  told to disregard it (see models.md, Vision model output): the traveller is
+  authoritative for who sat where.
+  """
+
+  # A label rather than a quantity — nothing counts or orders it — so it keeps
+  # the source's own spelling, which varies: `7` at one club, `A9` where the
+  # section prefixes the number, `10` where two digits are needed.
+  number: str
+  side: Side
+  # Null when the event ran a single unnamed section.
+  section: str | None = None
+  # The two players, as the source names them. Sources differ in how much they
+  # give: ACBL prints full names, the club's per-board rows only surnames — so
+  # the club parsers recover full names from the standings recap the capture
+  # embeds, keyed by `number` and `side`.
+  names: tuple[str, ...] = ()
 
 
 class Contract(FrozenModel):

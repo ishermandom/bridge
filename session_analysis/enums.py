@@ -8,6 +8,7 @@ them arrive.
 """
 
 import enum
+from collections.abc import Mapping
 
 
 class Direction(enum.StrEnum):
@@ -17,6 +18,28 @@ class Direction(enum.StrEnum):
   EAST = 'E'
   SOUTH = 'S'
   WEST = 'W'
+
+
+class Side(enum.StrEnum):
+  """A partnership — the pair of seats that plays as one unit.
+
+  Distinct from `Direction`, which names a single seat. A pair sits North-South
+  or East-West; a declarer sits North, East, South, or West.
+  """
+
+  NORTH_SOUTH = 'NS'
+  EAST_WEST = 'EW'
+
+  @property
+  def seats(self) -> tuple[Direction, Direction]:
+    """The two seats this side occupies."""
+    return _SIDE_SEATS[self]
+
+
+_SIDE_SEATS: Mapping[Side, tuple[Direction, Direction]] = {
+  Side.NORTH_SOUTH: (Direction.NORTH, Direction.SOUTH),
+  Side.EAST_WEST: (Direction.EAST, Direction.WEST),
+}
 
 
 class Vulnerability(enum.StrEnum):
