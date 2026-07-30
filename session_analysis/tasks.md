@@ -31,6 +31,11 @@ output, parsed into the canonical model.
   - Note: if this pans out, it reshapes the Backlog's multi-format geometry item
     — a model-driven approach may handle two-column layouts without a hand-built
     column-grid stage.
+- [ ] Re-run the strips comparison against `claude-opus-5` and update spec.md's
+      cost delta and quality notes.
+  - Rationale: `DEFAULT_MODEL` moved from `claude-opus-4-8` to `claude-opus-5`;
+    the recorded ~$0.25–0.30/run figure and the markup-reading comparison were
+    measured against the old model and may no longer hold.
 
 ---
 
