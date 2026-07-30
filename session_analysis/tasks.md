@@ -121,15 +121,72 @@ save otherwise — and auto-reconcile when one lands. Design in
 
 ## Ingest
 
-**Goal:** get a scan from the phone onto the Mac and into the inbox pipeline.
+**Goal:** get a scan from the phone onto the Mac and through the pipeline — the
+first stage that runs extraction end to end and writes a session to disk.
 
 - [ ] Choose the scanner app and transport.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
+  - Note: this gates where `inbox/` lives, not the pipeline code below it — the
+    spine can be built and tested against a local directory first.
+- [ ] Settle the ingest tree's home and reach it through a configured root:
+      `inbox/`, `archive/`, and the `processed/` records.
+  - Rationale: scans and reconciled sessions carry other members' names, so the
+    tree belongs in `bridge-private` alongside `scoresheets/`, not in this repo
+    under a relative path.
+  - Note: the traveller captures need the same treatment (see Traveller
+    acquisition) — decide the two together so they share one setting, or two
+    that agree.
+- [ ] Wire the extraction run: scan image → `transcribe_sheet` →
+      `parse_and_assemble_voted_session` → a validated `Session`. Nothing calls
+      the two entry points together today.
+  - Note: ingest supplies what they need beyond the image — the `Source`
+    (archived path plus content hash) and the `reference_date`.
+  - Note: `reference_date` is the day of the scan, not the day of the run — it
+    is what fixes the year on a footer that writes only `6/29`. Reprocessing an
+    archived scan resolves the year against the wrong "today" and shifts it
+    silently, so take the date from the image's capture time, not the clock.
+- [ ] Decode the scan into images: rasterize PDF pages, and settle what several
+      pages in one container mean.
+  - Open question: spec.md allows a multi-page scan of one sheet, but
+    `transcribe_sheet` takes a single image. Are the extra pages retakes to
+    choose among, parts of one grid to stitch, or separate sheets? The answer
+    decides whether this is a decode step or a merge stage.
+- [ ] Persist the detected geometry and `source_quad` with the processed
+      session.
+  - Note: `SheetTranscription`'s docstring already promises these persist
+    "alongside the processed session", so the review UI can reproduce the
+    dewarped frame and its grid from the archived scan instead of re-detecting
+    them — but `Session` and `Source` have no field to hold them. Needs a
+    models.md decision before the writer lands.
+- [ ] Failure disposition: a scan that raises — `SheetGeometryError`, an
+      unreadable file, a failed model invocation — reports loudly and moves
+      somewhere terminal rather than sitting in `inbox/` for the next run to
+      retry.
+  - Rationale: the explicit command was chosen over a watcher so failures stay
+    visible; a scan that silently stays put re-spends a model call every run.
 - [ ] Inbox spine: `inbox/` → `processed/<session-key>.json` + image →
       `archive/`, idempotent on footer + content hash.
+  - Note: the two keys apply at different points. The content hash is known
+    before extraction and short-circuits a re-dropped file without spending a
+    model call; the footer is known only after extraction, and catches a fresh
+    photo of a sheet already digitized.
 - [ ] Footer self-naming → session key, confirmed in review before commit.
+  - Note: derivation is unspecified beyond the example `pabc-mon-2026-06-29` — a
+    club slug and a weekday off handwritten freetext, so it needs a
+    normalization rule rather than a format string.
+  - Note: the key is also the reconciliation join, so it has to agree with the
+    traveller-side match on event and date (see Traveller acquisition).
+  - Open question: review is deferred until reconciliation runs, so the key
+    can't be confirmed at ingest time. Decide what the record and its image are
+    named in between — a provisional key renamed once confirmed, or a stable id
+    that never moves, with the key as a field only.
 - [ ] The "process inbox" command.
+  - Note: `session_analysis` is a `package = false` uv member with no console
+    script, so this runs as `python -m session_analysis.<module>` unless that
+    changes; `convention_cards/make_card.py` is the house argparse pattern.
+  - Note: an explicit trigger only beats a watcher if its output says what
+    happened — summarize each scan as digitized, skipped, or failed.
 
 ---
 
@@ -241,3 +298,12 @@ settled as open questions in [spec.md](spec.md#open-questions) and
       `gameresults2/…`); a date-first layout would group a session's captures
       across sources together. Decide the scheme (e.g. `<date>/<source>/…`) and
       migrate the existing captures.
+- [ ] Mine the parked `traveller-model` worktree for anything still worth
+      keeping, then delete the branch and its worktree. Sequenced last: it only
+      makes sense once the traveller work it overlaps has all landed.
+  - Note: it holds a second, earlier traveller data model, superseded by the one
+    real captures drove. Its documentation fixes were already folded in; what
+    may remain is the `TravellerIdentity` shape (worth a look when the storage
+    task settles what a traveller reference is) and the `Board` enrichment
+    fields `deal`/`our_pair`/`opponents`, which models.md documents and the
+    reconciliation phase will need.
