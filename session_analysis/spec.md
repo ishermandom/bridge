@@ -163,7 +163,7 @@ the normalizer is **built and unit-tested before anything that depends on it**
 The sheet's handwriting is read by a vision model via **Claude Code in headless
 mode**, on the existing Claude subscription — no separate API billing.
 
-- **Model**: `claude-opus-4-8`. A **single model, no escalation fallback** — the
+- **Model**: `claude-opus-5`. A **single model, no escalation fallback** — the
   digest's Sonnet-workhorse-plus-Opus-escalation tiering is deliberately skipped
   as premature for 1–2 sheets/week. Started on `claude-sonnet-5`; switched after
   a live strips comparison showed Opus reading markup semantics more reliably
