@@ -32,7 +32,7 @@ import datetime
 import re
 from collections.abc import Mapping, Sequence
 
-from session_analysis import notation
+from session_analysis import issue_reporting, notation
 from session_analysis.enums import Direction, IssueSeverity, Side, Strain
 from session_analysis.models import (
   Contract,
@@ -165,66 +165,33 @@ class _ClubPbnFormatError(ValueError):
   """
 
 
-@dataclasses.dataclass(frozen=True)
-class _Read[T]:
-  """What a reader read, paired with what it could not.
-
-  Returned by the readers that walk rows — the score table, the double-dummy
-  table, the par statements. Those keep the rows they can read and report the
-  rest, so a partial read is an ordinary outcome and needs somewhere to put the
-  report.
-  """
-
-  value: T
-  issues: tuple[Issue, ...] = ()
-
-
-@dataclasses.dataclass(frozen=True)
-class _Failure:
-  """A kind of thing this parser can fail to read.
-
-  A failure's code, the field it belongs to, and how far it should pull a board
-  up the review queue are fixed per kind; only the message varies with the row
-  that provoked it. Binding the three together states each kind once, so two
-  sites reporting the same failure cannot rank it differently.
-  """
-
-  code: str
-  severity: IssueSeverity
-  location: str
-
-  def issue(self, message: str) -> Issue:
-    """This kind of failure, as reported against one board or row."""
-    return Issue(
-      code=self.code,
-      severity=self.severity,
-      message=message,
-      location=self.location,
-    )
-
-
-# Every kind of thing this parser can fail to read. What each one costs — and so
-# how far it should pull a board up the review queue — is the same judgment in
-# every parser, stated in travellers.md (Reporting what could not be read).
-_NO_BOARD_RECORDS = _Failure('no_board_records', IssueSeverity.HIGH, 'boards')
-_UNREADABLE_BOARD_NUMBER = _Failure(
+# Every kind of thing this parser can fail to read, ranked by the shared ladder
+# in travellers.md (Reporting what could not be read).
+_NO_BOARD_RECORDS = issue_reporting.Failure(
+  'no_board_records', IssueSeverity.HIGH, 'boards'
+)
+_UNREADABLE_BOARD_NUMBER = issue_reporting.Failure(
   'unreadable_board_number', IssueSeverity.HIGH, 'boards'
 )
-_UNREADABLE_ROW = _Failure('unreadable_row', IssueSeverity.MEDIUM, 'results')
-_UNREADABLE_CONTRACT = _Failure(
+_UNREADABLE_ROW = issue_reporting.Failure(
+  'unreadable_row', IssueSeverity.MEDIUM, 'results'
+)
+_UNREADABLE_CONTRACT = issue_reporting.Failure(
   'unreadable_contract', IssueSeverity.MEDIUM, 'resolution'
 )
-_UNREADABLE_DEAL = _Failure('unreadable_deal', IssueSeverity.MEDIUM, 'deal')
-_UNREADABLE_DEALER = _Failure(
+_UNREADABLE_DEAL = issue_reporting.Failure(
+  'unreadable_deal', IssueSeverity.MEDIUM, 'deal'
+)
+_UNREADABLE_DEALER = issue_reporting.Failure(
   'unreadable_dealer', IssueSeverity.MEDIUM, 'dealer'
 )
-_UNREADABLE_DOUBLE_DUMMY_ROW = _Failure(
+_UNREADABLE_DOUBLE_DUMMY_ROW = issue_reporting.Failure(
   'unreadable_double_dummy_row', IssueSeverity.LOW, 'double_dummy_tricks'
 )
-_UNREADABLE_PAR_SCORE = _Failure(
+_UNREADABLE_PAR_SCORE = issue_reporting.Failure(
   'unreadable_par_score', IssueSeverity.LOW, 'par'
 )
-_UNREADABLE_PAR_CONTRACT = _Failure(
+_UNREADABLE_PAR_CONTRACT = issue_reporting.Failure(
   'unreadable_par_contract', IssueSeverity.LOW, 'par'
 )
 
@@ -561,7 +528,7 @@ def _direction(value: str) -> Direction | None:
     return None
 
 
-def _deal(value: str) -> _Read[Deal | None]:
+def _deal(value: str) -> issue_reporting.Read[Deal | None]:
   """The deal a `[Deal]` tag states, or None when the tag states none.
 
   The tag names the seat it starts at and then lists the four hands clockwise
@@ -573,7 +540,7 @@ def _deal(value: str) -> _Read[Deal | None]:
   """
   value = value.strip()
   if not value:
-    return _Read(None)
+    return issue_reporting.Read(None)
 
   first_seat, _, hands_text = value.partition(':')
   start = _direction(first_seat)
@@ -596,18 +563,20 @@ def _deal(value: str) -> _Read[Deal | None]:
       )
       for position, hand in enumerate(hands_text_by_seat)
     }
-    return _Read(notation.deal_from_hands(hands))
+    return issue_reporting.Read(notation.deal_from_hands(hands))
   except notation.NotationError as error:
     # An unreadable rank, or a suit holding the tag left out.
     return _unreadable_deal(str(error))
 
 
-def _unreadable_deal(message: str) -> _Read[Deal | None]:
+def _unreadable_deal(message: str) -> issue_reporting.Read[Deal | None]:
   """No deal, and the reason there is none."""
-  return _Read(None, issues=(_UNREADABLE_DEAL.issue(message),))
+  return issue_reporting.Read(None, issues=(_UNREADABLE_DEAL.issue(message),))
 
 
-def _makeable_tricks(table: _Table | None) -> _Read[DoubleDummyTricks | None]:
+def _makeable_tricks(
+  table: _Table | None,
+) -> issue_reporting.Read[DoubleDummyTricks | None]:
   """The double-dummy table an `[OptimumResultTable]` section states.
 
   This section is read rather than BridgeComposer's `[DoubleDummyTricks]` tag,
@@ -618,7 +587,7 @@ def _makeable_tricks(table: _Table | None) -> _Read[DoubleDummyTricks | None]:
   for.
   """
   if not table:
-    return _Read(None)
+    return issue_reporting.Read(None)
 
   tricks: dict[Direction, dict[Strain, int | None]] = {}
   issues: list[Issue] = []
@@ -643,12 +612,12 @@ def _makeable_tricks(table: _Table | None) -> _Read[DoubleDummyTricks | None]:
 
   # A table with no readable rows at all is no table: None is what stands for no
   # analysis, where an empty mapping would claim an analysis that said nothing.
-  return _Read(tricks or None, issues=tuple(issues))
+  return issue_reporting.Read(tricks or None, issues=tuple(issues))
 
 
 def _par(
   record: _Record, *, double_dummy_tricks: DoubleDummyTricks | None
-) -> _Read[Par | None]:
+) -> issue_reporting.Read[Par | None]:
   """The par an `[OptimumScore]` and `[ParContract]` pair state.
 
   The score is the primary fact and the contracts are the ways to reach it, so
@@ -657,11 +626,11 @@ def _par(
   """
   stated_score = record.tags.get('OptimumScore', '').strip()
   if not stated_score:
-    return _Read(None)
+    return issue_reporting.Read(None)
 
   score_match = _PAR_SCORE_PATTERN.fullmatch(stated_score)
   if not score_match:
-    return _Read(
+    return issue_reporting.Read(
       None,
       issues=(
         _UNREADABLE_PAR_SCORE.issue(f'unreadable par score: {stated_score!r}'),
@@ -708,12 +677,14 @@ def _par(
       # table to recover it from.
       issues.append(_UNREADABLE_PAR_CONTRACT.issue(str(error)))
 
-  return _Read(
+  return issue_reporting.Read(
     Par(score=score, resolutions=tuple(resolutions)), issues=tuple(issues)
   )
 
 
-def _results(table: _Table | None) -> _Read[tuple[TravellerResult, ...]]:
+def _results(
+  table: _Table | None,
+) -> issue_reporting.Read[tuple[TravellerResult, ...]]:
   """The traveller rows a `[ScoreTable]` section holds.
 
   A file with no score table yields no rows. Several of the club's directors
@@ -722,7 +693,7 @@ def _results(table: _Table | None) -> _Read[tuple[TravellerResult, ...]]:
   failure to find rows in it.
   """
   if not table:
-    return _Read(())
+    return issue_reporting.Read(())
 
   rows: list[TravellerResult] = []
   issues: list[Issue] = []
@@ -738,7 +709,7 @@ def _results(table: _Table | None) -> _Read[tuple[TravellerResult, ...]]:
       continue
     rows.append(_result(read))
 
-  return _Read(tuple(rows), issues=tuple(issues))
+  return issue_reporting.Read(tuple(rows), issues=tuple(issues))
 
 
 def _result(read: Mapping[str, str]) -> TravellerResult:
@@ -769,11 +740,13 @@ def _pair(read: Mapping[str, str], *, side: Side, section: str) -> PairIdentity:
   )
 
 
-def _resolution(read: Mapping[str, str]) -> _Read[Resolution | None]:
+def _resolution(
+  read: Mapping[str, str],
+) -> issue_reporting.Read[Resolution | None]:
   """What a row's contract column resolved to, or None when it names none."""
   contract = read.get('Contract', '').strip().upper()
   if contract == _PASSOUT:
-    return _Read(Passout())
+    return issue_reporting.Read(Passout())
 
   match = _CONTRACT_PATTERN.fullmatch(contract)
   declarer = _direction(read.get('Declarer', ''))
@@ -783,8 +756,8 @@ def _resolution(read: Mapping[str, str]) -> _Read[Resolution | None]:
     # played, or one the director adjusted — so only a row that named one and
     # then would not read is worth reporting.
     if not contract or contract == _ABSENT:
-      return _Read(None)
-    return _Read(
+      return issue_reporting.Read(None)
+    return issue_reporting.Read(
       None,
       issues=(
         _UNREADABLE_CONTRACT.issue(
@@ -794,7 +767,7 @@ def _resolution(read: Mapping[str, str]) -> _Read[Resolution | None]:
       ),
     )
 
-  return _Read(
+  return issue_reporting.Read(
     PlayedContract(
       contract=Contract(
         level=int(match.group('level')),
