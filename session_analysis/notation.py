@@ -12,8 +12,8 @@ What belongs here is pure, general-purpose translation — logic that depends on
 on bridge notation, never on how a particular source lays out its document. So a
 source's HTML structure stays in its parser, and a spelling peculiar to one
 publisher stays with that publisher (see `acbl_notation`); nothing here knows
-which source it is serving. That test is what keeps this module from becoming a
-drawer of parser helpers.
+which source it is serving. Holding to that membership test is what keeps this
+module from becoming a drawer of parser helpers.
 
 Nothing is thrown away for being unreadable. A value a source declines to state
 comes back as None; a value it states unreadably raises `NotationError`, which

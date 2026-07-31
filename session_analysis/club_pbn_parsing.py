@@ -10,9 +10,9 @@ traveller itself is a `ScoreTable` section.
 What a PBN does not always carry is the traveller. Several of the club's
 directors upload a hand record only — deals, double dummy, and par, with no
 `ScoreTable` at all — so such a file yields a traveller whose boards have no
-results. That is a complete parse of what the file says, not a failure; the HTML
-capture of the same game supplies the rows (see travellers.md, Which club format
-to parse).
+results. An empty traveller is a complete parse of what the file says, not a
+failure; the HTML capture of the same game supplies the rows (see travellers.md,
+Which club format to parse).
 
 The comments below distinguish two kinds of claim, because the two age
 differently. What the **PBN standard** fixes (version 2.1, `tistis.nl/pbn`)
@@ -146,8 +146,8 @@ _PASSOUT = 'PASS'
 # The standard's date format, always exactly ten characters. The fixed width is
 # what allows a date to be partly unknown: a file that knows only the year must
 # still fill the month and day positions, and the standard reserves `??` for
-# digits it cannot supply. So `2026.??.??` is a well-formed value and still not
-# a date. No captured file has used `??` yet.
+# digits the file cannot supply. So `2026.??.??` is a well-formed value and
+# still not a date. No captured file has used `??` yet.
 _DATE_FORMAT = '%Y.%m.%d'
 
 
@@ -160,7 +160,7 @@ class _ClubPbnFormatError(ValueError):
   row differently. Both callers catch it, so nothing raised here leaves the
   module.
 
-  A tag the file simply omits is not this. That yields a traveller with the
+  A tag the file simply omits is not this, and yields a traveller with the
   corresponding field empty and no issue at all.
   """
 
@@ -314,9 +314,8 @@ def _first_tag(records: Sequence[_Record], name: str) -> str:
 
   A tag whose value is the same all through a file is written out once and then
   repeated with `#`, which the standard defines as "take the value from the
-  nearest earlier game". This club's directors also leave several such tags
-  empty outright, so the opening game is not reliably the one that states the
-  value:
+  nearest earlier game". The club's directors also leave several such tags empty
+  outright, so the opening game is not reliably the one that states the value:
 
   ```
   [Event ""]        <- the opening game, saying nothing
@@ -491,11 +490,11 @@ def _name_column_end(remainder: str, width: int) -> int:
   """Where a name column ends within the rest of its row.
 
   The standard makes a declared width a *minimum*, not the width the column was
-  printed at: a value that fits is padded out to it, and one that does not
-  simply runs past it, pushing every column to its right along. So the column
-  ends at the declared width when the character sitting there is the space that
-  separates two columns, and at the next space when the value overran instead —
-  which is what keeps a long pair of surnames whole.
+  printed at: a value short enough is padded out to the declared width, and a
+  value too long simply runs past that width, pushing every column to its right
+  along. So the column ends at the declared width when the character sitting
+  there is the space that separates two columns, and at the next space when the
+  value overran instead — which is what keeps a long pair of surnames whole.
   """
   end = width
   while end < len(remainder) and not remainder[end].isspace():

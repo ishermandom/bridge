@@ -5,9 +5,10 @@
 The models are plain data holders, so most of their behaviour is Pydantic's, not
 ours — constructing one and reading a field back only exercises the framework.
 What is ours, and what the stored JSON depends on, is the serialization shape:
-chiefly the tagged `Outcome` union, which must keep a played contract, a passout,
-and an unparsed cell distinct. That is what these tests pin. Turning vision-model
-strings into these models is the parser's behaviour, and is tested there.
+chiefly the tagged `Outcome` union, which must keep a played contract, a
+passout, and an unparsed cell distinct. Keeping those three apart is what these
+tests pin. Turning vision-model strings into these models is the parser's
+behaviour, and is tested there.
 """
 
 from session_analysis.enums import Direction, Penalty, Strain
