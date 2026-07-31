@@ -75,6 +75,28 @@ SEATS_CLOCKWISE = (
   Direction.WEST,
 )
 
+# Every letter a contract's strain is written with. `NT` is the usual spelling
+# of notrump; a bare `N` turns up wherever a source wants the strain one
+# character wide, and means the same thing. Every capture spells the four suits
+# by their initials, so one map serves them all.
+STRAIN_BY_LETTER: Mapping[str, Strain] = {
+  'NT': Strain.NOTRUMP,
+  'N': Strain.NOTRUMP,
+  'S': Strain.SPADES,
+  'H': Strain.HEARTS,
+  'D': Strain.DIAMONDS,
+  'C': Strain.CLUBS,
+}
+
+# The `X` a written contract trails to say the opponents doubled it: `4HX` is
+# doubled, `4HXX` redoubled, `4H` neither. The empty string is a key too, so a
+# pattern whose `X{0,2}` matched nothing needs no special case at its call site.
+PENALTY_BY_SUFFIX: Mapping[str, Penalty] = {
+  '': Penalty.NONE,
+  'X': Penalty.DOUBLED,
+  'XX': Penalty.REDOUBLED,
+}
+
 # The pattern of a result token: a sign followed by one or more digits.
 _RESULT_TOKEN_PATTERN = re.compile(r'(?P<sign>[+-])(?P<count>\d+)')
 
