@@ -9,7 +9,7 @@ block, an opening game holding only the event tags, and columns padded to their
 declared widths.
 
 Names throughout are placeholders; the real captures hold club members' names
-and live outside this repo (see travellers.md, Storage and PII).
+and live outside this repo (see travellers.md `#pii`).
 """
 
 import datetime

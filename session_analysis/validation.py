@@ -8,7 +8,7 @@ garbage). The checks operate on a fully built `Board` regardless of how it was
 constructed — the parser or a human edit in the review UI — so they re-check
 content the parser's regexes mostly guarantee but the model's types do not.
 
-The checks, by concern (see models.md, Validation):
+The checks, by concern (see models.md `#validation`):
 
 - Content well-formedness — each call, the lead, and the contract resolved to a
   canonical value; contract level in 1-7; tricks_taken in 0-13. Card legality
@@ -181,8 +181,8 @@ def _check_content(board: Board) -> Iterator[Issue]:
   # completeness check's concern, and a struck-through lead (card is None with
   # no parse issue) is an intentional "no lead", not a failure. This re-emits
   # the lead's parse issue at board level, mirroring the auction check above — a
-  # known duplication with the envelope-level issue; see tasks.md (Review UI) on
-  # the shared issue-identity scheme that would resolve it.
+  # known duplication with the envelope-level issue; see tasks.md `#review-ui`
+  # on the shared issue-identity scheme that would resolve it.
   if board.opening_lead and board.opening_lead.issues:
     yield Issue(
       code=_UNRESOLVED_LEAD,

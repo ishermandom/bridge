@@ -7,7 +7,7 @@ characters many ways: a minus, whether it marks a set contract or strikes out a
 passed-out cell, can arrive as an ASCII hyphen, a Unicode minus sign, an en
 dash, an em dash, and more. This module names those variants once, so every
 reader treats them alike rather than each pattern re-listing the set and
-drifting out of step. See spec.md (Notation and normalization).
+drifting out of step. See spec.md `#notation`.
 """
 
 # Every dash glyph a sheet may use interchangeably for a minus or a strike-

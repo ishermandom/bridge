@@ -8,7 +8,7 @@ strip per printed board row, cut from the detected `SheetGeometry`, plus the
 footer. Each strip is preceded by a text label naming its printed row — the
 row's printed board number is inside the crop too, but the label is what pins
 strip-to-row correspondence, so the model emits exactly one board object per
-strip, in order, with no counting left to chance. See spec.md (Extraction) for
+strip, in order, with no counting left to chance. See spec.md `#extraction` for
 the design and the measurements behind it.
 """
 
@@ -31,7 +31,7 @@ _STRIP_PADDING_FRACTION = 0.3
 # JPEG suits the photographic source and keeps the embedded base64 request small
 # — a lossless encoding would be several times larger for no legibility gain.
 # Quality 92 is the setting the strip-extraction experiments validated (see
-# spec.md, Extraction): its compression artifacts sit far below handwriting
+# spec.md `#extraction`): its compression artifacts sit far below handwriting
 # stroke scale.
 _STRIP_JPEG_QUALITY = 92
 

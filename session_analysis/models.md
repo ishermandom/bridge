@@ -15,7 +15,7 @@ The chain this document specifies, in order:
    beside the raw text it came from.
 4. **Validation** — a non-raising pass that flags suspect boards for review.
 
-## Design principle: nothing is garbage
+## Design principle: nothing is garbage {#nothing-is-garbage}
 
 A handwritten sheet is _expected_ to contain errors — that is the entire reason
 the review step exists. So no single misread ever aborts a parse. A bid
@@ -37,7 +37,7 @@ This principle drives two structural decisions throughout:
   even malformed content is captured rather than rejected (see
   [Why Pydantic](#why-pydantic)).
 
-## Vision model output
+## Vision model output {#vision-output}
 
 The vision model's job is faithful perception, not interpretation. It
 transcribes what each cell shows; it does not parse bids, map circles to
@@ -123,14 +123,14 @@ final contract, any penalty, the declarer, and the result together:
 The vision model extracts the characters faithfully and is prepared for the
 penalty marker; segmenting the cell into fields is the parser's job.
 
-## Parsing
+## Parsing {#parsing}
 
 A single, pure, unit-testable module turns vision model output into the
 canonical model. It is the project's "interpretation layer": all bridge
 convention lives here, not in the model and not in the vision model. It never
 raises; unparseable input yields a null parsed value plus an `Issue`.
 
-### Auction grammar
+### Auction grammar {#auction-grammar}
 
 Tokenizing the auction is not a naive space-split, because a box can span
 multiple space-separated calls. The grammar:
@@ -162,7 +162,7 @@ An artificial-suit or notrump-range announcement (`1H_S`, `1N^0_2`) is decoded
 by [Announcement decoding](#announcement-decoding) below; an unreadable core
 like `ED` becomes an `unparseable_call` issue with the rest of the line intact.
 
-### Announcement decoding
+### Announcement decoding {#announcement-decoding}
 
 A call's `_` subscript and `^` superscript annotate its meaning; the parser maps
 them to an `Announcement`. The markers are the vision model's faithful
@@ -186,7 +186,7 @@ Only an explicit annotation is decoded. What a bare, unannotated `1N` implies �
 the club's assumed range — is not the parser's concern; the sheet spells a range
 out only when it departs from that default.
 
-### Contract parsing
+### Contract parsing {#contract-parsing}
 
 The contract cell parses into a `Contract` and a `Result` together (they share
 the one raw cell). `*`/`**` before the declarer set the penalty; the trailing
@@ -257,7 +257,7 @@ passout).
 validation pass define the concrete code set (see
 [Open questions](#open-questions-and-todos)).
 
-### Session
+### Session {#session}
 
 - `session_key` — stable identifier derived from event and date, e.g.
   `pabc-mon-2026-06-29`; the filename and the reconciliation join. Null until
@@ -298,7 +298,7 @@ A board's boxed calls aren't a separate field: each boxed call's `AuctionEntry`
 carries `flagged_for_discussion`, and the "calls to discuss with partner" list
 is a filter over the auction.
 
-### BoardNumber
+### BoardNumber {#board-number}
 
 The envelope for the board-number cell.
 
@@ -313,7 +313,7 @@ board is stored and flagged for review — an unreadable number is a review item
 not a reason to drop the board, per
 [nothing is garbage](#design-principle-nothing-is-garbage).
 
-### Schedule
+### Schedule {#schedule}
 
 A resolved board number and the deal parameters it fixes. Present only inside a
 `BoardNumber` whose parse succeeded, so every field is set together.
@@ -362,7 +362,7 @@ succeeded.
   points, plus `minimum_points_is_soft` for a 'good N' (`^N+`) floor; `forcing`
   and `semi_forcing` need no payload.
 
-### Lead
+### Lead {#lead}
 
 The envelope for the opening lead.
 
@@ -454,7 +454,7 @@ computed value is authoritative on its own, and board-numbering errors surface
 through traveller reconciliation instead. The computation is table-driven and
 tested across a full cycle.
 
-## Validation
+## Validation {#validation}
 
 A non-raising pass over a built board: pure functions that return `Issue`s,
 composed into `find_issues(board)`. Failures never abort; they rank the board in

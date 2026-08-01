@@ -16,12 +16,12 @@ comparable and a disagreement between them surfaces as a disagreement rather
 than as a difference in spelling.
 
 Nothing a capture says is thrown away for being unreadable — the same discipline
-the sheet models hold to (see models.md, Design principle: nothing is garbage).
-A parser that cannot read one row keeps the rest and records an `Issue` where
-the failure happened, so reconciliation surfaces it beside every other thing
-worth a person's attention. Travellers are machine-generated and so rarely
-malformed — but rarely is not never, and losing a whole capture's four hundred
-rows to one odd cell is the worse failure.
+the sheet models hold to (see models.md `#nothing-is-garbage`). A parser that
+cannot read one row keeps the rest and records an `Issue` where the failure
+happened, so reconciliation surfaces it beside every other thing worth a
+person's attention. Travellers are machine-generated and so rarely malformed —
+but rarely is not never, and losing a whole capture's four hundred rows to one
+odd cell is the worse failure.
 """
 
 import datetime
@@ -89,8 +89,8 @@ class TravellerResult(FrozenModel):
   # None when the source recorded no contract for the row.
   resolution: Resolution | None = None
   # Signed from North-South's perspective, where the matchpoints below stay per
-  # side; travellers.md (Traveller data model) says why the two differ. None
-  # when the source printed no score — the same rows `resolution` is None for.
+  # side; travellers.md `#traveller-model` says why the two differ. None when
+  # the source printed no score — the same rows `resolution` is None for.
   score: int | None = None
   # None when the source printed no matchpoints for that side. Typically, a
   # board with no recorded result.

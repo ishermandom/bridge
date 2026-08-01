@@ -11,8 +11,8 @@ What a PBN does not always carry is the traveller. Several of the club's
 directors upload a hand record only — deals, double dummy, and par, with no
 `ScoreTable` at all — so such a file yields a traveller whose boards have no
 results. An empty traveller is a complete parse of what the file says, not a
-failure; the HTML capture of the same game supplies the rows (see travellers.md,
-Which club format to parse).
+failure; the HTML capture of the same game supplies the rows (see travellers.md
+`#club-format`).
 
 The comments below distinguish two kinds of claim, because the two age
 differently. What the **PBN standard** fixes (version 2.1, `tistis.nl/pbn`)
@@ -166,7 +166,7 @@ class _ClubPbnFormatError(ValueError):
 
 
 # Every kind of thing this parser can fail to read, ranked by the shared ladder
-# in travellers.md (Reporting what could not be read).
+# in travellers.md `#issue-reporting`.
 _NO_BOARD_RECORDS = issue_reporting.Failure(
   'no_board_records', IssueSeverity.HIGH, 'boards'
 )

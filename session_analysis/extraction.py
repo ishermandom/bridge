@@ -54,12 +54,12 @@ def transcribe_sheet(
 ) -> SheetTranscription:
   """Dewarp, detect the grid, cut strips once, and transcribe twice.
 
-  The extraction entry point for one scan: geometry detection and strip
-  cutting happen once, since both are deterministic over the same image; the
-  model then reads those same strips twice, independently, for `assembly.
-  parse_and_assemble_voted_session` to compare — see tasks.md
-  (`#extraction-voting`) for why two independent reads beat one. The grid's
-  row count comes from the scan itself, so any form with a plausible row count
+  The extraction entry point for one scan: geometry detection and strip cutting
+  happen once, since both are deterministic over the same image; the model then
+  reads those same strips twice, independently, for `assembly.
+  parse_and_assemble_voted_session` to compare — see spec.md
+  `#extraction-voting` for why two independent reads beat one. The grid's row
+  count comes from the scan itself, so any form with a plausible row count
   (eight or more rows) transcribes without configuration.
 
   Raises:

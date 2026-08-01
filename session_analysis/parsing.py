@@ -6,7 +6,7 @@ This is the project's interpretation layer: all bridge convention lives here,
 not in the vision model (which only transcribes) and not in the models (which
 only hold and serialize). It never raises — an unparseable token yields a null
 parsed value inside its envelope plus an `Issue`, so nothing is ever dropped.
-See models.md (Parsing).
+See models.md `#parsing`.
 """
 
 import dataclasses
@@ -169,7 +169,7 @@ def parse_auction(auction: str) -> Sequence[AuctionEntry]:
   Circles and boxes are stripped to booleans (`flagged_for_discussion`,
   `by_opponents`); the remaining call core is parsed into a `Call`, or kept as
   `raw` with an `unparseable_call` issue when it can't be understood. See
-  models.md (Auction grammar).
+  models.md `#auction-grammar`.
 
   A struck-through auction (the whole cell transcribed as `---`) resolves to no
   entries, the same as an empty auction — not an unparseable call.
@@ -203,7 +203,7 @@ def parse_contract_cell(cell: str) -> Outcome:
   contains 'pass' in any wording, or a struck-through cell, is an explicit
   passout. Anything else that doesn't parse yields a null resolution plus an
   `unparseable_contract` issue — the board is still stored (nothing is garbage).
-  See models.md (Contract parsing).
+  See models.md `#contract-parsing`.
 
   A boxed cell (`[6H*W-1]`) sets `flagged_for_discussion` and is unwrapped
   before the checks above run.
@@ -282,7 +282,7 @@ def parse_lead(cell: str) -> Lead:
   be written `10` or `T`. A cell that doesn't match yields a null card plus an
   `unparseable_lead` issue — the board is still stored (nothing is garbage). A
   board with no recorded lead is the assembler's concern, kept as a null
-  `opening_lead`; this parser assumes a lead was written. See models.md (Lead).
+  `opening_lead`; this parser assumes a lead was written. See models.md `#lead`.
 
   A boxed cell (`[9oH]`) sets `flagged_for_discussion` and is unwrapped before
   parsing the card underneath. A struck-through cell resolves to a null card
@@ -320,7 +320,7 @@ def parse_board_number(cell: str) -> BoardNumber:
   bundled here — the envelope's parsed value is present only when the number was
   read and valid. A non-numeric or non-positive cell yields a null schedule plus
   an `unreadable_board_number` issue; the board is still stored and flagged for
-  review (nothing is garbage). See models.md (BoardNumber, Schedule).
+  review (nothing is garbage). See models.md `#board-number` and `#schedule`.
   """
   match = _BOARD_NUMBER_PATTERN.fullmatch(cell.strip())
   if not match:
@@ -349,7 +349,7 @@ class ParsedFooter:
   is null with a session-level issue. `event` is absent here: it is the raw
   footer text, stored verbatim and never parsed. Our pair identity is not read
   from the sheet at all — it is resolved from the travellers at reconciliation
-  (see models.md, Session).
+  (see models.md `#session`).
   """
 
   date: datetime.date | None
@@ -366,7 +366,7 @@ def parse_footer(
   that a scanned sheet is at most a few months old and never from the future, so
   a December sheet scanned in January reads as the prior year. The date is null
   with a session-level issue when it can't be read, never a failure (nothing is
-  garbage). See models.md (Session).
+  garbage). See models.md `#session`.
   """
   date = _date_from_footer(date_text, reference_date)
   if date:
@@ -562,8 +562,8 @@ def _parse_announcement(text: str, bid_strain: Strain) -> Announcement:
   subscript strain letter is an artificial suit shown; a subscript digit is a
   minimum length in the bid's own suit; `SF`/`F` are semi-forcing/forcing.
   Anything else unrecognized degrades to `AnnouncementType.OTHER` with the raw
-  text preserved, so a novel form never fails. See models.md (Announcement
-  decoding).
+  text preserved, so a novel form never fails. See models.md
+  `#announcement-decoding`.
   """
   # A superscript means a notrump range; detect it first, since its subscript
   # ceiling would otherwise look like the bare min-length subscript below.

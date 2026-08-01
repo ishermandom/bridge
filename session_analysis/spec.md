@@ -15,7 +15,7 @@ night's sheet into that model accurately.
 
 Language: Python, consistent with the rest of the repository's tooling.
 
-## Scope
+## Scope {#scope}
 
 In scope — the full digitization pipeline, end to end:
 
@@ -135,7 +135,7 @@ contract, the parser between them, and the validation pass — is specified in
 Pydantic owns the record's shape and JSON (de)serialization, not content
 validation — see [models.md](models.md#why-pydantic) for that boundary.
 
-## Notation and normalization
+## Notation and normalization {#notation}
 
 The sheet's result convention, confirmed with the user:
 
@@ -158,7 +158,7 @@ An off-by-one here silently corrupts every downstream traveller comparison, so
 the normalizer is **built and unit-tested before anything that depends on it**
 (see [Build order](#build-order)).
 
-## Extraction
+## Extraction {#extraction}
 
 The sheet's handwriting is read by a vision model via **Claude Code in headless
 mode**, on the existing Claude subscription — no separate API billing.
@@ -169,16 +169,16 @@ mode**, on the existing Claude subscription — no separate API billing.
   a live strips comparison showed Opus reading markup semantics more reliably
   (strikethrough correctly omitted, circles and cursive notes right) for a
   modest cost delta (~$0.25–0.30/run vs Sonnet's ~$0.21).
-- **Voting, not escalation**: each scan is read by two independent Opus calls
-  over its cut strips (`transcribe_sheet`), compared cell by cell and merged
-  (`voting.vote_sessions`) — a cell both runs agree on is trusted, one they
-  disagree on is flagged for review rather than guessed at. Chosen over a
-  second, stronger-model tier for low-confidence rows: validated live on the
-  6/29 sheet, the two runs' one disagreement (an announcement letter misread)
-  was the sheet's one real remaining error, correctly flagged, at a fraction of
-  the cost and complexity a second model tier would add. See `voting.py` for the
-  comparison rules — parsed values, not raw transcription, so equivalent
-  notations (`x` vs `X`, a range's marker order) don't false-flag.
+- **Voting, not escalation** {#extraction-voting}: each scan is read by two
+  independent Opus calls over its cut strips (`transcribe_sheet`), compared cell
+  by cell and merged (`voting.vote_sessions`) — a cell both runs agree on is
+  trusted, one they disagree on is flagged for review rather than guessed at.
+  Chosen over a second, stronger-model tier for low-confidence rows: validated
+  live on the 6/29 sheet, the two runs' one disagreement (an announcement letter
+  misread) was the sheet's one real remaining error, correctly flagged, at a
+  fraction of the cost and complexity a second model tier would add. See
+  `voting.py` for the comparison rules — parsed values, not raw transcription,
+  so equivalent notations (`x` vs `X`, a range's marker order) don't false-flag.
 - **Invocation**: `claude -p` (non-interactive); see
   `vision_model_invocation.py`. The default agentic-coding system prompt is
   **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet
@@ -436,7 +436,7 @@ everything downstream:
 6. Ingest spine and the "process inbox" trigger.
 7. Review UI.
 
-## Open questions
+## Open questions {#open-questions}
 
 - **Final storage format** — JSON is the interchange contract; the durable store
   (most likely SQLite for a local queryable database, but unconfirmed) and its

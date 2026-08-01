@@ -5,8 +5,8 @@
 Passed to `vision_model_invocation.invoke_vision_model` as `system_prompt`,
 replacing the CLI's default agentic-coding prompt entirely. The prompt text
 itself lives in `extraction_prompt.md` — plain prose, not code — and is loaded
-here as a string. See models.md (Vision model output) for the output contract
-the prompt targets, and spec.md (Extraction) for why the job is scoped this
+here as a string. See models.md `#vision-output` for the output contract the
+prompt targets, and spec.md `#extraction` for why the job is scoped this
 narrowly.
 """
 

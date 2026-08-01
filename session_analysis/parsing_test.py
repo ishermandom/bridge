@@ -4,7 +4,7 @@
 
 These pin the interpretation layer: how the vision model's flat strings become
 the canonical model, and how unparseable input becomes an issue rather than a
-failure. The worked examples in models.md (Parsing) are the oracle.
+failure. The worked examples in models.md `#parsing` are the oracle.
 """
 
 import datetime

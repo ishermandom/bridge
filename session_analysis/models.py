@@ -109,7 +109,7 @@ class PairIdentity(FrozenModel):
   stable across a session is the players, not this.
 
   Traveller-sourced. The sheet does carry a pair number, but the vision model is
-  told to disregard it (see models.md, Vision model output): the traveller is
+  told to disregard it (see models.md `#vision-output`): the traveller is
   authoritative for who sat where.
   """
 

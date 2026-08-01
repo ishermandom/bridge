@@ -3,9 +3,9 @@
 """Report what a parse could not read, in place of raising.
 
 Every capture parser holds to one discipline: an unreadable cell costs that cell
-and not the four hundred rows around it (see travellers.md, Reporting what could
-not be read). Holding to it takes the same two pieces in every parser, so both
-live here rather than four times over.
+and not the four hundred rows around it (see travellers.md `#issue-reporting`).
+Holding to it takes the same two pieces in every parser, so both live here
+rather than four times over.
 
 `Failure` states once how a kind of trouble is reported; `Read` pairs a value
 with whatever went wrong producing it.

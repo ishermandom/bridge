@@ -68,7 +68,7 @@ recoverable field, that is surfaced for review as its own signal rather than
 silently resolved. The two raw records are stored separately; the merge is a
 reconciliation-time comparison, not a destructive combine.
 
-### Which club format to parse
+### Which club format to parse {#club-format}
 
 The PBN is much the easier target — a documented, tagged format whose
 `ScoreTable` holds every row and whose board records hold the deal, the
@@ -140,7 +140,7 @@ Whichever fetch is used:
   ever arrives for — is the one explicit action (see
   [Reconciliation](#reconciliation)).
 
-## Traveller data model
+## Traveller data model {#traveller-model}
 
 Structured JSON, one record per source per session. This is the game database's
 storage shape; it replaces the `Source.travellers` placeholder
@@ -277,7 +277,7 @@ configuration, kept out of the code:
 - **The ACBL player number** (`2475316`) for the fetch surfaces.
 - **The club index URL** (`paloaltobridge.org/game-results/`).
 
-## Storage and PII
+## Storage and PII {#pii}
 
 A full game database is every club member's names and results accumulated over
 time — more sensitive than a single session's capture, and never suitable for
