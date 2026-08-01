@@ -33,8 +33,8 @@ SCORE_TABLE = (
 # A whole deal, thirteen cards to a seat, for the tests that need one to be
 # there but do not turn on which cards it holds.
 DEAL = (
-  '[Deal "N:AKQ2.AK3.AK4.AKQ JT98.QJT.QJT.JT9 '
-  '765.9876.9876.87 43.542.532.65432"]'
+  '[Deal "N:AQ982.532.J5.J92 J76.A6.K932.6543 '
+  'KT5.QJ9874.AQ.T7 43.KT.T8764.AKQ8"]'
 )
 
 
@@ -54,17 +54,30 @@ def played(resolution: object) -> PlayedContract:
 
 def test_a_captured_file_parses_end_to_end() -> None:
   # The fixture is a real BridgeComposer document in miniature: a header comment
-  # block, an opening game carrying only the event tags, two boards, and one
-  # score table whose name columns are padded to their declared width.
+  # block, an opening game carrying the event tags and a standings recap in a
+  # `{}` comment, then two boards each holding the full run of tags a capture
+  # writes — including two table sections this parser reads nothing out of.
   traveller = parse_club_pbn(FIXTURE.read_text(), reference='club_game.pbn')
 
   assert traveller.source == TravellerSource.CLUB_PBN
   assert traveller.event == 'Placeholder Monday Pairs'
   assert traveller.date == datetime.date(2026, 3, 9)
   assert [board.number for board in traveller.boards] == [1, 2]
-  assert [len(board.results) for board in traveller.boards] == [3, 0]
+  # Every board of a capture carries a score table or none of them does, so the
+  # fixture holds the shape where they do; the hand-record-only shape, which is
+  # the commoner of the two, is covered on its own below.
+  assert [len(board.results) for board in traveller.boards] == [4, 4]
   assert traveller.boards[0].results[0].north_south.names == ('Alpha', 'Bravo')
+  # The two sections number their pairs apart, which is what the section tells
+  # them by.
+  assert [row.north_south.section for row in traveller.boards[0].results] == [
+    'A',
+    'A',
+    'B',
+    'B',
+  ]
   assert not traveller.issues
+  assert not [issue for board in traveller.boards for issue in board.issues]
 
 
 # --- the session as a whole ---
@@ -72,8 +85,8 @@ def test_a_captured_file_parses_end_to_end() -> None:
 
 def test_the_event_and_date_come_from_the_title_comments() -> None:
   # BridgeComposer writes the title it prints above a hand record into comment
-  # lines of its own, and most of the club's directors leave the standard tags
-  # empty — so the comments are read ahead of the tags.
+  # lines of its own, and the standard tags are left empty often enough that
+  # neither can be relied on — so the comments are read ahead of the tags.
   traveller = parse_lines(
     '%HRTitleEvent "Placeholder Tuesday Pairs"',
     '%HRTitleDate 2026.05.12',
@@ -114,6 +127,47 @@ def test_a_game_carrying_no_board_is_not_a_board() -> None:
   )
 
   assert [board.number for board in traveller.boards] == [7]
+
+
+def test_a_standings_recap_in_a_comment_block_is_not_a_record() -> None:
+  # A capture's opening game carries the whole standings recap inside a `{}`
+  # comment, blank lines and all. None of it opens a tag, so none of it becomes
+  # a board, and the blank lines inside it end nothing that was holding a board.
+  traveller = parse_lines(
+    '[Event "Placeholder Pairs"]',
+    '{Placeholder Pairs Monday Aft Session March 9, 2026',
+    'Pair    Pct   Score',
+    '  1   83.33    5.00  Ann Alpha - Bob Bravo',
+    '',
+    '  2   50.00    3.00  Cyd Echo - Dan Foxtrot',
+    '}',
+    '',
+    '[Board "7"]',
+  )
+
+  assert [board.number for board in traveller.boards] == [7]
+  assert traveller.event == 'Placeholder Pairs'
+
+
+def test_a_table_section_this_parser_reads_nothing_from_is_passed_over() -> (
+  None
+):
+  # A capture writes an opening-lead table beside the two tables this parser
+  # does read. Its rows belong to the tag that opened them, so they never join
+  # the table that follows.
+  traveller = parse_lines(
+    '[Board "1"]',
+    '[OptimumOpeningLeadTable "Leader;Denomination\\2R;Result\\2R;S\\4"]',
+    'N NT  9 Q85',
+    'N  S 10 85',
+    '[OptimumResultTable "Declarer;Denomination;Result"]',
+    'N H 11',
+  )
+
+  assert traveller.boards[0].double_dummy_tricks == {
+    Direction.NORTH: {Strain.HEARTS: 11}
+  }
+  assert not traveller.boards[0].issues
 
 
 def test_a_partly_unknown_date_is_no_date() -> None:

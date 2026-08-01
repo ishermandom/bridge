@@ -2,6 +2,9 @@
 % EXPORT
 %Content-type: text/x-pbn; charset=ISO-8859-1
 %Creator: BridgeComposer Version 5.118.1
+%Created: Mon Mar  9 12:11:09 2026 -0700
+%BCOptions DDLeads Float STBorder STLabelSx STShade ShowHCP
+%BoardsPerPage 1
 %HRTitleDate 2026.03.09
 %HRTitleEvent "Placeholder Monday Pairs"
 %HRTitleSite "Placeholder Bridge Center"
@@ -10,67 +13,143 @@
 [Event "Placeholder Monday Pairs"]
 [Site "Placeholder Bridge Center"]
 [Date "2026.03.09"]
+{Placeholder Pairs Monday Aft Session March 9, 2026
+Scores after  1 round   Average:    3.0      Section  A  North-South
+Pair    Pct   Score      Section Rank      MPs
+  1   83.33    5.00  A   1                0.30(A)  Ann Alpha - Bob Bravo
+  2   50.00    3.00  A   2                         Cyd Echo - Dan Foxtrot
+
+Placeholder Pairs Monday Aft Session March 9, 2026
+Scores after  1 round   Average:    3.0      Section  B  North-South
+Pair    Pct   Score      Section Rank      MPs
+  1   50.00    3.00  B   1                0.30(B)  Eve India - Fay Juliet
+  2   16.67    1.00  B   2                         Gil Mike - Hal November
+}
 
 [Event "#"]
 [Board "1"]
+[West ""]
+[North ""]
+[East ""]
+[South ""]
 [Dealer "N"]
 [Vulnerable "None"]
-[Deal "N:AKQJT98765432... .AKQJT98765432.. ..AKQJT98765432. ...AKQJT98765432"]
+[Deal "N:KT9.QJ87.KJ75.Q3 8432.T654.982.J6 J.A93.AQ43.AK972 AQ765.K2.T6.T854"]
+[Scoring "MatchPoints;MP2"]
+[Declarer ""]
+[Contract ""]
+[Result ""]
+[BCFlags "4103f"]
 [OptimumScore "NS 450"]
 [ParContract "N 4H+1"]
-[DoubleDummyTricks "9ab8699a764325743257"]
+[OptimumOpeningLeadTable "Leader;Denomination\2R;Result\2R;S\4;H\5;D\4;C"]
+N NT  - KT9  QJ87  KJ75 Q3
+N  S  - KT9  QJ87  KJ75 Q3
+N  H  - KT9  QJ87  KJ75 Q3
+N  D  - KT9  QJ87  KJ75 Q3
+N  C  - KT9  QJ87  KJ75 Q3
+S NT  - J    A93   AQ43 AK972
+S  S  - J    A93   AQ43 AK972
+S  H  - J    A93   AQ43 AK972
+S  D  - J    A93   AQ43 AK972
+S  C  - J    A93   AQ43 AK972
+E NT  - 8432 T654  982  J6
+E  S  - 8432 T654  982  J6
+E  H  - 8432 T654  982  J6
+E  D  - 8432 T654  982  J6
+E  C  - 8432 T654  982  J6
+W NT  - AQ765 K2    T6   T854
+W  S  - AQ765 K2    T6   T854
+W  H  - AQ765 K2    T6   T854
+W  D  - AQ765 K2    T6   T854
+W  C  - AQ765 K2    T6   T854
 [OptimumResultTable "Declarer;Denomination\2R;Result\2R"]
 N NT  9
-N  S 10
+N  S  8
 N  H 11
-N  D  8
+N  D  7
 N  C  6
-S NT  9
-S  S  9
+S NT  8
+S  S  7
 S  H 10
-S  D  7
-S  C  6
+S  D  6
+S  C  5
 E NT  4
-E  S  3
+E  S  5
 E  H  2
-E  D  5
+E  D  6
 E  C  7
-W NT  4
-W  S  3
-W  H  2
+W NT  3
+W  S  4
+W  H  1
 W  D  5
-W  C  7
-[ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\4L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\4R;Names_NS\13;Names_EW"]
-- A  1  1 4S   N - 10 420   - 2.00 0.00 Alpha-Bravo   Charlie-Delta
-- A  2  2 3NTX S -  8   - 100 0.00 2.00 Echo-Foxtrot  Golf-Hotel
-- B  3  3 PASS - -  - PASS   - 1.00 1.00 India-Juliet  Kilo-Lima
+W  C  6
+[ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\3L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\5R;Percentage_NS\1R;Percentage_EW\1R;Multiplicity\1R;Names_NS\17;Names_EW"]
+- A  1  1 4H  N - 11 450   - 3.00  0.00 - - - Alpha-Bravo       Charlie-Delta
+- A  2  2 4H  S - 10 420   - 2.00  1.00 - - - Echo-Foxtrot      Golf-Hotel
+- B  1  1 PASS - -  - PASS   - 1.00  2.00 - - - India-Juliet      Kilo-Lima
+- B  2  2 3NTX S -  8   - 100 0.00  3.00 - - - Mike-November     Oscar-Papa
 
 [Event "#"]
 [Board "2"]
+[West ""]
+[North ""]
+[East ""]
+[South ""]
 [Dealer "E"]
 [Vulnerable "NS"]
-[Deal "N:AKQ2.AK3.AK4.AKQ JT98.QJT.QJT.JT9 765.9876.9876.87 43.542.532.65432"]
+[Deal "N:732.T952.3.A7532 94.KJ.KJ42.KQT64 AJ6.43.AQT765.J8 KQT85.AQ876.98.9"]
+[Scoring "MatchPoints;MP2"]
+[Declarer ""]
+[Contract ""]
+[Result ""]
+[BCFlags "4103f"]
 [OptimumScore "EW -1100"]
 [ParContract "EW 6DX-5"]
-[DoubleDummyTricks "8ab5c8ab5c3227132271"]
+[OptimumOpeningLeadTable "Leader;Denomination\2R;Result\2R;S\4;H\5;D\4;C"]
+N NT  - 732  T952  3    A7532
+N  S  - 732  T952  3    A7532
+N  H  - 732  T952  3    A7532
+N  D  - 732  T952  3    A7532
+N  C  - 732  T952  3    A7532
+S NT  - AJ6  43    AQT765 J8
+S  S  - AJ6  43    AQT765 J8
+S  H  - AJ6  43    AQT765 J8
+S  D  - AJ6  43    AQT765 J8
+S  C  - AJ6  43    AQT765 J8
+E NT  - 94   KJ    KJ42 KQT64
+E  S  - 94   KJ    KJ42 KQT64
+E  H  - 94   KJ    KJ42 KQT64
+E  D  - 94   KJ    KJ42 KQT64
+E  C  - 94   KJ    KJ42 KQT64
+W NT  - KQT85 AQ876 98   9
+W  S  - KQT85 AQ876 98   9
+W  H  - KQT85 AQ876 98   9
+W  D  - KQT85 AQ876 98   9
+W  C  - KQT85 AQ876 98   9
 [OptimumResultTable "Declarer;Denomination\2R;Result\2R"]
-N NT  8
-N  S 10
-N  H 11
-N  D  5
-N  C 12
-S NT  8
-S  S 10
-S  H 11
+N NT  5
+N  S  4
+N  H  6
+N  D  6
+N  C  8
+S NT  4
+S  S  3
+S  H  5
 S  D  5
-S  C 12
-E NT  3
-E  S  2
-E  H  2
+S  C  7
+E NT  8
+E  S  9
+E  H  7
 E  D  7
-E  C  1
-W NT  3
-W  S  2
-W  H  2
-W  D  7
-W  C  1
+E  C  5
+W NT  7
+W  S  8
+W  H  6
+W  D  6
+W  C  4
+[ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\3L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\5R;Percentage_NS\1R;Percentage_EW\1R;Multiplicity\1R;Names_NS\17;Names_EW"]
+- A  1  1 6DX W -  7 1100   - 3.00  0.00 - - - Alpha-Bravo       Charlie-Delta
+- A  2  2 4S  E - 10   - 620 1.00  2.00 - - - Echo-Foxtrot      Golf-Hotel
+- B  1  1 5DX W -  9 500   - 2.00  1.00 - - - India-Juliet      Kilo-Lima
+- B  2  2 4S  E - 11   - 650 0.00  3.00 - - - Mike-November     Oscar-Papa

@@ -68,8 +68,8 @@ _TAG_PATTERN = re.compile(
 # The title BridgeComposer prints above a hand record, which it keeps in comment
 # lines of its own: `%HRTitleEvent "Placeholder Pairs"`, `%HRTitleDate
 # 2026.03.09`. Not standard, but the dependable source for the event and the
-# date — most of the club's directors leave the standard `[Event]` and `[Date]`
-# tags empty.
+# date: every capture writes these, where the standard `[Event]` and `[Date]`
+# tags are left empty often enough that neither can be relied on.
 _TITLE_COMMENT_PATTERN = re.compile(
   r"""
   ^ %HRTitle (?P<field>Event|Date|Site)
