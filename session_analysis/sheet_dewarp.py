@@ -214,12 +214,12 @@ def _fit_border_lines(
 ) -> _BorderLines:
   """Fit the grid's side borders as straight lines.
 
-  The grid's height is cut into horizontal bands, and each band is averaged
-  into a per-pixel-column profile — `rule_grid`'s dip machinery rotated 90
-  degrees — whose outermost dips mark the outermost printed vertical lines.
-  A band can miss a border (background swallowing the dip, dense writing),
-  reporting some interior column line instead, so each side keeps only the
-  samples near its median before fitting.
+  The grid's height is cut into horizontal bands, and each band is averaged into
+  a per-pixel-column profile — `rule_grid`'s dip machinery rotated 90 degrees —
+  whose outermost dips mark the outermost printed vertical lines. A band can
+  miss a border (background swallowing the dip, dense writing), reporting some
+  interior column line instead, so each side keeps only the samples near its
+  median before fitting.
 
   Raises:
     SheetGeometryError: a border was located in too few bands to fit a line.
@@ -314,9 +314,9 @@ def _fit_line_without_outliers(
 
   A slice whose chain is shifted by a rule (a missed top rule plus a chained
   footer underline, say) sits a whole row pitch off the true line; one rejection
-  pass keeps such slices from bending the fit. Two inliers — a line's minimum
-  — suffice for the refit; fewer means the observations are mutually
-  inconsistent, which is an error rather than something to fit through.
+  pass keeps such slices from bending the fit. Two inliers — a line's minimum —
+  suffice for the refit; fewer means the observations are mutually inconsistent,
+  which is an error rather than something to fit through.
 
   Raises:
     SheetGeometryError: fewer than two points survive the rejection pass.
@@ -413,9 +413,9 @@ def _solve_linear_system(
 ) -> list[float]:
   """Solve `matrix @ solution = right_hand_side` by Gaussian elimination.
 
-  Partial pivoting keeps the 8x8 homography solve stable. A zero pivot means
-  the quad was degenerate (collinear corners) — no detected grid should
-  produce one, and raising keeps the failure loud if one ever does.
+  Partial pivoting keeps the 8x8 homography solve stable. A zero pivot means the
+  quad was degenerate (collinear corners) — no detected grid should produce one,
+  and raising keeps the failure loud if one ever does.
 
   Raises:
     SheetGeometryError: the system is singular.

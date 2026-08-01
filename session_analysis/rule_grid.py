@@ -139,20 +139,18 @@ def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
 
   `gray` is the scan already converted to grayscale (PIL mode `'L'`).
 
-  The grid's row count is not assumed: each slice's chain votes, and the
-  modal count wins. A slice whose chain disagrees with the mode is
-  untrustworthy — most often the footer's printed guide underlines (rule-like
-  lines one-ish pitch below the grid, darkened further by the writing on
-  them) chained on as a ghost rule, or background at the sheet's edge hid
-  part of the grid — so its chain is excluded from the returned consensus
-  rather than guessed at.
+  The grid's row count is not assumed: each slice's chain votes, and the modal
+  count wins. A slice whose chain disagrees with the mode is untrustworthy —
+  most often the footer's printed guide underlines (rule-like lines one-ish
+  pitch below the grid, darkened further by the writing on them) chained on as a
+  ghost rule, or background at the sheet's edge hid part of the grid — so its
+  chain is excluded from the returned consensus rather than guessed at.
 
   A tie between two counts is resolved by compatibility: when both readings'
-  chains end at the same bottom rule, the shorter is the same grid missing
-  some top rows (a chart printed above the grid spans only part of the
-  sheet's width, so only some slices chain it), and the longer reading
-  subsumes it. A tie between readings with different bottom rules is genuine
-  ambiguity, refused.
+  chains end at the same bottom rule, the shorter is the same grid missing some
+  top rows (a chart printed above the grid spans only part of the sheet's width,
+  so only some slices chain it), and the longer reading subsumes it. A tie
+  between readings with different bottom rules is genuine ambiguity, refused.
 
   Raises:
     SheetGeometryError: no slice resolved a plausible grid, the slices split
@@ -282,14 +280,14 @@ def _longest_uniform_chain(
   `centers` are dip positions as profile-entry indices in ascending order;
   `minimum_gap` is in the same units.
 
-  Each pair of nearby centers seeds a candidate chain and its reference gap;
-  the chain then extends step by step, each time taking the center closest to
-  one reference gap beyond the last, within `_GAP_TOLERANCE_FRACTION`. Centers
+  Each pair of nearby centers seeds a candidate chain and its reference gap; the
+  chain then extends step by step, each time taking the center closest to one
+  reference gap beyond the last, within `_GAP_TOLERANCE_FRACTION`. Centers
   between steps are skipped — handwriting cuts dips of its own between rules,
-  and a chain that broke on those would never span the grid. What separates
-  the grid's rules from every other dark line on the page (a title underline,
-  the sheet's edges, that same handwriting) is that only the grid repeats at
-  one pitch, dozens of times; `minimum_gap` keeps dense noise from posing as a
+  and a chain that broke on those would never span the grid. What separates the
+  grid's rules from every other dark line on the page (a title underline, the
+  sheet's edges, that same handwriting) is that only the grid repeats at one
+  pitch, dozens of times; `minimum_gap` keeps dense noise from posing as a
   tiny-pitch grid of its own.
 
   Raises:

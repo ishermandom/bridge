@@ -79,7 +79,7 @@ def _tournament_row(
 
 
 def _make_tournament_index(*rows: str) -> str:
-  """A `live.acbl.org/player-results` page holding `rows` in its events table."""
+  """A `live.acbl.org/player-results` page with `rows` in its events table."""
   return _make_index(
     'events',
     (

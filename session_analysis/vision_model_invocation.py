@@ -108,8 +108,8 @@ def _parse_result(stdout: str) -> str:
   """Return the `result` event's payload from a stream-json transcript.
 
   Raises:
-    VisionModelInvocationError: no line parses as JSON, no line is a `result` event,
-      or the result event's `is_error` flag is set.
+    VisionModelInvocationError: no line parses as JSON, no line is a
+      `result` event, or the result event's `is_error` flag is set.
   """
   # TODO: this aborts on the first non-JSON line, even if a valid `result` event
   # follows later in the stream. Accepted for now — observed CLI output is
@@ -174,8 +174,9 @@ def invoke_vision_model(
     The model's response, as a JSON string conforming to `json_schema`.
 
   Raises:
-    VisionModelInvocationError: the `claude` process exited nonzero, or its output
-      failed to yield a successful result event — see `_parse_result`.
+    VisionModelInvocationError: the `claude` process exited nonzero, or
+      its output failed to yield a successful result event — see
+      `_parse_result`.
   """
   request = _build_request(parts)
 
