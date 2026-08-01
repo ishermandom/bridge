@@ -121,7 +121,7 @@ def test_redouble_glued_to_its_call_splits_off() -> None:
 
 
 def test_double_glued_to_a_circled_call_splits_off() -> None:
-  first, second, third = parse_auction('(1D)(1H)*')
+  _first, second, third = parse_auction('(1D)(1H)*')
   assert second.by_opponents is True
   # The double sits outside the circles: ours, not the opponents'.
   assert third.by_opponents is False
