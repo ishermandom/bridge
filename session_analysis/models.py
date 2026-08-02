@@ -120,10 +120,13 @@ class PairIdentity(FrozenModel):
   side: Side
   # Null when the event ran a single unnamed section.
   section: str | None = None
-  # The two players, as the source names them. Sources differ in how much they
-  # give: ACBL prints full names, the club's per-board rows only surnames — so
-  # the club parsers recover full names from the standings recap the capture
-  # embeds, keyed by `number` and `side`.
+  # The two players, each written given name first — the order the club and the
+  # sheets use, and the one ACBL's surname-first filing is turned around into,
+  # so that two captures of a session compare on their names rather than on
+  # their spelling of them. Sources differ in how much they give: ACBL prints
+  # full names, the club's per-board rows only surnames — so the club parsers
+  # recover full names from the standings recap the capture embeds, keyed by
+  # `number` and `side`.
   names: tuple[str, ...] = ()
 
 
