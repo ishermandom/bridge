@@ -67,7 +67,7 @@ def test_a_captured_file_parses_end_to_end() -> None:
   # fixture holds the shape where they do; the hand-record-only shape, which is
   # the commoner of the two, is covered on its own below.
   assert [len(board.results) for board in traveller.boards] == [4, 4]
-  assert traveller.boards[0].results[0].north_south.names == ('Alpha', 'Bravo')
+  assert traveller.boards[0].results[0].north_south.names == ('Alfa', 'Bravo')
   # The two sections number their pairs apart, which is what the section tells
   # them by.
   assert [row.north_south.section for row in traveller.boards[0].results] == [
@@ -137,7 +137,7 @@ def test_a_standings_recap_in_a_comment_block_is_not_a_record() -> None:
     '[Event "Placeholder Pairs"]',
     '{Placeholder Pairs Monday Aft Session March 9, 2026',
     'Pair    Pct   Score',
-    '  1   83.33    5.00  Ann Alpha - Bob Bravo',
+    '  1   83.33    5.00  Ann Alfa - Bob Bravo',
     '',
     '  2   50.00    3.00  Cyd Echo - Dan Foxtrot',
     '}',
@@ -274,7 +274,7 @@ def test_a_row_names_both_pairs() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'A 1 2 4S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 2 4S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
   )
 
   row = traveller.boards[0].results[0]
@@ -282,7 +282,7 @@ def test_a_row_names_both_pairs() -> None:
   assert row.north_south.side == Side.NORTH_SOUTH
   assert row.east_west.number == '2'
   # A PBN names a pair by surnames alone; full names live only in the HTML.
-  assert row.north_south.names == ('Alpha', 'Bravo')
+  assert row.north_south.names == ('Alfa', 'Bravo')
   assert row.east_west.names == ('Charlie', 'Delta')
 
 
@@ -292,7 +292,7 @@ def test_a_row_carries_the_section_it_sat_in() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'A 1 1 4S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 1 4S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
     'B 1 1 4S N 10 420 - 2.00 0.00 Echo-Foxtrot  Golf-Hotel',
   )
 
@@ -304,7 +304,7 @@ def test_a_made_contract() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'A 1 2 4S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 2 4S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
   )
 
   row = traveller.boards[0].results[0]
@@ -335,7 +335,7 @@ def test_a_passed_out_board() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'B 3 3 PASS - - PASS - 1.00 1.00 India-Juliet  Kilo-Lima',
+    'B 3 3 PASS - - PASS - 1.00 1.00 India-Juliett Kilo-Lima',
   )
 
   row = traveller.boards[0].results[0]
@@ -349,7 +349,7 @@ def test_matchpoints_are_kept_per_side() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'A 1 2 4S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 2 4S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
   )
 
   row = traveller.boards[0].results[0]
@@ -414,7 +414,7 @@ def test_an_unreadable_deal_costs_the_deal_and_nothing_else() -> None:
     '[Board "1"]',
     '[Deal "N:AKQ2.AK3.AK4.AKQ JT98.QJT.QJT.JT9"]',
     SCORE_TABLE,
-    'A 1 2 4S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 2 4S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
   )
 
   board = traveller.boards[0]
@@ -447,7 +447,7 @@ def test_a_row_that_does_not_fit_its_header_is_dropped() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'A 1 2 4S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 2 4S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
     'B 3 4',
   )
 
@@ -463,7 +463,7 @@ def test_a_row_with_an_unreadable_contract_is_kept() -> None:
   traveller = parse_lines(
     '[Board "1"]',
     SCORE_TABLE,
-    'A 1 2 9S N 10 420 - 2.00 0.00 Alpha-Bravo   Charlie-Delta',
+    'A 1 2 9S N 10 420 - 2.00 0.00 Alfa-Bravo    Charlie-Delta',
   )
 
   row = traveller.boards[0].results[0]

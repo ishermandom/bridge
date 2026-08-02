@@ -228,7 +228,7 @@ def test_a_captured_file_parses_end_to_end() -> None:
   assert [board.number for board in traveller.boards] == [1, 2]
   assert [len(board.results) for board in traveller.boards] == [3, 3]
   assert traveller.boards[0].results[0].north_south.names == (
-    'Ann Alpha',
+    'Ann Alfa',
     'Bob Bravo',
   )
   assert not traveller.issues
@@ -583,7 +583,7 @@ def test_a_row_names_both_pairs_by_surname() -> None:
         contract='4S',
         declarer='N',
         made='4',
-        pair_north_south='1-Alpha-Bravo',
+        pair_north_south='1-Alfa-Bravo',
         pair_east_west='2-Charlie-Delta',
       )
     ),
@@ -592,7 +592,7 @@ def test_a_row_names_both_pairs_by_surname() -> None:
   row = traveller.boards[0].results[0]
   assert row.north_south.number == '1'
   assert row.north_south.side == Side.NORTH_SOUTH
-  assert row.north_south.names == ('Alpha', 'Bravo')
+  assert row.north_south.names == ('Alfa', 'Bravo')
   assert row.east_west.number == '2'
   assert row.east_west.names == ('Charlie', 'Delta')
 
@@ -603,18 +603,18 @@ def test_full_names_come_from_the_standings_recap() -> None:
   traveller = parse_markup(
     _make_recap(
       'Scores after  1 round   Average:    2.0      Section  A North-South',
-      '  1   75.00    3.00  A   1     Ann Alpha - Bob Bravo',
+      '  1   75.00    3.00  A   1     Ann Alfa - Bob Bravo',
     ),
     '<div id=Board1></div>',
     _make_score_table(
       _make_score_row(
-        contract='4S', declarer='N', made='4', pair_north_south='1-Alpha-Bravo'
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
       )
     ),
   )
 
   assert traveller.boards[0].results[0].north_south.names == (
-    'Ann Alpha',
+    'Ann Alfa',
     'Bob Bravo',
   )
 
@@ -625,7 +625,7 @@ def test_surnames_stand_in_where_the_recap_has_no_entry() -> None:
   traveller = parse_markup(
     _make_recap(
       'Scores after  1 round   Average:    2.0      Section  A North-South',
-      '  1   75.00    3.00  A   1     Ann Alpha - Bob Bravo',
+      '  1   75.00    3.00  A   1     Ann Alfa - Bob Bravo',
     ),
     '<div id=Board1></div>',
     _make_score_table(
@@ -751,7 +751,7 @@ def test_a_single_section_game_leaves_the_section_unnamed() -> None:
     '<div id=Board1></div>',
     _make_score_table(
       _make_score_row(
-        contract='4S', declarer='N', made='4', pair_north_south='1-Alpha-Bravo'
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
       )
     ),
   )
@@ -767,7 +767,7 @@ def test_a_full_width_heading_assigns_the_rows_below_it() -> None:
     _make_score_table(
       _make_section_row('A'),
       _make_score_row(
-        contract='4S', declarer='N', made='4', pair_north_south='1-Alpha-Bravo'
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
       ),
       _make_section_row('B'),
       _make_score_row(
@@ -934,7 +934,7 @@ def test_a_row_whose_made_column_will_not_read_keeps_the_row() -> None:
         declarer='N',
         made='?',
         score_north_south='420',
-        pair_north_south='1-Alpha-Bravo',
+        pair_north_south='1-Alfa-Bravo',
       )
     ),
   )
@@ -954,7 +954,7 @@ def test_a_row_naming_no_contract_at_all_is_not_an_issue() -> None:
     '<div id=Board1></div>',
     _make_score_table(
       _make_score_row(
-        pair_north_south='1-Alpha-Bravo', pair_east_west='2-Charlie-Delta'
+        pair_north_south='1-Alfa-Bravo', pair_east_west='2-Charlie-Delta'
       )
     ),
   )

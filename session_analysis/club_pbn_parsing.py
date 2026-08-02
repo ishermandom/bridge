@@ -22,7 +22,7 @@ comment lines and the `ParContract` tag are extensions no standard defines, as
 is every claim below about how a value is spaced or padded.
 
 Names come out thinner here than from the HTML. A PBN row names a pair by its
-players' surnames joined with a hyphen (`Alpha-Bravo`) and the file carries no
+players' surnames joined with a hyphen (`Alfa-Bravo`) and the file carries no
 standings recap to look full names up in, so that hyphen is all there is to
 split on — and a player whose own surname is hyphenated splits into two.
 """
@@ -413,7 +413,7 @@ def _read_row(table: _Table, row: str) -> Mapping[str, str]:
 
   ```
   [ScoreTable "PairId_NS\\2R;Contract\\4L;Names_NS\\13;Names_EW"]
-   1 4S   Alpha-Bravo   Charlie-Delta
+   1 4S   Alfa-Bravo    Charlie-Delta
   ```
 
   Raises:

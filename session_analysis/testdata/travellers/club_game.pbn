@@ -16,13 +16,13 @@
 {Placeholder Pairs Monday Aft Session March 9, 2026
 Scores after  1 round   Average:    3.0      Section  A  North-South
 Pair    Pct   Score      Section Rank      MPs
-  1   83.33    5.00  A   1                0.30(A)  Ann Alpha - Bob Bravo
+  1   83.33    5.00  A   1                0.30(A)  Ann Alfa - Bob Bravo
   2   50.00    3.00  A   2                         Cyd Echo - Dan Foxtrot
 
 Placeholder Pairs Monday Aft Session March 9, 2026
 Scores after  1 round   Average:    3.0      Section  B  North-South
 Pair    Pct   Score      Section Rank      MPs
-  1   50.00    3.00  B   1                0.30(B)  Eve India - Fay Juliet
+  1   50.00    3.00  B   1                0.30(B)  Eve India - Fay Juliett
   2   16.67    1.00  B   2                         Gil Mike - Hal November
 }
 
@@ -85,9 +85,9 @@ W  H  1
 W  D  5
 W  C  6
 [ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\3L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\5R;Percentage_NS\1R;Percentage_EW\1R;Multiplicity\1R;Names_NS\17;Names_EW"]
-- A  1  1 4H  N - 11 450   - 3.00  0.00 - - - Alpha-Bravo       Charlie-Delta
+- A  1  1 4H  N - 11 450   - 3.00  0.00 - - - Alfa-Bravo        Charlie-Delta
 - A  2  2 4H  S - 10 420   - 2.00  1.00 - - - Echo-Foxtrot      Golf-Hotel
-- B  1  1 PASS - -  - PASS   - 1.00  2.00 - - - India-Juliet      Kilo-Lima
+- B  1  1 PASS - -  - PASS   - 1.00  2.00 - - - India-Juliett     Kilo-Lima
 - B  2  2 3NTX S -  8   - 100 0.00  3.00 - - - Mike-November     Oscar-Papa
 
 [Event "#"]
@@ -149,7 +149,7 @@ W  H  6
 W  D  6
 W  C  4
 [ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\3L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\5R;Percentage_NS\1R;Percentage_EW\1R;Multiplicity\1R;Names_NS\17;Names_EW"]
-- A  1  1 6DX W -  7 1100   - 3.00  0.00 - - - Alpha-Bravo       Charlie-Delta
+- A  1  1 6DX W -  7 1100   - 3.00  0.00 - - - Alfa-Bravo        Charlie-Delta
 - A  2  2 4S  E - 10   - 620 1.00  2.00 - - - Echo-Foxtrot      Golf-Hotel
-- B  1  1 5DX W -  9 500   - 2.00  1.00 - - - India-Juliet      Kilo-Lima
+- B  1  1 5DX W -  9 500   - 2.00  1.00 - - - India-Juliett     Kilo-Lima
 - B  2  2 4S  E - 11   - 650 0.00  3.00 - - - Mike-November     Oscar-Papa
