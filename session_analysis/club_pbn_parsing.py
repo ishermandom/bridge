@@ -93,18 +93,21 @@ _COLUMN_PATTERN = re.compile(
   re.VERBOSE,
 )
 
+# Named components for the two contract patterns below, decomposed as
+# `parsing.py` does it: the intent lives in the component's name rather than in
+# a comment decoding the syntax.
+_DECLARER = r'(?P<declarer>NS|EW|[NESW])'  # a side or a single seat
+_LEVEL = r'(?P<level>[1-7])'
+_STRAIN = r'(?P<strain>NT|[NSHDC])'  # notrump as `N` in par, `NT` in a cell
+_PENALTY = r'(?P<penalty>X{0,2})'  # one mark doubled, two redoubled
+_PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # optional: omitting it still parses
+_SEAM = r'\s+'
+
 # One contract of a par statement: `NS 4H+1`, `EW 6DX-5`, `N 2S=`. The whole
 # `ParContract` tag is BridgeComposer's own, so every part of this shape is
 # observed rather than standard.
 _PAR_CONTRACT_PATTERN = re.compile(
-  r"""
-  (?P<declarer>NS|EW|[NESW])\s+  # a side or a single seat
-  (?P<level>[1-7])
-  (?P<strain>NT|[NSHDC])         # notrump is `N` here, `NT` in a table cell
-  (?P<penalty>X{0,2})
-  (?P<result>=|[+-]\d+)?         # optional: a source that omits it parses
-  """,
-  re.VERBOSE,
+  _DECLARER + _SEAM + _LEVEL + _STRAIN + _PENALTY + _PAR_RESULT
 )
 
 # A par score: `NS 450`, `EW -1100`. The side named owns the score, so an
@@ -120,14 +123,7 @@ _PAR_SCORE_PATTERN = re.compile(
 
 # A played contract as a score table's `Contract` column writes it: `4H`, `3NT`,
 # `4HX` doubled, `4HXX` redoubled.
-_CONTRACT_PATTERN = re.compile(
-  r"""
-  (?P<level>[1-7])
-  (?P<strain>NT|[NSHDC])
-  (?P<penalty>X{0,2})
-  """,
-  re.VERBOSE,
-)
+_CONTRACT_PATTERN = re.compile(_LEVEL + _STRAIN + _PENALTY)
 
 # What a score table writes in a cell it has no value for, e.g. the `Score_EW`
 # of a row North-South scored. Observed.
