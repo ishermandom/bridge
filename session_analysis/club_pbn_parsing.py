@@ -660,7 +660,7 @@ def _par(
         notation.par_contracts(
           level=level,
           strain=notation.STRAIN_BY_LETTER[match.group('strain')],
-          penalty=notation.PENALTY_BY_SUFFIX[match.group('penalty')],
+          penalty=notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
           declarer=notation.declarer_from_token(match.group('declarer')),
           stated_tricks=notation.tricks_taken_from_par_result(
             match.group('result') or '', level
@@ -769,7 +769,7 @@ def _resolution(
         level=int(match.group('level')),
         strain=notation.STRAIN_BY_LETTER[match.group('strain')],
         declarer=declarer,
-        penalty=notation.PENALTY_BY_SUFFIX[match.group('penalty')],
+        penalty=notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
       ),
       # The standard defines this column as the tricks declarer won, so it is
       # already the canonical count and needs no translation.

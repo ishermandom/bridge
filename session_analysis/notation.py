@@ -88,13 +88,17 @@ STRAIN_BY_LETTER: Mapping[str, Strain] = {
   'C': Strain.CLUBS,
 }
 
-# The `X` a written contract trails to say the opponents doubled it: `4HX` is
-# doubled, `4HXX` redoubled, `4H` neither. The empty string is a key too, so a
-# pattern whose `X{0,2}` matched nothing needs no special case at its call site.
-PENALTY_BY_SUFFIX: Mapping[str, Penalty] = {
-  '': Penalty.NONE,
-  'X': Penalty.DOUBLED,
-  'XX': Penalty.REDOUBLED,
+# What the marks a written contract trails say about the opponents doubling it:
+# `4HX` is doubled, `4HXX` redoubled, `4H` neither. Sources disagree on which
+# mark to write — a PBN and the club's HTML trail an `X`, ACBL an asterisk —
+# while all of them mean doubled by one mark and redoubled by two, so it is the
+# count that carries the meaning and the mark is left to each parser's own
+# pattern. Zero is a key too, so a pattern whose `X{0,2}` matched nothing needs
+# no special case at its call site.
+PENALTY_BY_MARK_COUNT: Mapping[int, Penalty] = {
+  0: Penalty.NONE,
+  1: Penalty.DOUBLED,
+  2: Penalty.REDOUBLED,
 }
 
 # The pattern of a result token: a sign followed by one or more digits.

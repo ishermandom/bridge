@@ -664,7 +664,9 @@ def _par(
         notation.par_contracts(
           level=level,
           strain=notation.STRAIN_BY_LETTER[contract.group('strain').upper()],
-          penalty=notation.PENALTY_BY_SUFFIX[contract.group('penalty').upper()],
+          penalty=notation.PENALTY_BY_MARK_COUNT[
+            len(contract.group('penalty'))
+          ],
           declarer=notation.declarer_from_token(contract.group('declarer')),
           stated_tricks=notation.tricks_taken_from_par_result(
             contract.group('result') or '', level
@@ -841,7 +843,7 @@ def _resolution(row: bs4.Tag) -> issue_reporting.Read[Resolution | None]:
         level=level,
         strain=notation.STRAIN_BY_LETTER[match.group('strain').upper()],
         declarer=seat,
-        penalty=notation.PENALTY_BY_SUFFIX[match.group('penalty').upper()],
+        penalty=notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
       ),
       result=Result(tricks_taken=tricks_taken),
     )
