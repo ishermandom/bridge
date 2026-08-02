@@ -23,8 +23,8 @@ score table in its container, while `C` writes that container as an empty
 element and lets the same parts follow it as siblings. So a board's parts are
 gathered by document order rather than by containment.
 
-Suits are printed as glyphs, so they are swapped for their strain letters once,
-up front, and every later read is plain text.
+Suits are printed as glyphs, which fold to their strain letters as each cell is
+read — so every pattern here spells plain ASCII.
 """
 
 import dataclasses
@@ -61,18 +61,6 @@ from session_analysis.travellers import (
   TravellerSource,
 )
 
-# The class BridgeComposer puts on each suit glyph, and the strain it stands
-# for. The glyph's own character would serve as well — each suit is written as
-# its own entity, `&spades;` under `bcspades` and so on — but reading the class
-# keeps the four suit symbols out of this source, as `glyphs` does for the
-# dashes.
-_STRAIN_CLASSES: Mapping[str, Strain] = {
-  'bcspades': Strain.SPADES,
-  'bchearts': Strain.HEARTS,
-  'bcdiams': Strain.DIAMONDS,
-  'bcclubs': Strain.CLUBS,
-}
-
 # The board container's id, which is the only place a board states its own
 # number in markup rather than in a comment.
 _BOARD_ID_PATTERN = re.compile(r'^Board(?P<number>\d+)$')
@@ -91,16 +79,21 @@ _DIAGRAM_SEATS = (
 _DEALER_PATTERN = re.compile(r'(?P<dealer>North|East|South|West)\s+Deals')
 _VULNERABILITY_PATTERN = re.compile(r'(?P<vulnerability>\S+)\s+Vul')
 
-# The two typographic glyphs the club's markup writes in place of characters the
-# patterns below spell in ASCII: a Unicode minus sign for a negative number, and
-# a multiplication sign for a doubling. Both are folded to their ASCII stand-ins
-# as every cell is read (see `_flattened`), so the patterns spell only the ASCII
-# forms. Naming the doubling by code point rather than as a literal keeps it
-# reviewable, as `glyphs` does for the dashes.
-_DOUBLING_SIGN = chr(0x00D7)  # multiplication sign
-_ASCII_STAND_INS = str.maketrans(
-  glyphs.DASHES + _DOUBLING_SIGN, '-' * len(glyphs.DASHES) + 'x'
-)
+# What the club's markup writes where the patterns below spell ASCII: each
+# suit's own symbol, a Unicode minus sign for a negative number, and a
+# multiplication sign for a doubling. All fold to their stand-ins as every cell
+# is read (see `_flattened`), so the patterns spell only the ASCII forms. Named
+# by code point rather than as literals, as `glyphs` does for the dashes — the
+# suit symbols especially are hard to tell apart at a glance and awkward to
+# grep for.
+_ASCII_STAND_INS: Mapping[int, str] = {
+  **dict.fromkeys((ord(dash) for dash in glyphs.DASHES), '-'),
+  0x00D7: 'x',  # multiplication sign, written for a doubling
+  0x2660: Strain.SPADES.value,
+  0x2665: Strain.HEARTS.value,
+  0x2666: Strain.DIAMONDS.value,
+  0x2663: Strain.CLUBS.value,
+}
 
 # Named components for the three contract patterns below, decomposed as
 # `parsing.py` does it: the intent lives in the component's name rather than in
@@ -112,12 +105,15 @@ _LEVEL = r'(?P<level>[1-7])'
 _STRAIN = r'(?P<strain>NT|[NSHDC])'  # notrump spelled either way
 _PENALTY = r'(?P<penalty>x{0,2})'  # one mark doubled, two redoubled
 _PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # `=` made exactly, else the difference
+# A seam sits between the parts a contract may be split across, which is every
+# join in the analysis paragraph: BridgeComposer prints a suit in a span of its
+# own, so `4S` reaches a reader as two elements and `_flattened` separates them.
 _SEAM = r'\s*'
 
 # A makeable contract in the double-dummy list, e.g. `N 4S`, `NS 2D`, `W 6D`.
 # Notrump is spelled `N` here, which is also how a seat is spelled — the two are
 # told apart by position, the seat coming before the level.
-_MAKEABLE_PATTERN = re.compile(_DECLARER + _SEAM + _LEVEL + _STRAIN)
+_MAKEABLE_PATTERN = re.compile(_DECLARER + _SEAM + _LEVEL + _SEAM + _STRAIN)
 
 # The par line, e.g. `Par +420: N 4S=` in the `R` variant and `Par +460` in the
 # `C` one, which states the score alone.
@@ -133,11 +129,12 @@ _PAR_PATTERN = re.compile(
 # marks so that a cell holding more never reaches the penalty lookup with a
 # spelling it lacks.
 _PAR_CONTRACT_PATTERN = re.compile(
-  _DECLARER + _SEAM + _LEVEL + _STRAIN + _PENALTY + _PAR_RESULT,
+  _DECLARER + _SEAM + _LEVEL + _SEAM + _STRAIN + _SEAM + _PENALTY + _PAR_RESULT,
   re.IGNORECASE,
 )
 
-# A played contract in a score table cell, e.g. `4S`, `3NT`, `3NTx`.
+# A played contract in a score table cell, e.g. `4S`, `3NT`, `3NTx`. No seams
+# here: `_cell` has already taken every space out of what it reads.
 _CONTRACT_PATTERN = re.compile(_LEVEL + _STRAIN + _PENALTY, re.IGNORECASE)
 
 # A pair as a score table names it: an optional section letter, the pair number,
@@ -234,7 +231,6 @@ def parse_club_html(text: str, *, reference: str) -> Traveller:
       to, or the URL it came from. Recorded on the traveller.
   """
   soup = bs4.BeautifulSoup(text, 'html.parser')
-  _replace_suit_glyphs(soup)
   standings = _Standings.read(soup)
 
   boards = tuple(
@@ -249,26 +245,6 @@ def parse_club_html(text: str, *, reference: str) -> Traveller:
     boards=boards,
     issues=() if boards else (_NO_BOARDS.issue('the capture holds no boards'),),
   )
-
-
-def _replace_suit_glyphs(soup: bs4.BeautifulSoup) -> None:
-  """Swap every suit glyph for the letter of the strain it stands for.
-
-  Done once for the whole document so that no later read has to reach past a
-  span to learn what suit a cell names: a hand diagram's suit rows and a score
-  table's contract cells both name their suit this way.
-  """
-  for glyph in soup.find_all('span', class_=list(_STRAIN_CLASSES)):
-    strain = next(
-      (
-        _STRAIN_CLASSES[name]
-        for name in _classes(glyph)
-        if name in _STRAIN_CLASSES
-      ),
-      None,
-    )
-    if strain:
-      glyph.replace_with(strain.value)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -607,7 +583,7 @@ def _holdings(hand: bs4.Tag) -> Sequence[str]:
     cells = row.find_all('td')
     if len(cells) < 2:
       continue
-    suit_letter = cells[0].get_text(strip=True).upper()
+    suit_letter = _flattened(cells[0]).upper()
     by_suit[suit_letter] = cells[1].get_text(strip=True)
   return tuple(
     by_suit.get(suit.value, '') for suit in notation.SUITS_HIGH_TO_LOW

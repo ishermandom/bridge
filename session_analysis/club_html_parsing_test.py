@@ -36,9 +36,9 @@ from session_analysis.travellers import (
 
 TESTDATA = pathlib.Path(__file__).parent / 'testdata/travellers'
 
-# The class and entity BridgeComposer writes each suit's glyph with. The glyph
-# carries no information of its own — the same entity appears under a different
-# class for a different suit — so the class is what the parser reads.
+# The stem BridgeComposer builds each suit's glyph from: the CSS class
+# `bcspades` and the entity `&spades;` both carry it. The parser reads the
+# entity's character; the class is written here because the captures write it.
 SUIT_GLYPHS: Mapping[Suit, str] = {
   Suit.SPADES: 'spades',
   Suit.HEARTS: 'hearts',
@@ -424,6 +424,22 @@ def test_a_ten_printed_in_full() -> None:
   deal = traveller.boards[0].deal
   assert deal is not None
   assert len(deal.hands[Direction.NORTH].cards) == 4
+
+
+def test_a_suit_glyph_carrying_no_class_is_still_read() -> None:
+  # A suit is identified by the character its entity decodes to, not by the
+  # class beside it, so a glyph stripped of its class reads the same way.
+  diagram = _make_diagram(DEAL).replace(' class=bcspades', '')
+  traveller = parse_markup('<div id=Board1></div>', diagram)
+
+  deal = traveller.boards[0].deal
+  assert deal is not None
+  assert {card.suit for card in deal.hands[Direction.NORTH].cards} == {
+    Suit.SPADES,
+    Suit.HEARTS,
+    Suit.DIAMONDS,
+    Suit.CLUBS,
+  }
 
 
 def test_a_suit_printed_as_an_empty_row_is_a_void() -> None:
