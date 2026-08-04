@@ -1,15 +1,10 @@
 // Copyright 2026 Ilya Sherman (ishermandom@)
 // SPDX-License-Identifier: MIT
 
-// One card rendered as a clickable face; the suit glyph and color derive
-// from the two-character card code (`SA`, `H7`).
+// One card rendered as a clickable face; the suit glyph and deck color
+// derive from the two-character card code (`SA`, `H7`).
 
-const SUIT_GLYPHS: Record<string, string> = {
-  S: '♠',
-  H: '♥',
-  D: '♦',
-  C: '♣',
-};
+import { SUIT_GLYPHS, suitClass } from './suits';
 
 interface CardFaceProps {
   code: string;
@@ -24,10 +19,9 @@ interface CardFaceProps {
 export default function CardFace({ code, playable, onPlay }: CardFaceProps) {
   const suit = code[0];
   const rank = code[1] === 'T' ? '10' : code[1];
-  const isRed = suit === 'H' || suit === 'D';
   return (
     <button
-      className={`card ${isRed ? 'red' : 'black'}`}
+      className={`card ${suitClass(suit)}`}
       disabled={!playable}
       onClick={() => onPlay?.(code)}
     >

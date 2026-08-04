@@ -8,6 +8,28 @@
 :root {
   font-family: system-ui, sans-serif;
   color: #222;
+
+  /* The four-color deck (see suits.tsx): black, red, orange, green. */
+  --suit-s: #1b1b1b;
+  --suit-h: #c0392b;
+  --suit-d: #d35400;
+  --suit-c: #1e8449;
+}
+
+.suit-S {
+  color: var(--suit-s);
+}
+
+.suit-H {
+  color: var(--suit-h);
+}
+
+.suit-D {
+  color: var(--suit-d);
+}
+
+.suit-C {
+  color: var(--suit-c);
 }
 
 main {
@@ -90,14 +112,6 @@ header {
   background: white;
 }
 
-.card.red {
-  color: #c0392b;
-}
-
-.card.black {
-  color: #222;
-}
-
 .card:disabled {
   opacity: 0.6;
 }
@@ -173,4 +187,38 @@ header {
 
 .layout-diagram {
   font-size: 1.05rem;
+}
+
+.layout-side {
+  color: #555;
+}
+
+.layout-side + .holding,
+.holding + .holding {
+  margin-left: 0.4rem;
+}
+
+.holding + .layout-side {
+  margin-left: 1rem;
+}
+
+.last-trick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1.05rem;
+}
+
+.last-trick-title {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.last-trick-play {
+  color: #555;
 }

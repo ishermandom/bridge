@@ -61,9 +61,9 @@ function TrickArea({ trick }: { trick: SeatCard[] }) {
   );
 }
 
-// TODO(ilya): learning exercise — add a TrickHistory component showing
-// `view.completed_tricks` (each trick's four cards and its winner), and
-// mount it beside the table. The data is already in every GameView.
+// TODO(ilya): learning exercise — grow App's LastTrick strip into a full
+// TrickHistory: every completed trick's four cards and its winner,
+// mounted beside the table. The data is already in every GameView.
 export default function Table({ view, onPlay }: TableProps) {
   const legal = new Set(view.legal_cards);
   const marker = (seat: string) => (view.seat_to_play === seat ? ' ▸' : '');

@@ -25,7 +25,7 @@ export interface PlayError {
   witnesses: DefenderLayout[];
 }
 
-export type GameStatus = 'playing' | 'failed' | 'complete';
+export type GameStatus = "playing" | "failed" | "complete";
 
 export interface GameView {
   game_id: string;
@@ -46,18 +46,20 @@ export interface GameView {
 
 async function postJson(path: string, body: unknown): Promise<GameView> {
   const response = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`${response.status} from ${path}: ${await response.text()}`);
+    throw new Error(
+      `${response.status} from ${path}: ${await response.text()}`,
+    );
   }
   return (await response.json()) as GameView;
 }
 
 export function newGame(endingSize: number): Promise<GameView> {
-  return postJson('/api/games', { ending_size: endingSize });
+  return postJson("/api/games", { ending_size: endingSize });
 }
 
 export function playCard(gameId: string, card: string): Promise<GameView> {
