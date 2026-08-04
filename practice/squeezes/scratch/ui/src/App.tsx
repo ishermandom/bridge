@@ -54,13 +54,21 @@ function LastTrick({ trick }: { trick: Trick }) {
   return (
     <section className="last-trick">
       <span className="last-trick-title">
-        Last trick — won by {SEAT_NAMES[trick.winner]}:
+        Last trick — won by {SEAT_NAMES[trick.winner]}
       </span>
-      {trick.plays.map((play) => (
-        <span key={play.seat} className="last-trick-play">
-          {play.seat} <CardText code={play.card} />
-        </span>
-      ))}
+      <div className="last-trick-compass">
+        {trick.plays.map((play) => (
+          <span
+            key={play.seat}
+            className={
+              `compass-${play.seat.toLowerCase()} last-trick-play` +
+              (play.seat === trick.winner ? ' winner' : '')
+            }
+          >
+            <CardText code={play.card} />
+          </span>
+        ))}
+      </div>
     </section>
   );
 }
