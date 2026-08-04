@@ -14,10 +14,10 @@ repo_root="$(dirname "$0")"
 # club_sites/palo_alto: a Tampermonkey userscript tested with vitest + jsdom.
 package="$repo_root/club_sites/palo_alto"
 
-# Install the Node dependencies when they're missing or out of date. npm
-# doesn't bootstrap itself the way `uv run` below does, and node_modules is
-# gitignored, so a fresh checkout — most often a new worktree — would otherwise
-# reach `tsc` and `vitest` with neither on PATH.
+# Install the Node dependencies when they're missing or out of date. npm doesn't
+# bootstrap itself the way `uv run` below does, and node_modules is gitignored,
+# so a fresh checkout — most often a new worktree — would otherwise reach `tsc`
+# and `vitest` with neither on PATH.
 #
 # npm records the tree it installed in node_modules/.package-lock.json, writing
 # it last — after the packages and the .bin links — so it doubles as a
@@ -59,12 +59,14 @@ if [ "$palo_alto_status" -ne 0 ]; then
   exit "$palo_alto_status"
 fi
 
-# session_analysis: a Python package tested with pytest, run through the uv
-# workspace so it picks up the shared lockfile/venv regardless of the caller's
-# directory. Pointing pytest at the package directory lets it insert the repo
-# root on the import path, so the `session_analysis.*` imports resolve
-# regardless of the caller's directory.
+# The Python suites — session_analysis and the squeeze-trainer scratch prototype
+# — in one pytest run through the uv workspace, so both share the lockfile/venv
+# regardless of the caller's directory. Pointing pytest at each suite's
+# directory lets it pick the right import root per suite: the repo root for
+# `session_analysis.*` imports, the scratch directory itself for its flat
+# imports.
 #
 # `exec` replaces this shell with pytest, so pytest's exit status becomes the
 # script's directly — safe as the last step, since nothing follows it here.
-exec uv run --project "$repo_root" pytest "$repo_root/session_analysis"
+exec uv run --project "$repo_root" pytest "$repo_root/session_analysis" \
+  "$repo_root/practice/squeezes/scratch"

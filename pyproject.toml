@@ -8,10 +8,14 @@
 # adding them would shadow that global config.
 
 [tool.uv.workspace]
-members = ["session_analysis", "convention_cards"]
+members = [
+  "session_analysis",
+  "convention_cards",
+  "practice/squeezes/scratch",
+]
 
 [dependency-groups]
-dev = ["pytest", "types-reportlab"]
+dev = ["httpx", "pytest", "types-reportlab"]
 
 [tool.pytest.ini_options]
 # Tests are named <module>_test.py, beside the module they cover.

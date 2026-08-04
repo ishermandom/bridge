@@ -122,6 +122,17 @@ deals where the table diverged most from optimal play.
 This depends on the double-dummy solver and is the least defined of the
 projects; treat it as a direction, not a commitment.
 
+### Squeeze trainer (prototype)
+
+`practice/squeezes/` — Python + TypeScript
+
+A BridgeMaster-style declarer-play trainer for deep-diving one technique at a
+time, starting with squeeze play. The robot defenders' hands are deliberately
+not fixed: the engine tracks every layout consistent with the play so far, so
+only a line that handles all of them succeeds — the correct technique, not a
+memorized layout. Currently a prototype under `practice/squeezes/scratch/`; see
+`practice/squeezes/spec.md` for the design.
+
 ## Licensing
 
 This repository is dual-licensed to reflect the difference between code and
