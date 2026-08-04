@@ -253,7 +253,7 @@ def test_the_two_variants_agree_on_everything_but_the_par_contract() -> None:
     par(board).score for board in c_variant.boards
   ]
   # The one difference: `R` prints the contract that achieves par, `C` the score
-  # alone — which yields a par with no contracts rather than no par.
+  # alone, and a score alone yields a par with no contracts rather than no par.
   assert [len(par(board).resolutions) for board in r_variant.boards] == [1, 1]
   assert [par(board).resolutions for board in c_variant.boards] == [(), ()]
 

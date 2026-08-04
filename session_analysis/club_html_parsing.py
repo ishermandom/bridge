@@ -84,8 +84,8 @@ _VULNERABILITY_PATTERN = re.compile(r'(?P<vulnerability>\S+)\s+Vul')
 # multiplication sign for a doubling. All fold to their stand-ins as every cell
 # is read (see `_flattened`), so the patterns spell only the ASCII forms. Named
 # by code point rather than as literals, as `glyphs` does for the dashes — the
-# suit symbols especially are hard to tell apart at a glance and awkward to
-# grep for.
+# suit symbols especially are hard to tell apart at a glance and awkward to grep
+# for.
 _ASCII_STAND_INS: Mapping[int, str] = {
   **dict.fromkeys((ord(dash) for dash in glyphs.DASHES), '-'),
   0x00D7: 'x',  # multiplication sign, written for a doubling
@@ -105,8 +105,8 @@ _LEVEL = r'(?P<level>[1-7])'
 _STRAIN = r'(?P<strain>NT|[NSHDC])'  # notrump spelled either way
 _PENALTY = r'(?P<penalty>x{0,2})'  # one mark doubled, two redoubled
 _PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # `=` made exactly, else the difference
-# A seam sits between the parts a contract may be split across, which is every
-# join in the analysis paragraph: BridgeComposer prints a suit in a span of its
+# A seam sits between the parts a contract may be split across — every join in
+# the analysis paragraph, because BridgeComposer prints a suit in a span of its
 # own, so `4S` reaches a reader as two elements and `_flattened` separates them.
 _SEAM = r'\s*'
 
@@ -166,8 +166,9 @@ _RECAP_DATE_PATTERN = re.compile(
 )
 _RECAP_DATE_FORMAT = '%B %d %Y'
 
-# Columns in the recap are separated by two or more spaces, which is what keeps
-# a two-word name from splitting and a one-space gap from joining two columns.
+# Columns in the recap are separated by two or more spaces. Demanding two is
+# what keeps a two-word name from splitting and a one-space gap from joining two
+# columns.
 _RECAP_COLUMN_SEPARATOR = re.compile(r'\s{2,}')
 
 # The separator between the two players of a recap pair. Spaces on both sides
@@ -614,8 +615,8 @@ def _makeable_tricks(analysis: Sequence[str]) -> DoubleDummyTricks | None:
   """The double-dummy table the makeable-contract list states.
 
   The club lists only the contracts that make, so every seat and strain it
-  leaves out takes fewer than seven tricks without saying how many — those cells
-  stay null, which is the honest reading of what the list said.
+  leaves out takes fewer than seven tricks without saying how many. Those cells
+  stay null, since null is the honest reading of a count the list never gave.
   """
   if not analysis:
     return None
@@ -643,10 +644,10 @@ def _par(
   """The par the analysis paragraph states.
 
   The `R` variant states the score and the contract achieving it; the `C`
-  variant states the score alone, which yields a par with no contracts rather
-  than no par — the score is the part both variants agree on and the part
-  reconciliation compares. So an unreadable contract costs that contract while
-  the score stands, exactly as the `C` variant does by design.
+  variant states the score alone, and a score alone yields a par with no
+  contracts rather than no par — the score is the part both variants agree on
+  and the part reconciliation compares. So an unreadable contract costs that
+  contract while the score stands, exactly as the `C` variant does by design.
   """
   match = _PAR_PATTERN.search(' '.join(analysis))
   if not match:
@@ -724,8 +725,8 @@ def _results(
       continue
     results.append(_result(row, section=section, standings=standings))
   # Past a missing table there is nothing left to report here: every failure a
-  # row can hold is reported on the row itself, which keeps the pairs and the
-  # score beside whatever could not be read from them.
+  # row can hold is reported on the row itself, keeping the pairs and the score
+  # beside whatever could not be read from them.
   return issue_reporting.Read(tuple(results))
 
 
@@ -778,8 +779,8 @@ def _pair(
   A cell naming no pair still yields a pair, carrying an empty number: the row's
   other side, its contract, and its score are all still good, and dropping the
   row over one cell would lose them. Only a cell that held something unreadable
-  reports — an empty cell is the capture stating no pair, which the row is
-  entitled to do.
+  reports — an empty cell is the capture stating no pair, and a row is entitled
+  to state none.
   """
   cell = row.find(
     'td', class_=f'bcstpair{"ns" if side == Side.NORTH_SOUTH else "ew"}'
@@ -886,8 +887,8 @@ def _score(row: bs4.Tag) -> int | None:
 
   The table prints the score in whichever side's column it is positive for and
   leaves the other blank, so the two columns collapse to one signed number. A
-  passed-out board scores nothing for either side, which the table writes as
-  `Pass` in the score column rather than as a zero.
+  passed-out board scores nothing for either side, and the table writes that
+  empty score as `Pass` in the score column rather than as a zero.
   """
   north_south = _cell(row, 'bcstscorens')
   if north_south.lower() == _PASSOUT:

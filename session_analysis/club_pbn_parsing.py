@@ -65,8 +65,8 @@ _TAG_PATTERN = re.compile(
   re.VERBOSE,
 )
 
-# The title BridgeComposer prints above a hand record, which it keeps in comment
-# lines of its own: `%HRTitleEvent "Placeholder Pairs"`, `%HRTitleDate
+# The title BridgeComposer prints above a hand record. It keeps that title in
+# comment lines of its own: `%HRTitleEvent "Placeholder Pairs"`, `%HRTitleDate
 # 2026.03.09`. Not standard, but the dependable source for the event and the
 # date: every capture writes these, where the standard `[Event]` and `[Date]`
 # tags are left empty often enough that neither can be relied on.
@@ -457,7 +457,8 @@ def _name_column_end(remainder: str, width: int) -> int:
   value too long simply runs past that width, pushing every column to its right
   along. So the column ends at the declared width when the character sitting
   there is the space that separates two columns, and at the next space when the
-  value overran instead — which is what keeps a long pair of surnames whole.
+  value overran instead. Running on to the next space is what keeps a long pair
+  of surnames whole.
   """
   end = width
   while end < len(remainder) and not remainder[end].isspace():
@@ -783,8 +784,8 @@ def _score(read: Mapping[str, str]) -> int | None:
 
   The table prints a score in whichever side's column it is positive for and
   leaves the other blank, so the two columns collapse to one signed number. A
-  passed-out board scores nothing for either side, which the table writes as
-  `PASS` in the score column rather than as a zero.
+  passed-out board scores nothing for either side, and the table writes that
+  empty score as `PASS` in the score column rather than as a zero.
   """
   if read.get('Contract', '').strip().upper() == _PASSOUT:
     return 0

@@ -50,8 +50,8 @@ _TRICK_VALUES: Mapping[Strain, int] = {
 }
 _NOTRUMP_FIRST_TRICK_BONUS = 10
 
-# Doubling multiplies what the bid tricks score, which is what decides whether a
-# contract reaches game.
+# Doubling multiplies what the bid tricks score, and that multiplied total is
+# what decides whether a contract reaches game.
 _PENALTY_MULTIPLIERS: Mapping[Penalty, int] = {
   Penalty.NONE: 1,
   Penalty.DOUBLED: 2,
@@ -103,8 +103,8 @@ class UnscorableResultError(ValueError):
   """No legal result of this contract produces the score a source printed.
 
   Raised only by the recovery path. It means the score, the contract, or the
-  vulnerability disagree with each other, which is a capture or parsing fault
-  rather than an unusual board.
+  vulnerability disagree with each other — a capture or parsing fault rather
+  than an unusual board.
   """
 
 
@@ -123,8 +123,8 @@ def score_for_contract(
     strain: what the contract is played in.
     penalty: whether the contract was doubled or redoubled.
     tricks_taken: how many of the thirteen tricks declarer took.
-    is_declarer_vulnerable: whether declarer's side was vulnerable, which
-      raises both the rewards and the penalties.
+    is_declarer_vulnerable: whether declarer's side was vulnerable;
+      vulnerability raises both the rewards and the penalties.
 
   Returns:
     The score: positive if the contract made, negative if it went down.
