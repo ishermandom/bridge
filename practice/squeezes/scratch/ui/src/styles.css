@@ -185,21 +185,30 @@ header {
   background: #eefaf1;
 }
 
-.layout-diagram {
+/* A full-deal diagram: all four original hands at their compass points.
+   North and South share the middle column, so West and East sit clear of
+   them on either side. */
+.deal-diagram {
+  display: grid;
+  grid-template-areas:
+    '. n .'
+    'w . e'
+    '. s .';
+  gap: 0.3rem 1.5rem;
+  justify-items: center;
+  align-items: center;
+  width: fit-content;
+  margin: 0.75rem 0;
   font-size: 1.05rem;
 }
 
-.layout-side {
+.deal-label {
   color: #555;
+  margin-bottom: 0;
 }
 
-.layout-side + .holding,
 .holding + .holding {
   margin-left: 0.4rem;
-}
-
-.holding + .layout-side {
-  margin-left: 1rem;
 }
 
 .last-trick {
@@ -231,6 +240,7 @@ header {
   align-items: center;
 }
 
+/* Compass placement shared by the last-trick strip and deal diagrams. */
 .compass-n {
   grid-area: n;
 }

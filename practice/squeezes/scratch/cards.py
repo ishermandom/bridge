@@ -74,8 +74,7 @@ class Card:
 
   @classmethod
   def from_code(cls, code: str) -> Card:
-    """Parse two-character notation, suit letter then rank symbol: `SA`, `H7`.
-    """
+    """Parse two-character notation, suit letter then rank symbol: `SA`, `H7`."""
     if len(code) != 2:
       raise ValueError(f'not a two-character card code: {code!r}')
     try:

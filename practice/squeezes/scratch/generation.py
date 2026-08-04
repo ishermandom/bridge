@@ -89,9 +89,7 @@ def generate_automatic_simple_squeeze(
   guard_ranks = rng.sample(
     [Rank(value) for value in range(low_threat_rank + 1, Rank.ACE)], 2
   )
-  north_threat_guards = [
-    Card(north_threat_suit, rank) for rank in guard_ranks
-  ]
+  north_threat_guards = [Card(north_threat_suit, rank) for rank in guard_ranks]
   south_link = Card(north_threat_suit, Rank(rng.randint(Rank.TWO, Rank.FOUR)))
 
   south = frozenset(run_winners) | {south_threat, south_link}
@@ -194,7 +192,9 @@ def _certify(
     )
 
   split_problem = replace(
-    problem, layouts=problem.layouts + (_split_guard_layout(guards, defender_pool, size),)
+    problem,
+    layouts=problem.layouts
+    + (_split_guard_layout(guards, defender_pool, size),),
   )
   split_solver = QuantumSolver(split_problem)
   if split_solver.declarer_can_force(split_solver.initial_position()):

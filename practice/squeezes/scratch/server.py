@@ -19,12 +19,12 @@ import random
 import uuid
 from collections.abc import Iterable
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-
 from cards import SUITS_HIGH_TO_LOW, Card
 from engine import ErrorReport, GameSession, SessionStatus
+from fastapi import FastAPI, HTTPException
 from generation import GeneratedProblem, generate_automatic_simple_squeeze
+from problems import Layout
+from pydantic import BaseModel, Field
 
 
 class SeatCardView(BaseModel):
@@ -56,6 +56,18 @@ class ErrorView(BaseModel):
   witnesses: list[LayoutView]
 
 
+class DealView(BaseModel):
+  """The original deal, revealed once the hand is over.
+
+  `layouts` holds the defender layouts still consistent with the play — exactly
+  one after a completed hand, possibly several after a mid-hand freeze.
+  """
+
+  north: list[str]
+  south: list[str]
+  layouts: list[LayoutView]
+
+
 class GameView(BaseModel):
   """Everything the UI needs to render a game."""
 
@@ -72,9 +84,10 @@ class GameView(BaseModel):
   legal_cards: list[str]
   status: str
   error: ErrorView | None
-  # Teaching notes for the problem; revealed only once the hand is over, so they
-  # can't tip off the technique mid-play.
+  # Teaching notes and the full deal; revealed only once the hand is over, so
+  # they can't tip off the technique mid-play.
   summary: str | None
+  deal: DealView | None
 
 
 class NewGameRequest(BaseModel):
@@ -93,9 +106,7 @@ class PlayRequest(BaseModel):
 class _ActiveGame:
   """A live session plus the teaching metadata of its problem."""
 
-  def __init__(
-    self, session: GameSession, generated: GeneratedProblem
-  ) -> None:
+  def __init__(self, session: GameSession, generated: GeneratedProblem) -> None:
     self.session = session
     self.generated = generated
 
@@ -161,15 +172,20 @@ def _codes(cards: Iterable[Card]) -> list[str]:
   return [card.code for card in ordered]
 
 
+def _layout_views(layouts: Iterable[Layout]) -> list[LayoutView]:
+  """Project defender layouts into the wire format."""
+  return [
+    LayoutView(west=_codes(layout.west), east=_codes(layout.east))
+    for layout in layouts
+  ]
+
+
 def _error_view(report: ErrorReport) -> ErrorView:
   """Project an engine error report into the wire format."""
   return ErrorView(
     played=report.played.code,
     message=report.message,
-    witnesses=[
-      LayoutView(west=_codes(layout.west), east=_codes(layout.east))
-      for layout in report.witnesses
-    ],
+    witnesses=_layout_views(report.witnesses),
   )
 
 
@@ -207,6 +223,13 @@ def _game_view(game_id: str, active: _ActiveGame) -> GameView:
     status=session.status.value,
     error=_error_view(session.error) if session.error else None,
     summary=active.generated.summary if is_over else None,
+    deal=DealView(
+      north=_codes(session.problem.north),
+      south=_codes(session.problem.south),
+      layouts=_layout_views(session.surviving_layouts()),
+    )
+    if is_over
+    else None,
   )
 
 

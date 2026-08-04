@@ -3,7 +3,6 @@
 """Tests for the HTTP surface."""
 
 from fastapi.testclient import TestClient
-
 from server import create_app
 
 
@@ -13,9 +12,7 @@ def _make_client() -> TestClient:
 
 def _new_game(client: TestClient) -> dict[str, object]:
   """Deal a small deterministic game and return its view."""
-  response = client.post(
-    '/api/games', json={'ending_size': 3, 'seed': 0}
-  )
+  response = client.post('/api/games', json={'ending_size': 3, 'seed': 0})
   assert response.status_code == 200
   view: dict[str, object] = response.json()
   return view
@@ -93,6 +90,35 @@ def test_unknown_game_is_a_404() -> None:
   response = _make_client().get('/api/games/nope')
 
   assert response.status_code == 404
+
+
+def test_full_deal_is_revealed_once_the_hand_ends() -> None:
+  client = _make_client()
+  view = _new_game(client)
+  assert view['deal'] is None
+
+  # Play the first legal card each turn until the hand freezes or completes;
+  # either ending reveals the deal.
+  while view['status'] == 'playing':
+    legal = view['legal_cards']
+    assert isinstance(legal, list)
+    response = client.post(
+      f'/api/games/{view["game_id"]}/plays', json={'card': legal[0]}
+    )
+    assert response.status_code == 200
+    view = response.json()
+
+  deal = view['deal']
+  assert isinstance(deal, dict)
+  # The original three-card hands, not whatever remains on the table.
+  assert len(deal['north']) == 3
+  assert len(deal['south']) == 3
+  layouts = deal['layouts']
+  assert isinstance(layouts, list)
+  assert layouts
+  for layout in layouts:
+    assert len(layout['west']) == 3
+    assert len(layout['east']) == 3
 
 
 def test_restart_resets_the_board() -> None:

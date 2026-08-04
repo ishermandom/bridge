@@ -89,6 +89,17 @@ class GameSession:
     """All finished tricks, oldest first."""
     return tuple(self._completed_tricks)
 
+  def surviving_layouts(self) -> tuple[Layout, ...]:
+    """The defender layouts still consistent with every card played so far.
+
+    Exactly one layout survives a fully played-out hand; after a mid-hand
+    freeze, several may remain.
+    """
+    return tuple(
+      self._problem.layouts[index]
+      for index in sorted(self._position.surviving)
+    )
+
   def seat_to_play(self) -> Seat | None:
     """The seat due to play, or None when the hand is over or frozen."""
     if self._status is not SessionStatus.PLAYING:
@@ -113,7 +124,7 @@ class GameSession:
       raise RuntimeError(f'hand is {self._status.value}; restart to continue')
     seat = self._solver.seat_to_play(self._position)
     if not seat.is_declarer_side:
-      raise RuntimeError(f'not the user\'s turn: {seat.value} is due to play')
+      raise RuntimeError(f"not the user's turn: {seat.value} is due to play")
     if card not in self._solver.legal_declarer_cards(self._position):
       raise ValueError(
         f'{card} is not a legal play from the {seat.value} hand now'

@@ -3,7 +3,6 @@
 """Tests for the interactive game session."""
 
 import pytest
-
 from cards import Card, Seat
 from engine import GameSession, SessionStatus
 from problems import Layout, Problem

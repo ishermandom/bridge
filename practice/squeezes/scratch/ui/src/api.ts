@@ -25,6 +25,15 @@ export interface PlayError {
   witnesses: DefenderLayout[];
 }
 
+// The original deal, revealed once the hand is over. `layouts` holds the
+// defender layouts still consistent with the play — exactly one after a
+// completed hand, possibly several after a mid-hand freeze.
+export interface DealView {
+  north: string[];
+  south: string[];
+  layouts: DefenderLayout[];
+}
+
 export type GameStatus = "playing" | "failed" | "complete";
 
 export interface GameView {
@@ -42,6 +51,7 @@ export interface GameView {
   status: GameStatus;
   error: PlayError | null;
   summary: string | null;
+  deal: DealView | null;
 }
 
 async function postJson(path: string, body: unknown): Promise<GameView> {

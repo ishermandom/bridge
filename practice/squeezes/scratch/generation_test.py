@@ -5,7 +5,6 @@
 import random
 
 import pytest
-
 from engine import GameSession, SessionStatus
 from generation import generate_automatic_simple_squeeze
 from solver import QuantumSolver

@@ -49,7 +49,9 @@ def test_follow_suit_is_forced_when_the_layout_holds_the_led_suit() -> None:
   problem = Problem(
     north=frozenset({_card('S2')}),
     south=frozenset({_card('SA')}),
-    layouts=(Layout(west=frozenset({_card('SK')}), east=frozenset({_card('H3')})),),
+    layouts=(
+      Layout(west=frozenset({_card('SK')}), east=frozenset({_card('H3')})),
+    ),
     leader=Seat.SOUTH,
     target_tricks=1,
   )
@@ -57,14 +59,18 @@ def test_follow_suit_is_forced_when_the_layout_holds_the_led_suit() -> None:
 
   position = solver.play(solver.initial_position(), _card('SA'))
 
-  assert dict(solver.defender_candidates(position)) == {_card('SK'): frozenset({0})}
+  assert dict(solver.defender_candidates(position)) == {
+    _card('SK'): frozenset({0})
+  }
 
 
 def test_completed_tricks_score_and_end_the_game() -> None:
   problem = Problem(
     north=frozenset({_card('S2')}),
     south=frozenset({_card('SA')}),
-    layouts=(Layout(west=frozenset({_card('SK')}), east=frozenset({_card('SQ')})),),
+    layouts=(
+      Layout(west=frozenset({_card('SK')}), east=frozenset({_card('SQ')})),
+    ),
     leader=Seat.SOUTH,
     target_tricks=1,
   )

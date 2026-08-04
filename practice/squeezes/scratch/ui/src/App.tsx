@@ -5,19 +5,12 @@
 // outcome panels (BridgeMaster-style failure freeze, success post-mortem).
 
 import { useCallback, useEffect, useState } from 'react';
-import type { DefenderLayout, GameView, PlayError, Trick } from './api';
+import type { DealView, DefenderLayout, GameView, PlayError, Trick } from './api';
 import { newGame, playCard, restartGame } from './api';
 import { CardText, GlyphText, SUIT_GLYPHS, suitClass } from './suits';
 import Table from './Table';
 
 const DEFAULT_ENDING_SIZE = 5;
-
-const SEAT_NAMES: Record<string, string> = {
-  N: 'North',
-  E: 'East',
-  S: 'South',
-  W: 'West',
-};
 
 function HoldingLine({ codes }: { codes: string[] }) {
   // Codes arrive sorted ♠♥♦♣, high to low, so grouping preserves order.
@@ -39,23 +32,31 @@ function HoldingLine({ codes }: { codes: string[] }) {
   );
 }
 
-function LayoutDiagram({ layout }: { layout: DefenderLayout }) {
+// All four original hands at their compass points; the defenders' side
+// comes from one specific layout.
+function DealDiagram(props: { deal: DealView; layout: DefenderLayout }) {
   return (
-    <p className="layout-diagram">
-      <span className="layout-side">West:</span>
-      <HoldingLine codes={layout.west} />
-      <span className="layout-side">East:</span>
-      <HoldingLine codes={layout.east} />
-    </p>
+    <div className="deal-diagram">
+      <span className="compass-n">
+        <HoldingLine codes={props.deal.north} />
+      </span>
+      <span className="compass-w">
+        <HoldingLine codes={props.layout.west} />
+      </span>
+      <span className="compass-e">
+        <HoldingLine codes={props.layout.east} />
+      </span>
+      <span className="compass-s">
+        <HoldingLine codes={props.deal.south} />
+      </span>
+    </div>
   );
 }
 
 function LastTrick({ trick }: { trick: Trick }) {
   return (
     <section className="last-trick">
-      <span className="last-trick-title">
-        Last trick — won by {SEAT_NAMES[trick.winner]}
-      </span>
+      <span className="last-trick-title">Last trick</span>
       <div className="last-trick-compass">
         {trick.plays.map((play) => (
           <span
@@ -73,7 +74,11 @@ function LastTrick({ trick }: { trick: Trick }) {
   );
 }
 
-function FailedPanel(props: { error: PlayError; onRestart: () => void }) {
+function FailedPanel(props: {
+  error: PlayError;
+  deal: DealView;
+  onRestart: () => void;
+}) {
   return (
     <section className="panel failed">
       <h2>Down.</h2>
@@ -81,14 +86,18 @@ function FailedPanel(props: { error: PlayError; onRestart: () => void }) {
         <GlyphText text={props.error.message} />
       </p>
       {props.error.witnesses.map((layout, index) => (
-        <LayoutDiagram key={index} layout={layout} />
+        <DealDiagram key={index} deal={props.deal} layout={layout} />
       ))}
       <button onClick={props.onRestart}>Replay hand</button>
     </section>
   );
 }
 
-function CompletePanel(props: { summary: string | null; onNew: () => void }) {
+function CompletePanel(props: {
+  summary: string | null;
+  deal: DealView;
+  onNew: () => void;
+}) {
   return (
     <section className="panel complete">
       <h2>Made it!</h2>
@@ -97,6 +106,10 @@ function CompletePanel(props: { summary: string | null; onNew: () => void }) {
           <GlyphText text={props.summary} />
         </p>
       )}
+      <p className="deal-label">The full layout:</p>
+      {props.deal.layouts.map((layout, index) => (
+        <DealDiagram key={index} deal={props.deal} layout={layout} />
+      ))}
       <button onClick={props.onNew}>Next problem</button>
     </section>
   );
@@ -175,12 +188,17 @@ export default function App() {
       </p>
       <Table view={view} onPlay={(code) => void onPlay(code)} />
       {lastTrick && <LastTrick trick={lastTrick} />}
-      {view.status === 'failed' && view.error && (
-        <FailedPanel error={view.error} onRestart={() => void onRestart()} />
+      {view.status === 'failed' && view.error && view.deal && (
+        <FailedPanel
+          error={view.error}
+          deal={view.deal}
+          onRestart={() => void onRestart()}
+        />
       )}
-      {view.status === 'complete' && (
+      {view.status === 'complete' && view.deal && (
         <CompletePanel
           summary={view.summary}
+          deal={view.deal}
           onNew={() => void deal(endingSize)}
         />
       )}
