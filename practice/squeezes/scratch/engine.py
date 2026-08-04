@@ -96,8 +96,7 @@ class GameSession:
     freeze, several may remain.
     """
     return tuple(
-      self._problem.layouts[index]
-      for index in sorted(self._position.surviving)
+      self._problem.layouts[index] for index in sorted(self._position.surviving)
     )
 
   def seat_to_play(self) -> Seat | None:
@@ -152,7 +151,7 @@ class GameSession:
 
   def _apply(self, seat: Seat, card: Card) -> None:
     """Advance the position by one card, recording any completed trick."""
-    full_trick = self._position.trick + ((seat, card),)
+    full_trick = (*self._position.trick, (seat, card))
     self._position = self._solver.play(self._position, card)
     if not self._position.trick and len(full_trick) == 4:
       self._completed_tricks.append(

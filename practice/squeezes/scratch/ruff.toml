@@ -1,0 +1,11 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# The flat first-party modules (`cards`, `engine`, ...) are importable only
+# from this directory, and without a config here ruff infers first- vs
+# third-party from its working directory — so runs anchored elsewhere (the
+# Stop hook formats from the repo root) would reclassify the imports and
+# rewrite their blocks. `src` pins the classification to this directory for
+# every anchor; `extend` keeps the shared global rules applying.
+extend = "~/.config/ruff/pyproject.toml"
+src = ["."]

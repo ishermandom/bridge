@@ -58,12 +58,12 @@ def generate_automatic_simple_squeeze(
 ) -> GeneratedProblem:
   """Deal one certified automatic simple squeeze ending.
 
-  `ending_size` is cards per hand, 3–6: size 3 is the bare matrix; larger sizes
+  `ending_size` is cards per hand, 3-6: size 3 is the bare matrix; larger sizes
   prepend winners to the run, adding idle-card discards for both North and the
   defenders before the squeeze bites.
   """
   if not 3 <= ending_size <= 6:
-    raise ValueError(f'ending_size must be 3–6, got {ending_size}')
+    raise ValueError(f'ending_size must be 3-6, got {ending_size}')
   size = ending_size
 
   suits = list(SUITS_HIGH_TO_LOW)
@@ -193,8 +193,10 @@ def _certify(
 
   split_problem = replace(
     problem,
-    layouts=problem.layouts
-    + (_split_guard_layout(guards, defender_pool, size),),
+    layouts=(
+      *problem.layouts,
+      _split_guard_layout(guards, defender_pool, size),
+    ),
   )
   split_solver = QuantumSolver(split_problem)
   if split_solver.declarer_can_force(split_solver.initial_position()):

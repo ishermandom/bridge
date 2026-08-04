@@ -3,7 +3,7 @@
 """Card vocabulary for the squeeze trainer: suits, ranks, cards, and seats.
 
 Only what notrump endings need: cards compare by rank within a suit, seats
-rotate clockwise, and North–South is the declaring side. Kept independent of
+rotate clockwise, and North-South is the declaring side. Kept independent of
 `session_analysis`'s models while this prototype lives in scratch; unifying the
 vocabularies is a graduation question (see ../spec.md #architecture).
 """
@@ -58,7 +58,7 @@ class Rank(enum.IntEnum):
 
   @property
   def symbol(self) -> str:
-    """The rank's one-character notation: `2`–`9`, `T`, `J`, `Q`, `K`, `A`."""
+    """The rank's one-character notation: `2`-`9`, `T`, `J`, `Q`, `K`, `A`."""
     return '23456789TJQKA'[self - Rank.TWO]
 
 
@@ -111,7 +111,7 @@ class Seat(enum.Enum):
 
   @property
   def is_declarer_side(self) -> bool:
-    """Whether this seat is played by the user (North–South declares)."""
+    """Whether this seat is played by the user (North-South declares)."""
     return self in (Seat.NORTH, Seat.SOUTH)
 
 

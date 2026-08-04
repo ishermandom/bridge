@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Exact solver for the quantum single-dummy game.
 
-Declarer sees only the North–South cards plus whatever has hit the table; the
+Declarer sees only the North-South cards plus whatever has hit the table; the
 defenders commit to nothing beyond staying consistent with at least one layout
 in the problem's family. `QuantumSolver.declarer_can_force` asks whether one
 uniform declarer line reaches the trick target against every consistent defender
@@ -162,7 +162,7 @@ class QuantumSolver:
     elif seat is Seat.EAST:
       east_played = east_played | {card}
 
-    trick = position.trick + ((seat, card),)
+    trick = (*position.trick, (seat, card))
     if len(trick) < 4:
       return replace(
         position,

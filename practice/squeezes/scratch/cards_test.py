@@ -3,6 +3,7 @@
 """Tests for the card vocabulary."""
 
 import pytest
+
 from cards import Card, Rank, Seat, Suit
 
 # --- card notation ---

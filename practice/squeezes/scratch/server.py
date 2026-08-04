@@ -19,12 +19,13 @@ import random
 import uuid
 from collections.abc import Iterable
 
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
 from cards import SUITS_HIGH_TO_LOW, Card
 from engine import ErrorReport, GameSession, SessionStatus
-from fastapi import FastAPI, HTTPException
 from generation import GeneratedProblem, generate_automatic_simple_squeeze
 from problems import Layout
-from pydantic import BaseModel, Field
 
 
 class SeatCardView(BaseModel):

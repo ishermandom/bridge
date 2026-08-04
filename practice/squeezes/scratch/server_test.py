@@ -3,6 +3,7 @@
 """Tests for the HTTP surface."""
 
 from fastapi.testclient import TestClient
+
 from server import create_app
 
 
