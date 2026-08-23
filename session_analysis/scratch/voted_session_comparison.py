@@ -24,10 +24,6 @@ import pathlib
 from session_analysis.assembly import parse_and_assemble_voted_session
 from session_analysis.models import SheetImage, Source
 
-# The comparison sheet is the 6/29 session; the reference date only has to sit
-# after it for the footer's year-less date to resolve.
-_REFERENCE_DATE = datetime.date(2026, 7, 1)
-
 _SOURCE = Source(
   image=SheetImage(path='strips-comparison', content_hash='comparison')
 )
@@ -37,6 +33,15 @@ def main() -> None:
   """Vote each model's two runs against each other and tally the issues."""
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument('--run-directory', type=pathlib.Path, required=True)
+  # Scoresheet footers often write a month/day with no year, which the parser
+  # resolves against a date known to fall after the session. Anything later than
+  # the sheet works; the default suits the 6/29 sheet the spec's figures came
+  # from, and a sheet from another year needs its own.
+  parser.add_argument(
+    '--reference-date',
+    type=datetime.date.fromisoformat,
+    default=datetime.date(2026, 7, 1),
+  )
   arguments = parser.parse_args()
 
   by_model: dict[str, dict[int, str]] = collections.defaultdict(dict)
@@ -46,7 +51,7 @@ def main() -> None:
 
   for model, runs in sorted(by_model.items()):
     session = parse_and_assemble_voted_session(
-      runs[1], runs[2], _SOURCE, reference_date=_REFERENCE_DATE
+      runs[1], runs[2], _SOURCE, reference_date=arguments.reference_date
     )
     board_issues = [
       (board.number.raw, issue)

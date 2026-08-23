@@ -31,6 +31,10 @@ output, parsed into the canonical model.
   - Note: if this pans out, it reshapes the Backlog's multi-format geometry item
     — a model-driven approach may handle two-column layouts without a hand-built
     column-grid stage.
+  - Note: this subsumes re-measuring the full-sheet side of spec.md's
+    strips-versus-full-sheet cost figures, which are still Sonnet-era. Whether a
+    whole-sheet read works at all is the question worth answering; its price
+    alone is not.
 - [ ] Decide whether the two-run vote still earns its keep on Opus 5.
   - Rationale: the refreshed strips comparison found Opus 5's two runs agreeing
     completely on the 6/29 sheet — the pass flags nothing, and the errors that
