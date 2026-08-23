@@ -663,14 +663,14 @@ def _resolution(
   the score identifies the result uniquely (see `scoring`).
   """
   written = notation.normalize(_column(row, _CONTRACT_COLUMN))
-  match = notation.match_contract(written)
-  declarer = _column(row, _DECLARER_COLUMN).strip().upper()
-  if not match or declarer not in tuple(Direction) or score is None:
+  contract = notation.parse_contract(
+    written, declarer=notation.parse_seat(_column(row, _DECLARER_COLUMN))
+  )
+  if not contract or score is None:
     return issue_reporting.Read(None)
 
-  seat = Direction(declarer)
+  seat = contract.declarer
   side = Side.NORTH_SOUTH if seat in Side.NORTH_SOUTH.seats else Side.EAST_WEST
-  contract = notation.build_contract(match, declarer=seat)
 
   try:
     tricks_taken = scoring.tricks_taken_from_score(
@@ -689,7 +689,7 @@ def _resolution(
       None,
       issues=(
         _UNSCORABLE_RESULT.issue(
-          f'no result of {written} by {declarer} scores {score} — the row is '
+          f'no result of {written} by {seat} scores {score} — the row is '
           f'kept without a contract'
         ),
       ),

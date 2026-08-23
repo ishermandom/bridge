@@ -94,10 +94,6 @@ _ASCII_STAND_INS: Mapping[int, str] = {
   0x2663: Strain.CLUBS.value,
 }
 
-# What the patterns below add to the contract `notation` already spells: who
-# declared, and how it came out.
-_DECLARER = r'(?P<declarer>NS|EW|[NESW])'  # a side or a single seat
-_PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # `=` made exactly, else the difference
 # BridgeComposer prints a suit in a span of its own, so `4S` reaches a reader as
 # two elements that `_flattened` separates. The seam absorbs that where the
 # pattern reads the paragraph a piece at a time; where a whole contract is read
@@ -108,7 +104,11 @@ _SEAM = r'\s*'
 # Notrump is spelled `N` here, which is also how a seat is spelled — the two are
 # told apart by position, the seat coming before the level.
 _MAKEABLE_PATTERN = re.compile(
-  _DECLARER + _SEAM + notation.LEVEL_PATTERN + _SEAM + notation.STRAIN_PATTERN
+  notation.DECLARER_PATTERN
+  + _SEAM
+  + notation.LEVEL_PATTERN
+  + _SEAM
+  + notation.STRAIN_PATTERN
 )
 
 # The par line, e.g. `Par +420: N 4S=` in the `R` variant and `Par +460` in the
@@ -125,7 +125,9 @@ _PAR_PATTERN = re.compile(
 # has been taken out of — so `N 4 S=` and `N4S=` are one shape by the time this
 # sees them.
 _PAR_CONTRACT_PATTERN = re.compile(
-  _DECLARER + notation.CONTRACT_PATTERN + _PAR_RESULT,
+  notation.DECLARER_PATTERN
+  + notation.CONTRACT_PATTERN
+  + notation.RESULT_PATTERN,
   re.IGNORECASE,
 )
 
@@ -809,34 +811,31 @@ def _pair(
 
 def _resolution(row: bs4.Tag) -> issue_reporting.Read[Resolution | None]:
   """What a row's contract cell resolved to, or None when it names none."""
-  contract = _cell(row, 'bcstcontract')
-  if contract.lower() == _PASSOUT:
+  written = _cell(row, 'bcstcontract')
+  if written.lower() == _PASSOUT:
     return issue_reporting.Read(Passout())
 
-  match = notation.match_contract(contract)
   declarer = _cell(row, 'bcstdeclarer')
   made = _cell(row, 'bcstmade')
-  if not match or not declarer or not made:
+  contract = notation.parse_contract(
+    written, declarer=notation.parse_seat(declarer)
+  )
+  if not contract or not made:
     # A row naming no contract at all is a legitimate state — a board never
     # played, or one the director adjusted — so only a row that named one and
     # then could not be read is worth reporting.
-    if not contract:
+    if not written:
       return issue_reporting.Read(None)
-    return _unreadable_contract(contract, declarer, made)
+    return _unreadable_contract(written, declarer, made)
 
-  level = int(match.group('level'))
   try:
-    tricks_taken = _tricks_taken(made, level)
-    seat = Direction(declarer.upper())
-  except (_ClubHtmlFormatError, ValueError):
-    # A `Made` column holding neither form, or a declarer cell naming no seat.
-    return _unreadable_contract(contract, declarer, made)
+    tricks_taken = _tricks_taken(made, contract.level)
+  except _ClubHtmlFormatError:
+    # A `Made` column holding neither form.
+    return _unreadable_contract(written, declarer, made)
 
   return issue_reporting.Read(
-    PlayedContract(
-      contract=notation.build_contract(match, declarer=seat),
-      result=Result(tricks_taken=tricks_taken),
-    )
+    PlayedContract(contract=contract, result=Result(tricks_taken=tricks_taken))
   )
 
 

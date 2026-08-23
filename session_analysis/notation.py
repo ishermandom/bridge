@@ -110,9 +110,9 @@ PENALTY_BY_MARK_COUNT: Mapping[int, Penalty] = {
 # position: a pattern reaches the strain by where it sits relative to the level
 # and the declarer, never by searching for a letter.
 #
-# What is deliberately not here: the spacing between the parts, and whether a
-# declarer slot admits a side as well as a seat. Each is a property of one
-# publisher's document rather than of the game, so each parser spells its own.
+# What is deliberately not here is the spacing between the parts, which is a
+# property of one publisher's document rather than of the game. `normalize`
+# takes it off, so no pattern has to tolerate it.
 
 # A contract's level: one through seven, the tricks it undertakes above book.
 LEVEL_PATTERN = r'(?P<level>[1-7])'
@@ -145,6 +145,16 @@ PENALTY_PATTERN = r'(?P<penalty>[*xX]{0,2})'
 CONTRACT_PATTERN = LEVEL_PATTERN + STRAIN_PATTERN + PENALTY_PATTERN
 _CONTRACT = re.compile(CONTRACT_PATTERN)
 
+# Who played a contract, where the source states it in the same string as the
+# contract rather than a column of its own: a single seat, or a side, since a
+# par belongs to a side rather than to either of its two seats.
+DECLARER_PATTERN = r'(?P<declarer>NS|EW|[NESW])'
+
+# How a contract came out, where the source states it beside the contract: `=`
+# for made exactly, otherwise the difference signed. Optional, because a source
+# may leave it off and mean the same as `=`.
+RESULT_PATTERN = r'(?P<result>=|[+-]\d+)?'
+
 # Any run of whitespace, which the sources scatter through a written contract
 # without meaning any of it: the sheet's is a human's hand, ACBL's and the
 # club's is markup the page was built out of.
@@ -171,6 +181,20 @@ def match_contract(text: str) -> re.Match[str] | None:
   return _CONTRACT.fullmatch(normalize(text))
 
 
+def parse_seat(text: str) -> Direction | None:
+  """The seat a compass letter names, or None where it names no seat.
+
+  Every source names a seat by its initial, and each writes the letter its own
+  way — padded, lower case, or absent altogether where a row states no seat. A
+  caller that must tell "said nothing" from "said something unreadable" has to
+  check the text itself, since both arrive here as a string this will not read.
+  """
+  try:
+    return Direction(normalize(text))
+  except ValueError:
+    return None
+
+
 def build_contract(match: re.Match[str], *, declarer: Direction) -> Contract:
   """The contract a `CONTRACT_PATTERN` match states, played by `declarer`.
 
@@ -184,6 +208,24 @@ def build_contract(match: re.Match[str], *, declarer: Direction) -> Contract:
     declarer=declarer,
     penalty=PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
   )
+
+
+def parse_contract(text: str, *, declarer: Direction | None) -> Contract | None:
+  """The contract `text` states, played by `declarer`, or None where either
+  fails to read.
+
+  For the common case: a source whose cell holds the contract alone, with the
+  declarer in a column beside it. A source that writes both into one string
+  matches its own pattern and calls `build_contract` on what that finds.
+
+  `declarer` is taken as optional so that the two readings fail together, which
+  spares every caller a guard of its own — neither a contract without a seat nor
+  a seat without a contract is a result anyone can use.
+  """
+  match = match_contract(text)
+  if not match or not declarer:
+    return None
+  return build_contract(match, declarer=declarer)
 
 
 # The pattern of a result token: a sign followed by one or more digits.

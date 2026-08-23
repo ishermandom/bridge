@@ -92,10 +92,6 @@ _COLUMN_PATTERN = re.compile(
   re.VERBOSE,
 )
 
-# What the patterns below add to the contract `notation` already spells: who
-# declared, and how it came out.
-_DECLARER = r'(?P<declarer>NS|EW|[NESW])'  # a side or a single seat
-_PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # optional: omitting it still parses
 # A required space, not an optional one: a PBN's par tag always writes it, so
 # demanding it keeps a run-together `NS4H+1` an issue rather than a silent read.
 _SEAM = r'\s+'
@@ -104,7 +100,10 @@ _SEAM = r'\s+'
 # `ParContract` tag is BridgeComposer's own, so every part of this shape is
 # observed rather than standard.
 _PAR_CONTRACT_PATTERN = re.compile(
-  _DECLARER + _SEAM + notation.CONTRACT_PATTERN + _PAR_RESULT
+  notation.DECLARER_PATTERN
+  + _SEAM
+  + notation.CONTRACT_PATTERN
+  + notation.RESULT_PATTERN
 )
 
 # A par score: `NS 450`, `EW -1100`. The side named owns the score, so an
@@ -469,7 +468,7 @@ def _board_from_record(record: _Record, *, number: int) -> TravellerBoard:
   issues: list[Issue] = []
 
   printed_dealer = record.tags.get('Dealer', '').strip()
-  dealer = _direction(printed_dealer)
+  dealer = notation.parse_seat(printed_dealer)
   # An unreadable dealer costs only the cross-check below. The dealer follows
   # from the board number and is never stored, so nothing but that check wanted
   # this value — but staying silent would hide a tag gone strange.
@@ -504,21 +503,6 @@ def _board_from_record(record: _Record, *, number: int) -> TravellerBoard:
   )
 
 
-def _direction(value: str) -> Direction | None:
-  """The seat a one-letter tag names, or None when it names no readable seat.
-
-  Every caller but one treats None as a failure and reports it, because a seat
-  is what gives their value meaning. The exception is the `Dealer` tag, whose
-  caller distinguishes a tag that said nothing from one that said something
-  unreadable — this function cannot, since both arrive as a string it will not
-  read.
-  """
-  try:
-    return Direction(value.strip().upper())
-  except ValueError:
-    return None
-
-
 def _deal(value: str) -> issue_reporting.Read[Deal | None]:
   """The deal a `[Deal]` tag states, or None when the tag states none.
 
@@ -534,7 +518,7 @@ def _deal(value: str) -> issue_reporting.Read[Deal | None]:
     return issue_reporting.Read(None)
 
   first_seat, _, hands_text = value.partition(':')
-  start = _direction(first_seat)
+  start = notation.parse_seat(first_seat)
   if not start:
     return _unreadable_deal(f'deal names no starting seat: {value!r}')
 
@@ -589,7 +573,7 @@ def _makeable_tricks(
       issues.append(_UNREADABLE_DOUBLE_DUMMY_ROW.issue(str(error)))
       continue
 
-    declarer = _direction(read.get('Declarer', ''))
+    declarer = notation.parse_seat(read.get('Declarer', ''))
     strain = notation.STRAIN_BY_LETTER.get(read.get('Denomination', '').upper())
     tricks_won = read.get('Result', '')
     if not declarer or not strain or not tricks_won.isdigit():
@@ -735,24 +719,25 @@ def _resolution(
   read: Mapping[str, str],
 ) -> issue_reporting.Read[Resolution | None]:
   """What a row's contract column resolved to, or None when it names none."""
-  contract = notation.normalize(read.get('Contract', ''))
-  if contract == _PASSOUT:
+  written = notation.normalize(read.get('Contract', ''))
+  if written == _PASSOUT:
     return issue_reporting.Read(Passout())
 
-  match = notation.match_contract(contract)
-  declarer = _direction(read.get('Declarer', ''))
+  contract = notation.parse_contract(
+    written, declarer=notation.parse_seat(read.get('Declarer', ''))
+  )
   tricks_won = read.get('Result', '').strip()
-  if not match or not declarer or not tricks_won.isdigit():
+  if not contract or not tricks_won.isdigit():
     # A row naming no contract at all is a legitimate state — a board never
     # played, or one the director adjusted — so only a row that named one and
     # then would not read is worth reporting.
-    if not contract or contract == _ABSENT:
+    if not written or written == _ABSENT:
       return issue_reporting.Read(None)
     return issue_reporting.Read(
       None,
       issues=(
         _UNREADABLE_CONTRACT.issue(
-          f'unreadable contract {contract!r} by {read.get("Declarer")!r} with '
+          f'unreadable contract {written!r} by {read.get("Declarer")!r} with '
           f'result {tricks_won!r}'
         ),
       ),
@@ -760,7 +745,7 @@ def _resolution(
 
   return issue_reporting.Read(
     PlayedContract(
-      contract=notation.build_contract(match, declarer=declarer),
+      contract=contract,
       # The standard defines this column as the tricks declarer won, so it is
       # already the canonical count and needs no translation.
       result=Result(tricks_taken=int(tricks_won)),

@@ -260,7 +260,7 @@ def _analysis(
         *deal.issues,
         *notation.board_schedule_issues(
           board_number=number,
-          dealer=_direction(_text(hand_record.get('dealer'))),
+          dealer=notation.parse_seat(_text(hand_record.get('dealer'))),
           vulnerability=_text(hand_record.get('vulnerability')) or None,
         ),
       ),
@@ -444,19 +444,19 @@ def _resolution(row: Mapping[str, object]) -> Resolution | None:
   The blob carries the trick count outright, so nothing has to be derived from
   the result token beside it.
   """
-  contract = notation.normalize(_text(row.get('contract')))
-  if contract == _PASSOUT:
+  written = notation.normalize(_text(row.get('contract')))
+  if written == _PASSOUT:
     return Passout()
 
-  match = notation.match_contract(contract)
-  declarer = _direction(_text(row.get('declarer')))
+  contract = notation.parse_contract(
+    written, declarer=notation.parse_seat(_text(row.get('declarer')))
+  )
   tricks_taken = _integer(row.get('tricks_taken'))
-  if not match or not declarer or tricks_taken is None:
+  if not contract or tricks_taken is None:
     return None
 
   return PlayedContract(
-    contract=notation.build_contract(match, declarer=declarer),
-    result=Result(tricks_taken=tricks_taken),
+    contract=contract, result=Result(tricks_taken=tricks_taken)
   )
 
 
@@ -474,14 +474,6 @@ def _score(row: Mapping[str, object]) -> int | None:
     return north_south
   east_west = _integer(row.get('ew_score'))
   return -east_west if east_west is not None else None
-
-
-def _direction(value: str) -> Direction | None:
-  """The seat a compass letter names, or None when it names none."""
-  try:
-    return Direction(value.strip().upper())
-  except ValueError:
-    return None
 
 
 def _date(value: str) -> datetime.date | None:

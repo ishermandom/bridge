@@ -76,7 +76,10 @@ _DASHES = re.escape(glyphs.DASHES)
 # hand `Direction` a value it has no member for — a raise from a module whose
 # whole promise is that it never raises.
 _DECLARER = r'(?P<declarer>[NESW])'
-# A result carries its own sign, a plus or any of the dash glyphs.
+# A result the sheet always writes, so nothing here is optional, and whose minus
+# may be any of the dash glyphs a hand can draw. No `=` among the forms: a sheet
+# states a make as the tricks it took above book, so a four-level contract that
+# came home reads `+4` rather than as having made exactly.
 _RESULT = rf'(?P<result>[+{_DASHES}]\d+)'
 
 # The bid glyphs of a call: a level and a strain. Any trailing `!` alert and
@@ -85,8 +88,8 @@ _BID_PATTERN = re.compile(LEVEL_PATTERN + STRAIN_PATTERN)
 
 # A whole contract cell: `<level><strain>[penalty]<declarer><result>`. The
 # penalty sits before the declarer. The sheet's spacing is a human's and lands
-# wherever it lands, so a cell is read through `normalize` and this
-# pattern needs no seams of its own.
+# wherever it lands, so a cell is read through `normalize` and this pattern
+# needs no seams of its own.
 _CONTRACT_PATTERN = re.compile(CONTRACT_PATTERN + _DECLARER + _RESULT)
 
 # A board number: a positive integer, ASCII, no leading zero. The leading

@@ -40,7 +40,6 @@ from session_analysis.travellers import DoubleDummyTricks, Par
 
 # The pieces the patterns below are composed from. The strain comes from
 # `notation` in its group-free form, since a double-dummy cell names one twice.
-_DECLARER = r'NS|EW|[NESW]'  # a side, or a single seat
 
 _LEVEL = r'[\d-]'  # a makeable level, or a dash for a seat that makes none
 _TRICK_COUNT = r'\d'
@@ -94,8 +93,8 @@ _PAR_PATTERN = re.compile(
 _PAR_CONTRACT_PATTERN = re.compile(
   rf"""
   {notation.CONTRACT_PATTERN}
-  -(?P<declarer>{_DECLARER})
-  (?P<result>[+-]\d+)?
+  -{notation.DECLARER_PATTERN}
+  {notation.RESULT_PATTERN}
   """,
   re.VERBOSE,
 )
