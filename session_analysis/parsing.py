@@ -40,7 +40,12 @@ from session_analysis.models import (
   Result,
   Schedule,
 )
-from session_analysis.notation import BOOK, ResultNotation, tricks_taken
+from session_analysis.notation import (
+  BOOK,
+  STRAIN_BY_LETTER,
+  ResultNotation,
+  tricks_taken,
+)
 
 # Issue codes this module raises. `Issue.code` stays a plain string until the
 # parser and validation pass together settle the full set into an enum (see
@@ -64,7 +69,7 @@ _DASHES = re.escape(glyphs.DASHES)
 # the sheet's inconsistent spacing; a result carries its own sign, a plus or any
 # dash. `(?P<name>…)` groups let the extraction sites read by name.
 _LEVEL = r'(?P<level>[1-7])'
-_STRAIN = r'(?P<strain>NT|[CDHSN])'  # notrump as `N` or `NT`; see below
+_STRAIN = r'(?P<strain>NT|[CDHSN])'  # notrump as `N` or `NT`
 _PENALTY = r'(?P<penalty>[*xX]{1,2})?'  # one mark doubled, two redoubled
 _DECLARER = r'(?P<declarer>[NESW])'
 _RESULT = rf'(?P<result>[+{_DASHES}]\d+)'
@@ -139,19 +144,6 @@ _NOTRUMP_CEILING_PATTERN = re.compile(r'_(?P<ceiling>\d)')
 
 # Notrump ranges are written as their ones digit with the tens `1` implied.
 _TEENS_BASE = 10
-
-# Two strain letters collide with seat letters — `N` (notrump vs. North) and `S`
-# (spades vs. South) — so a letter alone is ambiguous. The bid and contract
-# patterns resolve each by position (strain slot vs. declarer slot). This
-# single-letter map backs both the strain slot and the artificial-suit
-# announcement; `_strain_from_glyphs` adds the `NT` spelling on top of it.
-_STRAIN_BY_LETTER = {
-  'C': Strain.CLUBS,
-  'D': Strain.DIAMONDS,
-  'H': Strain.HEARTS,
-  'S': Strain.SPADES,
-  'N': Strain.NOTRUMP,
-}
 
 # Card ranks keyed by their sheet glyph. The enum values cover every rank (the
 # ten as `T`); the sheet also writes the ten as `10`, mapped in alongside.
@@ -231,7 +223,7 @@ def parse_contract_cell(cell: str) -> Outcome:
 
   contract = Contract(
     level=int(match.group('level')),
-    strain=_strain_from_glyphs(match.group('strain')),
+    strain=STRAIN_BY_LETTER[match.group('strain')],
     declarer=Direction(match.group('declarer')),
     penalty=_penalty_from_marks(match.group('penalty')),
   )
@@ -413,13 +405,6 @@ def _date_from_footer(
   return None
 
 
-def _strain_from_glyphs(glyphs_text: str) -> Strain:
-  """Map a bid/contract strain glyph to its `Strain` (notrump is `N`/`NT`)."""
-  if glyphs_text == 'NT':
-    return Strain.NOTRUMP
-  return _STRAIN_BY_LETTER[glyphs_text]
-
-
 def _penalty_from_marks(marks: str | None) -> Penalty:
   """Map a contract's penalty marks to a `Penalty`.
 
@@ -541,7 +526,7 @@ def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
     )
     return _ParsedCore(None, alerted, (issue,))
 
-  strain = _strain_from_glyphs(match.group('strain'))
+  strain = STRAIN_BY_LETTER[match.group('strain')]
   announcement = (
     _parse_announcement(announcement_text, strain)
     if announcement_text
@@ -575,11 +560,11 @@ def _parse_announcement(text: str, bid_strain: Strain) -> Announcement:
   # reads as `S`, matching how the range above keeps its markers in `raw`.
   body = text.removeprefix('_')
 
-  if body in _STRAIN_BY_LETTER:
+  if body in STRAIN_BY_LETTER:
     return Announcement(
       raw=body,
       type=AnnouncementType.ARTIFICIAL_SUIT,
-      shown_strain=_STRAIN_BY_LETTER[body],
+      shown_strain=STRAIN_BY_LETTER[body],
     )
   if body == 'SF':
     return Announcement(raw=body, type=AnnouncementType.SEMI_FORCING)
