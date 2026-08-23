@@ -33,6 +33,7 @@ output, parsed into the canonical model.
     column-grid stage.
 - [ ] Re-run the strips comparison against `claude-opus-5` and update spec.md's
       cost delta and quality notes.
+  - Worktree: strips-model-refresh
   - Rationale: `DEFAULT_MODEL` moved from `claude-opus-4-8` to `claude-opus-5`;
     the recorded ~$0.25–0.30/run figure and the markup-reading comparison were
     measured against the old model and may no longer hold.
@@ -87,6 +88,7 @@ save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
 - [ ] Read traveller captures through a configurable path.
+  - Worktree: traveller-storage
   - Note: the captures now live in `bridge-private/travellers/`, moved out of
     the public repo and left uncommitted there pending a storage decision — the
     ACBL `_files` bundle is 3.4 MB of the 4.7 MB total. `club_fetching.py` takes
@@ -128,6 +130,7 @@ save otherwise — and auto-reconcile when one lands. Design in
       session no traveller arrives for.
 - [ ] Store parsed travellers as structured JSON; keep raw HTML lean (drop the
       ACBL `_files` asset bundle).
+  - Worktree: traveller-storage
   - Open question: what `Traveller.reference` should hold. A fetched capture has
     both a URL it came from and a path it was saved to, and the field takes one
     string, so this task decides which — or whether to carry both. Nothing
@@ -148,6 +151,7 @@ first stage that runs extraction end to end and writes a session to disk.
     spine can be built and tested against a local directory first.
 - [ ] Settle the ingest tree's home and reach it through a configured root:
       `inbox/`, `archive/`, and the `processed/` records.
+  - Worktree: traveller-storage
   - Rationale: scans and reconciled sessions carry other members' names, so the
     tree belongs in `bridge-private` alongside `scoresheets/`, not in this repo
     under a relative path.
@@ -397,11 +401,13 @@ rationale lives in the design docs' open-question sections —
       `sheet_dewarp_test.py`, and `sheet_geometry_test.py` each carry a
       byte-identical copy of, along with the `_GRID_LEFT` and `_GRID_RIGHT` the
       helper draws between.
+  - Worktree: parser-cleanups
   - Note: DAMP argues for inlining the values a test asserts on, not for copying
     a whole builder — and none of the three varies it.
 - [ ] Check that every `file.md #slug` citation resolves to a slug that file
       defines. Thirty-four citations exist across the code and docs; all resolve
       today, and nothing keeps them resolving.
+  - Worktree: parser-cleanups
   - Note: a throwaway version of this check, written during the conversion,
     found a citation naming the wrong file entirely. Its one gap is a compound
     citation — `models.md #board-number` and `#schedule` — where only the first
@@ -423,12 +429,14 @@ rationale lives in the design docs' open-question sections —
       migrate the existing captures.
 - [ ] Say `None` rather than `null` in Python docstrings and comments, where the
       value being described is a Python one.
+  - Worktree: parser-cleanups
   - Note: leave `null` where it is accurate — `models.md` uses it about the
     stored JSON shape, and JSON has null. This is a prose rename only, so it
     touches no behavior and wants its own commit rather than riding along with
     unrelated work.
 - [ ] Adopt `notation.STRAIN_BY_LETTER` in `parsing.py`, which still keeps a
       near-identical `_STRAIN_BY_LETTER` of its own. {#shared-letter-maps}
+  - Worktree: parser-cleanups
   - Note: all four traveller parsers now use the shared maps. `parsing.py` is
     the sheet parser and already on `main`, so it wants its own commit.
   - Note: `acbl_notation` deliberately keeps its own penalty map — ACBL spells a
@@ -441,6 +449,7 @@ rationale lives in the design docs' open-question sections —
       a pair number is how every source names a pair, not something that one
       surface alone needs. Spans the traveller parsers, so it wants a pass of
       its own once they have all landed.
+  - Worktree: parser-cleanups
   - Note: kin to #shared-letter-maps, which shares data where this would share a
     type; the same judgment applies — lift what belongs to the game, leave what
     belongs to one publisher.
@@ -456,6 +465,7 @@ rationale lives in the design docs' open-question sections —
     vulnerability covers belongs to the game, so it reads like a `Vulnerability`
     property beside `Side.seats` in `enums`.
 - [ ] Say which club "the club" means, in every file that leans on the phrase.
+  - Worktree: parser-cleanups
   - Note: `club_pbn_parsing` and `club_html_parsing` name the Palo Alto club in
     their module docstrings, and the rest of each file rides on that anchor.
     `notation.py`, `models.py`, `spec.md`, and `travellers.md` still say "this
