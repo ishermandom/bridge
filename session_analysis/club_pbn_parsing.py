@@ -35,7 +35,6 @@ from collections.abc import Mapping, Sequence
 from session_analysis import issue_reporting, notation
 from session_analysis.enums import Direction, IssueSeverity, Side, Strain
 from session_analysis.models import (
-  Contract,
   Deal,
   Issue,
   PairIdentity,
@@ -93,21 +92,19 @@ _COLUMN_PATTERN = re.compile(
   re.VERBOSE,
 )
 
-# Named components for the two contract patterns below, decomposed as
-# `parsing.py` does it: the intent lives in the component's name rather than in
-# a comment decoding the syntax.
+# What the patterns below add to the contract `notation` already spells: who
+# declared, and how it came out.
 _DECLARER = r'(?P<declarer>NS|EW|[NESW])'  # a side or a single seat
-_LEVEL = r'(?P<level>[1-7])'
-_STRAIN = r'(?P<strain>NT|[NSHDC])'  # notrump as `N` in par, `NT` in a cell
-_PENALTY = r'(?P<penalty>X{0,2})'  # one mark doubled, two redoubled
 _PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # optional: omitting it still parses
+# A required space, not an optional one: a PBN's par tag always writes it, so
+# demanding it keeps a run-together `NS4H+1` an issue rather than a silent read.
 _SEAM = r'\s+'
 
 # One contract of a par statement: `NS 4H+1`, `EW 6DX-5`, `N 2S=`. The whole
 # `ParContract` tag is BridgeComposer's own, so every part of this shape is
 # observed rather than standard.
 _PAR_CONTRACT_PATTERN = re.compile(
-  _DECLARER + _SEAM + _LEVEL + _STRAIN + _PENALTY + _PAR_RESULT
+  _DECLARER + _SEAM + notation.CONTRACT_PATTERN + _PAR_RESULT
 )
 
 # A par score: `NS 450`, `EW -1100`. The side named owns the score, so an
@@ -121,9 +118,6 @@ _PAR_SCORE_PATTERN = re.compile(
   re.VERBOSE,
 )
 
-# A played contract as a score table's `Contract` column writes it: `4H`, `3NT`,
-# `4HX` doubled, `4HXX` redoubled.
-_CONTRACT_PATTERN = re.compile(_LEVEL + _STRAIN + _PENALTY)
 
 # What a score table writes in a cell it has no value for, e.g. the `Score_EW`
 # of a row North-South scored. Observed.
@@ -741,11 +735,11 @@ def _resolution(
   read: Mapping[str, str],
 ) -> issue_reporting.Read[Resolution | None]:
   """What a row's contract column resolved to, or None when it names none."""
-  contract = read.get('Contract', '').strip().upper()
+  contract = notation.normalize(read.get('Contract', ''))
   if contract == _PASSOUT:
     return issue_reporting.Read(Passout())
 
-  match = _CONTRACT_PATTERN.fullmatch(contract)
+  match = notation.match_contract(contract)
   declarer = _direction(read.get('Declarer', ''))
   tricks_won = read.get('Result', '').strip()
   if not match or not declarer or not tricks_won.isdigit():
@@ -766,12 +760,7 @@ def _resolution(
 
   return issue_reporting.Read(
     PlayedContract(
-      contract=Contract(
-        level=int(match.group('level')),
-        strain=notation.STRAIN_BY_LETTER[match.group('strain')],
-        declarer=declarer,
-        penalty=notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
-      ),
+      contract=notation.build_contract(match, declarer=declarer),
       # The standard defines this column as the tricks declarer won, so it is
       # already the canonical count and needs no translation.
       result=Result(tricks_taken=int(tricks_won)),

@@ -92,14 +92,99 @@ STRAIN_BY_LETTER: Mapping[str, Strain] = {
 # `4HX` is doubled, `4HXX` redoubled, `4H` neither. Sources disagree on which
 # mark to write — a PBN and the Palo Alto club's HTML trail an `X`, ACBL an
 # asterisk — while all of them mean doubled by one mark and redoubled by two, so
-# it is the count that carries the meaning and the mark is left to each parser's
-# own pattern. Zero is a key too, so a pattern whose `X{0,2}` matched nothing
+# it is the count that carries the meaning and `PENALTY_PATTERN` below reads
+# every spelling. Zero is a key too, so a pattern that matched no mark at all
 # needs no special case at its call site.
 PENALTY_BY_MARK_COUNT: Mapping[int, Penalty] = {
   0: Penalty.NONE,
   1: Penalty.DOUBLED,
   2: Penalty.REDOUBLED,
 }
+
+# The parts of a written contract that mean the same wherever it is written, for
+# the parsers to compose into their own patterns. Each carries its named group,
+# so a match site reads `match.group('level')` rather than a position.
+#
+# Two strain letters collide with seat letters — `N` is notrump and North, `S`
+# spades and South — so a letter alone is ambiguous. What resolves it is
+# position: a pattern reaches the strain by where it sits relative to the level
+# and the declarer, never by searching for a letter.
+#
+# What is deliberately not here: the spacing between the parts, and whether a
+# declarer slot admits a side as well as a seat. Each is a property of one
+# publisher's document rather than of the game, so each parser spells its own.
+
+# A contract's level: one through seven, the tricks it undertakes above book.
+LEVEL_PATTERN = r'(?P<level>[1-7])'
+
+# Every spelling of a strain, longest first so `NT` wins over a bare `N`.
+# Derived from `STRAIN_BY_LETTER` rather than written out, so the spellings and
+# the map a match is looked up in cannot fall out of step.
+#
+# Two forms, because a named group may appear only once in a pattern: take
+# `STRAIN_PATTERN` for the usual single strain slot, and the group-free
+# `STRAIN_SPELLINGS` where one pattern names the strain more than once.
+STRAIN_SPELLINGS = '|'.join(sorted(STRAIN_BY_LETTER, key=len, reverse=True))
+STRAIN_PATTERN = rf'(?P<strain>{STRAIN_SPELLINGS})'
+
+# The marks a doubling trails: one for doubled, two for redoubled, none for
+# neither. Every spelling any source writes is accepted, because which mark it
+# writes carries no meaning (see `PENALTY_BY_MARK_COUNT`) and no slot a contract
+# can be followed by begins with one of these, so reading them all costs
+# nothing. The group always takes part, matching an empty string where the
+# contract was undoubled, so a call site counts with `len` and never tests for
+# absence.
+PENALTY_PATTERN = r'(?P<penalty>[*xX]{0,2})'
+
+# A played contract, whole: a level, a strain, and whatever doubling trails it.
+# Every source writes those three parts in that order, so one pattern reads them
+# all. What a source varies is only how it renders them, which `normalize` takes
+# off before matching rather than each pattern tolerating it. A pattern needing
+# a declarer or a result composes this into a longer one; a source that writes
+# the contract and nothing else matches `match_contract` directly.
+CONTRACT_PATTERN = LEVEL_PATTERN + STRAIN_PATTERN + PENALTY_PATTERN
+_CONTRACT = re.compile(CONTRACT_PATTERN)
+
+# Any run of whitespace, which the sources scatter through a written contract
+# without meaning any of it: the sheet's is a human's hand, ACBL's and the
+# club's is markup the page was built out of.
+_SPACING_PATTERN = re.compile(r'\s+')
+
+
+def normalize(text: str) -> str:
+  """`text` reduced to the notation, with the source's rendering taken off.
+
+  Spacing goes, and letters fold to upper case. Neither carries meaning — a
+  contract is the same contract however a page spaced or cased it — and taking
+  both off here is what lets one pattern serve every source, and lets a match
+  site look a strain up without folding case a second time.
+  """
+  return _SPACING_PATTERN.sub('', text).upper()
+
+
+def match_contract(text: str) -> re.Match[str] | None:
+  """What `text` says a contract was, or None where it is not one.
+
+  For a source that writes the contract and nothing else in its cell. `text` is
+  normalized here, so a caller hands over whatever the page held.
+  """
+  return _CONTRACT.fullmatch(normalize(text))
+
+
+def build_contract(match: re.Match[str], *, declarer: Direction) -> Contract:
+  """The contract a `CONTRACT_PATTERN` match states, played by `declarer`.
+
+  The declarer comes in separately because no source writes it inside the
+  contract: it sits in a column of its own, or past a separator, and every
+  caller has resolved it by the time it gets here.
+  """
+  return Contract(
+    level=int(match.group('level')),
+    strain=STRAIN_BY_LETTER[match.group('strain')],
+    declarer=declarer,
+    penalty=PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
+  )
+
 
 # The pattern of a result token: a sign followed by one or more digits.
 _RESULT_TOKEN_PATTERN = re.compile(r'(?P<sign>[+-])(?P<count>\d+)')

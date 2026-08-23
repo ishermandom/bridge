@@ -99,6 +99,15 @@ def test_a_strain_no_cell_names_leaves_its_trick_count_unstated() -> None:
   assert tricks[Direction.NORTH][Strain.CLUBS] is None
 
 
+def test_notrump_spelled_with_a_bare_n() -> None:
+  # Every captured page writes notrump `NT`, but a bare `N` can only mean the
+  # same thing, so it is read rather than reported as an unreadable cell.
+  tricks = double_dummy_tricks(north_south='NS: 3N', east_west='EW: N4')
+
+  assert tricks[Direction.NORTH][Strain.NOTRUMP] == 9
+  assert tricks[Direction.EAST][Strain.NOTRUMP] == 4
+
+
 def test_whitespace_scattered_by_the_rendered_page_is_ignored() -> None:
   # A tournament page builds a line out of nested elements, so flattening it
   # leaves spaces inside cells that the club's own data has none of.

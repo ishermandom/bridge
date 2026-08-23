@@ -20,7 +20,6 @@ from session_analysis.enums import (
   CallKind,
   Direction,
   IssueSeverity,
-  Penalty,
   Rank,
   Strain,
   Suit,
@@ -31,7 +30,6 @@ from session_analysis.models import (
   BoardNumber,
   Call,
   Card,
-  Contract,
   Issue,
   Lead,
   Outcome,
@@ -42,8 +40,13 @@ from session_analysis.models import (
 )
 from session_analysis.notation import (
   BOOK,
+  CONTRACT_PATTERN,
+  LEVEL_PATTERN,
   STRAIN_BY_LETTER,
+  STRAIN_PATTERN,
   ResultNotation,
+  build_contract,
+  normalize,
   tricks_taken,
 )
 
@@ -63,35 +66,28 @@ _MAKE_BELOW_CONTRACT = 'make_below_contract'
 # written as any of them.
 _DASHES = re.escape(glyphs.DASHES)
 
-# Named regex components for the bid and contract cells. Decomposing the
-# patterns this way keeps each assembled pattern readable — the intent lives in
-# the component's name, not in a comment decoding the syntax. `\s*` seams absorb
-# the sheet's inconsistent spacing; a result carries its own sign, a plus or any
-# dash. `(?P<name>…)` groups let the extraction sites read by name.
-_LEVEL = r'(?P<level>[1-7])'
-_STRAIN = r'(?P<strain>NT|[CDHSN])'  # notrump as `N` or `NT`
-_PENALTY = r'(?P<penalty>[*xX]{1,2})?'  # one mark doubled, two redoubled
+# What the bid and contract cells add to the contract `notation` already spells:
+# who declared, and how it came out. Naming them keeps each assembled pattern
+# readable — the intent lives in the component's name, not in a comment decoding
+# the syntax.
+#
+# Only a seat, never a side: a sheet's contract cell names the player who
+# declared. Widening this to accept `NS`/`EW` would let `4HNS+1` match and then
+# hand `Direction` a value it has no member for — a raise from a module whose
+# whole promise is that it never raises.
 _DECLARER = r'(?P<declarer>[NESW])'
+# A result carries its own sign, a plus or any of the dash glyphs.
 _RESULT = rf'(?P<result>[+{_DASHES}]\d+)'
-_SEAM = r'\s*'
 
 # The bid glyphs of a call: a level and a strain. Any trailing `!` alert and
 # `_`/`^` announcement are stripped before this is matched.
-_BID_PATTERN = re.compile(_LEVEL + _STRAIN)
+_BID_PATTERN = re.compile(LEVEL_PATTERN + STRAIN_PATTERN)
 
 # A whole contract cell: `<level><strain>[penalty]<declarer><result>`. The
-# penalty sits before the declarer.
-_CONTRACT_PATTERN = re.compile(
-  _LEVEL
-  + _SEAM
-  + _STRAIN
-  + _SEAM
-  + _PENALTY
-  + _SEAM
-  + _DECLARER
-  + _SEAM
-  + _RESULT
-)
+# penalty sits before the declarer. The sheet's spacing is a human's and lands
+# wherever it lands, so a cell is read through `normalize` and this
+# pattern needs no seams of its own.
+_CONTRACT_PATTERN = re.compile(CONTRACT_PATTERN + _DECLARER + _RESULT)
 
 # A board number: a positive integer, ASCII, no leading zero. The leading
 # `[1-9]` rules out `0` and a leading-zero misread in one stroke; nothing bounds
@@ -212,7 +208,7 @@ def parse_contract_cell(cell: str) -> Outcome:
       raw=cell, resolution=Passout(), flagged_for_discussion=is_boxed
     )
 
-  match = _CONTRACT_PATTERN.fullmatch(text)
+  match = _CONTRACT_PATTERN.fullmatch(normalize(text))
   if not match:
     issue = Issue(
       code=_UNPARSEABLE_CONTRACT,
@@ -221,12 +217,7 @@ def parse_contract_cell(cell: str) -> Outcome:
     )
     return Outcome(raw=cell, flagged_for_discussion=is_boxed, issues=(issue,))
 
-  contract = Contract(
-    level=int(match.group('level')),
-    strain=STRAIN_BY_LETTER[match.group('strain')],
-    declarer=Direction(match.group('declarer')),
-    penalty=_penalty_from_marks(match.group('penalty')),
-  )
+  contract = build_contract(match, declarer=Direction(match.group('declarer')))
   # The result normalizer needs the level to convert a `-N` set; the regex has
   # already constrained the token to a `±N` form, so it cannot raise here.
   result_token = match.group('result')
@@ -403,17 +394,6 @@ def _date_from_footer(
     if candidate <= reference_date:
       return candidate
   return None
-
-
-def _penalty_from_marks(marks: str | None) -> Penalty:
-  """Map a contract's penalty marks to a `Penalty`.
-
-  The mark is `*` or `x`/`X`; only the count matters — one is doubled, two is
-  redoubled. Absent marks are no penalty.
-  """
-  if not marks:
-    return Penalty.NONE
-  return Penalty.DOUBLED if len(marks) == 1 else Penalty.REDOUBLED
 
 
 @dataclasses.dataclass(frozen=True)

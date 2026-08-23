@@ -42,7 +42,6 @@ from session_analysis.enums import (
   Strain,
 )
 from session_analysis.models import (
-  Contract,
   Deal,
   Issue,
   PairIdentity,
@@ -89,19 +88,6 @@ _EVENT_HEADING_SUFFIX = 'Event Summary'
 # The section a heading introduces above the board panels belonging to it.
 _SECTION_PATTERN = re.compile(r'Section\s+(?P<name>\S+)')
 
-# A played contract in a results row: the level, the suit's now-substituted
-# letter, and a lowercase `x` for each doubling. Two `x` at most, which is what
-# `notation.PENALTY_BY_MARK_COUNT` has names for — a cell spelling more matches
-# nothing and its row keeps its score without a contract. The cell reaches the
-# pattern with its whitespace already taken out, so no piece here allows any.
-_CONTRACT_PATTERN = re.compile(
-  r"""
-  (?P<level>[1-7])
-  (?P<strain>NT|[NSHDC])  # notrump as `NT` or `N`, a suit as its letter
-  (?P<penalty>x{0,2})  # one `x` doubled, two redoubled, none undoubled
-  """,
-  re.VERBOSE | re.IGNORECASE,
-)
 
 # What a results row writes in its score column for a board that was passed out.
 # The contract column is blank, exactly as it is for a board nobody played, so
@@ -676,23 +662,21 @@ def _resolution(
   given contract and vulnerability every extra trick is worth strictly more, so
   the score identifies the result uniquely (see `scoring`).
   """
-  contract = _column(row, _CONTRACT_COLUMN).replace(' ', '')
-  match = _CONTRACT_PATTERN.fullmatch(contract)
+  written = notation.normalize(_column(row, _CONTRACT_COLUMN))
+  match = notation.match_contract(written)
   declarer = _column(row, _DECLARER_COLUMN).strip().upper()
   if not match or declarer not in tuple(Direction) or score is None:
     return issue_reporting.Read(None)
 
   seat = Direction(declarer)
   side = Side.NORTH_SOUTH if seat in Side.NORTH_SOUTH.seats else Side.EAST_WEST
-  level = int(match.group('level'))
-  strain = notation.STRAIN_BY_LETTER[match.group('strain').upper()]
-  penalty = notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty'))]
+  contract = notation.build_contract(match, declarer=seat)
 
   try:
     tricks_taken = scoring.tricks_taken_from_score(
-      level=level,
-      strain=strain,
-      penalty=penalty,
+      level=contract.level,
+      strain=contract.strain,
+      penalty=contract.penalty,
       # The published score is stated from North-South, and scoring works from
       # declarer's own side.
       score=score if side == Side.NORTH_SOUTH else -score,
@@ -705,7 +689,7 @@ def _resolution(
       None,
       issues=(
         _UNSCORABLE_RESULT.issue(
-          f'no result of {contract} by {declarer} scores {score} — the row is '
+          f'no result of {written} by {declarer} scores {score} — the row is '
           f'kept without a contract'
         ),
       ),
@@ -713,9 +697,7 @@ def _resolution(
 
   return issue_reporting.Read(
     PlayedContract(
-      contract=Contract(
-        level=level, strain=strain, declarer=seat, penalty=penalty
-      ),
+      contract=contract,
       result=Result(tricks_taken=tricks_taken),
     )
   )

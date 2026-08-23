@@ -38,10 +38,9 @@ from session_analysis.models import Resolution
 from session_analysis.notation import BOOK
 from session_analysis.travellers import DoubleDummyTricks, Par
 
-# The pieces the patterns below are composed from.
-_STRAIN = r'NT|[CDHS]'  # notrump as `NT`, a suit as its own letter
+# The pieces the patterns below are composed from. The strain comes from
+# `notation` in its group-free form, since a double-dummy cell names one twice.
 _DECLARER = r'NS|EW|[NESW]'  # a side, or a single seat
-_PENALTY = r'\*{0,2}'  # one asterisk doubled, two redoubled
 
 _LEVEL = r'[\d-]'  # a makeable level, or a dash for a seat that makes none
 _TRICK_COUNT = r'\d'
@@ -63,9 +62,9 @@ _TRICK_COUNTS = _for_each_seat(_TRICK_COUNT)
 # first — `4S`, `1/-S` — or the trick count last — `S4`, `S7/6`.
 _MAKEABLE_PATTERN = re.compile(
   rf"""
-  (?P<levels>{_MAKEABLE_LEVELS})(?P<level_strain>{_STRAIN})
+  (?P<levels>{_MAKEABLE_LEVELS})(?P<level_strain>{notation.STRAIN_SPELLINGS})
   |
-  (?P<trick_strain>{_STRAIN})(?P<tricks>{_TRICK_COUNTS})
+  (?P<trick_strain>{notation.STRAIN_SPELLINGS})(?P<tricks>{_TRICK_COUNTS})
   """,
   re.VERBOSE,
 )
@@ -94,9 +93,7 @@ _PAR_PATTERN = re.compile(
 # whenever par makes exactly.
 _PAR_CONTRACT_PATTERN = re.compile(
   rf"""
-  (?P<level>[1-7])
-  (?P<strain>{_STRAIN})
-  (?P<penalty>{_PENALTY})
+  {notation.CONTRACT_PATTERN}
   -(?P<declarer>{_DECLARER})
   (?P<result>[+-]\d+)?
   """,
@@ -112,11 +109,6 @@ _CONTRACT_SEPARATOR = '/'
 # says only that the seat takes fewer than seven tricks, so the cell is `None`
 # unless the same strain is also stated as a trick count.
 _NO_MAKEABLE_CONTRACT = '-'
-
-# Any run of whitespace, which ACBL's analysis carries no meaning in. It is
-# scrubbed out before matching rather than tolerated at each join, because a
-# double-dummy line separates its cells with nothing else.
-_WHITESPACE_PATTERN = re.compile(r'\s+')
 
 # Everything up to and including the side's own label, which the parsers hand
 # over along with the cells — `NS: C5 D1 ...`.
@@ -169,7 +161,7 @@ def _cells(
   # club's blob writes the same line with none. Dropping them all leaves one
   # spelling to read, and the cells stay unambiguous without separators because
   # a level and a trick count are each a single digit.
-  cells = _WHITESPACE_PATTERN.sub('', _SIDE_LABEL_PATTERN.sub('', line))
+  cells = notation.normalize(_SIDE_LABEL_PATTERN.sub('', line))
 
   read: dict[Strain, dict[Direction, int | None]] = {}
   position = 0
@@ -239,7 +231,7 @@ def par(
   # Spaces are dropped for the same reason as in the double-dummy line: the
   # tournament pages scatter them through a contract they build out of nested
   # elements, and the notation carries none of its own.
-  contracts = _WHITESPACE_PATTERN.sub('', match.group('contracts'))
+  contracts = notation.normalize(match.group('contracts'))
 
   resolutions: list[Resolution] = []
   for contract in contracts.split(_CONTRACT_SEPARATOR):

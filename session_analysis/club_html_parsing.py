@@ -42,7 +42,6 @@ from session_analysis.enums import (
   Strain,
 )
 from session_analysis.models import (
-  Contract,
   Deal,
   Issue,
   PairIdentity,
@@ -95,25 +94,22 @@ _ASCII_STAND_INS: Mapping[int, str] = {
   0x2663: Strain.CLUBS.value,
 }
 
-# Named components for the three contract patterns below, decomposed as
-# `parsing.py` does it: the intent lives in the component's name rather than in
-# a comment decoding the syntax. Notrump is accepted spelled either way: the
-# analysis paragraph writes `N` and a score table cell writes `NT`, and no
-# pattern is any safer for refusing the other's spelling.
+# What the patterns below add to the contract `notation` already spells: who
+# declared, and how it came out.
 _DECLARER = r'(?P<declarer>NS|EW|[NESW])'  # a side or a single seat
-_LEVEL = r'(?P<level>[1-7])'
-_STRAIN = r'(?P<strain>NT|[NSHDC])'  # notrump spelled either way
-_PENALTY = r'(?P<penalty>x{0,2})'  # one mark doubled, two redoubled
 _PAR_RESULT = r'(?P<result>=|[+-]\d+)?'  # `=` made exactly, else the difference
-# A seam sits between the parts a contract may be split across — every join in
-# the analysis paragraph, because BridgeComposer prints a suit in a span of its
-# own, so `4S` reaches a reader as two elements and `_flattened` separates them.
+# BridgeComposer prints a suit in a span of its own, so `4S` reaches a reader as
+# two elements that `_flattened` separates. The seam absorbs that where the
+# pattern reads the paragraph a piece at a time; where a whole contract is read
+# at once, `notation.normalize` takes the spacing out instead.
 _SEAM = r'\s*'
 
 # A makeable contract in the double-dummy list, e.g. `N 4S`, `NS 2D`, `W 6D`.
 # Notrump is spelled `N` here, which is also how a seat is spelled — the two are
 # told apart by position, the seat coming before the level.
-_MAKEABLE_PATTERN = re.compile(_DECLARER + _SEAM + _LEVEL + _SEAM + _STRAIN)
+_MAKEABLE_PATTERN = re.compile(
+  _DECLARER + _SEAM + notation.LEVEL_PATTERN + _SEAM + notation.STRAIN_PATTERN
+)
 
 # The par line, e.g. `Par +420: N 4S=` in the `R` variant and `Par +460` in the
 # `C` one, which states the score alone.
@@ -125,17 +121,14 @@ _PAR_PATTERN = re.compile(
   re.VERBOSE,
 )
 
-# One par contract, e.g. `N 4S=` or `EW 6D-5`. The penalty is bounded at two
-# marks so that a cell holding more never reaches the penalty lookup with a
-# spelling it lacks.
+# One par contract, e.g. `N 4S=` or `EW 6D-5`, read from a statement the spacing
+# has been taken out of — so `N 4 S=` and `N4S=` are one shape by the time this
+# sees them.
 _PAR_CONTRACT_PATTERN = re.compile(
-  _DECLARER + _SEAM + _LEVEL + _SEAM + _STRAIN + _SEAM + _PENALTY + _PAR_RESULT,
+  _DECLARER + notation.CONTRACT_PATTERN + _PAR_RESULT,
   re.IGNORECASE,
 )
 
-# A played contract in a score table cell, e.g. `4S`, `3NT`, `3NTx`. No seams
-# here: `_cell` has already taken every space out of what it reads.
-_CONTRACT_PATTERN = re.compile(_LEVEL + _STRAIN + _PENALTY, re.IGNORECASE)
 
 # A pair as a score table names it: an optional section letter, the pair number,
 # then the players' surnames — `4-Alfa-Bravo`, `A9-Charlie-Delta`.
@@ -633,7 +626,7 @@ def _makeable_tricks(analysis: Sequence[str]) -> DoubleDummyTricks | None:
   for match in _MAKEABLE_PATTERN.finditer(makeable):
     declarer = notation.declarer_from_token(match.group('declarer'))
     seats = declarer.seats if isinstance(declarer, Side) else (declarer,)
-    strain = notation.STRAIN_BY_LETTER[match.group('strain').upper()]
+    strain = notation.STRAIN_BY_LETTER[match.group('strain')]
     for seat in seats:
       tricks[seat][strain] = int(match.group('level')) + BOOK
   return tricks
@@ -657,7 +650,7 @@ def _par(
   resolutions: list[Resolution] = []
   issues: list[Issue] = []
   for statement in (match.group('contract') or '').split(';'):
-    contract = _PAR_CONTRACT_PATTERN.search(statement)
+    contract = _PAR_CONTRACT_PATTERN.search(notation.normalize(statement))
     if not contract:
       continue
     level = int(contract.group('level'))
@@ -665,7 +658,7 @@ def _par(
       resolutions.extend(
         notation.par_contracts(
           level=level,
-          strain=notation.STRAIN_BY_LETTER[contract.group('strain').upper()],
+          strain=notation.STRAIN_BY_LETTER[contract.group('strain')],
           penalty=notation.PENALTY_BY_MARK_COUNT[
             len(contract.group('penalty'))
           ],
@@ -820,7 +813,7 @@ def _resolution(row: bs4.Tag) -> issue_reporting.Read[Resolution | None]:
   if contract.lower() == _PASSOUT:
     return issue_reporting.Read(Passout())
 
-  match = _CONTRACT_PATTERN.fullmatch(contract)
+  match = notation.match_contract(contract)
   declarer = _cell(row, 'bcstdeclarer')
   made = _cell(row, 'bcstmade')
   if not match or not declarer or not made:
@@ -841,12 +834,7 @@ def _resolution(row: bs4.Tag) -> issue_reporting.Read[Resolution | None]:
 
   return issue_reporting.Read(
     PlayedContract(
-      contract=Contract(
-        level=level,
-        strain=notation.STRAIN_BY_LETTER[match.group('strain').upper()],
-        declarer=seat,
-        penalty=notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty'))],
-      ),
+      contract=notation.build_contract(match, declarer=seat),
       result=Result(tricks_taken=tricks_taken),
     )
   )

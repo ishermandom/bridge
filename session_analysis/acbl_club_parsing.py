@@ -24,7 +24,6 @@ from collections.abc import Mapping, Sequence
 from session_analysis import acbl_notation, issue_reporting, notation
 from session_analysis.enums import Direction, IssueSeverity, Side
 from session_analysis.models import (
-  Contract,
   Deal,
   Hand,
   Issue,
@@ -51,19 +50,6 @@ from session_analysis.travellers import (
 # here; the trailing `\s*` is what leaves the decoder pointed at the brace.
 _BLOB_ASSIGNMENT_PATTERN = re.compile(r'var\s+data\s*=\s*')
 
-# A played contract as the blob writes it — `4 S`, `3 NT x`: the level and
-# strain separated by a space, and a doubling appended as a further space and
-# one `x` per doubling. Two `x` at most, which is what
-# `notation.PENALTY_BY_MARK_COUNT` has names for — a cell spelling more matches
-# nothing and its row keeps its score without a contract.
-_CONTRACT_PATTERN = re.compile(
-  r"""
-  (?P<level>[1-7])
-  \s*(?P<strain>NT|[NSHDC])  # notrump as `NT` or `N`, a suit as its letter
-  (?:\s*(?P<penalty>x{1,2}))?  # one `x` doubled, two redoubled
-  """,
-  re.VERBOSE | re.IGNORECASE,
-)
 
 # What the contract field holds for a board that was passed out.
 _PASSOUT = 'PASS'
@@ -458,23 +444,18 @@ def _resolution(row: Mapping[str, object]) -> Resolution | None:
   The blob carries the trick count outright, so nothing has to be derived from
   the result token beside it.
   """
-  contract = _text(row.get('contract')).strip()
-  if contract.upper() == _PASSOUT:
+  contract = notation.normalize(_text(row.get('contract')))
+  if contract == _PASSOUT:
     return Passout()
 
-  match = _CONTRACT_PATTERN.fullmatch(contract)
+  match = notation.match_contract(contract)
   declarer = _direction(_text(row.get('declarer')))
   tricks_taken = _integer(row.get('tricks_taken'))
   if not match or not declarer or tricks_taken is None:
     return None
 
   return PlayedContract(
-    contract=Contract(
-      level=int(match.group('level')),
-      strain=notation.STRAIN_BY_LETTER[match.group('strain').upper()],
-      declarer=declarer,
-      penalty=notation.PENALTY_BY_MARK_COUNT[len(match.group('penalty') or '')],
-    ),
+    contract=notation.build_contract(match, declarer=declarer),
     result=Result(tricks_taken=tricks_taken),
   )
 
