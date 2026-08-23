@@ -40,7 +40,6 @@ from session_analysis.enums import (
   IssueSeverity,
   Side,
   Strain,
-  Vulnerability,
 )
 from session_analysis.models import (
   Contract,
@@ -138,16 +137,6 @@ _DECLARER_COLUMN = 2
 _SCORE_COLUMN = 3
 _MATCHPOINTS_COLUMN = 4
 _PAIRS_COLUMN = 6
-
-
-# Which sides each vulnerability makes vulnerable, for the scoring that recovers
-# a row's trick count.
-_VULNERABLE_SIDES: Mapping[Vulnerability, frozenset[Side]] = {
-  Vulnerability.NONE: frozenset(),
-  Vulnerability.NORTH_SOUTH: frozenset({Side.NORTH_SOUTH}),
-  Vulnerability.EAST_WEST: frozenset({Side.EAST_WEST}),
-  Vulnerability.BOTH: frozenset({Side.NORTH_SOUTH, Side.EAST_WEST}),
-}
 
 
 # Every kind of thing this parser can fail to read, ranked by the shared ladder
@@ -504,9 +493,9 @@ def _results(
     for row in _rows(tables.get(Side.EAST_WEST))
     if (key := _row_key(_pairs(row, listed_first=Side.EAST_WEST)))
   }
-  vulnerable = _VULNERABLE_SIDES[
-    board_rotation.vulnerability_for_board(board_number)
-  ]
+  # Which sides were vulnerable, for the scoring that recovers a row's tricks.
+  vulnerability = board_rotation.vulnerability_for_board(board_number)
+  vulnerable = vulnerability.vulnerable_sides
 
   results: list[TravellerResult] = []
   for row in _rows(north_south):

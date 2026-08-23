@@ -50,6 +50,19 @@ class Vulnerability(enum.StrEnum):
   EAST_WEST = 'EW'
   BOTH = 'both'
 
+  @property
+  def vulnerable_sides(self) -> frozenset[Side]:
+    """The sides this vulnerability makes vulnerable, empty for `NONE`."""
+    return _VULNERABLE_SIDES[self]
+
+
+_VULNERABLE_SIDES: Mapping[Vulnerability, frozenset[Side]] = {
+  Vulnerability.NONE: frozenset(),
+  Vulnerability.NORTH_SOUTH: frozenset({Side.NORTH_SOUTH}),
+  Vulnerability.EAST_WEST: frozenset({Side.EAST_WEST}),
+  Vulnerability.BOTH: frozenset({Side.NORTH_SOUTH, Side.EAST_WEST}),
+}
+
 
 class Strain(enum.StrEnum):
   """What a bid or contract is played in — a suit or notrump."""
