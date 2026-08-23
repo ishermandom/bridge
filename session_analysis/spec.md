@@ -165,20 +165,39 @@ mode**, on the existing Claude subscription — no separate API billing.
 
 - **Model**: `claude-opus-5`. A **single model, no escalation fallback** — the
   digest's Sonnet-workhorse-plus-Opus-escalation tiering is deliberately skipped
-  as premature for 1–2 sheets/week. Started on `claude-sonnet-5`; switched after
-  a live strips comparison showed Opus reading markup semantics more reliably
-  (strikethrough correctly omitted, circles and cursive notes right) for a
-  modest cost delta (~$0.25–0.30/run vs Sonnet's ~$0.21).
+  as premature for 1–2 sheets/week. Started on `claude-sonnet-5`; switched
+  because Opus read the sheet's markup more reliably, and it stays the choice
+  after that comparison was re-run on Opus 5 (2026-08-22 — both models over the
+  same strips from the 6/29 sheet, twice each).
+  - **Quality**: scored through the pipeline's own voting pass, Opus 5 left zero
+    review flags where Sonnet 5 left 33 — 23 disagreements between its own two
+    runs, and 10 calls the parser could not resolve. Most of that is instability
+    rather than misreading: Sonnet spaces an auction's calls apart in one run
+    and runs them together in the next, and a token like `1N2C2D3N` gives the
+    parser no seam to split on. Against the sheet itself, Opus omits a
+    scratched-out call that Sonnet transcribes, and marks both subscript
+    announcements that Sonnet flattens away (though it misreads the bid letter
+    under one of them); Sonnet's one edge is two small alert ticks on board 13
+    that Opus misses in both runs.
+  - **Cost**: ~$0.34 per sheet on Opus 5 against ~$0.22 on Sonnet 5, counting
+    both runs of the vote. The second run rides the prompt cache the first one
+    filled and costs about half as much, so a per-run price says little without
+    naming which of the two runs it describes.
 - **Voting, not escalation** {#extraction-voting}: each scan is read by two
   independent Opus calls over its cut strips (`transcribe_sheet`), compared cell
   by cell and merged (`voting.vote_sessions`) — a cell both runs agree on is
   trusted, one they disagree on is flagged for review rather than guessed at.
-  Chosen over a second, stronger-model tier for low-confidence rows: validated
-  live on the 6/29 sheet, the two runs' one disagreement (an announcement letter
-  misread) was the sheet's one real remaining error, correctly flagged, at a
-  fraction of the cost and complexity a second model tier would add. See
-  `voting.py` for the comparison rules — parsed values, not raw transcription,
-  so equivalent notations (`x` vs `X`, a range's marker order) don't false-flag.
+  Chosen over a second, stronger-model tier for low-confidence rows, at a
+  fraction of the cost and complexity that tier would add. On Opus 4.8 the pass
+  paid for itself on the 6/29 sheet: the two runs' one disagreement, an
+  announcement letter misread, was the sheet's one real remaining error, and it
+  was correctly flagged. Opus 5 agrees with itself completely on that sheet, so
+  the same pass now flags nothing there — and the errors it does still make go
+  unflagged, because both runs make them identically (the two alert ticks on
+  board 13). Voting bounds a model's inconsistency, not its accuracy; the more
+  self-consistent the model, the less it buys. See `voting.py` for the
+  comparison rules — parsed values, not raw transcription, so equivalent
+  notations (`x` vs `X`, a range's marker order) don't false-flag.
 - **Invocation**: `claude -p` (non-interactive); see
   `vision_model_invocation.py`. The default agentic-coding system prompt is
   **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet
@@ -202,15 +221,16 @@ mode**, on the existing Claude subscription — no separate API billing.
   live comparison on the 6/29 sheet showed every resolution-class error (a
   misread contract digit, dropped announcements, box-vs-circle swaps on dense
   rows) vanishing when the sheet arrives as native-resolution crops instead — at
-  lower cost than the full-sheet run ($0.21 vs $0.29). The request is an ordered
-  sequence of labeled parts: one crop per printed board row, each preceded by a
-  text label naming its printed row, then the footer crop. Three details are
-  load-bearing, found by live experiment: each crop includes the printed `Bd`
-  column (without it the model substitutes the adjacent `Vs` number), the labels
-  fix board identity, and the prompt says explicitly to emit blank rows. Per-row
-  is the tile size because the review UI needs per-row crops regardless, so
-  row-precision geometry exists either way; coarser bands would save only the
-  labeling machinery.
+  lower cost than the full-sheet run ($0.21 vs $0.29 — one run each, on Sonnet 5
+  before the switch to Opus, so neither figure lines up with the per-sheet ones
+  above). The request is an ordered sequence of labeled parts: one crop per
+  printed board row, each preceded by a text label naming its printed row, then
+  the footer crop. Three details are load-bearing, found by live experiment:
+  each crop includes the printed `Bd` column (without it the model substitutes
+  the adjacent `Vs` number), the labels fix board identity, and the prompt says
+  explicitly to emit blank rows. Per-row is the tile size because the review UI
+  needs per-row crops regardless, so row-precision geometry exists either way;
+  coarser bands would save only the labeling machinery.
 - **The scan is dewarped from its own printed grid before anything else reads
   it.** The live 6/29 scan (a raw phone photo) showed why: perspective slants
   the top rules ~1.5 row pitches across the sheet's width, tapering to flat at
@@ -381,7 +401,7 @@ database and browsing UI consume the same canonical shape; migrating JSON files
 into that store is a later step and does not change this stage's output
 contract.
 
-## Traveller captures and PII
+## Traveller captures and PII {#captures-and-pii}
 
 Traveller captures and scoresheet photos contain **other club members' names and
 results** — and a full game database accumulates them across many sessions, more
