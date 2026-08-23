@@ -404,21 +404,6 @@ rationale lives in the design docs' open-question sections —
 
 **Goal:** tidy-ups that only make sense once the work they trail has landed.
 
-- [ ] Share the `_draw_sheet` test helper, which `rule_grid_test.py`,
-      `sheet_dewarp_test.py`, and `sheet_geometry_test.py` each carry a
-      byte-identical copy of, along with the `_GRID_LEFT` and `_GRID_RIGHT` the
-      helper draws between.
-  - Worktree: parser-cleanups
-  - Note: DAMP argues for inlining the values a test asserts on, not for copying
-    a whole builder — and none of the three varies it.
-- [ ] Check that every `file.md #slug` citation resolves to a slug that file
-      defines. Thirty-four citations exist across the code and docs; all resolve
-      today, and nothing keeps them resolving.
-  - Worktree: parser-cleanups
-  - Note: a throwaway version of this check, written during the conversion,
-    found a citation naming the wrong file entirely. Its one gap is a compound
-    citation — `models.md #board-number` and `#schedule` — where only the first
-    slug sits next to its filename.
 - [ ] Drop the `session_analysis/travellers/` entry from `.gitignore`. The
       directory is gone — the captures live in `bridge-private` now — and the
       entry is kept only as a guard while the traveller code is in flight, in
@@ -434,49 +419,6 @@ rationale lives in the design docs' open-question sections —
       `gameresults2/…`); a date-first layout would group a session's captures
       across sources together. Decide the scheme (e.g. `<date>/<source>/…`) and
       migrate the existing captures.
-- [ ] Say `None` rather than `null` in Python docstrings and comments, where the
-      value being described is a Python one.
-  - Worktree: parser-cleanups
-  - Note: leave `null` where it is accurate — `models.md` uses it about the
-    stored JSON shape, and JSON has null. This is a prose rename only, so it
-    touches no behavior and wants its own commit rather than riding along with
-    unrelated work.
-- [ ] Adopt `notation.STRAIN_BY_LETTER` in `parsing.py`, which still keeps a
-      near-identical `_STRAIN_BY_LETTER` of its own. {#shared-letter-maps}
-  - Worktree: parser-cleanups
-  - Note: all four traveller parsers now use the shared maps. `parsing.py` is
-    the sheet parser and already on `main`, so it wants its own commit.
-  - Note: `acbl_notation` deliberately keeps its own penalty map — ACBL spells a
-    doubling with an asterisk where every other source trails an `X`, and a
-    publisher's peculiarities are what that module is for. The same goes for the
-    source-specific strain spellings that stay put: the club's `bcspades` CSS
-    classes and the ACBL tournament's `spades` word forms.
-- [ ] Lift local one-offs that name a durable bridge concept into shared code.
-      The example that prompted this is `acbl_club_parsing._PairKey`: a side and
-      a pair number is how every source names a pair, not something that one
-      surface alone needs. Spans the traveller parsers, so it wants a pass of
-      its own once they have all landed.
-  - Worktree: parser-cleanups
-  - Note: kin to #shared-letter-maps, which shares data where this would share a
-    type; the same judgment applies — lift what belongs to the game, leave what
-    belongs to one publisher.
-  - Note: the other candidate found so far is `_CONTRACT_PATTERN`, which
-    `acbl_club_parsing` and `acbl_tournament_parsing` spell almost identically.
-    They differ only in whether the pattern tolerates spaces between the level,
-    the strain, and the doubling, which is a difference in what each source
-    hands it rather than in what a contract is.
-  - Note: also `acbl_tournament_parsing._VULNERABLE_SIDES`, which maps a
-    vulnerability to the sides it makes vulnerable. Nothing duplicates it today
-    — `board_rotation` names which vulnerability a board carries and `notation`
-    how a source spells one, neither of which is this — but which sides a
-    vulnerability covers belongs to the game, so it reads like a `Vulnerability`
-    property beside `Side.seats` in `enums`.
-- [ ] Say which club "the club" means, in every file that leans on the phrase.
-  - Worktree: parser-cleanups
-  - Note: `club_pbn_parsing` and `club_html_parsing` name the Palo Alto club in
-    their module docstrings, and the rest of each file rides on that anchor.
-    `notation.py`, `models.py`, `spec.md`, and `travellers.md` still say "this
-    club" with nothing nearby to resolve it.
 - [ ] Mine the parked `traveller-model` worktree for anything still worth
       keeping, then delete the branch and its worktree. Sequenced last: it only
       makes sense once the traveller work it overlaps has all landed.
