@@ -8,5 +8,10 @@ description = "Merge a bridge convention card PDF with a fold-over reminder stri
 requires-python = ">=3.14"
 dependencies = ["pypdf", "reportlab", "streamlit"]
 
+# reportlab ships no type annotations, so mypy needs its stubs to check
+# make_card.py.
+[dependency-groups]
+dev = ["types-reportlab"]
+
 [tool.uv]
 package = false

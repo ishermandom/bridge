@@ -4,8 +4,6 @@
 # A virtual workspace root: it holds no package of its own, only the shared
 # lockfile/environment and the list of Python subprojects that share them.
 # Each member's dependencies stay scoped to that member's own pyproject.toml.
-# ruff and mypy are configured globally, so no [tool.ruff]/[tool.mypy] here —
-# adding them would shadow that global config.
 
 [tool.uv.workspace]
 members = [
@@ -14,8 +12,29 @@ members = [
   "practice/squeezes/scratch",
 ]
 
+# The tools every member is held to, rather than anything one member needs in
+# particular — so they sit at the root and a member added later inherits them
+# without redeclaring. A library only one member needs belongs in that
+# member's own `dev` group instead.
+#
+# No version floors: uv.lock pins the exact versions, and nothing here has a
+# feature we depend on by version.
 [dependency-groups]
-dev = ["httpx", "pytest", "types-reportlab"]
+dev = [
+  "mypy",
+  "pytest",
+  "ruff",
+]
+
+# No [tool.ruff] table: ruff falls back to the global config at
+# ~/.config/ruff/pyproject.toml only while a project declares none, so a table
+# here would replace that rule set wholesale rather than merge with it. Should
+# a table ever be wanted, `extend = "~/.config/ruff/pyproject.toml"` pulls the
+# shared rules back in.
+#
+# No [tool.mypy] table either, for a different reason: there is no global mypy
+# config to preserve in the first place. The Stop-hook runner passes `--strict`
+# on the command line, so a table here would be the only settings mypy reads.
 
 [tool.pytest.ini_options]
 # Tests are named <module>_test.py, beside the module they cover.
