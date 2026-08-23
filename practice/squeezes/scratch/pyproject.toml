@@ -15,14 +15,11 @@ dependencies = [
   "uvicorn>=0.30",
 ]
 
-# `fastapi.testclient.TestClient` imports httpx at runtime, and fastapi does
-# not depend on it, so server_test.py needs it declared here.
-#
-# TODO: Starlette's test client warns on every run that `httpx` is deprecated
-#   there in favor of `httpx2`, a separate distribution. Switch once the test
-#   client is confirmed to work against it.
+# Starlette's test client, which `fastapi.testclient.TestClient` wraps, imports
+# httpx2 at runtime, and fastapi does not depend on it, so server_test.py needs
+# it declared here.
 [dependency-groups]
-dev = ["httpx"]
+dev = ["httpx2"]
 
 [tool.uv]
 package = false
