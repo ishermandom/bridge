@@ -1,13 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Tests for sheet_dewarp.
-
-Scans are synthesized with PIL — a white page with drawn grid rules — rather
-than committed as image fixtures: real scans carry member handwriting, and a
-drawn grid pins the expected geometry exactly.
-"""
-
-from collections.abc import Sequence
+"""Tests for sheet_dewarp."""
 
 import pytest
 from PIL import Image, ImageDraw
@@ -15,28 +8,11 @@ from PIL import Image, ImageDraw
 from session_analysis.rule_grid import SheetGeometryError
 from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.sheet_geometry import detect_sheet_geometry
-
-_GRID_LEFT = 40
-_GRID_RIGHT = 560
-
-# 29 rules bounding 28 board rows at a 20px pitch, on a 600x800-pixel page.
-_STANDARD_RULE_YS = list(range(100, 661, 20))
-
-
-def _draw_sheet(
-  rule_ys: Sequence[int],
-  *,
-  width: int = 600,
-  height: int = 800,
-) -> Image.Image:
-  """A synthetic scan: horizontal rules at `rule_ys` inside vertical edges."""
-  image = Image.new('L', (width, height), color=255)
-  draw = ImageDraw.Draw(image)
-  for rule_y in rule_ys:
-    draw.line([(_GRID_LEFT, rule_y), (_GRID_RIGHT, rule_y)], fill=0)
-  for border_x in (_GRID_LEFT, _GRID_RIGHT):
-    draw.line([(border_x, rule_ys[0]), (border_x, rule_ys[-1])], fill=0)
-  return image
+from session_analysis.testing.synthetic_scans import (
+  GRID_LEFT,
+  GRID_RIGHT,
+  draw_sheet,
+)
 
 
 def _draw_skewed_sheet() -> Image.Image:
@@ -50,10 +26,10 @@ def _draw_skewed_sheet() -> Image.Image:
   for rule_index, left_y in enumerate(left_rule_ys):
     slant = round(40 * (28 - rule_index) / 28)
     draw.line(
-      [(_GRID_LEFT, left_y), (_GRID_RIGHT, left_y + slant)], fill=0, width=2
+      [(GRID_LEFT, left_y), (GRID_RIGHT, left_y + slant)], fill=0, width=2
     )
-  draw.line([(_GRID_LEFT, 100), (_GRID_LEFT, 660)], fill=0, width=2)
-  draw.line([(_GRID_RIGHT, 140), (_GRID_RIGHT, 660)], fill=0, width=2)
+  draw.line([(GRID_LEFT, 100), (GRID_LEFT, 660)], fill=0, width=2)
+  draw.line([(GRID_RIGHT, 140), (GRID_RIGHT, 660)], fill=0, width=2)
   return image
 
 
@@ -89,7 +65,7 @@ def test_missing_margin_is_filled_with_paper_white() -> None:
   # A photo cropped just below the grid lacks the footer margin the quad extends
   # into; the filler must read as blank paper, not as dark marks the detectors
   # would mistake for rules.
-  cropped = _draw_sheet(_STANDARD_RULE_YS, height=700)
+  cropped = draw_sheet(height=700)
 
   dewarped = dewarp_sheet(cropped).image
 

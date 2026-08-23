@@ -13,9 +13,11 @@ import subprocess
 import types
 from collections.abc import Sequence
 
-from PIL import Image, ImageDraw
-
 from session_analysis.extraction import transcribe_sheet
+from session_analysis.testing.synthetic_scans import draw_sheet
+
+# 29 rules bounding 28 board rows at a 20px pitch, on a 600x800-pixel page.
+_STANDARD_RULE_YS = list(range(100, 661, 20))
 
 
 class _RecordingRunner:
@@ -53,23 +55,11 @@ class _RecordingRunner:
       assert not self._results, f'{len(self._results)} scripted replies unused'
 
 
-def _draw_sheet() -> Image.Image:
-  """A synthetic 28-row scan: 29 rules at pitch 20 between vertical borders."""
-  image = Image.new('L', (600, 800), color=255)
-  draw = ImageDraw.Draw(image)
-  rule_ys = list(range(100, 661, 20))
-  for rule_y in rule_ys:
-    draw.line([(40, rule_y), (560, rule_y)], fill=0)
-  for border_x in (40, 560):
-    draw.line([(border_x, rule_ys[0]), (border_x, rule_ys[-1])], fill=0)
-  return image
-
-
 def test_transcribe_sheet_returns_both_runs_raw_json() -> None:
   with _RecordingRunner(
     ['{"sheet": {"boards": []}}', '{"sheet": {"boards": [{}]}}']
   ) as runner:
-    transcription = transcribe_sheet(_draw_sheet(), run_command=runner)
+    transcription = transcribe_sheet(draw_sheet(), run_command=runner)
 
   assert transcription.raw_jsons == (
     '{"sheet": {"boards": []}}',
@@ -79,7 +69,9 @@ def test_transcribe_sheet_returns_both_runs_raw_json() -> None:
 
 def test_transcribe_sheet_returns_the_detected_geometry() -> None:
   with _RecordingRunner(['{}', '{}']) as runner:
-    transcription = transcribe_sheet(_draw_sheet(), run_command=runner)
+    transcription = transcribe_sheet(
+      draw_sheet(_STANDARD_RULE_YS), run_command=runner
+    )
 
   assert len(transcription.geometry.row_boxes) == 28
   # The source quad sits just outside the drawn grid: the dewarp margins push
@@ -90,7 +82,7 @@ def test_transcribe_sheet_returns_the_detected_geometry() -> None:
 
 def test_transcribe_sheet_reads_the_same_strips_both_times() -> None:
   with _RecordingRunner(['{}', '{}']) as runner:
-    transcribe_sheet(_draw_sheet(), run_command=runner)
+    transcribe_sheet(draw_sheet(), run_command=runner)
 
   assert len(runner.stdin_texts) == 2
   assert runner.stdin_texts[0] == runner.stdin_texts[1]
@@ -98,7 +90,7 @@ def test_transcribe_sheet_reads_the_same_strips_both_times() -> None:
 
 def test_transcribe_sheet_sends_labeled_strips_for_every_row() -> None:
   with _RecordingRunner(['{}', '{}']) as runner:
-    transcribe_sheet(_draw_sheet(), run_command=runner)
+    transcribe_sheet(draw_sheet(_STANDARD_RULE_YS), run_command=runner)
 
   content = json.loads(runner.stdin_texts[0])['message']['content']
   # 29 label/image pairs (28 rows + footer) and the final instruction.
