@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Tests for reading a club game's PBN into a traveller.
+"""Tests for reading a Palo Alto club game's PBN into a traveller.
 
 Most tests write out the few PBN lines they turn on, so what is being read sits
 beside what is expected of it. One test parses a whole captured file; this

@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Tests for fetching published game-result files from the club site.
+"""Tests for fetching published game-result files from the Palo Alto club site.
 
 The calendar markup here reproduces the shapes the real page uses —
 single-quoted attributes, the server's own file-existence probes left behind as

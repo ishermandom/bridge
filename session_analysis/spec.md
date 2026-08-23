@@ -57,11 +57,11 @@ travellers lack**:
 4. the **personal review flags** — circled board numbers.
 
 Two travellers are available for a typical club session, both saved as local
-HTML: the ACBL Live traveller (e.g. `1472071.html`) and the club website capture
-(e.g. `R260629M.html`); tournaments have only the ACBL Live one. The ACBL
-capture carries an `opening_lead` field, but this club leaves it empty for every
-row — so in practice the opening lead is sheet-only. Design for a traveller
-existing most weeks, but not all.
+HTML: the ACBL Live traveller (e.g. `1472071.html`) and the Palo Alto club's
+website capture (e.g. `R260629M.html`); tournaments have only the ACBL Live one.
+The ACBL capture carries an `opening_lead` field, but this club leaves it empty
+for every row — so in practice the opening lead is sheet-only. Design for a
+traveller existing most weeks, but not all.
 
 Corollaries:
 

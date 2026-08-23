@@ -217,8 +217,8 @@ def test_a_captured_file_parses_end_to_end() -> None:
     'Ann Alfa',
     'Bob Bravo',
   )
-  # ACBL has a column for the opening lead, but this club leaves it empty on
-  # every row — so the opening lead stays sheet-only.
+  # ACBL has a column for the opening lead, but the Palo Alto club leaves it
+  # empty on every row — so the opening lead stays sheet-only.
   assert all(
     row.opening_lead is None
     for board in traveller.boards
@@ -390,8 +390,9 @@ def test_an_unreadable_rank_costs_the_whole_deal() -> None:
 
 
 def test_every_cell_is_stated() -> None:
-  # Unlike the club's own HTML, ACBL states the low cells too — as trick counts,
-  # since there is no makeable contract to name below seven tricks.
+  # Unlike the Palo Alto club's own HTML, ACBL states the low cells too — as
+  # trick counts, since there is no makeable contract to name below seven
+  # tricks.
   traveller = parse_page(
     hand_records=[
       _make_hand_record(

@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Tests for reading a club game's published HTML into a traveller.
+"""Tests for reading a Palo Alto club game's published HTML into a traveller.
 
 Most tests write out the few elements they turn on, so what is being read sits
 beside what is expected of it. Two tests parse whole captured files, one per

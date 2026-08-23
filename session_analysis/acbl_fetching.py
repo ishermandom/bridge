@@ -454,8 +454,8 @@ def fetch_club_travellers(
   Reads the player's public club index
   (`my.acbl.org/club-results/my-results/<number>`), keeps the games played on
   `date`, and saves each one's detail page beneath `destination`. These ACBL
-  club records corroborate the club site's own copies, which `club_fetching`
-  fetches.
+  club records corroborate the Palo Alto club site's own copies, which
+  `club_fetching` fetches.
 
   Args:
     player_number: the ACBL player number whose results to fetch.

@@ -44,8 +44,8 @@ Beyond the recoverable fields the traveller already owned as source of truth
 - **Every table's row**, not just ours — the whole traveller, which is what
   makes the capture a game database rather than a per-board lookup.
 
-The ACBL capture carries an `opening_lead` field, but this club leaves it empty
-for every row, so in practice the opening lead stays sheet-only (see
+The ACBL capture carries an `opening_lead` field, but the Palo Alto club leaves
+it empty for every row, so in practice the opening lead stays sheet-only (see
 [spec.md](spec.md#source-of-truth-model)).
 
 ## Sources

@@ -155,9 +155,9 @@ def test_the_sheet_writes_no_made_exactly_token() -> None:
 
 
 def test_traveller_result_accepts_a_unicode_minus() -> None:
-  # The club's HTML writes its minus as a Unicode minus sign rather than an
-  # ASCII hyphen. Named by code point, as `glyphs` names the set it belongs to —
-  # the two are indistinguishable on the page.
+  # The Palo Alto club's HTML writes its minus as a Unicode minus sign rather
+  # than an ASCII hyphen. Named by code point, as `glyphs` names the set it
+  # belongs to — the two are indistinguishable on the page.
   minus_sign = chr(0x2212)
   assert traveller(f'{minus_sign}2', 4) == 8
 

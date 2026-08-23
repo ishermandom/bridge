@@ -36,8 +36,10 @@ from session_analysis.models import Card, Deal, Issue, PairIdentity, Resolution
 class TravellerSource(enum.StrEnum):
   """Where a traveller was captured from.
 
-  The two ACBL surfaces are named apart because they publish different markup
-  and cover different events, not because the records differ once parsed.
+  The `CLUB_` surfaces are the Palo Alto club's own site, which publishes each
+  game as both a PBN and an HTML page. The two ACBL surfaces are named apart
+  because they publish different markup and cover different events, not because
+  the records differ once parsed.
   """
 
   CLUB_PBN = 'club_pbn'

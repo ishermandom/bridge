@@ -14,9 +14,9 @@ neither is guessable from the text:
   *level* a seat can make, six tricks fewer than the count. `S4` — the number
   last — is the *trick count* itself, which ACBL switches to for a side that
   takes fewer than seven tricks and so has no makeable contract to name. The
-  page states this in its own tooltip. Where the club's HTML states only the
-  contracts that make, ACBL states the low cells too — so its table is the
-  fuller of the two.
+  page states this in its own tooltip. Where the Palo Alto club's HTML states
+  only the contracts that make, ACBL states the low cells too — so its table is
+  the fuller of the two.
 - A side whose two seats straddle seven tricks has its strain stated twice, once
   in each form: `1/-S` says one seat makes a spade contract and the other makes
   none, and `S7/6` then gives both seats' counts exactly. Only a seat no cell
@@ -71,9 +71,9 @@ _MAKEABLE_PATTERN = re.compile(
 )
 
 # The par line's own label, written with or without its colon. It is part of the
-# line in the club blob and a separate element on the tournament pages, so the
-# pattern below leaves it optional and the two surfaces need no branch of their
-# own.
+# line in the ACBL club blob and a separate element on the tournament pages, so
+# the pattern below leaves it optional and the two surfaces need no branch of
+# their own.
 _PAR_LABEL = r'Par:?\s*'
 
 # The par line: a score from North-South's perspective, then the contracts

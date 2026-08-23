@@ -182,9 +182,9 @@ them is the parser's job.
 - Anything else unrecognized → `other`, raw preserved, so a novel form never
   fails.
 
-Only an explicit annotation is decoded. What a bare, unannotated `1N` implies —
-the club's assumed range — is not the parser's concern; the sheet spells a range
-out only when it departs from that default.
+Only an explicit annotation is decoded. What a bare, unannotated `1N` implies is
+not the parser's concern; the sheet spells a range out only when it departs from
+that default.
 
 ### Contract parsing {#contract-parsing}
 
