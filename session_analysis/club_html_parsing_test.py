@@ -469,7 +469,7 @@ def test_a_suit_printed_as_an_empty_row_is_a_void() -> None:
 
 def test_only_the_contracts_that_make_are_stated() -> None:
   # The club lists the contracts that make, so a seat and strain it leaves out
-  # takes fewer than seven tricks without saying how many — null is the honest
+  # takes fewer than seven tricks without saying how many — `None` is the honest
   # value, not zero.
   traveller = parse_markup(
     '<div id=Board1></div>', _make_analysis('N 4S; N 2H;')

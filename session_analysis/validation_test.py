@@ -164,7 +164,7 @@ def test_unresolved_call_is_flagged() -> None:
 
 def test_unresolved_lead_is_flagged() -> None:
   # A lead that failed to parse carries the parser's issue on the envelope —
-  # distinct from a struck-through lead's intentional, issue-free null card.
+  # distinct from a struck-through lead's intentional, issue-free `None` card.
   unparseable_lead = Lead(
     raw='??',
     issues=(

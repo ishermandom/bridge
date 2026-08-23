@@ -4,7 +4,7 @@
 
 This is the project's interpretation layer: all bridge convention lives here,
 not in the vision model (which only transcribes) and not in the models (which
-only hold and serialize). It never raises — an unparseable token yields a null
+only hold and serialize). It never raises — an unparseable token yields a `None`
 parsed value inside its envelope plus an `Issue`, so nothing is ever dropped.
 See models.md `#parsing`.
 """
@@ -201,7 +201,7 @@ def parse_contract_cell(cell: str) -> Outcome:
   The one cell encodes the final contract, its penalty, the declarer, and the
   result together; they share the raw text and issue list. A cell whose text
   contains 'pass' in any wording, or a struck-through cell, is an explicit
-  passout. Anything else that doesn't parse yields a null resolution plus an
+  passout. Anything else that doesn't parse yields a `None` resolution plus an
   `unparseable_contract` issue — the board is still stored (nothing is garbage).
   See models.md `#contract-parsing`.
 
@@ -279,13 +279,13 @@ def parse_lead(cell: str) -> Lead:
 
   The cell is a card: a rank then a suit, with an optional `o` for the spoken
   'of' between them (`9oH` and `9H` both mean the nine of hearts). The ten may
-  be written `10` or `T`. A cell that doesn't match yields a null card plus an
+  be written `10` or `T`. A cell that doesn't match yields a `None` card plus an
   `unparseable_lead` issue — the board is still stored (nothing is garbage). A
-  board with no recorded lead is the assembler's concern, kept as a null
+  board with no recorded lead is the assembler's concern, kept as a `None`
   `opening_lead`; this parser assumes a lead was written. See models.md `#lead`.
 
   A boxed cell (`[9oH]`) sets `flagged_for_discussion` and is unwrapped before
-  parsing the card underneath. A struck-through cell resolves to a null card
+  parsing the card underneath. A struck-through cell resolves to a `None` card
   with no issue — the lead was recorded as not played, not illegible.
   """
   text = cell.strip()
@@ -318,9 +318,10 @@ def parse_board_number(cell: str) -> BoardNumber:
   The number fixes the deal: under the standard 16-board cycle it determines the
   dealer and vulnerability, which `board_rotation` computes into the `Schedule`
   bundled here — the envelope's parsed value is present only when the number was
-  read and valid. A non-numeric or non-positive cell yields a null schedule plus
-  an `unreadable_board_number` issue; the board is still stored and flagged for
-  review (nothing is garbage). See models.md `#board-number` and `#schedule`.
+  read and valid. A non-numeric or non-positive cell yields a `None` schedule
+  plus an `unreadable_board_number` issue; the board is still stored and flagged
+  for review (nothing is garbage). See models.md `#board-number` and
+  `#schedule`.
   """
   match = _BOARD_NUMBER_PATTERN.fullmatch(cell.strip())
   if not match:
@@ -346,7 +347,7 @@ class ParsedFooter:
 
   These feed the session-level fields directly — `Session.date` and
   `Session.issues`. The footer carries no envelope of its own, so a misread date
-  is null with a session-level issue. `event` is absent here: it is the raw
+  is `None` with a session-level issue. `event` is absent here: it is the raw
   footer text, stored verbatim and never parsed. Our pair identity is not read
   from the sheet at all — it is resolved from the travellers at reconciliation
   (see models.md `#session`).
@@ -364,9 +365,9 @@ def parse_footer(
   The sheet writes the date as month/day with no year (`6/29`); the year is
   inferred against `reference_date` — the day of the scan — on the assumption
   that a scanned sheet is at most a few months old and never from the future, so
-  a December sheet scanned in January reads as the prior year. The date is null
-  with a session-level issue when it can't be read, never a failure (nothing is
-  garbage). See models.md `#session`.
+  a December sheet scanned in January reads as the prior year. The date is
+  `None` with a session-level issue when it can't be read, never a failure
+  (nothing is garbage). See models.md `#session`.
   """
   date = _date_from_footer(date_text, reference_date)
   if date:

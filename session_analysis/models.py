@@ -11,8 +11,8 @@ the JSON store, not to the vision model.
 Each written token is kept in a small envelope — its raw transcription, any
 marks, its issues, and the parsed value when the token could be understood (e.g.
 `AuctionEntry` around `Call`). The envelope makes the all-or-nothing nature of a
-parse explicit: a null parsed value means the token couldn't be understood as a
-whole, rather than each field being independently absent. Content validation
+parse explicit: a `None` parsed value means the token couldn't be understood as
+a whole, rather than each field being independently absent. Content validation
 (bridge legality, ranges) is the validation pass's job, not these models'.
 """
 
@@ -118,7 +118,7 @@ class PairIdentity(FrozenModel):
   # section prefixes the number, `10` where two digits are needed.
   number: str
   side: Side
-  # Null when the event ran a single unnamed section.
+  # `None` when the event ran a single unnamed section.
   section: str | None = None
   # The two players, each written given name first — the order the club and the
   # sheets use, and the one ACBL's surname-first filing is turned around into,
@@ -150,7 +150,7 @@ class Call(FrozenModel):
 
   `level` and `strain` are set for bids and absent for the other kinds — a
   kind-driven distinction, not a parse failure. Parse failure is the wrapping
-  `AuctionEntry.call` being null.
+  `AuctionEntry.call` being `None`.
   """
 
   kind: CallKind
@@ -210,8 +210,8 @@ class Outcome(FrozenModel):
   """A board's contract cell: what its auction resolved to.
 
   `resolution` is the understood outcome — a `PlayedContract` or a `Passout` —
-  and is null only when the cell couldn't be parsed. So a passout is an explicit
-  understood state, kept distinct from an unparsed cell.
+  and is `None` only when the cell couldn't be parsed. So a passout is an
+  explicit understood state, kept distinct from an unparsed cell.
   """
 
   raw: str
@@ -239,9 +239,9 @@ class Schedule(FrozenModel):
 class BoardNumber(FrozenModel):
   """The board-number cell envelope: its transcription and resolved schedule.
 
-  Follows the parse-envelope pattern — `raw` plus a parsed value that is null
+  Follows the parse-envelope pattern — `raw` plus a parsed value that is `None`
   when the cell couldn't be understood. Here that value is `schedule`: a fully
-  populated `Schedule` when the number was read and valid, or null when it was
+  populated `Schedule` when the number was read and valid, or `None` when it was
   unreadable or invalid. The board is stored and flagged for review either way —
   an unreadable number is a review item, not a reason to drop the board (nothing
   is garbage).
@@ -266,7 +266,7 @@ class Board(FrozenModel):
   auction: tuple[AuctionEntry, ...] = ()
   opening_lead: Lead | None = None
   outcome: Outcome | None = None
-  # Traveller-sourced; filled at reconciliation, null until then and for
+  # Traveller-sourced; filled at reconciliation, `None` until then and for
   # no-traveller sessions.
   matchpoints: float | None = None
   notes: str | None = None
@@ -297,8 +297,8 @@ class Session(FrozenModel):
   """A whole digitized session: its footer, provenance, and boards.
 
   Like the rest of the models, the parsed footer date never hard-fails: a value
-  the parser couldn't read is null with an issue, not a construction error, so a
-  session is always stored and reviewable (nothing is garbage). `event` and
+  the parser couldn't read is `None` with an issue, not a construction error, so
+  a session is always stored and reviewable (nothing is garbage). `event` and
   `source` are the always-present exceptions — `event` is the raw footer
   transcription, `source` is file provenance, neither a parse that can fail.
 
@@ -310,11 +310,11 @@ class Session(FrozenModel):
   """
 
   # Stable identifier derived from event and date (e.g. `pabc-mon-2026-06-29`);
-  # the filename and the reconciliation join. Null until ingest assigns it,
+  # the filename and the reconciliation join. `None` until ingest assigns it,
   # downstream of parsing and review.
   session_key: str | None = None
   event: str
-  # Parsed from the footer, or null with an issue when unreadable.
+  # Parsed from the footer, or `None` with an issue when unreadable.
   date: datetime.date | None = None
   source: Source
   boards: tuple[Board, ...] = ()

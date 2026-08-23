@@ -47,7 +47,7 @@ def test_passout_round_trips_as_a_passout() -> None:
   assert isinstance(restored.resolution, Passout)
 
 
-def test_unparsed_cell_round_trips_as_a_null_resolution() -> None:
+def test_unparsed_cell_round_trips_with_no_resolution() -> None:
   outcome = Outcome(raw='4?N', resolution=None)
   restored = Outcome.model_validate_json(outcome.model_dump_json())
   assert restored.resolution is None

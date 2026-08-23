@@ -616,7 +616,8 @@ def _makeable_tricks(analysis: Sequence[str]) -> DoubleDummyTricks | None:
 
   The club lists only the contracts that make, so every seat and strain it
   leaves out takes fewer than seven tricks without saying how many. Those cells
-  stay null, since null is the honest reading of a count the list never gave.
+  stay `None`, since `None` is the honest reading of a count the list never
+  gave.
   """
   if not analysis:
     return None

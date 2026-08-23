@@ -84,8 +84,8 @@ def test_seats_straddling_seven_tricks_are_stated_twice() -> None:
   assert tricks[Direction.WEST][Strain.SPADES] == 6
 
 
-def test_a_seat_with_no_makeable_contract_and_no_count_stays_null() -> None:
-  # The dash says only "fewer than seven", so null is the honest reading when
+def test_a_dash_alone_leaves_the_trick_count_unstated() -> None:
+  # The dash says only "fewer than seven", so `None` is the honest reading when
   # nothing else states the count.
   tricks = double_dummy_tricks(
     north_south='NS: 1H 1D 1C 1NT', east_west='EW: 1/-S 1H 1D 1C 1NT'
@@ -94,7 +94,7 @@ def test_a_seat_with_no_makeable_contract_and_no_count_stays_null() -> None:
   assert tricks[Direction.WEST][Strain.SPADES] is None
 
 
-def test_a_strain_no_cell_names_stays_null() -> None:
+def test_a_strain_no_cell_names_leaves_its_trick_count_unstated() -> None:
   tricks = double_dummy_tricks(north_south='NS: 4S', east_west='EW: 3H')
   assert tricks[Direction.NORTH][Strain.CLUBS] is None
 

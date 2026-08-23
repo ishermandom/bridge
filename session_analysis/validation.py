@@ -155,7 +155,7 @@ def validate_session(session: Session) -> Session:
 def _check_content(board: Board) -> Iterator[Issue]:
   """Yield issues for unresolved tokens and out-of-range contract values."""
   for index, entry in enumerate(board.auction):
-    # A null call is a token the parser couldn't understand; surface it at the
+    # A `None` call is a token the parser couldn't understand; surface it at the
     # board level too, so it counts toward the board's review priority.
     if not entry.call:
       yield Issue(

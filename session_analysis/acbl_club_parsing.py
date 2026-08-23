@@ -287,10 +287,10 @@ def _deal(
 ) -> issue_reporting.Read[Deal | None]:
   """The deal a hand record states, as one field per seat and suit.
 
-  A record naming no seat at all states no deal, and a null deal says exactly
+  A record naming no seat at all states no deal, and a `None` deal says exactly
   that — so nothing is reported. A record naming some seats but not all is
-  reported: the deal is dropped either way, but a null deal alone would not say
-  that cards were there to lose.
+  reported: the deal is dropped either way, but a `None` deal alone would not
+  say that cards were there to lose.
   """
   hands: dict[Direction, Hand] = {}
   for seat, prefix in _SEAT_FIELD_PREFIXES.items():

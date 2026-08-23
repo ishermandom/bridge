@@ -20,7 +20,7 @@ neither is guessable from the text:
 - A side whose two seats straddle seven tricks has its strain stated twice, once
   in each form: `1/-S` says one seat makes a spade contract and the other makes
   none, and `S7/6` then gives both seats' counts exactly. Only a seat no cell
-  states a count for stays null.
+  states a count for stays `None`.
 - A slash splits the two seats of the side, in the order the side is named:
   `3/4D` under `NS` means North makes three diamonds and South four.
 
@@ -109,7 +109,7 @@ _SEAT_SEPARATOR = '/'
 _CONTRACT_SEPARATOR = '/'
 
 # What stands in for the level of a seat that can make no contract at all. It
-# says only that the seat takes fewer than seven tricks, so the cell is null
+# says only that the seat takes fewer than seven tricks, so the cell is `None`
 # unless the same strain is also stated as a trick count.
 _NO_MAKEABLE_CONTRACT = '-'
 
