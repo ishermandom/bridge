@@ -167,6 +167,28 @@ describe("showLimitedBanner", () => {
     expect(modal.querySelector(".pabc-reserve-banner")).toBeNull();
   });
 
+  test("sits below the modal's title bar", () => {
+    const modal = document.createElement("div");
+    modal.innerHTML = `<div class="headerDiv">reservation</div><div id="dateDiv"></div>`;
+
+    const banner = showLimitedBanner(modal, true);
+
+    // Stacked above the site's colored title bar, the warning reads as a
+    // rendering fault rather than as part of the form.
+    expect(banner.previousElementSibling).toBe(
+      modal.querySelector(".headerDiv"),
+    );
+  });
+
+  test("falls back to the top of a modal with no title bar", () => {
+    const modal = document.createElement("div");
+    modal.innerHTML = `<div id="dateDiv"></div>`;
+
+    const banner = showLimitedBanner(modal, true);
+
+    expect(modal.firstElementChild).toBe(banner);
+  });
+
   test("does not stack a second banner when run twice", () => {
     const modal = document.createElement("div");
     showLimitedBanner(modal, true);
@@ -330,6 +352,16 @@ describe("selectDropdownMatch", () => {
 });
 
 describe("typeName", () => {
+  test("focuses the field, so the site's dropdown opens", () => {
+    const input = document.createElement("input");
+    document.body.append(input);
+
+    typeName(input, "First Last");
+
+    // The autocomplete only offers its dropdown for the focused field.
+    expect(document.activeElement).toBe(input);
+  });
+
   test("types into an empty field and fires input, without selecting", () => {
     const input = document.createElement("input");
     const onInput = vi.fn();

@@ -13,6 +13,7 @@ import {
   saveProfile,
   onElementAdded,
   onDialogOpened,
+  onPopoverOpened,
   mountSettingsPanel,
 } from "./pabc-reservations.user.js";
 
@@ -163,6 +164,56 @@ describe("onDialogOpened", () => {
     await flush();
 
     expect(callback).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A `toggle` event carrying `newState`. jsdom implements neither the popover
+// API nor `ToggleEvent`, so the event the site would fire is synthesized here;
+// what is under test is that the hook reads `newState` and acts on "open" only.
+function makeToggleEvent(newState) {
+  const event = new Event("toggle");
+  Object.defineProperty(event, "newState", { value: newState });
+  return event;
+}
+
+describe("onPopoverOpened", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  test("fires when the popover opens", () => {
+    const popover = document.createElement("div");
+    document.body.append(popover);
+
+    const callback = vi.fn();
+    onPopoverOpened(popover, callback);
+    popover.dispatchEvent(makeToggleEvent("open"));
+
+    expect(callback).toHaveBeenCalledWith(popover);
+  });
+
+  test("does not fire when the popover closes", () => {
+    const popover = document.createElement("div");
+    document.body.append(popover);
+
+    const callback = vi.fn();
+    onPopoverOpened(popover, callback);
+    popover.dispatchEvent(makeToggleEvent("closed"));
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  test("fires again on each reopen", () => {
+    const popover = document.createElement("div");
+    document.body.append(popover);
+
+    const callback = vi.fn();
+    onPopoverOpened(popover, callback);
+    popover.dispatchEvent(makeToggleEvent("open"));
+    popover.dispatchEvent(makeToggleEvent("closed"));
+    popover.dispatchEvent(makeToggleEvent("open"));
+
+    expect(callback).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -156,7 +156,7 @@ default — they never overwrite something the user has already typed or chosen.
   likely binds a player record, so this is the riskiest feature.
 - **Prefill name when looking up reservations.** Type the stored name into the
   "My Reservations" name field, but do not select a dropdown entry — on that
-  dialog selecting submits and closes it, and the user may want to look up a
+  modal selecting submits and closes it, and the user may want to look up a
   different player. (Reserving differs: there, selecting advances the form, so
   that prefill does select.)
 - **Prefill email when canceling.** Fill the email field in the cancellation
@@ -214,8 +214,8 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
   it on the rest, so the first game's date heads the whole day. That date cell
   (the one carrying the day-of-week label) is excluded from the dimming, so a
   limited first game does not dim the date the open games below rely on; and
-- in the reservation dialog, by a warning banner shown when the modal opens for
-  a limited game (a second catch right before saving). The modal carries no
+- in the reservation modal, by a warning banner shown when the modal opens for a
+  limited game (a second catch right before saving). The modal carries no
   ceiling of its own, so its limited status is carried over from the list: a
   click on a limited game's reserve button is remembered and consumed when the
   modal opens.
@@ -229,28 +229,36 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
   the name, dispatch the input events that open the dropdown, and select the
   matching entry, letting the site perform its own binding. This applies to the
   reserve flow; the My Reservations field is filled with text only and left
-  unselected, since selecting there submits the dialog rather than advancing to
-  the next field. This keeps the stored profile to just the name for identity —
-  no need to replicate the site's internal id/contact data. Text-fill is the
-  fallback if the dropdown can't be driven reliably, accepting one manual click
-  to confirm. Verification must confirm a reservation actually persists with the
-  correct player, not merely that the field shows the right name.
+  unselected, since selecting there submits the lookup rather than advancing to
+  the next field. Either way the field must be focused before the value is set:
+  the site opens its dropdown only for the focused field, so an unfocused fill
+  leaves the name in place with no entry to pick — the reserve modal focuses its
+  own name field on open, but the My Reservations modal does not. This keeps the
+  stored profile to just the name for identity — no need to replicate the site's
+  internal id/contact data. Text-fill is the fallback if the dropdown can't be
+  driven reliably, accepting one manual click to confirm. Verification must
+  confirm a reservation actually persists with the correct player, not merely
+  that the field shows the right name.
 - **Asynchronously rendered DOM.** Elements (and especially modal dialogs)
   appear after initial load and after user actions. Features must wait for their
   targets — a shared "run when this selector appears" helper built on
   `MutationObserver` — rather than assuming elements exist at script start.
 - **Modal lifecycle.** The reserve, My Reservations, and cancel modals are
-  mounted once and shown on demand rather than created per use — the reserve
-  popover and the `cancel-reservation-modal` sit in the DOM from page load,
-  empty. Prefills and the warning banner must therefore react to a modal
-  _opening_, not to its insertion (which may have happened at load): the reserve
-  popover via its `toggle` event, a `<dialog>` via its `open` attribute (the
-  `onDialogOpened` helper). Hooking insertion alone would fire once, against an
-  empty modal, and never again.
-- **Limited-banner carry-over flag.** The reserve dialog has no masterpoint
+  mounted once and shown on demand rather than created per use — all three sit
+  in the DOM from page load, empty. Prefills and the warning banner must
+  therefore react to a modal _opening_, not to its insertion (which happened at
+  load): hooking insertion alone would fire once, against an empty modal, and
+  never again. The site builds its modals two ways, so there is one open hook
+  per mechanism: `onPopoverOpened` watches a `[popover]` element's `toggle`
+  event (the reserve and My Reservations modals), and `onDialogOpened` watches a
+  `<dialog>`'s `open` attribute (the cancel modal). Which mechanism a given
+  modal uses is the site's choice and can change, so a modal is addressed by its
+  own id rather than by element type — matching every `<dialog>` on the page
+  would sweep in the site's unrelated ones.
+- **Limited-banner carry-over flag.** The reserve modal has no masterpoint
   ceiling, so its limited status rides a single module-level flag, set when a
-  limited game's reserve button is clicked and consumed at the next dialog open.
-  If that click never opens the dialog (e.g. the game is already reserved), the
+  limited game's reserve button is clicked and consumed at the next modal open.
+  If that click never opens the modal (e.g. the game is already reserved), the
   flag lingers and the next reserve — even of an open game — shows a spurious
   banner. Accepted as low-probability and low-harm (an extra, dismissable
   warning) rather than threading per-game state through the DOM.
@@ -264,8 +272,8 @@ A single userscript file, organized as:
 - the MIT license block;
 - profile storage accessors over `GM_setValue`/`GM_getValue`;
 - the in-page settings panel;
-- shared helpers: "run when selector appears" (`MutationObserver`-based) and a
-  modal-open hook;
+- shared helpers: "run when selector appears" (`MutationObserver`-based) and the
+  two modal-open hooks, one per modal mechanism the site uses;
 - `isLimitedGame` — the pure limited-game detector (over a game's masterpoint
   ceiling);
 - one feature module per convenience above, each wiring its behavior to the
@@ -296,7 +304,11 @@ Three tiers, matched to how testable each piece is.
   player-record binding, and so isn't reproducible in jsdom. For the
   autocomplete specifically, verification goes one step past appearance:
   complete a reservation and confirm it persists against the correct player
-  record.
+  record. One trap when driving the page from a browser-automation tool:
+  `new-reserve-button` defines its own `click()`, which opens the reserve modal
+  directly without dispatching a click event, so a scripted `element.click()`
+  silently skips every click listener — including the one that arms the
+  limited-game banner. Only a real mouse click exercises that path.
 
 ## Type checking
 

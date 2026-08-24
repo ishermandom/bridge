@@ -6,7 +6,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-idle
-// @version      1.0
+// @version      1.1
 // ==/UserScript==
 
 // Copyright 2026 Ilya Sherman (ishermandom@)
@@ -191,6 +191,26 @@ function onDialogOpened(dialog, callback) {
   const observer = new MutationObserver(handleIfOpen);
   observer.observe(dialog, { attributes: true, attributeFilter: ["open"] });
   return observer;
+}
+
+/**
+ * Run `callback(popover)` each time `popover` opens, from this call onward.
+ * The site's modals are `[popover]` divs, mounted once at page load and shown
+ * on demand, so a feature that fills one must react to the opening rather than
+ * to the element being inserted — insertion happened against an empty modal,
+ * before the user ever asked for it. The `[popover]` counterpart to
+ * `onDialogOpened`.
+ *
+ * @param {HTMLElement} popover
+ * @param {(popover: HTMLElement) => void} callback
+ */
+function onPopoverOpened(popover, callback) {
+  popover.addEventListener("toggle", (event) => {
+    // `toggle` fires on both open and close; `newState` tells them apart.
+    if (/** @type {ToggleEvent} */ (event).newState === "open") {
+      callback(popover);
+    }
+  });
 }
 
 /**
@@ -522,7 +542,16 @@ function showLimitedBanner(modal, isLimited) {
   banner.style.setProperty("max-width", "18rem", "important");
   banner.style.setProperty("margin", "0 auto 0.75rem", "important");
 
-  modal.prepend(banner);
+  // Sit the banner below the modal's title bar rather than above it: the site
+  // renders `.headerDiv` as a full-width colored bar, and a warning stacked on
+  // top of it reads as a rendering fault rather than as part of the form. Fall
+  // back to the top of the modal if the header is ever absent.
+  const header = modal.querySelector(".headerDiv");
+  if (header) {
+    header.after(banner);
+  } else {
+    modal.prepend(banner);
+  }
   return banner;
 }
 
@@ -677,6 +706,13 @@ function typeName(input, name) {
     return false;
   }
 
+  // The site's autocomplete only opens its dropdown for the focused field, so
+  // focus before typing, as a user would. The reserve modal focuses its own
+  // name field when it opens; the My Reservations modal leaves it unfocused,
+  // and without this the name lands in the field but no dropdown offers the
+  // player record to pick.
+  input.focus();
+
   input.value = name;
   // The site opens its dropdown in response to input on the field.
   input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -752,8 +788,10 @@ function main() {
   onElementAdded("#showMore", expandShowMore);
 
   // Flag limited game rows; on a limited row, remember a click on its reserve
-  // button so the reserve modal can warn when it opens.
-  onElementAdded("tr[data-sections]", (/** @type {HTMLElement} */ row) => {
+  // button so the reserve modal can warn when it opens. A game row is picked
+  // out by `data-name` — the title attribute the limited-game check itself
+  // reads — so the selector rests on the same attribute the feature consumes.
+  onElementAdded("tr[data-name]", (/** @type {HTMLElement} */ row) => {
     if (!flagLimitedGame(row)) {
       return;
     }
@@ -765,39 +803,31 @@ function main() {
     }
   });
 
-  // Reserve popover toggles visibility rather than mounting, so its features
-  // hang off the open event, not element insertion.
+  // The reserve modal is shown and hidden in place rather than mounted per
+  // use, so its features hang off the open event, not element insertion.
   onElementAdded("#newReservation", (/** @type {HTMLElement} */ modal) => {
-    modal.addEventListener("toggle", (event) => {
-      if (/** @type {ToggleEvent} */ (event).newState === "open") {
-        onReserveOpen(modal);
-      }
-    });
+    onPopoverOpened(modal, onReserveOpen);
   });
 
-  // My Reservations dialog: a <dialog> with a needsDropdown name field, shown
-  // on demand like the cancel dialog — fill the name when it opens, not when it
-  // mounts. Only type the name (no dropdown click): on this dialog, selecting
-  // an entry submits and closes it, and the user may want a different player.
-  // The field is re-queried on open in case the site rebuilds it.
-  onElementAdded("dialog", (/** @type {HTMLDialogElement} */ dialog) => {
-    // The cancel dialog is also a <dialog>, handled separately below; it must
-    // not receive the name prefill, so skip it here rather than matching every
-    // dialog on the page.
-    if (dialog.closest("cancel-reservation-modal")) {
-      return;
-    }
-    onDialogOpened(dialog, () => {
-      const nameInput = querySelectorOfType(
-        dialog,
-        "input.needsDropdown",
-        HTMLInputElement,
-      );
-      if (nameInput) {
-        typeName(nameInput, loadProfile().name);
-      }
-    });
-  });
+  // My Reservations: type the name but never select a dropdown entry — on this
+  // modal selecting submits the lookup and closes it, and the user may want to
+  // look up a different player. The field is re-queried on each open in case
+  // the site rebuilds it.
+  onElementAdded(
+    "#myReservationsDialog",
+    (/** @type {HTMLElement} */ modal) => {
+      onPopoverOpened(modal, () => {
+        const nameInput = querySelectorOfType(
+          modal,
+          "input.needsDropdown",
+          HTMLInputElement,
+        );
+        if (nameInput) {
+          typeName(nameInput, loadProfile().name);
+        }
+      });
+    },
+  );
 
   // Cancel dialog: the cancel-reservation-modal persists in the DOM and shows
   // its dialog on demand, so fill the email each time the dialog opens, not
@@ -836,6 +866,7 @@ if (typeof module !== "undefined" && module.exports) {
     saveProfile,
     onElementAdded,
     onDialogOpened,
+    onPopoverOpened,
     mountSettingsPanel,
     parseMasterpointCeiling,
     flagLimitedGame,
