@@ -266,12 +266,6 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
   Accepted as low-probability and low-harm (an extra, dismissable warning)
   rather than threading per-game state through the DOM.
 
-  The flag is scoped to the wiring that owns it rather than to the module, so
-  each `main()` begins with nothing pending and the feature functions take the
-  value as an argument. The page reloads either way, so this changes no behavior
-  — it keeps the lingering flag from outliving anything but the page that set
-  it, which under a module-level flag included the next test in the same file.
-
 ## Architecture
 
 A single userscript file, organized as:
