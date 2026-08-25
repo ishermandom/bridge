@@ -25,9 +25,6 @@ does; the sections below record how they work and why.
 
 Out of scope / deferred:
 
-- Driving the site headlessly or scraping it (Python/Playwright). The
-  requirements are all "adjust this page as I use it," which a userscript serves
-  directly.
 - Prefilling partner name or optional contact fields (ACBL number, phone). The
   profile is intentionally just name, email, and direction.
 - A hard block on booking limited games. The guard is visual only to prevent
@@ -70,13 +67,19 @@ per-club website tooling, one subdirectory per club, so a second club's tooling
 sits in its own sibling (`club_sites/<club>/`) rather than a generic shared
 directory.
 
-Expected files (built during implementation):
+The directory holds:
 
 - `club_sites/palo_alto/pabc-reservations.user.js` — the userscript, carrying
   the standard MIT license block.
 - `club_sites/palo_alto/README.md` — install and lock-down steps for the user
   (install Tampermonkey, enable "Allow user scripts", set site-scoped access,
   paste the script).
+- `club_sites/palo_alto/verify_live.py` — the live-site check described under
+  `#testing-strategy`. Uses Playwright to drive a real browser.
+- `club_sites/palo_alto/pyproject.toml` — the Python half of the tooling,
+  declaring Playwright. It carries the same project name as `package.json`
+  beside it: one project spanning two toolchains, each manifest declaring what
+  its own half needs.
 
 ## Profile model and storage
 
@@ -279,7 +282,7 @@ A single userscript file, organized as:
 - one feature module per convenience above, each wiring its behavior to the
   appropriate page-ready or modal-open trigger.
 
-## Testing strategy
+## Testing strategy {#testing-strategy}
 
 Three tiers, matched to how testable each piece is.
 
@@ -289,26 +292,61 @@ Three tiers, matched to how testable each piece is.
 - **jsdom tests for deterministic DOM features.** Row flagging, the "Show more
   games" expansion, the section default, and the value-setting prefills are
   deterministic transformations of the page, testable under a Node toolchain
-  (e.g. vitest + jsdom): build minimal synthetic markup inline, run the feature,
-  assert the DOM change. Each test inlines the small fragment it needs rather
-  than loading a shared capture. Raw HTML captured from the live site was the
-  build-time reference for the selectors and markup shape, but it held member
-  PII, so it was gitignored and has since been deleted — re-capture from the
-  live site if ever needed; the selectors now live inline in the userscript and
-  in this spec. Because the synthetic markup encodes our reading of a site we do
-  not control, passing tests prove our logic is internally consistent, not that
-  the live markup still matches.
-- **Manual in-browser verification** for what the tiers above can't reach: that
-  the live markup still matches the structure the tests assume, and the name
-  autocomplete binding — which depends on the site's own JS event handling and
-  player-record binding, and so isn't reproducible in jsdom. For the
-  autocomplete specifically, verification goes one step past appearance:
-  complete a reservation and confirm it persists against the correct player
-  record. One trap when driving the page from a browser-automation tool:
-  `new-reserve-button` defines its own `click()`, which opens the reserve modal
-  directly without dispatching a click event, so a scripted `element.click()`
-  silently skips every click listener — including the one that arms the
-  limited-game banner. Only a real mouse click exercises that path.
+  (vitest + jsdom): build minimal synthetic markup inline, hand it to the
+  feature, assert the DOM change. Each test inlines the small fragment it needs
+  rather than loading a shared capture.
+
+- **jsdom tests for the page wiring**, run against fragments shaped like the
+  live page. The tier above hands each feature the element it operates on, which
+  leaves `main()`'s selectors — the only place this project's logic meets the
+  site — never exercised at all. That gap is not hypothetical: a site change
+  once removed a row attribute and moved a modal from `<dialog>` to `[popover]`,
+  killing three features outright while every feature-level test stayed green,
+  because none of them ever asked the page for an element.
+
+  So these tests run the real `main()` and assert the feature reached its
+  target, and their fixtures carry the live markup's shape — the attributes a
+  row really has, the wrappers really around a control — rather than the minimum
+  each feature reads. A fixture trimmed to what the code already looks at cannot
+  fail when the code looks in the wrong place. `main()` returns its observers
+  for this tier's sake, so a test can disconnect what it wired.
+
+  Raw HTML captured from the live site was the original reference for the
+  selectors and markup shape, but it held member PII, so it was gitignored and
+  has since been deleted — re-capture from the live site if ever needed. Because
+  every fixture still encodes our reading of a site we do not control, passing
+  tests prove the logic is internally consistent and the selectors agree with
+  the shape we recorded — never that the live markup still has that shape.
+
+- **A scripted run against the live site** (`verify_live.py`) for what the tiers
+  above can't reach: whether the live markup still matches the structure the
+  tests assume. It injects the userscript into a real browser, drives each
+  convenience, and reports which ones still fire — so a site change is diagnosed
+  in one run rather than feature by feature. It stays out of `run_tests.sh`,
+  since it needs the network and a site whose contents change daily, and it
+  writes no page markup to disk: the live page carries other members' names
+  throughout.
+
+  Booking something by accident is the one unacceptable failure, so the script
+  is built to make that impossible rather than merely unlikely. It clicks no
+  save control, and underneath that a request guard allowlists the site's lookup
+  calls and refuses everything else. The allowlist is what makes the guard
+  fail-closed: the site funnels reads and writes alike through a single
+  `POST action.php` distinguished by an `action` field, so blocking by HTTP
+  method cannot separate them, and any action the script does not name — every
+  save among them — is refused.
+
+- **Manual in-browser verification** for the last stretch the scripted run can't
+  reach: the name autocomplete binding depends on the site's own JS event
+  handling, and confirming it goes one step past appearance — complete a
+  reservation and confirm it persists against the correct player record. The
+  scripted run checks that the field carries a bound player id, which is a proxy
+  for this, not a substitute. One trap when driving the page from a
+  browser-automation tool: `new-reserve-button` defines its own `click()`, which
+  opens the reserve modal directly without dispatching a click event, so a
+  scripted `element.click()` silently skips every click listener — including the
+  one that arms the limited-game banner. Only a real mouse click exercises that
+  path.
 
 ## Type checking
 

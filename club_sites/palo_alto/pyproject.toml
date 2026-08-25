@@ -1,0 +1,26 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# The Python half of this directory's tooling. The helper itself is a
+# userscript, described by `package.json` alongside this file — one project
+# spanning two toolchains, not two projects. This manifest exists so the
+# live-site check declares what it imports rather than borrowing another
+# member's dependencies.
+
+[project]
+name = "pabc-reservations-helper"
+version = "0.0.0"
+description = "Live-site check for the Palo Alto Bridge Center reservations helper."
+requires-python = ">=3.14"
+
+# Playwright drives a real browser, which is the only way to check the
+# userscript against markup this project does not control. The floor records
+# what this was built against; `uv.lock` pins the exact version. Each release
+# expects a browser build of its own, so moving the pin means running
+# `playwright install` again — see `tasks.md` #dependency-refresh.
+dependencies = [
+  "playwright>=1.62",
+]
+
+[tool.uv]
+package = false

@@ -7,9 +7,10 @@
 
 [tool.uv.workspace]
 members = [
-  "session_analysis",
+  "club_sites/palo_alto",
   "convention_cards",
   "practice/squeezes/scratch",
+  "session_analysis",
 ]
 
 # The tools every member is held to, rather than anything one member needs in

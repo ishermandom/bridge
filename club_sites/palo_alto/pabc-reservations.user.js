@@ -782,71 +782,96 @@ function onReserveOpen(modal) {
   void fillNameField(nameInput, profile.name, modal);
 }
 
+/**
+ * Wire every feature to the page, and return the observers watching for their
+ * targets.
+ *
+ * The userscript never stops them — it runs for the life of the page — but
+ * handing them back keeps the wiring testable: the selectors here are the only
+ * place the features meet the real site, so a test that exercises them has to
+ * be able to tear its observers down rather than leave them watching the next
+ * test's DOM.
+ *
+ * @returns {MutationObserver[]}
+ */
 function main() {
   mountSettingsPanel();
 
-  onElementAdded("#showMore", expandShowMore);
+  /** @type {MutationObserver[]} */
+  const observers = [];
+
+  observers.push(onElementAdded("#showMore", expandShowMore));
 
   // Flag limited game rows; on a limited row, remember a click on its reserve
   // button so the reserve modal can warn when it opens. A game row is picked
   // out by `data-name` — the title attribute the limited-game check itself
   // reads — so the selector rests on the same attribute the feature consumes.
-  onElementAdded("tr[data-name]", (/** @type {HTMLElement} */ row) => {
-    if (!flagLimitedGame(row)) {
-      return;
-    }
-    const reserveButton = row.querySelector("new-reserve-button");
-    if (reserveButton) {
-      reserveButton.addEventListener("click", () => {
-        isPendingLimitedReserve = true;
-      });
-    }
-  });
+  observers.push(
+    onElementAdded("tr[data-name]", (/** @type {HTMLElement} */ row) => {
+      if (!flagLimitedGame(row)) {
+        return;
+      }
+      const reserveButton = row.querySelector("new-reserve-button");
+      if (reserveButton) {
+        reserveButton.addEventListener("click", () => {
+          isPendingLimitedReserve = true;
+        });
+      }
+    }),
+  );
 
   // The reserve modal is shown and hidden in place rather than mounted per
   // use, so its features hang off the open event, not element insertion.
-  onElementAdded("#newReservation", (/** @type {HTMLElement} */ modal) => {
-    onPopoverOpened(modal, onReserveOpen);
-  });
+  observers.push(
+    onElementAdded("#newReservation", (/** @type {HTMLElement} */ modal) => {
+      onPopoverOpened(modal, onReserveOpen);
+    }),
+  );
 
   // My Reservations: type the name but never select a dropdown entry — on this
   // modal selecting submits the lookup and closes it, and the user may want to
   // look up a different player. The field is re-queried on each open in case
   // the site rebuilds it.
-  onElementAdded(
-    "#myReservationsDialog",
-    (/** @type {HTMLElement} */ modal) => {
-      onPopoverOpened(modal, () => {
-        const nameInput = querySelectorOfType(
-          modal,
-          "input.needsDropdown",
-          HTMLInputElement,
-        );
-        if (nameInput) {
-          typeName(nameInput, loadProfile().name);
-        }
-      });
-    },
+  observers.push(
+    onElementAdded(
+      "#myReservationsDialog",
+      (/** @type {HTMLElement} */ modal) => {
+        onPopoverOpened(modal, () => {
+          const nameInput = querySelectorOfType(
+            modal,
+            "input.needsDropdown",
+            HTMLInputElement,
+          );
+          if (nameInput) {
+            typeName(nameInput, loadProfile().name);
+          }
+        });
+      },
+    ),
   );
 
   // Cancel dialog: the cancel-reservation-modal persists in the DOM and shows
   // its dialog on demand, so fill the email each time the dialog opens, not
   // when it mounts.
-  onElementAdded(
-    "cancel-reservation-modal dialog",
-    (/** @type {HTMLDialogElement} */ dialog) => {
-      onDialogOpened(dialog, () => {
-        const input = querySelectorOfType(
-          dialog,
-          ".inputDiv input",
-          HTMLInputElement,
-        );
-        if (input) {
-          prefillCancelEmail(input, loadProfile().email);
-        }
-      });
-    },
+  observers.push(
+    onElementAdded(
+      "cancel-reservation-modal dialog",
+      (/** @type {HTMLDialogElement} */ dialog) => {
+        onDialogOpened(dialog, () => {
+          const input = querySelectorOfType(
+            dialog,
+            ".inputDiv input",
+            HTMLInputElement,
+          );
+          if (input) {
+            prefillCancelEmail(input, loadProfile().email);
+          }
+        });
+      },
+    ),
   );
+
+  return observers;
 }
 
 // Run only as a userscript, where the GM storage API is present. Under Node
@@ -878,5 +903,6 @@ if (typeof module !== "undefined" && module.exports) {
     selectDropdownMatch,
     typeName,
     fillNameField,
+    main,
   };
 }

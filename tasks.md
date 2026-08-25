@@ -23,5 +23,13 @@ in place for its next turn — so never prune them.
     moves one of that project's dependencies — Render deploys from that snapshot
     rather than from `uv.lock`, so the live webapp is otherwise left behind. The
     README's convention-card printing section carries the command.
+  - Note: when a refresh moves `playwright`, run
+    `.venv/bin/python -m playwright install chromium` to fetch the browser build
+    the new version expects — each release is paired to one build. Run it once
+    from every virtual environment that needs a browser, worktrees included:
+    installing is also what registers that environment as a claimant, and
+    Playwright deletes builds no registered environment claims. A registered
+    environment's build is never taken, so the cleanup only reaps genuinely
+    orphaned builds. And a duplicate install is a cheap cache hit.
   - Note: use `git log -1 --format=%as -- uv.lock` to determine when this last
     ran.
