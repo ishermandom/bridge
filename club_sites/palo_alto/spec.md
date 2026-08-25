@@ -259,12 +259,18 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
   own id rather than by element type — matching every `<dialog>` on the page
   would sweep in the site's unrelated ones.
 - **Limited-banner carry-over flag.** The reserve modal has no masterpoint
-  ceiling, so its limited status rides a single module-level flag, set when a
-  limited game's reserve button is clicked and consumed at the next modal open.
-  If that click never opens the modal (e.g. the game is already reserved), the
-  flag lingers and the next reserve — even of an open game — shows a spurious
-  banner. Accepted as low-probability and low-harm (an extra, dismissable
-  warning) rather than threading per-game state through the DOM.
+  ceiling, so its limited status rides a single flag, set when a limited game's
+  reserve button is clicked and consumed at the next modal open. If that click
+  never opens the modal (the game has already started, say), the flag lingers
+  and the next reserve — even of an open game — shows a spurious banner.
+  Accepted as low-probability and low-harm (an extra, dismissable warning)
+  rather than threading per-game state through the DOM.
+
+  The flag is scoped to the wiring that owns it rather than to the module, so
+  each `main()` begins with nothing pending and the feature functions take the
+  value as an argument. The page reloads either way, so this changes no behavior
+  — it keeps the lingering flag from outliving anything but the page that set
+  it, which under a module-level flag included the next test in the same file.
 
 ## Architecture
 

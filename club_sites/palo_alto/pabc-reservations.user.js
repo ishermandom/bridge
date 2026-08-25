@@ -744,33 +744,21 @@ async function fillNameField(input, name, container) {
 
 // --- Page wiring -----------------------------------------------------------
 
-// The reserve popover carries no masterpoint ceiling, so the limited status is
-// carried over from the games list: a click on a limited game's reserve button
-// sets this, and the next reserve-open consumes it to show the warning banner.
-// Wiring-only state; the unit-tested feature functions take explicit arguments.
-//
-// Known tradeoff: if a limited game's reserve button is clicked but the popover
-// never opens (e.g. the game is already reserved), the flag lingers and the
-// next reserve-open — even of an open game — shows a spurious banner. Accepted
-// as low-probability and low-harm (an extra, dismissable warning) rather than
-// threading per-game limited state through the DOM. See spec ("Hard parts and
-// risks").
-let isPendingLimitedReserve = false;
-
 /**
  * Run the reserve-flow features when the reserve popover opens: prefill
  * direction and section, warn on a limited game, and fill the player name.
  *
  * @param {Element} modal - the reserve popover (`#newReservation`).
+ * @param {boolean} isLimited - whether the game being reserved is limited.
+ *   Supplied by the caller rather than read from the modal, which carries no
+ *   masterpoint ceiling of its own — see `main`.
  */
-function onReserveOpen(modal) {
+function onReserveOpen(modal, isLimited) {
   const profile = loadProfile();
   prefillDirection(modal, profile.direction);
   prefillSection(modal);
 
-  showLimitedBanner(modal, isPendingLimitedReserve);
-  // Consume the flag so a later open of an open game shows no banner.
-  isPendingLimitedReserve = false;
+  showLimitedBanner(modal, isLimited);
 
   const nameInput = querySelectorOfType(
     modal,
@@ -800,6 +788,21 @@ function main() {
   /** @type {MutationObserver[]} */
   const observers = [];
 
+  // The reserve modal carries no masterpoint ceiling, so a limited game's
+  // status is carried over from the games list: clicking a limited game's
+  // reserve button sets this, and the next reserve-open consumes it to show the
+  // warning banner. It lives here, inside the wiring that owns it, so each
+  // `main()` starts from a clean flag — the feature functions themselves take
+  // the value as an argument.
+  //
+  // Known tradeoff: if a limited game's reserve button is clicked but the modal
+  // never opens (the game has already started, say), the flag lingers and the
+  // next reserve-open — even of an open game — shows a spurious banner.
+  // Accepted as low-probability and low-harm (an extra, dismissable warning)
+  // rather than threading per-game limited state through the DOM. See spec.md
+  // ("Hard parts and risks").
+  let isPendingLimitedReserve = false;
+
   observers.push(onElementAdded("#showMore", expandShowMore));
 
   // Flag limited game rows; on a limited row, remember a click on its reserve
@@ -824,7 +827,11 @@ function main() {
   // use, so its features hang off the open event, not element insertion.
   observers.push(
     onElementAdded("#newReservation", (/** @type {HTMLElement} */ modal) => {
-      onPopoverOpened(modal, onReserveOpen);
+      onPopoverOpened(modal, () => {
+        onReserveOpen(modal, isPendingLimitedReserve);
+        // Consume it, so a later open of an open game shows no banner.
+        isPendingLimitedReserve = false;
+      });
     }),
   );
 

@@ -215,9 +215,6 @@ describe("page wiring", () => {
     expect(dateCell.classList.contains("pabc-shared-cell")).toBe(true);
   });
 
-  // Ordered before the limited-game case deliberately: the banner rides a
-  // module-level flag, so a test that arms it must also consume it, and this
-  // one would be the casualty of a leak.
   test("shows no warning when reserving an open game", () => {
     makeGamesTable();
     const modal = makeReservePopover();
@@ -241,6 +238,25 @@ describe("page wiring", () => {
     openPopover(modal);
 
     expect(modal.querySelector(".pabc-reserve-banner")).not.toBeNull();
+  });
+
+  test("starts each wiring with no warning left pending", () => {
+    makeGamesTable();
+    observers = main();
+    // Arm the pending warning and then never open the modal — the case that
+    // leaves it set, since only an open consumes it.
+    gameRow("EZ Bridge").querySelector("new-reserve-button").click();
+
+    // Rebuild and rewire the page, as reloading it does.
+    observers.forEach((observer) => observer.disconnect());
+    document.body.innerHTML = "";
+    const modal = makeReservePopover();
+    observers = main();
+    openPopover(modal);
+
+    // A pending warning kept at module scope would outlive the reload and warn
+    // about a game the user never chose.
+    expect(modal.querySelector(".pabc-reserve-banner")).toBeNull();
   });
 
   test("prefills the stored direction when the reserve modal opens", () => {
