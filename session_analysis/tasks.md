@@ -113,6 +113,19 @@ remains is the join to the sheet.
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
+- [ ] A command that fetches a session's travellers and stores them.
+  - Worktree: traveller-fetch-command
+  - Rationale: `acbl_fetching.fetch_tournament_travellers`,
+    `acbl_fetching.fetch_club_travellers`, `club_fetching.fetch_travellers`, and
+    `traveller_store.store_travellers` all work and are tested, and nothing
+    drives them from a command line. Capturing a session's results today means
+    writing Python by hand.
+  - Note: the entry-point convention is settled already —
+    `python -m session_analysis.<module>`, with `convention_cards/make_card.py`
+    as the house argparse pattern. The "process inbox" command under Ingest
+    follows the same one, so follow it here rather than reopening it, and leave
+    a shared CLI helper alone: whichever of the two commands lands second is
+    where a shared shape would first be visible.
 - [ ] Match a capture to its session by parsed metadata (event + date), not the
       filename or URL.
   - Worktree: ingest-spine
