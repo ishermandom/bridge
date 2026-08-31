@@ -18,9 +18,17 @@ import pathlib
 from session_analysis.club_pbn_parsing import parse_club_pbn
 from session_analysis.enums import Direction, Penalty, Side, Strain
 from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import Traveller, TravellerSource
+from session_analysis.travellers import (
+  CaptureReference,
+  Traveller,
+  TravellerSource,
+)
 
 FIXTURE = pathlib.Path(__file__).parent / 'testdata/travellers/club_game.pbn'
+
+# The parser records this on the traveller and no test here reads it back,
+# so every call passes the same one rather than inventing a name apiece.
+_REFERENCE = CaptureReference(path='capture.pbn')
 
 # The score-table columns the row tests below write rows for. Spelled once
 # because it is each test's rows, not this header, that the test is about; the
@@ -40,7 +48,7 @@ DEAL = (
 
 def parse_lines(*lines: str) -> Traveller:
   """Parse a PBN written out here as the lines the test cares about."""
-  return parse_club_pbn('\n'.join(lines) + '\n', reference='inline.pbn')
+  return parse_club_pbn('\n'.join(lines) + '\n', _REFERENCE)
 
 
 def played(resolution: object) -> PlayedContract:
@@ -57,7 +65,7 @@ def test_a_captured_file_parses_end_to_end() -> None:
   # block, an opening game carrying the event tags and a standings recap in a
   # `{}` comment, then two boards each holding the full run of tags a capture
   # writes — including two table sections this parser reads nothing out of.
-  traveller = parse_club_pbn(FIXTURE.read_text(), reference='club_game.pbn')
+  traveller = parse_club_pbn(FIXTURE.read_text(), _REFERENCE)
 
   assert traveller.source == TravellerSource.CLUB_PBN
   assert traveller.event == 'Placeholder Monday Pairs'

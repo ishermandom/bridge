@@ -52,6 +52,7 @@ from session_analysis.models import (
 )
 from session_analysis.notation import BOOK
 from session_analysis.travellers import (
+  CaptureReference,
   DoubleDummyTricks,
   Par,
   Traveller,
@@ -214,7 +215,7 @@ _UNREADABLE_PAIR: Mapping[Side, issue_reporting.Failure] = {
 }
 
 
-def parse_club_html(text: str, *, reference: str) -> Traveller:
+def parse_club_html(text: str, reference: CaptureReference) -> Traveller:
   """Return the traveller a club HTML capture describes.
 
   Nothing is refused. A capture holding no game comes back as a traveller
@@ -223,8 +224,9 @@ def parse_club_html(text: str, *, reference: str) -> Traveller:
 
   Args:
     text: the capture's whole contents, fetched or browser-saved.
-    reference: how the capture is identified afterwards — the path it was saved
-      to, or the URL it came from. Recorded on the traveller.
+    reference: how the capture is identified afterwards, so a stored record
+      traces back to the file it was parsed from. Recorded on the traveller
+      unchanged.
   """
   soup = bs4.BeautifulSoup(text, 'html.parser')
   standings = _Standings.read(soup)

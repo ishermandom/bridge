@@ -22,9 +22,17 @@ from collections.abc import Mapping, Sequence
 from session_analysis.acbl_club_parsing import parse_acbl_club_html
 from session_analysis.enums import Direction, Penalty, Side, Strain, Suit
 from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import Traveller, TravellerSource
+from session_analysis.travellers import (
+  CaptureReference,
+  Traveller,
+  TravellerSource,
+)
 
 TESTDATA = pathlib.Path(__file__).parent / 'testdata/travellers'
+
+# The parser records this on the traveller and no test here reads it back,
+# so every call passes the same one rather than inventing a name apiece.
+_REFERENCE = CaptureReference(path='capture.html')
 
 # The field name prefix and suffix the blob gives each holding: the seat, then
 # the suit. Every seat is spelled out in full, unlike the compass letters the
@@ -76,7 +84,7 @@ def parse_blob(data: object) -> Traveller:
   """Parse a page carrying this blob, whatever shape the blob is in."""
   return parse_acbl_club_html(
     f'<html><body></body><script>var data = {json.dumps(data)};</script></html>',
-    reference='inline.html',
+    _REFERENCE,
   )
 
 
@@ -104,7 +112,7 @@ def parse_rows(*rows: Mapping[str, object]) -> Traveller:
 
 def parse_fixture(name: str) -> Traveller:
   """Parse one of the two captured files by filename."""
-  return parse_acbl_club_html((TESTDATA / name).read_text(), reference=name)
+  return parse_acbl_club_html((TESTDATA / name).read_text(), _REFERENCE)
 
 
 def played(resolution: object) -> PlayedContract:
@@ -259,7 +267,7 @@ def test_the_blob_is_read_rather_than_the_rendered_markup() -> None:
     '</table></body><script>var data = '
     '{"name": "Placeholder Pairs", "sessions": [{"sections": [{"boards": ['
     '{"board_number": 1, "board_results": []}]}]}]};</script></html>',
-    reference='rendered.html',
+    _REFERENCE,
   )
 
   assert traveller.event == 'Placeholder Pairs'
@@ -273,7 +281,7 @@ def test_an_assignment_written_without_spaces_is_still_found() -> None:
   traveller = parse_acbl_club_html(
     '<html><body></body><script>var data={"name": "Placeholder Pairs"};'
     '</script></html>',
-    reference='compact.html',
+    _REFERENCE,
   )
 
   assert traveller.event == 'Placeholder Pairs'
@@ -789,7 +797,7 @@ def test_two_sections_rows_gather_onto_one_board() -> None:
 def test_a_page_with_no_data_blob_reports_an_issue() -> None:
   # Everything this parser reads comes out of the blob, so a page without one
   # yields a traveller holding only the issue that says why.
-  traveller = parse_acbl_club_html('<html></html>', reference='empty.html')
+  traveller = parse_acbl_club_html('<html></html>', _REFERENCE)
 
   assert traveller.boards == ()
   assert [issue.code for issue in traveller.issues] == ['no_page_data']
@@ -798,7 +806,8 @@ def test_a_page_with_no_data_blob_reports_an_issue() -> None:
 
 def test_a_page_whose_blob_is_not_readable_json_reports_an_issue() -> None:
   traveller = parse_acbl_club_html(
-    '<html><script>var data = {oops;</script></html>', reference='bad.html'
+    '<html><script>var data = {oops;</script></html>',
+    _REFERENCE,
   )
 
   assert [issue.code for issue in traveller.issues] == ['no_page_data']

@@ -51,6 +51,7 @@ from session_analysis.models import (
   Result,
 )
 from session_analysis.travellers import (
+  CaptureReference,
   DoubleDummyTricks,
   Par,
   Traveller,
@@ -170,7 +171,9 @@ class _MutableRowPair:
   names: list[str] = dataclasses.field(default_factory=list)
 
 
-def parse_acbl_tournament_html(text: str, *, reference: str) -> Traveller:
+def parse_acbl_tournament_html(
+  text: str, reference: CaptureReference
+) -> Traveller:
   """Return the traveller an ACBL tournament session summary describes.
 
   Nothing is refused. A page holding no board panels, and a panel this parser
@@ -179,8 +182,9 @@ def parse_acbl_tournament_html(text: str, *, reference: str) -> Traveller:
 
   Args:
     text: the summary page's whole contents.
-    reference: how the capture is identified afterwards — the path it was saved
-      to, or the URL it came from. Recorded on the traveller.
+    reference: how the capture is identified afterwards, so a stored record
+      traces back to the file it was parsed from. Recorded on the traveller
+      unchanged.
   """
   soup = bs4.BeautifulSoup(text, 'html.parser')
   _replace_suit_glyphs(soup)

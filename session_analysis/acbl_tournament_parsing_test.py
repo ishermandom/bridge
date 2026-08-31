@@ -21,12 +21,20 @@ from session_analysis.acbl_tournament_parsing import (
 )
 from session_analysis.enums import Direction, Penalty, Side, Strain, Suit
 from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import Traveller, TravellerSource
+from session_analysis.travellers import (
+  CaptureReference,
+  Traveller,
+  TravellerSource,
+)
 
 FIXTURE = (
   pathlib.Path(__file__).parent
   / 'testdata/travellers/acbl_tournament_session.html'
 )
+
+# The parser records this on the traveller and no test here reads it back,
+# so every call passes the same one rather than inventing a name apiece.
+_REFERENCE = CaptureReference(path='capture.html')
 
 # The class the page gives each suit's span. The span is empty — the stylesheet
 # draws the glyph from the class — so the class is the only place a suit is
@@ -73,15 +81,14 @@ DEAL: Mapping[Direction, Mapping[Suit, str]] = {
 
 def parse_markup(*elements: str) -> Traveller:
   """Parse a page written out here as the elements the test cares about."""
-  return parse_acbl_tournament_html(
-    '\n'.join(elements), reference='inline.html'
-  )
+  return parse_acbl_tournament_html('\n'.join(elements), _REFERENCE)
 
 
 def parse_fixture() -> Traveller:
   """Parse the captured session summary."""
   return parse_acbl_tournament_html(
-    FIXTURE.read_text(), reference='acbl_tournament_session.html'
+    FIXTURE.read_text(),
+    _REFERENCE,
   )
 
 

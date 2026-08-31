@@ -34,6 +34,7 @@ from session_analysis.models import (
   Result,
 )
 from session_analysis.travellers import (
+  CaptureReference,
   DoubleDummyTricks,
   Par,
   Traveller,
@@ -113,7 +114,7 @@ _UNREADABLE_PAR = issue_reporting.Failure(
 )
 
 
-def parse_acbl_club_html(text: str, *, reference: str) -> Traveller:
+def parse_acbl_club_html(text: str, reference: CaptureReference) -> Traveller:
   """Return the traveller an ACBL club-game page describes.
 
   Nothing is refused. A page carrying no readable data, and one describing an
@@ -123,8 +124,9 @@ def parse_acbl_club_html(text: str, *, reference: str) -> Traveller:
 
   Args:
     text: the page's whole contents, fetched or browser-saved.
-    reference: how the capture is identified afterwards — the path it was saved
-      to, or the URL it came from. Recorded on the traveller.
+    reference: how the capture is identified afterwards, so a stored record
+      traces back to the file it was parsed from. Recorded on the traveller
+      unchanged.
   """
   blob = _blob(text)
   data = blob.value

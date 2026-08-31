@@ -44,6 +44,7 @@ from session_analysis.models import (
   Result,
 )
 from session_analysis.travellers import (
+  CaptureReference,
   DoubleDummyTricks,
   Par,
   Traveller,
@@ -218,7 +219,7 @@ class _Record:
   tables: Mapping[str, _Table]
 
 
-def parse_club_pbn(text: str, *, reference: str) -> Traveller:
+def parse_club_pbn(text: str, reference: CaptureReference) -> Traveller:
   """Return the traveller a club PBN file describes.
 
   Nothing is refused. A file holding no game, or a record this parser cannot
@@ -227,8 +228,9 @@ def parse_club_pbn(text: str, *, reference: str) -> Traveller:
 
   Args:
     text: the file's whole contents.
-    reference: how the capture is identified afterwards — the path it was saved
-      to, or the URL it came from. Recorded on the traveller.
+    reference: how the capture is identified afterwards, so a stored record
+      traces back to the file it was parsed from. Recorded on the traveller
+      unchanged.
   """
   title = _title_comments(text)
   records = _read_records(text)

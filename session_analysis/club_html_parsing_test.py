@@ -28,6 +28,7 @@ from session_analysis.enums import (
 )
 from session_analysis.models import Passout, PlayedContract
 from session_analysis.travellers import (
+  CaptureReference,
   Par,
   Traveller,
   TravellerBoard,
@@ -35,6 +36,10 @@ from session_analysis.travellers import (
 )
 
 TESTDATA = pathlib.Path(__file__).parent / 'testdata/travellers'
+
+# The parser records this on the traveller and no test here reads it back,
+# so every call passes the same one rather than inventing a name apiece.
+_REFERENCE = CaptureReference(path='capture.htm')
 
 # The stem BridgeComposer builds each suit's glyph from: the CSS class
 # `bcspades` and the entity `&spades;` both carry it. The parser reads the
@@ -78,12 +83,12 @@ DEAL: Mapping[Direction, Mapping[Suit, str]] = {
 
 def parse_markup(*elements: str) -> Traveller:
   """Parse a document written out here as the elements the test cares about."""
-  return parse_club_html('\n'.join(elements), reference='inline.htm')
+  return parse_club_html('\n'.join(elements), _REFERENCE)
 
 
 def parse_fixture(name: str) -> Traveller:
   """Parse one of the two captured files by filename."""
-  return parse_club_html((TESTDATA / name).read_text(), reference=name)
+  return parse_club_html((TESTDATA / name).read_text(), _REFERENCE)
 
 
 def played(resolution: object) -> PlayedContract:
