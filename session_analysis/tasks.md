@@ -60,12 +60,14 @@ remains is the join to the sheet.
 
 - [ ] Replace the `Source.travellers` placeholder (`tuple[str, ...]`) in
       models.py with a reference to the stored traveller.
+  - Worktree: reconciliation-join
   - Note: a stored traveller is named by its `CaptureReference.path` — the
     capture's path under the capture root, which is also where its record sits
     with `.json` appended. Whether the sheet's `Source` should hold that path or
     the record's own is what remains open here.
 - [ ] Find our row by the configured name — either direction, any partner; flag
       when the name is absent. {#our-row}
+  - Worktree: reconciliation-join
   - Note: ACBL carries a player number per player, which the parsers keep
     nowhere — `PairIdentity` holds names only. It would be a far stronger key
     than a name for the ACBL sources, and it is the one identity the club's
@@ -77,11 +79,13 @@ remains is the join to the sheet.
     `(None, number)` key, where `club_html_parsing` has nothing equivalent — see
     #one-winner-recap for what that costs and why it is parked.
 - [ ] Cross-check recoverable fields; raise review priority on disagreement.
+  - Worktree: reconciliation-join
   - Note: the declarer is cross-checked here — the validator can't (an auction
     with implicit passes gives no seats), and neither sheet nor traveller is
     authoritative, so surface the disagreement rather than trusting either side.
 - [ ] Merge the two sources; flag disagreements, store both raw records, no
       silent tiebreak.
+  - Worktree: reconciliation-join
   - Note: a club game's PBN comes in two kinds, and a board-count difference
     between a session's two captures is usually that rather than a disagreement.
     `watson/D260714M.pbn` carries twenty result rows per board;
@@ -93,10 +97,13 @@ remains is the join to the sheet.
     rather than as a source disagreeing.
 - [ ] Deal capture + the deal-versus-lead check (opening lead ∈ declarer's LHO
       hand) and deal well-formedness (52 distinct cards, 13 per hand).
+  - Worktree: reconciliation-join
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
       Test against the 6/29 board-20/21 swap.
+  - Worktree: reconciliation-join
 - [ ] Graceful degradation: run to completion with zero travellers (no deal, no
       enrichment).
+  - Worktree: reconciliation-join
 
 ---
 
@@ -108,10 +115,12 @@ save otherwise — and auto-reconcile when one lands. Design in
 
 - [ ] Match a capture to its session by parsed metadata (event + date), not the
       filename or URL.
+  - Worktree: ingest-spine
   - Note: the club calendar's label for a game (`Palo Alto Duplicate`) is not
     the event name inside its files (`John & Will's Monday Bridge`), so the
     label can't stand in for the metadata.
 - [ ] Manual-save fallback: a capture dropped in is picked up and matched.
+  - Worktree: ingest-spine
 - [ ] Verify the ACBL club index isn't truncated for older dates.
       `fetch_club_travellers` reads the index via an in-page fetch of the raw
       server HTML, which returned every row for the tournament index (not just
@@ -157,6 +166,7 @@ first stage that runs extraction end to end and writes a session to disk.
 - [ ] Wire the extraction run: scan image → `transcribe_sheet` →
       `parse_and_assemble_voted_session` → a validated `Session`. Nothing calls
       the two entry points together today.
+  - Worktree: ingest-spine
   - Note: ingest supplies what they need beyond the image — the `Source`
     (archived path plus content hash) and the `reference_date`.
   - Note: `reference_date` is the day of the scan, not the day of the run — it
@@ -165,12 +175,14 @@ first stage that runs extraction end to end and writes a session to disk.
     silently, so take the date from the image's capture time, not the clock.
 - [ ] Decode the scan into images: rasterize PDF pages, and settle what several
       pages in one container mean.
+  - Worktree: ingest-spine
   - Open question: spec.md allows a multi-page scan of one sheet, but
     `transcribe_sheet` takes a single image. Are the extra pages retakes to
     choose among, parts of one grid to stitch, or separate sheets? The answer
     decides whether this is a decode step or a merge stage.
 - [ ] Persist the detected geometry and `source_quad` with the processed
       session.
+  - Worktree: ingest-spine
   - Note: `SheetTranscription`'s docstring already promises these persist
     "alongside the processed session", so the review UI can reproduce the
     dewarped frame and its grid from the archived scan instead of re-detecting
@@ -180,15 +192,18 @@ first stage that runs extraction end to end and writes a session to disk.
       unreadable file, a failed model invocation — reports loudly and moves
       somewhere terminal rather than sitting in `inbox/` for the next run to
       retry.
+  - Worktree: ingest-spine
   - Rationale: the explicit command was chosen over a watcher so failures stay
     visible; a scan that silently stays put re-spends a model call every run.
 - [ ] Inbox spine: `inbox/` → `processed/<session-key>.json` + image →
       `archive/`, idempotent on footer + content hash.
+  - Worktree: ingest-spine
   - Note: the two keys apply at different points. The content hash is known
     before extraction and short-circuits a re-dropped file without spending a
     model call; the footer is known only after extraction, and catches a fresh
     photo of a sheet already digitized.
 - [ ] Footer self-naming → session key, confirmed in review before commit.
+  - Worktree: ingest-spine
   - Note: derivation is unspecified beyond the example `pabc-mon-2026-06-29` — a
     club slug and a weekday off handwritten freetext, so it needs a
     normalization rule rather than a format string.
@@ -199,6 +214,7 @@ first stage that runs extraction end to end and writes a session to disk.
     named in between — a provisional key renamed once confirmed, or a stable id
     that never moves, with the key as a field only.
 - [ ] The "process inbox" command.
+  - Worktree: ingest-spine
   - Note: `session_analysis` is a `package = false` uv member with no console
     script, so this runs as `python -m session_analysis.<module>` unless that
     changes; `convention_cards/make_card.py` is the house argparse pattern.
@@ -213,10 +229,12 @@ first stage that runs extraction end to end and writes a session to disk.
 parsed value.
 
 - [ ] Choose the tech (FastAPI + htmx, or Gradio).
+  - Worktree: review-ui
   - Open question: framework, keybindings, commit semantics — see spec.md
     `#open-questions`.
 - [ ] Triage-ranked field list with image crop beside the parsed value and
       keyboard accept/fix.
+  - Worktree: review-ui
   - Note: an unresolved auction token is currently flagged twice with no shared
     identity — once as `unparseable_call` on the `AuctionEntry` itself
     (parsing.py) and again as `unresolved_call` at the board level
@@ -234,7 +252,9 @@ parsed value.
     they are about a file rather than a scoresheet row. Triage needs somewhere
     to show them, or they reach nobody.
 - [ ] Row-level fixups (swap, renumber, reorder) as first-class operations.
+  - Worktree: review-ui
 - [ ] Re-validate after edits; auto-open or notify after a sheet is processed.
+  - Worktree: review-ui
   - Note: `validate_board` appends freshly found issues onto `board.issues`
     unconditionally, with no de-duplication. Re-validating the same board twice
     (an edit that didn't touch the flagged field, or a retry) will accumulate
