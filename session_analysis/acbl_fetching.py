@@ -49,6 +49,8 @@ from playwright.sync_api import (
   Error as PlaywrightError,
 )
 
+from session_analysis import capture_urls
+
 logger = logging.getLogger(__name__)
 
 
@@ -427,11 +429,13 @@ def fetch_tournament_travellers(
   Args:
     player_number: the ACBL player number whose results to fetch.
     date: the date whose travellers to download.
-    destination: the root directory captures are saved beneath, each at its own
-      host-qualified path.
+    destination: this surface's own capture directory; each page is
+      saved beneath it at that page's own host-qualified path.
     fetch: retrieves a URL's bytes; defaults to a headless browser that clears
       Cloudflare, and is injectable so tests need no browser or network.
-    write: writes bytes to a path; injectable so tests need no disk.
+    write: writes bytes to a path; injectable so tests need no disk. It
+      receives two files per capture: the page itself, and the sidecar
+      naming the URL that page came from.
 
   Returns:
     The path each traveller was saved to, in the order the index lists them.
@@ -460,11 +464,13 @@ def fetch_club_travellers(
   Args:
     player_number: the ACBL player number whose results to fetch.
     date: the date whose travellers to download.
-    destination: the root directory captures are saved beneath, each at its own
-      host-qualified path.
+    destination: this surface's own capture directory; each page is
+      saved beneath it at that page's own host-qualified path.
     fetch: retrieves a URL's bytes; defaults to a headless browser that clears
       Cloudflare, and is injectable so tests need no browser or network.
-    write: writes bytes to a path; injectable so tests need no disk.
+    write: writes bytes to a path; injectable so tests need no disk. It
+      receives two files per capture: the page itself, and the sidecar
+      naming the URL that page came from.
 
   Returns:
     The path each traveller was saved to, in the order the index lists them.
@@ -508,5 +514,9 @@ def _fetch_travellers(
       )
       path = _capture_path(destination, traveller_url)
       write(path, fetch(traveller_url))
+      write(
+        capture_urls.sidecar_for(path),
+        capture_urls.sidecar_contents(traveller_url),
+      )
       written.append(path)
     return tuple(written)

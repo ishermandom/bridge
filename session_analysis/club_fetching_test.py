@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from session_analysis import capture_urls
 from session_analysis.club_fetching import fetch_travellers
 
 _JUNE_29 = datetime.date(2026, 6, 29)
@@ -84,6 +85,7 @@ class _Recorder:
     self.destination = destination
     self.fetched: list[str] = []
     self.written: dict[str, bytes] = {}
+    self.urls: dict[str, str] = {}
 
   def fetch(self, url: str) -> bytes:
     self.fetched.append(url)
@@ -95,7 +97,15 @@ class _Recorder:
     return self._bodies.get(site_path, b'stand-in for ' + url.encode())
 
   def write(self, path: Path, data: bytes) -> None:
-    self.written[path.relative_to(self.destination).as_posix()] = data
+    # The fetchers write a capture and its URL sidecar through this one
+    # writer, as they would to a real directory; sorting the two apart here
+    # allows tests to assert on either without filtering.
+    relative = path.relative_to(self.destination).as_posix()
+    if path.suffix == capture_urls.URL_SUFFIX:
+      capture = relative.removesuffix(capture_urls.URL_SUFFIX)
+      self.urls[capture] = data.decode().strip()
+    else:
+      self.written[relative] = data
 
 
 def _run(
@@ -108,7 +118,8 @@ def _run(
   happened.
 
   `recorder.written` maps each saved path (relative to the destination) to its
-  bytes, in fetch order; `recorder.fetched` is every URL requested.
+  bytes, in fetch order; `recorder.fetched` is every URL requested;
+  `recorder.urls` maps each saved path to the URL recorded beside it.
   """
   recorder = _Recorder(calendar, bodies=bodies)
   fetch_travellers(
@@ -466,4 +477,41 @@ def test_same_filename_from_two_directors_does_not_collide() -> None:
   assert recorder.written == {
     'gameresults2/alpha/R260629M.htm': b"alpha's",
     'gameresults2/beta/R260629M.htm': b"beta's",
+  }
+
+
+# --- recording where a capture came from ---
+
+
+def test_each_saved_file_records_the_url_it_came_from() -> None:
+  page = _make_calendar_page(
+    "<a href='../gameresults2/alpha/D260629M.pbn'>D</a> "
+    "(<a href='../gameresults2/alpha/R260629M.htm'>R</a>)<br>"
+  )
+
+  recorder = _run(page)
+
+  assert recorder.urls == {
+    'gameresults2/alpha/D260629M.pbn': (
+      'https://paloaltobridge.org/gameresults2/alpha/D260629M.pbn'
+    ),
+    'gameresults2/alpha/R260629M.htm': (
+      'https://paloaltobridge.org/gameresults2/alpha/R260629M.htm'
+    ),
+  }
+
+
+def test_a_wrapped_download_records_the_plain_file_url() -> None:
+  """The wrapper only forces a save, so the plain path is what was fetched."""
+  page = _make_calendar_page(
+    "<a href='../downloadfile.php?filename=gameresults2/alpha/D260629M.pbn'>"
+    'D</a><br>'
+  )
+
+  recorder = _run(page)
+
+  assert recorder.urls == {
+    'gameresults2/alpha/D260629M.pbn': (
+      'https://paloaltobridge.org/gameresults2/alpha/D260629M.pbn'
+    )
   }

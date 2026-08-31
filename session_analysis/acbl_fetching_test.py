@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from session_analysis import capture_urls
 from session_analysis.acbl_fetching import (
   fetch_club_travellers,
   fetch_tournament_travellers,
@@ -165,6 +166,7 @@ class _Recorder:
     self.destination = destination
     self.fetched: list[str] = []
     self.written: dict[str, bytes] = {}
+    self.urls: dict[str, str] = {}
     self.returned: Sequence[Path] = ()
 
   def fetch(self, url: str) -> bytes:
@@ -178,7 +180,15 @@ class _Recorder:
     )
 
   def write(self, path: Path, data: bytes) -> None:
-    self.written[path.relative_to(self.destination).as_posix()] = data
+    # The fetchers write a capture and its URL sidecar through this one
+    # writer, as they would to a real directory; sorting the two apart here
+    # allows tests to assert on either without filtering.
+    relative = path.relative_to(self.destination).as_posix()
+    if path.suffix == capture_urls.URL_SUFFIX:
+      capture = relative.removesuffix(capture_urls.URL_SUFFIX)
+      self.urls[capture] = data.decode().strip()
+    else:
+      self.written[relative] = data
 
 
 def _run(
@@ -193,6 +203,7 @@ def _run(
 
   `recorder.written` maps each saved path (relative to the destination) to its
   bytes, in fetch order; `recorder.fetched` is every URL requested;
+  `recorder.urls` maps each saved path to the URL recorded beside it;
   `recorder.returned` is the paths the fetch returned.
   """
   recorder = _Recorder(index, bodies=bodies)
@@ -375,3 +386,34 @@ def test_an_unreadable_date_row_is_skipped_and_the_rest_kept(
     'live.acbl.org/event/1000001/26OP/2/summary.html',
   ]
   assert 'date' in caplog.text
+
+
+# --- recording where a capture came from ---
+
+
+def test_each_saved_traveller_records_the_url_it_came_from() -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+
+  recorder = _run(fetch_tournament_travellers, index, date=_JUNE_27)
+
+  # The saved path gains a `.html` the URL does not carry, so the sidecar is
+  # the only place the fetched URL survives.
+  assert recorder.urls == {
+    'live.acbl.org/event/1000001/27OP/1/summary.html': (
+      'https://live.acbl.org/event/1000001/27OP/1/summary'
+    )
+  }
+
+
+def test_a_club_game_records_its_detail_page_url() -> None:
+  index = _make_club_index(_club_row('2026-07-20', '/club-results/details/42'))
+
+  recorder = _run(fetch_club_travellers, index, date=_JULY_20)
+
+  assert recorder.urls == {
+    'my.acbl.org/club-results/details/42.html': (
+      'https://my.acbl.org/club-results/details/42'
+    )
+  }

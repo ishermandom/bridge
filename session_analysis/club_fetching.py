@@ -29,6 +29,8 @@ from pathlib import Path
 
 import bs4
 
+from session_analysis import capture_urls
+
 logger = logging.getLogger(__name__)
 
 _CLUB_BASE_URL = 'https://paloaltobridge.org/'
@@ -311,10 +313,12 @@ def fetch_travellers(
 
   Args:
     date: the date whose files to fetch.
-    destination: the root directory the files are saved beneath, each at its own
-      site-relative path.
+    destination: the club's own capture directory; each file is saved
+      beneath it at that file's own site-relative path.
     fetch: retrieves a URL's bytes; injectable so tests need no network.
-    write: writes bytes to a path; injectable so tests need no disk.
+    write: writes bytes to a path; injectable so tests need no disk. It
+      receives two files per capture: the page itself, and the sidecar
+      naming the URL that page came from.
 
   Returns:
     The path each file was written to, in the order the calendar lists them.
@@ -331,5 +335,9 @@ def fetch_travellers(
     )
     path = destination / traveller_path
     write(path, fetch(file_url))
+    write(
+      capture_urls.sidecar_for(path),
+      capture_urls.sidecar_contents(file_url),
+    )
     written.append(path)
   return tuple(written)
