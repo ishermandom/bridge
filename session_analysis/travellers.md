@@ -149,6 +149,9 @@ they are separate investigations.
 
 Whichever fetch is used:
 
+- **File under the publishing site's directory.** Both fetchers save beneath the
+  directory for the site they read, and a capture saved by hand goes in the same
+  place; see [Storage and PII](#pii) for why that is what picks the parser.
 - **Match by parsed metadata, never the filename or URL.** Each capture carries
   its event name and date; parse those, derive the session key, and match to
   sessions — mirroring the sheet's own footer self-naming. Filenames
@@ -377,7 +380,8 @@ consequence is simply an un-enriched record, surfaced through the escape hatch.
 ## Configuration
 
 Reconciliation and acquisition need a small amount of stable, user-specific
-configuration, kept out of the code:
+configuration, kept out of the code. Where the private data lives is not part of
+it — that is found rather than configured, per [Storage and PII](#pii).
 
 - **The user's name**, as it appears in traveller pairs, for our-row matching.
   Name variants (nicknames, initial-plus-surname) may need more than one form or
@@ -391,15 +395,53 @@ A full game database is every club member's names and results accumulated over
 time — more sensitive than a single session's capture, and never suitable for
 the public repo.
 
-- **Location**: raw captures and parsed JSON both live in the `bridge-private`
-  repo and/or a remotely-backed service, never the public repo. Near-term, the
-  existing `session_analysis/travellers/` directory moves out of the public repo
-  into `bridge-private` (alongside `scoresheets/`), read through a configurable
-  path.
-- **Size-consciousness**: the parsed JSON is the durable artifact and stays
-  small; raw HTML is kept lean — the ACBL "save page complete" bundle drags in
-  an `_files` directory of scripts and images (~3.4 MB, several times the HTML
-  itself) that is dropped, keeping only the HTML needed to re-parse or debug.
+- **Location**: raw captures and parsed records both live in the
+  `bridge-private` checkout beside this one, never in the public repo. That
+  checkout gives each project a directory named for the public subproject it
+  accompanies, so these sit under `session_analysis/` alongside the scoresheet
+  images and the reconciled sessions. Everything hangs off that one root, which
+  `private_paths` locates, so the trees cannot drift apart and there is a single
+  thing to repoint at a different checkout.
+- **Found, not configured**: the two repos are already kept as siblings, so
+  looking beside this checkout asks nothing of the person running the code and
+  leaves no setting to go stale. The one place a sibling walk misleads is a
+  worktree, which has no `bridge-private` of its own next to it; asking git for
+  the repository's common directory names the main checkout from inside a
+  worktree and from the checkout itself alike.
+- **Filed by publishing site**: a capture sits under a directory named for the
+  site that published it, and that is what decides which parser reads it.
+  Nothing inside a capture reliably announces its own format — the ACBL login
+  page a gated game answers with parses as far as "no page data" rather than
+  declining to be an ACBL page at all — so the judgment is made once, by whoever
+  files the capture, rather than guessed at on every read. A hand-saved capture
+  thereby gets the same standing as a fetched one, which is what the manual-save
+  fallback needs.
+- **Provenance**: a stored traveller names the capture it came from, and the URL
+  that capture was fetched from where a fetch recorded one. The two answer
+  different questions and neither replaces the other: the path always exists and
+  always resolves to a file that can be parsed again, while the URL exists only
+  for a fetched capture and is the half nothing can recover once it is gone. The
+  fetchers record it as they save, into a sidecar named for the capture it sits
+  beside, rather than leaving it to be reconstructed from a mirrored path —
+  which reorganizing the tree would silently invalidate. A sidecar travels with
+  the file it belongs to, so a later reorganization carries provenance along
+  instead of having to rewrite a shared record to match, and two fetches saving
+  into one directory never contend for the same file.
+- **Size-consciousness**: raw HTML is kept lean — a browser's "save page
+  complete" drags in an `_files` directory of scripts and images several times
+  the size of the HTML itself, which is dropped, keeping only what is needed to
+  re-parse or debug. The fetchers never produce one, since driving the page
+  directly skips the bundle. The parsed records are not the small half of the
+  store, though: they run roughly half the size of the captures they come from.
+  Most of a record is its result rows, since every row names its pairs inline —
+  the deal is about a fifth of a record and the double-dummy table a fiftieth —
+  so the inline-pairs tradeoff the backlog already records is what a compact
+  store would need to address, not the analysis riding along with each board.
+- **Readable over small, for now**: records are written indented. Compact JSON
+  would save around three fifths of the bytes, but the records live in a git
+  repo and the check that a parser change altered nothing is a diff of them, so
+  legibility is worth more than the space at this volume. Revisit when the
+  durable store is designed rather than now.
 - **Store format**: structured JSON now, script-searchable as-is. A queryable
   store (most likely SQLite) stays in the backlog, to be settled when the
   analysis UI is designed (see [spec.md](spec.md#open-questions)).
@@ -437,13 +479,13 @@ the public repo.
   came back with, kept as the example of what a gated game saves as. The two
   tournament captures are the two sessions of one event, 26 boards and a single
   section apiece, and both parse clean.
-- **Showing a parser change alters nothing** — dump every real capture through
-  `model_dump_json` before and after, and diff the two. The committed fixtures
-  are too small to be the whole check; the captures under
-  `bridge-private/travellers` are what exercise the shapes a publisher actually
-  emits. For a rewritten regex, also run the old pattern against the new over
-  generated inputs that include near-misses, since a capture only exercises what
-  it happens to contain.
+- **Showing a parser change alters nothing** — run `traveller_store` before and
+  after and diff the records it writes, which is why it rewrites every record in
+  place on each run. The committed fixtures are too small to be the whole check;
+  the captures under `bridge-private/session_analysis/travellers` are what
+  exercise the shapes a publisher actually emits. For a rewritten regex, also
+  run the old pattern against the new over generated inputs that include
+  near-misses, since a capture only exercises what it happens to contain.
 - **Name match, source merge, and the deal-versus-lead check** — pure logic,
   unit-tested with hand-constructed travellers and boards, with zero fetching.
 - **Swap detection** — a fixture with the known 6/29 board-20/21 swap asserts

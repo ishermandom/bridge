@@ -59,8 +59,11 @@ parsers have landed on `main`, each verified against the real captures. What
 remains is the join to the sheet.
 
 - [ ] Replace the `Source.travellers` placeholder (`tuple[str, ...]`) in
-      models.py with a reference to the stored traveller. Waits on the storage
-      task under Traveller acquisition, which decides what a reference is.
+      models.py with a reference to the stored traveller.
+  - Note: a stored traveller is named by its `CaptureReference.path` — the
+    capture's path under the capture root, which is also where its record sits
+    with `.json` appended. Whether the sheet's `Source` should hold that path or
+    the record's own is what remains open here.
 - [ ] Find our row by the configured name — either direction, any partner; flag
       when the name is absent. {#our-row}
   - Note: ACBL carries a player number per player, which the parsers keep
@@ -79,6 +82,15 @@ remains is the join to the sheet.
     authoritative, so surface the disagreement rather than trusting either side.
 - [ ] Merge the two sources; flag disagreements, store both raw records, no
       silent tiebreak.
+  - Note: a club game's PBN comes in two kinds, and a board-count difference
+    between a session's two captures is usually that rather than a disagreement.
+    `watson/D260714M.pbn` carries twenty result rows per board;
+    `lagcc/D260717A.pbn` and `vi/D260714A.pbn` carry none at all — they are hand
+    records, listing every board dealt (always 24) with no play. Their HTML
+    recaps cover the boards actually played, 15 and 20. So merging should take
+    the deal from whichever capture has it and the results from whichever
+    played, and treat a dealt board carrying no results as a board not reached
+    rather than as a source disagreeing.
 - [ ] Deal capture + the deal-versus-lead check (opening lead ∈ declarer's LHO
       hand) and deal well-formedness (52 distinct cards, 13 per hand).
 - [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
@@ -94,13 +106,6 @@ remains is the join to the sheet.
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
-- [ ] Read traveller captures through a configurable path.
-  - Worktree: traveller-storage
-  - Note: the captures now live in `bridge-private/travellers/`, moved out of
-    the public repo and left uncommitted there pending a storage decision — the
-    ACBL `_files` bundle is 3.4 MB of the 4.7 MB total. `club_fetching.py` takes
-    its download destination as an argument, so this task is what gives the
-    fetcher and the parsers a single configured location to share.
 - [ ] Match a capture to its session by parsed metadata (event + date), not the
       filename or URL.
   - Note: the club calendar's label for a game (`Palo Alto Duplicate`) is not
@@ -123,10 +128,11 @@ save otherwise — and auto-reconcile when one lands. Design in
       goes silently wrong downstream, but a login page is not worth keeping as a
       capture.
   - Note: reproducible in a signed-out browser at
-    `my.acbl.org/club-results/details/1430431`, and kept as `1430431.html` under
-    `bridge-private/travellers/raw`. The site redirects rather than serving the
-    login page outright — the first fetch dies with Playwright's "Execution
-    context was destroyed" and the retry lands on the redirect target.
+    `my.acbl.org/club-results/details/1430431`, and kept under
+    `bridge-private/session_analysis/travellers/raw/acbl_club/`. The site
+    redirects rather than serving the login page outright — the first fetch dies
+    with Playwright's "Execution context was destroyed" and the retry lands on
+    the redirect target.
   - Open question: what makes a game gated. Not the club — `1438869` is gated
     and `1441256` is not, both at Palo Alto Duplicate. A game can have more than
     one director and they do not always upload alike, so which director
@@ -135,14 +141,6 @@ save otherwise — and auto-reconcile when one lands. Design in
       reconciliation; review stays deferred until then.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
       session no traveller arrives for.
-- [ ] Store parsed travellers as structured JSON; keep raw HTML lean (drop the
-      ACBL `_files` asset bundle).
-  - Worktree: traveller-storage
-  - Open question: what `Traveller.reference` should hold. A fetched capture has
-    both a URL it came from and a path it was saved to, and the field takes one
-    string, so this task decides which — or whether to carry both. Nothing
-    depends on the choice yet: the field is provenance, and a capture is matched
-    to its session by parsed metadata rather than by either handle.
 
 ---
 
@@ -156,15 +154,6 @@ first stage that runs extraction end to end and writes a session to disk.
     (Open questions) and the Ingest section's tradeoffs.
   - Note: this gates where `inbox/` lives, not the pipeline code below it — the
     spine can be built and tested against a local directory first.
-- [ ] Settle the ingest tree's home and reach it through a configured root:
-      `inbox/`, `archive/`, and the `processed/` records.
-  - Worktree: traveller-storage
-  - Rationale: scans and reconciled sessions carry other members' names, so the
-    tree belongs in `bridge-private` alongside `scoresheets/`, not in this repo
-    under a relative path.
-  - Note: the traveller captures need the same treatment (see Traveller
-    acquisition) — decide the two together so they share one setting, or two
-    that agree.
 - [ ] Wire the extraction run: scan image → `transcribe_sheet` →
       `parse_and_assemble_voted_session` → a validated `Session`. Nothing calls
       the two entry points together today.
@@ -239,6 +228,11 @@ parsed value.
   - Note: a session has few enough boards that raw issue counts barely move
     triage order either way; `Issue.severity` is the real priority signal, so
     triage should rank by severity, not by a count.
+  - Note: not every issue belongs to a board or a field. `store_travellers`
+    reports run-level ones — a capture no parser claims, a page that held no
+    boards — which have no board to hang on and no image to crop beside, since
+    they are about a file rather than a scoresheet row. Triage needs somewhere
+    to show them, or they reach nobody.
 - [ ] Row-level fixups (swap, renumber, reorder) as first-class operations.
 - [ ] Re-validate after edits; auto-open or notify after a sheet is processed.
   - Note: `validate_board` appends freshly found issues onto `board.issues`
@@ -327,12 +321,13 @@ rationale lives in the design docs' open-question sections —
   rows, if single-model accuracy proves insufficient.
   - Dropped: superseded by extraction voting — see spec.md `#extraction-voting`.
 - [ ] Multi-format sheet geometry: support two-column scoresheet layouts (the
-      Baron Barclay and Bridge Buddy samples in `bridge-private/scoresheets`).
-      Not a detection tweak — needs column-grid segmentation before row
-      detection, `SheetGeometry` reshaped as multiple grids with per-grid row
-      counts (Baron Barclay prints 16 rows left, 20 right), strip labels that
-      carry column identity, and exclusion of the printed VP/IMP scale tables,
-      which are themselves uniform grids that pollute the row-count vote.
+      Baron Barclay and Bridge Buddy samples in
+      `bridge-private/session_analysis/scoresheets/samples`). Not a detection
+      tweak — needs column-grid segmentation before row detection,
+      `SheetGeometry` reshaped as multiple grids with per-grid row counts (Baron
+      Barclay prints 16 rows left, 20 right), strip labels that carry column
+      identity, and exclusion of the printed VP/IMP scale tables, which are
+      themselves uniform grids that pollute the row-count vote.
   - Note: which layout a session used follows from which sheet was to hand — the
     custom single-column form, or a double-column one provided at the venue —
     and not from the kind of event. Club games and tournaments both turn up
@@ -410,21 +405,28 @@ rationale lives in the design docs' open-question sections —
       case a fetch or parser defaults to writing back into the public repo.
       Remove it once acquisition reads a configured path; the parsers no longer
       need the guard, since they take a capture's contents and write nothing.
+  - Note: that precondition is met — `private_paths` locates the private
+    checkout and nothing writes into the public repo — so this is ready to do.
   - Note: the entry names a directory, so it does not touch the
     `session_analysis/travellers.py` module beside it. Worth confirming when the
     entry goes, since the two names differ only by the trailing slash.
-- [ ] Reorganize the raw captures under `bridge-private/travellers/raw/` by date
-      rather than by source. Both fetchers currently mirror each source's own
-      path (`live.acbl.org/event/…`, `my.acbl.org/club-results/…`,
-      `gameresults2/…`); a date-first layout would group a session's captures
-      across sources together. Decide the scheme (e.g. `<date>/<source>/…`) and
-      migrate the existing captures.
+- [ ] Reorganize the raw captures under
+      `bridge-private/session_analysis/travellers/raw/` by date rather than by
+      site. They sit under a directory per publishing site, each mirroring that
+      site's own path beneath it; a date-first layout would group a session's
+      captures across sites together. Decide the scheme (e.g. `<date>/<site>/…`)
+      and migrate the existing captures.
+  - Note: the site directory is what picks a capture's parser, so it has to stay
+    a path component wherever the captures land. A capture's `.url` sidecar has
+    to move with it, which moving a whole directory does for free — but a
+    migration that renames files one at a time has to carry the sidecar along,
+    since the URL is the one piece of provenance nothing can recover afterwards.
 - [ ] Mine the parked `traveller-model` worktree for anything still worth
       keeping, then delete the branch and its worktree. Sequenced last: it only
       makes sense once the traveller work it overlaps has all landed.
   - Note: it holds a second, earlier traveller data model, superseded by the one
     real captures drove. Its documentation fixes were already folded in; what
-    may remain is the `TravellerIdentity` shape (worth a look when the storage
-    task settles what a traveller reference is) and the `Board` enrichment
+    may remain is the `TravellerIdentity` shape (now comparable against the
+    `CaptureReference` the storage work settled on) and the `Board` enrichment
     fields `deal`/`our_pair`/`opponents`, which models.md documents and the
     reconciliation phase will need.

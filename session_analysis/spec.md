@@ -347,6 +347,14 @@ correction. Whichever is used, **retake a bad scan at the table**: the on-device
 preview makes a retake cheap, and a flaw found after the sheet is gone is
 unrecoverable.
 
+The tree a scan moves through — `inbox/`, `archive/`, and the `processed/`
+records — lives under the private checkout's own root, beside the traveller
+captures, because a scan and a reconciled session carry other members' names
+just as a capture does (see [travellers.md](travellers.md#storage-and-pii)).
+That is settled independently of the transport, but it does constrain it:
+whichever transport is chosen has to land its files in that `inbox/`, either by
+syncing that directory itself or by a copy step on arrival.
+
 The two candidate transports and their tradeoff:
 
 - **Google Drive for Desktop** in mirror / "available offline" mode. Drive
@@ -395,11 +403,11 @@ stage's extraction. It is not the eventual session-analysis UI.
 
 ## Export and storage
 
-The reviewed, canonical session is written as `processed/<session-key>.json`,
-the interchange contract the analysis stage reads. The eventual queryable
-database and browsing UI consume the same canonical shape; migrating JSON files
-into that store is a later step and does not change this stage's output
-contract.
+The reviewed, canonical session is written as `processed/<session-key>.json`
+under the private tree's ingest root, the interchange contract the analysis
+stage reads. The eventual queryable database and browsing UI consume the same
+canonical shape; migrating JSON files into that store is a later step and does
+not change this stage's output contract.
 
 ## Traveller captures and PII {#captures-and-pii}
 
@@ -407,15 +415,20 @@ Traveller captures and scoresheet photos contain **other club members' names and
 results** — and a full game database accumulates them across many sessions, more
 sensitive than any single capture. They are kept out of this public repo
 entirely, consistent with the existing `club_sites/palo_alto/fixtures/raw/`
-gitignore. The `bridge-private` repo (and/or a remotely-backed service) holds
-them: the scoresheet photos already live there under `scoresheets/`, and the
-traveller captures move there too, out of the current gitignored
-`session_analysis/travellers/`. Storage layout, size handling, and the
-structured-JSON-now / queryable-store-later split are specified in
+gitignore. The `bridge-private` checkout holds them, in a `session_analysis`
+directory of this project's own — that checkout gives each project one, named
+for the public subproject it accompanies. `private_paths` locates it, and every
+tree hangs off it: the scoresheet images under `scoresheets/`, split into the
+`inbox/` and `archive/` a scan moves between and the `samples/` the pipeline is
+never fed from; the traveller captures and their parsed records under
+`travellers/`; and the reconciled sessions under `sessions/`, apart from the
+scans they came from because a record outlives the staging that produced it.
+Storage layout, size handling, provenance, and the structured-JSON-now /
+queryable-store-later split are specified in
 [travellers.md](travellers.md#storage-and-pii). The live-test fixture tasks.md
 refers to as "the 6/29 sheet" is
-`bridge-private/scoresheets/PXL_20260630_191216837.jpg` — the directory's only
-real (non-blank, non-synthetic) photo.
+`bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg`
+— that directory's only real (non-blank, non-synthetic) photo.
 
 ## Testing strategy
 
