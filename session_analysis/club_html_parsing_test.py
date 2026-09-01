@@ -26,9 +26,12 @@ from session_analysis.enums import (
   Strain,
   Suit,
 )
-from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import (
+from session_analysis.models import (
   CaptureReference,
+  Passout,
+  PlayedContract,
+)
+from session_analysis.travellers import (
   Par,
   Traveller,
   TravellerBoard,

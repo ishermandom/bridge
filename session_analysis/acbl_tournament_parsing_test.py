@@ -20,12 +20,12 @@ from session_analysis.acbl_tournament_parsing import (
   parse_acbl_tournament_html,
 )
 from session_analysis.enums import Direction, Penalty, Side, Strain, Suit
-from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import (
+from session_analysis.models import (
   CaptureReference,
-  Traveller,
-  TravellerSource,
+  Passout,
+  PlayedContract,
 )
+from session_analysis.travellers import Traveller, TravellerSource
 
 FIXTURE = (
   pathlib.Path(__file__).parent

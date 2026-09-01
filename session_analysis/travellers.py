@@ -30,7 +30,14 @@ from collections.abc import Mapping
 
 from session_analysis.enums import Direction, Strain
 from session_analysis.frozen_model import FrozenModel
-from session_analysis.models import Card, Deal, Issue, PairIdentity, Resolution
+from session_analysis.models import (
+  CaptureReference,
+  Card,
+  Deal,
+  Issue,
+  PairIdentity,
+  Resolution,
+)
 
 
 class TravellerSource(enum.StrEnum):
@@ -128,29 +135,6 @@ class TravellerBoard(FrozenModel):
   # and any contradiction between what the source printed and what the board
   # number fixes. Row-level findings sit on the row.
   issues: tuple[Issue, ...] = ()
-
-
-class CaptureReference(FrozenModel):
-  """Where a capture is filed, and where it was fetched from.
-
-  Provenance only — neither handle takes part in working out which session a
-  capture belongs to. That match reads the event and date out of the capture
-  itself, because a handle carries neither reliably: the club's directors each
-  file under their own naming, and an ACBL URL is an opaque game id.
-
-  The two handles answer different questions and neither subsumes the other. The
-  path always exists and always resolves to a file that can be parsed again; the
-  URL exists only for a capture something fetched, and is the half nothing can
-  recover once it is lost.
-  """
-
-  # The capture's path relative to the capture root, in POSIX spelling, so a
-  # stored record still names its capture after the tree is moved or copied.
-  path: str
-  # The URL the capture was fetched from, as `capture_urls` recorded it at the
-  # time. None for a capture saved by hand, which never had one — a guessed URL
-  # would be worse than none, so nothing reconstructs one from the path.
-  url: str | None = None
 
 
 class Traveller(FrozenModel):

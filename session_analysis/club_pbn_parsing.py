@@ -35,6 +35,7 @@ from collections.abc import Mapping, Sequence
 from session_analysis import issue_reporting, notation
 from session_analysis.enums import Direction, IssueSeverity, Side, Strain
 from session_analysis.models import (
+  CaptureReference,
   Deal,
   Issue,
   PairIdentity,
@@ -44,7 +45,6 @@ from session_analysis.models import (
   Result,
 )
 from session_analysis.travellers import (
-  CaptureReference,
   DoubleDummyTricks,
   Par,
   Traveller,

@@ -49,13 +49,14 @@ from session_analysis import (
   issue_reporting,
 )
 from session_analysis.enums import IssueSeverity
+from session_analysis.models import CaptureReference
 from session_analysis.private_paths import (
   ACBL_CLUB_CAPTURE_DIRECTORY,
   ACBL_TOURNAMENT_CAPTURE_DIRECTORY,
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
-from session_analysis.travellers import CaptureReference, Traveller
+from session_analysis.travellers import Traveller
 
 # A capture that yielded no record. Both are worth a person's attention rather
 # than a log line nothing reads: the first says a file is filed where no parser

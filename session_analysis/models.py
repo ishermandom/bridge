@@ -280,6 +280,33 @@ class SheetImage(FrozenModel):
   content_hash: str
 
 
+class CaptureReference(FrozenModel):
+  """Where a traveller capture is filed, and where it was fetched from.
+
+  Provenance only — neither handle takes part in working out which session a
+  capture belongs to. That match reads the event and date out of the capture
+  itself, because a handle carries neither reliably: the club's directors each
+  file under their own naming, and an ACBL URL is an opaque game id.
+
+  The two handles answer different questions and neither subsumes the other. The
+  path always exists and always resolves to a file that can be parsed again; the
+  URL exists only for a capture something fetched, and is the half nothing can
+  recover once it is lost.
+
+  It sits here beside `SheetImage` rather than in travellers.py because both the
+  stored traveller and the sheet's `Source` name a capture this way, and
+  travellers.py already depends on this module.
+  """
+
+  # The capture's path relative to the capture root, in POSIX spelling, so a
+  # stored record still names its capture after the tree is moved or copied.
+  path: str
+  # The URL the capture was fetched from, as `capture_urls` recorded it at the
+  # time. None for a capture saved by hand, which never had one — a guessed URL
+  # would be worse than none, so nothing reconstructs one from the path.
+  url: str | None = None
+
+
 class Source(FrozenModel):
   """Provenance for a digitized session: its image and travellers consulted.
 

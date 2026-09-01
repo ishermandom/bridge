@@ -17,12 +17,12 @@ import pathlib
 
 from session_analysis.club_pbn_parsing import parse_club_pbn
 from session_analysis.enums import Direction, Penalty, Side, Strain
-from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import (
+from session_analysis.models import (
   CaptureReference,
-  Traveller,
-  TravellerSource,
+  Passout,
+  PlayedContract,
 )
+from session_analysis.travellers import Traveller, TravellerSource
 
 FIXTURE = pathlib.Path(__file__).parent / 'testdata/travellers/club_game.pbn'
 

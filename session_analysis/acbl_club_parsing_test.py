@@ -21,12 +21,12 @@ from collections.abc import Mapping, Sequence
 
 from session_analysis.acbl_club_parsing import parse_acbl_club_html
 from session_analysis.enums import Direction, Penalty, Side, Strain, Suit
-from session_analysis.models import Passout, PlayedContract
-from session_analysis.travellers import (
+from session_analysis.models import (
   CaptureReference,
-  Traveller,
-  TravellerSource,
+  Passout,
+  PlayedContract,
 )
+from session_analysis.travellers import Traveller, TravellerSource
 
 TESTDATA = pathlib.Path(__file__).parent / 'testdata/travellers'
 

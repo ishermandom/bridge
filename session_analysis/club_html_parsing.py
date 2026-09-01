@@ -42,6 +42,7 @@ from session_analysis.enums import (
   Strain,
 )
 from session_analysis.models import (
+  CaptureReference,
   Deal,
   Issue,
   PairIdentity,
@@ -52,7 +53,6 @@ from session_analysis.models import (
 )
 from session_analysis.notation import BOOK
 from session_analysis.travellers import (
-  CaptureReference,
   DoubleDummyTricks,
   Par,
   Traveller,
