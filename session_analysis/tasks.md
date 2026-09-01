@@ -512,6 +512,14 @@ rationale lives in the design docs' open-question sections —
     than intended, which is the part worth fixing or writing down.
   - Open question: fix, or leave the tolerance and record the assumption in
     `_read_records`?
+- [ ] A command that re-parses every capture on hand. Trigger: the next parser
+      change.
+  - Rationale: [travellers.md](travellers.md#testing) describes the check a
+    parser change needs — parse everything before and after, and diff the
+    records — which takes `store_travellers(refresh=True)` and so takes Python
+    written by hand today.
+  - Note: a dated fetch is the wrong home for it. That command always fetches,
+    where a re-parse wants no fetch at all.
 - [ ] Revisit the open questions in
       [models.md](models.md#open-questions-and-todos) as their triggering work
       lands — each is a design decision deferred to the phase that resolves it.

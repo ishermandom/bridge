@@ -474,7 +474,7 @@ the public repo.
   store (most likely SQLite) stays in the backlog, to be settled when the
   analysis UI is designed (see [spec.md](spec.md#open-questions)).
 
-## Testing
+## Testing {#testing}
 
 - **Capture parsers** — committed fixtures with placeholder member names
   exercise the parse logic in the public repo; the real captures, kept in
@@ -507,13 +507,14 @@ the public repo.
   came back with, kept as the example of what a gated game saves as. The two
   tournament captures are the two sessions of one event, 26 boards and a single
   section apiece, and both parse clean.
-- **Showing a parser change alters nothing** — run `traveller_store` before and
-  after and diff the records it writes, which is why it rewrites every record in
-  place on each run. The committed fixtures are too small to be the whole check;
-  the captures under `bridge-private/session_analysis/travellers` are what
-  exercise the shapes a publisher actually emits. For a rewritten regex, also
-  run the old pattern against the new over generated inputs that include
-  near-misses, since a capture only exercises what it happens to contain.
+- **Showing a parser change alters nothing** — run `traveller_store` with
+  `refresh` before and after and diff the records it writes, which is what
+  `refresh` is for: an ordinary run skips a capture whose record already
+  postdates it. The committed fixtures are too small to be the whole check; the
+  captures under `bridge-private/session_analysis/travellers` are what exercise
+  the shapes a publisher actually emits. For a rewritten regex, also run the old
+  pattern against the new over generated inputs that include near-misses, since
+  a capture only exercises what it happens to contain.
 - **Name match, source merge, and the deal-versus-lead check** — pure logic,
   unit-tested with hand-constructed travellers and boards, with zero fetching.
 - **Swap detection** — a fixture with the known 6/29 board-20/21 swap asserts
