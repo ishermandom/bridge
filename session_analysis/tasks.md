@@ -38,6 +38,22 @@ unread.
     them against real sessions rather than in review.
   - Note: `scratch/reconciliation_against_captures.py` re-runs the join over the
     real captures, which is the evidence the fixtures cannot give.
+  - Note: the acquisition command's shape was likewise settled with the user
+    before it was written — a required `--player-number` rather than a
+    configuration file, every source fetched by default with `--source` to
+    narrow, a failed source reported and stepped over rather than aborting the
+    run, and a nonzero exit when one fails. The player number stays a flag
+    because the shared configuration
+    [travellers.md](travellers.md#configuration) wants does not exist yet, and
+    the join takes the player's name from that same place (travellers.md
+    #finding-our-row) — so whichever work builds it settles the shape for both,
+    and neither should settle it alone.
+  - Note: that command has run against the live sites, not only against its test
+    double: on 2026-08-24 it fetched, parsed, and stored both club captures
+    while both ACBL sources failed on Cloudflare, so the store pass and the
+    failure-containment path were exercised for real in one run. A reviewer
+    running it today should expect the same two ACBL failures — that is
+    #cloudflare-stopped-clearing, not a fault in the command.
   - Open question: whether `reconciliation.py` wants splitting. At 1076 lines it
     is the project's longest module, though only a little past
     `club_html_parsing.py`, so it is a judgment call rather than a clear
@@ -102,6 +118,10 @@ Deciding which travellers cover a session belongs to acquisition, below.
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
+`fetch_travellers` drives a date's fetch and the store pass that follows it.
+What remains is matching a capture to the session it belongs to, and running
+reconciliation off that match.
+
 - [ ] Rework the ACBL fetch to meet the challenge with nothing attached.
       {#cloudflare-stopped-clearing}
   - Rationale: since 8/24 every ACBL request answers HTTP 403 with the ordinary
@@ -119,10 +139,10 @@ save otherwise — and auto-reconcile when one lands. Design in
     the pages. Both indexes cleared inside 15 seconds in one launch, and the
     existing in-page raw-HTML read works unchanged once attached — 54,855 bytes
     of club index, 199,673 of tournament index, neither still challenged.
-  - Note: the working shape needs a browser window on screen. `--headless=new`
-    is itself detected and never clears, so the fetch cannot be made invisible.
-  - Note: one launch takes every URL a run needs, so the two ACBL surfaces share
-    a browser by construction rather than by making `_BrowserFetcher` public.
+  - Note: this absorbs the separate item that wanted one browser shared across
+    both ACBL surfaces. A single launch takes every URL a run needs, so the
+    surfaces share a browser by construction rather than by making
+    `_BrowserFetcher` public.
   - Note: what this changes in `_BrowserFetcher` — it stops driving the first
     navigation, so `fetch` can no longer be a plain per-URL call. The retry loop
     becomes relaunch-and-wait-longer rather than navigate-again, since attaching
@@ -146,19 +166,6 @@ save otherwise — and auto-reconcile when one lands. Design in
     publicly, access goes through a person at ACBL, and the samples on record
     read masterpoint and rank data — worth one email if this rework ever stops
     holding.
-- [ ] A command that fetches a session's travellers and stores them.
-  - Worktree: traveller-fetch-command
-  - Rationale: `acbl_fetching.fetch_tournament_travellers`,
-    `acbl_fetching.fetch_club_travellers`, `club_fetching.fetch_travellers`, and
-    `traveller_store.store_travellers` all work and are tested, and nothing
-    drives them from a command line. Capturing a session's results today means
-    writing Python by hand.
-  - Note: the entry-point convention is settled already —
-    `python -m session_analysis.<module>`, with `convention_cards/make_card.py`
-    as the house argparse pattern. The "process inbox" command under Ingest
-    follows the same one, so follow it here rather than reopening it, and leave
-    a shared CLI helper alone: whichever of the two commands lands second is
-    where a shared shape would first be visible.
 - [ ] Match a capture to its session by parsed metadata (event + date), not the
       filename or URL.
   - Worktree: ingest-spine
@@ -263,7 +270,11 @@ first stage that runs extraction end to end and writes a session to disk.
   - Worktree: ingest-spine
   - Note: `session_analysis` is a `package = false` uv member with no console
     script, so this runs as `python -m session_analysis.<module>` unless that
-    changes; `convention_cards/make_card.py` is the house argparse pattern.
+    changes; `fetch_travellers` is the nearer precedent for the shape, and
+    `convention_cards/make_card.py` the house argparse pattern behind it. This
+    being the second command to land, it is also where a shared CLI shape would
+    first be visible — worth a look for what the two genuinely have in common
+    before extracting anything.
   - Note: an explicit trigger only beats a watcher if its output says what
     happened — summarize each scan as digitized, skipped, or failed.
 
@@ -518,8 +529,8 @@ rationale lives in the design docs' open-question sections —
     parser change needs — parse everything before and after, and diff the
     records — which takes `store_travellers(refresh=True)` and so takes Python
     written by hand today.
-  - Note: a dated fetch is the wrong home for it. That command always fetches,
-    where a re-parse wants no fetch at all.
+  - Note: `fetch_travellers` is the wrong home for it. Its date argument means a
+    run always fetches, where a re-parse wants no fetch at all.
 - [ ] Revisit the open questions in
       [models.md](models.md#open-questions-and-todos) as their triggering work
       lands — each is a design decision deferred to the phase that resolves it.

@@ -108,11 +108,13 @@ A capture saved from a browser also differs from the same file fetched directly
 browser's doing. Reading through a real HTML parser absorbs the difference;
 matching against raw markup would not.
 
-## Acquisition
+## Acquisition {#acquisition}
 
 The goal is automatic fetching, with **manual save as the fallback** for
 anything the fetch can't reach. Each source has a distinct fetch problem, so
-they are separate investigations.
+they are separate investigations. One command, the `fetch_travellers` module,
+runs all of them for a date, and the parse pass that turns what landed into
+records.
 
 - **Club — discover, don't derive.** Different directors upload to different
   directories, so a date-derived URL is unreliable. Fetching instead reads the
