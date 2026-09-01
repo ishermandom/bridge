@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 """Tests for this project's private data layout, and for finding it.
 
-Locating the checkout is injected rather than faked: git is the one dependency
-a fake filesystem cannot stand in for, so `discover_private_tree` takes a
+Locating the checkout is injected rather than faked: git is the one dependency a
+fake filesystem cannot stand in for, so `discover_private_tree` takes a
 `find_checkout` callable and a test hands it a directory. Only the default
 implementation goes unexercised, and it holds nothing but the git call.
 """
@@ -32,6 +32,16 @@ def test_the_inbox_and_archive_sit_under_the_scoresheets_tree() -> None:
   )
 
 
+def test_a_scan_that_failed_lands_outside_the_inbox() -> None:
+  """Terminal, not staging: the next run must not retry it."""
+  tree = PrivateTree(_ROOT)
+
+  assert tree.scan_failures == Path(
+    '/private/session_analysis/scoresheets/failed'
+  )
+  assert not tree.scan_failures.is_relative_to(tree.scan_inbox)
+
+
 # --- the traveller trees ---
 
 
@@ -57,6 +67,18 @@ def test_session_records_sit_apart_from_the_scans_behind_them() -> None:
   assert not tree.session_records.is_relative_to(tree.scan_archive)
 
 
+def test_a_digitized_session_waits_below_the_reviewed_ones() -> None:
+  """Review is deferred until a traveller lands, so ingest writes here."""
+  tree = PrivateTree(_ROOT)
+
+  assert tree.pending_session_records == Path(
+    '/private/session_analysis/sessions/pending'
+  )
+  # Below `sessions`, so both are found together — but not among them, so the
+  # analysis stage reading `sessions/*.json` sees only reviewed records.
+  assert tree.pending_session_records.parent == tree.session_records
+
+
 # --- the root as the single setting ---
 
 
@@ -67,9 +89,11 @@ def test_repointing_the_root_moves_every_tree_with_it() -> None:
   for path in (
     tree.scan_inbox,
     tree.scan_archive,
+    tree.scan_failures,
     tree.traveller_captures,
     tree.traveller_records,
     tree.session_records,
+    tree.pending_session_records,
   ):
     assert path.is_relative_to(Path('/elsewhere'))
 

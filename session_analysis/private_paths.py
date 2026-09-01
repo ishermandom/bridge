@@ -16,11 +16,13 @@ bridge-private/session_analysis/
 ├── scoresheets/
 │   ├── inbox/      scans waiting to be digitized
 │   ├── archive/    scans already digitized
+│   ├── failed/     scans a run could not digitize, each with a sidecar
 │   └── samples/    blank forms and stand-in photos, which nothing reads
 ├── travellers/
 │   ├── raw/        captures, under a subdirectory per publishing site
 │   └── parsed/     the travellers those captures parse into
 └── sessions/       the reconciled records this pipeline exists to write
+    └── pending/    digitized, still awaiting reconciliation and review
 ```
 
 The trees divide by what they hold rather than by which stage touches them, so a
@@ -69,6 +71,16 @@ class PrivateTree:
     return self.root / 'scoresheets' / 'archive'
 
   @property
+  def scan_failures(self) -> Path:
+    """Scans a run could not digitize, with a sidecar naming what went wrong.
+
+    Terminal rather than staging: a scan that raised is moved out of the inbox
+    so the next run does not re-spend a model call retrying it, and a person
+    decides whether it is worth a retake.
+    """
+    return self.root / 'scoresheets' / 'failed'
+
+  @property
   def traveller_captures(self) -> Path:
     """Captures as fetched or hand-saved, under a subdirectory per site."""
     return self.root / 'travellers' / 'raw'
@@ -87,6 +99,18 @@ class PrivateTree:
     `archive`, while a record stays put.
     """
     return self.root / 'sessions'
+
+  @property
+  def pending_session_records(self) -> Path:
+    """Digitized sessions awaiting reconciliation and review.
+
+    Ingest writes here, not to `session_records`: review is deferred until a
+    traveller arrives (travellers.md `#timing-and-the-escape-hatch`), so a
+    freshly digitized record is not yet the reviewed thing the analysis stage
+    reads. A record graduates by being written to `session_records` once its
+    session key is confirmed.
+    """
+    return self.session_records / 'pending'
 
 
 def _this_checkout() -> Path:
