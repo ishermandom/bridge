@@ -258,7 +258,13 @@ record waits for review, and what becomes of a scan that raises.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
   - Note: this gates where `inbox/` lives, not the pipeline code below it — the
-    spine can be built and tested against a local directory first.
+    spine is built and tested already.
+  - Note: `scoresheets/inbox/` does not exist in the private tree yet, which is
+    the one thing standing between a first run and a digitized sheet — the run
+    refuses outright rather than inventing the directory a person is expected to
+    drop scans into. Everything below it (`archive/`, `failed/`,
+    `sessions/pending/`) is created on demand, so creating the inbox is the
+    whole of the setup.
 - [ ] Settle what several pages in one scan container mean. {#multi-page-scans}
   - Rationale: spec.md allows a multi-page scan of one sheet, but
     `transcribe_sheet` takes a single image. Are the extra pages retakes to
