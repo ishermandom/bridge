@@ -337,7 +337,7 @@ renumber, reorder** — are first-class in the review UI, two keystrokes each, s
 the fix works whether or not auto-detection caught it. The board-20/21 swap is
 the concrete known case.
 
-## Ingest
+## Ingest {#ingest}
 
 Capture is from an **Android phone**; the scanner app and the phone-to-Mac
 transport are **not yet chosen** (see [Open questions](#open-questions)).
@@ -347,13 +347,15 @@ correction. Whichever is used, **retake a bad scan at the table**: the on-device
 preview makes a retake cheap, and a flaw found after the sheet is gone is
 unrecoverable.
 
-The tree a scan moves through — `inbox/`, `archive/`, and the `processed/`
-records — lives under the private checkout's own root, beside the traveller
-captures, because a scan and a reconciled session carry other members' names
-just as a capture does (see [travellers.md](travellers.md#storage-and-pii)).
-That is settled independently of the transport, but it does constrain it:
-whichever transport is chosen has to land its files in that `inbox/`, either by
-syncing that directory itself or by a copy step on arrival.
+The tree a scan moves through — `inbox/`, `archive/`, `failed/`, and the
+`sessions/` records — lives under the private checkout's own root, beside the
+traveller captures, because a scan and a reconciled session carry other members'
+names just as a capture does (see
+[travellers.md](travellers.md#storage-and-pii)). `private_paths` is the one
+place that layout is written down. That is settled independently of the
+transport, but it does constrain it: whichever transport is chosen has to land
+its files in that `inbox/`, either by syncing that directory itself or by a copy
+step on arrival.
 
 The two candidate transports and their tradeoff:
 
@@ -367,19 +369,41 @@ The two candidate transports and their tradeoff:
 
 Whichever is chosen:
 
-- **Convention**: one sheet is one scan file; multiple pages allowed (the
-  scanner's native multi-page container absorbs glare and binding splits with no
-  pipeline logic). The scanner's on-device perspective correction improves
-  capture quality but is no longer load-bearing — extraction dewarps from the
-  printed grid itself (see Extraction); PDF pages are rasterized as needed.
+- **Convention**: one sheet is one scan file. The scanner's on-device
+  perspective correction improves capture quality but is no longer load-bearing
+  — extraction dewarps from the printed grid itself (see Extraction). A PDF is
+  **unwrapped rather than rasterized**: a scanner app's PDF is a container
+  around the photo it already took, so the embedded image is the original pixels
+  where rendering the page would resample them.
+- **Multiple pages are not yet supported.** The multi-page container absorbs
+  glare and binding splits at capture time, but `transcribe_sheet` takes a
+  single image, so what a second page means — a retake to choose among, half a
+  grid to stitch, a separate sheet — decides whether this is a decode step or a
+  merge stage. The first page is digitized and the rest reported; tasks.md
+  `#multi-page-scans` carries the question, which wants a real multi-page scan
+  to settle it against.
 - **Self-naming**: the footer (event, date) is read first so the file names
-  itself by session key — no manual tagging. The key is confirmed in review
-  before it commits to the filesystem.
-- **Spine**: `inbox/` → `processed/<session-key>.json` + image → `archive/`.
-  Idempotent on footer plus content hash, so re-scanning a sheet is a no-op.
-- **Trigger**: an explicit "process inbox" command, not a watcher daemon. At
+  itself by session key — no manual tagging. The derivation is literal: the
+  footer text casefolded and hyphenated, joined to the parsed date, giving
+  `pabc-morn-2026-06-29`. The time of day rides in the footer text, which is
+  where it is already written on a two-game day. The key is confirmed in review
+  before it commits, so the record is renamed if review corrects the footer; a
+  footer naming nothing is filed under its content hash and flagged.
+- **Spine**: `inbox/` → `sessions/pending/<key>.json` + image → `archive/`.
+  Idempotent on content hash before extraction — a re-dropped file costs no
+  model call — and on the footer key after it, which catches a fresh photograph
+  of a sheet already digitized. The records are `pending` because review is
+  deferred until reconciliation runs, so a freshly digitized session is not yet
+  the reviewed thing the analysis stage reads.
+- **Trigger**: an explicit "process inbox" command
+  (`python -m session_analysis.unreviewed.ingest`), not a watcher daemon. At
   this volume a silent daemon debugged twice a year is more total friction than
-  a one-tap trigger, and failures should be visible rather than silent.
+  a one-tap trigger, and failures should be visible rather than silent. The run
+  also stores newly saved traveller captures and reports which sessions they
+  matched, so one trigger brings the whole tree current.
+- **Failures are terminal, not staging**: a scan that raises moves to
+  `scoresheets/failed/` with a sidecar naming what went wrong. Leaving it in the
+  inbox would re-spend a model call every run.
 
 ## Review
 
@@ -403,9 +427,11 @@ stage's extraction. It is not the eventual session-analysis UI.
 
 ## Export and storage
 
-The reviewed, canonical session is written as `processed/<session-key>.json`
-under the private tree's ingest root, the interchange contract the analysis
-stage reads. The eventual queryable database and browsing UI consume the same
+The reviewed, canonical session is written as `sessions/<session-key>.json`
+under the private tree, the interchange contract the analysis stage reads. A
+session that ingest has digitized but review has not reached yet waits in
+`sessions/pending/`, so a consumer reading `sessions/*.json` sees reviewed
+records only. The eventual queryable database and browsing UI consume the same
 canonical shape; migrating JSON files into that store is a later step and does
 not change this stage's output contract.
 
