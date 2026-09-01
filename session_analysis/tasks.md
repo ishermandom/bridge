@@ -54,6 +54,12 @@ unread.
     failure-containment path were exercised for real in one run. A reviewer
     running it today should expect the same two ACBL failures — that is
     #cloudflare-stopped-clearing, not a fault in the command.
+  - Note: the queue is seven modules and about 4,700 lines with their tests,
+    having gone from three to seven in one session. `unreviewed/__init__.py`
+    puts the line at "a few is a backlog, and a dozen is a second codebase
+    nobody has read", so this is the point to start draining rather than to add
+    an eighth. The spine's four are the newest and were written together, so
+    they read fastest as one sitting.
   - Note: the ingest spine — `ingest`, `scan_decoding`, `session_keys`, and
     `session_matching` — landed the same way. Its design was settled with the
     user before it was written: the frame on `SheetImage` rather than `Source`,
