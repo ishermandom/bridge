@@ -32,9 +32,8 @@ from session_analysis.models import (
   Result,
   Schedule,
   Session,
-  SheetImage,
-  Source,
 )
+from session_analysis.testing import provenance
 from session_analysis.travellers import (
   Traveller,
   TravellerBoard,
@@ -174,7 +173,7 @@ def _make_session(boards: Sequence[Board]) -> Session:
   """A digitized session carrying the rows a test cares about."""
   return Session(
     event='A Club Game',
-    source=Source(image=SheetImage(path='scan.jpg', content_hash='hash')),
+    source=provenance.sheet_source(path='scan.jpg', content_hash='hash'),
     boards=tuple(boards),
   )
 

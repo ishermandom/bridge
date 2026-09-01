@@ -12,14 +12,15 @@ import datetime
 from collections.abc import Mapping
 
 from session_analysis.assembly import RawSession, assemble_session
-from session_analysis.models import Session, SheetImage, Source
+from session_analysis.models import Session, Source
+from session_analysis.testing import provenance
 from session_analysis.voting import vote_sessions
 
 _REFERENCE_DATE = datetime.date(2026, 7, 1)
 
 
 def _source() -> Source:
-  return Source(image=SheetImage(path='sheet.jpg', content_hash='abc123'))
+  return provenance.sheet_source()
 
 
 def _raw_board(**cells: str) -> Mapping[str, str]:

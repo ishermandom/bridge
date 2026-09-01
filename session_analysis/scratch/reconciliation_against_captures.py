@@ -36,9 +36,8 @@ from session_analysis.models import (
   PlayedContract,
   Schedule,
   Session,
-  SheetImage,
-  Source,
 )
+from session_analysis.testing import provenance
 from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import reconciliation
 
@@ -128,7 +127,7 @@ def _build_sheet(
 
   return Session(
     event='reconciliation harness',
-    source=Source(image=SheetImage(path='synthesized', content_hash='none')),
+    source=provenance.sheet_source(path='synthesized', content_hash='none'),
     boards=tuple(boards),
   )
 

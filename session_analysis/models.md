@@ -259,16 +259,18 @@ validation pass define the concrete code set (see
 
 ### Session {#session}
 
-- `session_key` — stable identifier derived from event and date, e.g.
-  `pabc-mon-2026-06-29`; the filename and the reconciliation join. Null until
-  ingest assigns it, downstream of parsing.
+- `session_key` — stable identifier derived from the footer, e.g.
+  `pabc-morn-2026-06-29`; the record's filename. Null until ingest assigns it,
+  and null afterwards for a footer that named nothing — such a record is filed
+  under its content hash instead, and carries an issue.
 - `event` — raw footer text.
 - `date` — parsed date, or null with an issue if unparseable.
-- `source` — provenance: the sheet image (path + content hash) and the captures
-  reconciliation consulted, as `CaptureReference`s. It names the captures rather
-  than the records parsed from them because a record's path follows from its
-  capture's, and the capture is the half that is not regenerated whenever a
-  parser changes (see [travellers.md](travellers.md)).
+- `source` — provenance: the sheet image (path, content hash, and the frame it
+  was read through) and the captures reconciliation consulted, as
+  `CaptureReference`s. It names the captures rather than the records parsed from
+  them because a record's path follows from its capture's, and the capture is
+  the half that is not regenerated whenever a parser changes (see
+  [travellers.md](travellers.md)).
 - `boards` — the tuple of `Board`s.
 - `issues` — session-level issues, such as an unreadable date; board- and
   token-level issues live on the board and its envelopes.
@@ -443,6 +445,41 @@ the envelope whose parse produced it, or on the board for board-level issues.
 - `severity` — an `IssueSeverity`.
 - `message` — human-readable, with enough context to act on without the image.
 - `location` — optional pointer to the offending field or auction index.
+
+### SheetImage and SheetFrame {#sheet-frame}
+
+`SheetImage` is the scan a session was digitized from: its path under the
+archive root, the hash of its bytes, and the `SheetFrame` it was read through.
+`SheetFrame` pairs the corner `Quad` the scan was dewarped by with the
+`SheetGeometry` detected in the resulting frame, so the review UI reproduces the
+dewarped image and its grid from the archived scan rather than re-detecting
+them.
+
+The frame sits on `SheetImage` rather than beside it on `Source` because it is
+valid for exactly one set of bytes. `source_quad` is in original-scan pixels and
+`geometry` in the dewarped frame those corners map to; hand either to a
+different image and the coordinates are quietly wrong rather than an error.
+`content_hash` is what certifies which bytes they describe, so keeping the two
+in one model makes that structural — re-hash the archived scan and the frame
+either still applies or does not. Split across two models it would be a
+convention someone has to remember.
+
+The argument the other way is that a frame is derived, and a better detector
+could re-derive it while the file sits unchanged — which sounds like a property
+of the run. It does not survive: re-deriving is re-deriving _for that image_, so
+the image's own envelope is where the new frame belongs.
+
+Both are required rather than optional, because every path that produces a
+`Session` has them: ingest transcribes before it builds a `Source`, and a scan
+whose grid cannot be resolved raises instead. Tests that need provenance they do
+not assert on take it from `testing/provenance.py`.
+
+One consequence worth naming: `SheetGeometry` and `Quad` live in the modules
+that compute them, so `models` imports from `sheet_geometry` and `sheet_dewarp`
+— and every consumer of `models` now loads Pillow transitively. That is import
+weight, not a cycle; neither of those modules imports `models`. Moving the two
+types into `models` would invert it, at the cost of churning the image pipeline
+— weighed in tasks.md `#models-import-direction`, not settled here.
 
 ## Dealer and vulnerability
 

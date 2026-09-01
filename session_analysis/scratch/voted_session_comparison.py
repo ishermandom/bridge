@@ -22,10 +22,12 @@ import json
 import pathlib
 
 from session_analysis.assembly import parse_and_assemble_voted_session
-from session_analysis.models import SheetImage, Source
+from session_analysis.testing import provenance
 
-_SOURCE = Source(
-  image=SheetImage(path='strips-comparison', content_hash='comparison')
+# Provenance nothing here reads: this comparison starts from run JSON already on
+# disk, so it never sees a scan, and the stand-in frame is as true as any.
+_SOURCE = provenance.sheet_source(
+  path='strips-comparison', content_hash='comparison'
 )
 
 

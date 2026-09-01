@@ -23,9 +23,9 @@ from session_analysis.models import (
   Card,
   PlayedContract,
   Session,
-  SheetImage,
   Source,
 )
+from session_analysis.testing import provenance
 
 # A fixed scan date: the sample sheets are from June, comfortably in the past of
 # this reference, so a `6/29` footer resolves to the same calendar year.
@@ -34,7 +34,7 @@ _REFERENCE_DATE = datetime.date(2026, 7, 1)
 
 def _source() -> Source:
   """Minimal provenance for tests that don't assert on the source."""
-  return Source(image=SheetImage(path='sheet.jpg', content_hash='abc123'))
+  return provenance.sheet_source()
 
 
 def _raw_board(**cells: str) -> Mapping[str, str]:
@@ -214,7 +214,7 @@ def test_a_non_object_board_is_contained_without_losing_the_session() -> None:
 
 
 def test_the_source_is_carried_onto_the_session() -> None:
-  source = Source(image=SheetImage(path='scan.jpg', content_hash='deadbeef'))
+  source = provenance.sheet_source(path='scan.jpg', content_hash='deadbeef')
   raw = RawSession(event='PABC mon', date='6/29', boards=())
 
   session = assemble_session(raw, source, reference_date=_REFERENCE_DATE)
