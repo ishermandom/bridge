@@ -38,6 +38,12 @@ unread.
     them against real sessions rather than in review.
   - Note: `scratch/reconciliation_against_captures.py` re-runs the join over the
     real captures, which is the evidence the fixtures cannot give.
+  - Open question: whether `reconciliation.py` wants splitting. At 1076 lines it
+    is the project's longest module, though only a little past
+    `club_html_parsing.py`, so it is a judgment call rather than a clear
+    problem. Merging the sources apart from joining them to the sheet is the
+    seam that was considered and left alone while the two were being written
+    together; review is the moment to settle it.
 
 ---
 
