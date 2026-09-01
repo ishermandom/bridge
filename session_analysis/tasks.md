@@ -102,6 +102,50 @@ Deciding which travellers cover a session belongs to acquisition, below.
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
+- [ ] Rework the ACBL fetch to meet the challenge with nothing attached.
+      {#cloudflare-stopped-clearing}
+  - Rationale: since 8/24 every ACBL request answers HTTP 403 with the ordinary
+    `Just a moment...` interstitial, which never clears, on both
+    `my.acbl.org/club-results/my-results/<number>` and
+    `live.acbl.org/player-results/<number>`. The cause is the debugger, not the
+    browser: Cloudflare's script sprays every `console` method with a
+    getter-instrumented payload, each landing twice, which is how an attached
+    debugger gives itself away. Nothing in `acbl_fetching` changed; the site's
+    posture did.
+  - Note: the shape that works, verified end to end on both hosts from a cold
+    profile. Launch Chrome as an ordinary subprocess with a `--user-data-dir`, a
+    `--remote-debugging-port`, and the URLs on its command line; wait while it
+    solves the challenge with nothing attached; then `connect_over_cdp` and read
+    the pages. Both indexes cleared inside 15 seconds in one launch, and the
+    existing in-page raw-HTML read works unchanged once attached — 54,855 bytes
+    of club index, 199,673 of tournament index, neither still challenged.
+  - Note: the working shape needs a browser window on screen. `--headless=new`
+    is itself detected and never clears, so the fetch cannot be made invisible.
+  - Note: one launch takes every URL a run needs, so the two ACBL surfaces share
+    a browser by construction rather than by making `_BrowserFetcher` public.
+  - Note: what this changes in `_BrowserFetcher` — it stops driving the first
+    navigation, so `fetch` can no longer be a plain per-URL call. The retry loop
+    becomes relaunch-and-wait-longer rather than navigate-again, since attaching
+    to check is itself what breaks the challenge, and the constant that matters
+    becomes how long to wait before attaching rather than
+    `_CHALLENGE_TIMEOUT_MS`.
+  - Note: ruled out along the way, each by a run of its own — headless detection
+    (a headed window fails identically), the length of the wait (two unbroken
+    minutes), the engine (Playwright's Firefox fails the same way), the binary
+    (real Chrome, visible window, refused like the bundled Chromium), a
+    page-specific gate (a game page is challenged like the index), an IP ban (no
+    `1020` page), and the environment (the launched browser reports a real Metal
+    GPU, ten cores, and 30-bit color, so a GUI-less account is not what looks
+    wrong). No Turnstile widget ever mounts, so there was never anything to
+    click.
+  - Note: a game page cleared the challenge and then answered `ACBL Login`,
+    which is the separate sign-in question, not this one.
+  - Note: there is no quieter endpoint to ask instead. A club page carries its
+    traveller inline as `var data = {...}`, and the captures on hand name no XHR
+    behind it. `api.acbl.org` is not challenge-guarded, but it is undocumented
+    publicly, access goes through a person at ACBL, and the samples on record
+    read masterpoint and rank data — worth one email if this rework ever stops
+    holding.
 - [ ] A command that fetches a session's travellers and stores them.
   - Worktree: traveller-fetch-command
   - Rationale: `acbl_fetching.fetch_tournament_travellers`,
