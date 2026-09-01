@@ -1,4 +1,11 @@
-# Extraction model comparison
+# Harnesses that run against live models and real captures
+
+Neither harness here is a test. Both need something the test suite deliberately
+does without — a paid model call, or the private captures on disk — so they are
+run by hand when there is a reason to, and what they measure is recorded
+wherever the decision it supports lives.
+
+## Extraction model comparison
 
 A two-step harness for re-running the live comparison behind the extraction
 model choice. The measurements it produces are recorded in spec.md #extraction —
@@ -11,7 +18,7 @@ so a model bump silently invalidates them; the whole point of keeping the
 harness is that refreshing them should be a two-command job rather than a
 rebuild.
 
-## Running it
+### Running it
 
 `strips_model_comparison.py` cuts one scan's strips once and has each model read
 those same strips, so the model is the only variable. It writes each run's raw
@@ -35,7 +42,7 @@ PYTHONPATH=. uv run --project . python \
   --run-directory /tmp/strips-comparison
 ```
 
-## Two things to know before trusting the numbers
+### Two things to know before trusting the numbers
 
 - **Cost is per sheet, not per run.** The second run of a pair reads the prompt
   cache the first one filled and costs about half as much, so a per-run figure
@@ -50,3 +57,23 @@ Real scans carry other club members' names and results, so they live in
 `bridge-private` and the output directory belongs outside this repo — see
 spec.md #captures-and-pii, which also names the sheet the figures were measured
 on.
+
+## Reconciliation against the stored captures
+
+`reconciliation_against_captures.py` runs the traveller join over the records
+`traveller_store` has written, rather than over fixtures. It reports each
+capture alone and then the two merged, reconciles a sheet synthesized from them,
+seeds the board swap the 6/29 sheet actually carried, and finally runs with no
+traveller at all.
+
+```sh
+PYTHONPATH=. uv run --project . python \
+  session_analysis/scratch/reconciliation_against_captures.py \
+  --name 'Your Name'
+```
+
+**Re-run it when the join or any capture parser changes.** What it is good for
+is the thing fixtures cannot show: that two publishers of one real session merge
+without losing a field, and that a seeded swap is found without dragging its
+neighbours in with it. The faithful pass agrees by construction — the sheet is
+built from the traveller — so read it as a floor, not as evidence.

@@ -12,6 +12,35 @@ subsystem (parsing, reconciliation, acquisition), ingest, and the review UI.
 
 ---
 
+## Pending review
+
+**Goal:** drain the deferred-review queue, so that nothing on `main` stays
+unread.
+
+- [ ] Review each module under `session_analysis/unreviewed/` and move it up
+      into `session_analysis/` with its test beside it.
+  - Note: the directory is the queue — it lists itself, so nothing here names
+    the modules and nothing can fall out of step with what is actually pending.
+    `unreviewed/__init__.py` covers what the directory means and what leaving it
+    takes.
+  - Note: two `/code-review high --fix` rounds have already run over the
+    reconciliation join, so the automated sweep is done and what is left is
+    judgment. Both rounds' remaining findings are TODOs at the lines they
+    concern.
+  - Note: the design is settled — the `CaptureReference` on `Source`, matching
+    our row on the configured full name and its surname, leaving the ACBL player
+    number uncarried, leaving a disputed field unfilled, searching
+    transpositions for swaps, keeping the declarer out of that search, and
+    rewriting the findings a run owns. All were put to the user and agreed, so
+    what remains is whether the code does what those decisions say, not whether
+    the decisions were right. Each is argued where it is implemented;
+    #disagreement-in-practice and #swap-detection-in-practice revisit two of
+    them against real sessions rather than in review.
+  - Note: `scratch/reconciliation_against_captures.py` re-runs the join over the
+    real captures, which is the evidence the fixtures cannot give.
+
+---
+
 ## Extraction follow-ups (deferred)
 
 **Goal:** a sheet image becomes the vision model's compact per-board string
@@ -47,63 +76,17 @@ output, parsed into the canonical model.
 
 ---
 
-## Reconciliation
+## Reconciliation ✓
 
 **Goal:** capture the travellers as a game-record database and join them to the
 digitized sheet — enriching it with the deal, matchpoints, and pair identities,
 and surfacing disagreements and row swaps. Design in
 [travellers.md](travellers.md).
 
-The traveller data model, the shared notation, scoring, and all four capture
-parsers have landed on `main`, each verified against the real captures. What
-remains is the join to the sheet.
-
-- [ ] Replace the `Source.travellers` placeholder (`tuple[str, ...]`) in
-      models.py with a reference to the stored traveller.
-  - Worktree: reconciliation-join
-  - Note: a stored traveller is named by its `CaptureReference.path` — the
-    capture's path under the capture root, which is also where its record sits
-    with `.json` appended. Whether the sheet's `Source` should hold that path or
-    the record's own is what remains open here.
-- [ ] Find our row by the configured name — either direction, any partner; flag
-      when the name is absent. {#our-row}
-  - Worktree: reconciliation-join
-  - Note: ACBL carries a player number per player, which the parsers keep
-    nowhere — `PairIdentity` holds names only. It would be a far stronger key
-    than a name for the ACBL sources, and it is the one identity the club's
-    files do not carry; worth weighing here against the name-variant problem it
-    would sidestep.
-  - Open question: how well the name match holds on a row carrying surnames
-    alone. The two full-name lookups differ on the movements that number every
-    pair once: `acbl_club_parsing` falls back to a direction-agnostic
-    `(None, number)` key, where `club_html_parsing` has nothing equivalent — see
-    #one-winner-recap for what that costs and why it is parked.
-- [ ] Cross-check recoverable fields; raise review priority on disagreement.
-  - Worktree: reconciliation-join
-  - Note: the declarer is cross-checked here — the validator can't (an auction
-    with implicit passes gives no seats), and neither sheet nor traveller is
-    authoritative, so surface the disagreement rather than trusting either side.
-- [ ] Merge the two sources; flag disagreements, store both raw records, no
-      silent tiebreak.
-  - Worktree: reconciliation-join
-  - Note: a club game's PBN comes in two kinds, and a board-count difference
-    between a session's two captures is usually that rather than a disagreement.
-    `watson/D260714M.pbn` carries twenty result rows per board;
-    `lagcc/D260717A.pbn` and `vi/D260714A.pbn` carry none at all — they are hand
-    records, listing every board dealt (always 24) with no play. Their HTML
-    recaps cover the boards actually played, 15 and 20. So merging should take
-    the deal from whichever capture has it and the results from whichever
-    played, and treat a dealt board carrying no results as a board not reached
-    rather than as a source disagreeing.
-- [ ] Deal capture + the deal-versus-lead check (opening lead ∈ declarer's LHO
-      hand) and deal well-formedness (52 distinct cards, 13 per hand).
-  - Worktree: reconciliation-join
-- [ ] Best-alignment permutation swap detection — suggest, never auto-apply.
-      Test against the 6/29 board-20/21 swap.
-  - Worktree: reconciliation-join
-- [ ] Graceful degradation: run to completion with zero travellers (no deal, no
-      enrichment).
-  - Worktree: reconciliation-join
+The join is `unreviewed.reconciliation.reconcile_session`, taking the sheet,
+every traveller covering it, and the configured player name;
+`unreviewed.deal_checks` holds the deal and opening-lead integrity checks.
+Deciding which travellers cover a session belongs to acquisition, below.
 
 ---
 
@@ -245,6 +228,19 @@ parsed value.
   - Worktree: review-ui
   - Open question: framework, keybindings, commit semantics — see spec.md
     `#open-questions`.
+- [ ] Tell a hand-corrected field from a traveller-sourced one before shipping
+      any hand-editing of the reconciled fields. {#corrections-survive-rerun}
+  - Rationale: reconciliation owns `deal`, `matchpoints`, `our_pair`, and
+    `opponents`, and a re-run rewrites all four — clearing them outright when it
+    runs with no traveller, which is what makes a withdrawn capture take its
+    enrichment with it. Nothing in the model separates a value a person typed
+    from one a traveller supplied, so today a re-run would silently delete a
+    correction. Reconciliation is safe on its own, since it is the only writer;
+    the hazard arrives with the second writer, which is this UI.
+  - Note: whichever way it is solved — a provenance marker per field, a
+    corrections overlay applied after the join, or reconciliation declining to
+    clear what it did not write — it has to land before hand-editing does, not
+    after.
 - [ ] Triage-ranked field list with image crop beside the parsed value and
       keyboard accept/fix.
   - Worktree: review-ui
@@ -332,18 +328,63 @@ rationale lives in the design docs' open-question sections —
     `recordedContract=+&score=NS` where a played row carries a number. The code
     describes what the page does and expands nothing, which is settled; the
     reading itself stays open, and a capture carrying `EW` would answer it.
-- [ ] Recover full names from a one-winner club recap. Trigger: a captured
-      Howell or other one-winner movement. {#one-winner-recap}
+- [ ] Recover full names from a one-winner club recap. No longer blocked — the
+      capture that answers it is already on hand. {#one-winner-recap}
   - Note: `club_html_parsing` reads the standings recap only after a heading
     naming a direction (`Section A North-South`). A one-winner movement ranks
-    its pairs as a single list, so its recap plausibly heads the standings with
-    the section alone — and that parser would then collect no standings at all,
-    leaving every pair with the surnames its board row prints. Confirmed by
-    stripping the direction from a fixture: no row is lost and nothing raises,
-    but the full names go.
-  - Open question: what such a heading actually says. Every club capture on hand
-    is a two-winner Mitchell, so the fix cannot be written without guessing at
-    the markup — hence parked rather than attempted.
+    its pairs as a single list, so its recap heads the standings with the
+    section alone — and that parser then collects no standings at all, leaving
+    every pair with the surnames its board row prints.
+  - Note: `club/R260629M.html` carries both forms and so is the fixture this
+    needs. Its section A is one-winner and heads the standings
+    `Scores after 8 rounds  Average: 48.0      Section  A`; its section B is a
+    two-winner Mitchell heading `Section  B  North-South` and
+    `Section  B  East-West`. The direction is simply absent — the layout is
+    otherwise identical — and section A's pairs are exactly the ones that come
+    out surname-only today.
+  - Note: reconciliation matches our row on the surname alone as well as the
+    full name, so this costs full names for the pairs in a one-winner section
+    rather than the join itself (travellers.md #finding-our-row).
+- [ ] Judge whether an unfilled field plus a prose issue is enough when two
+      sources disagree. Trigger: enough reconciled sessions that disagreements
+      have actually happened. {#disagreement-in-practice}
+  - Rationale: travellers.md asked for the field to carry both candidates, and
+    `Board` has nowhere to hold two values, so a disagreement currently leaves
+    the field empty and names both accounts in the issue message. That preserves
+    everything a person needs but nothing a program can act on — a review UI
+    cannot offer "take the ACBL value" without parsing English.
+  - Note: no capture on hand exercises this. Both 6/29 captures agree on every
+    field of every board, so the path has only ever run against fixtures; how
+    often real sources disagree is itself part of what this answers.
+  - Note: the fix, if one is wanted, is an envelope per enriched field — the
+    shape the sheet models already use for transcription. Worth doing when
+    something consumes the candidates, not before.
+- [ ] Judge whether swap detection earns its keep, and whether transpositions
+      are the right search. Trigger: several digitized sheets reconciled.
+      {#swap-detection-in-practice}
+  - Rationale: it searches transpositions of every row pair, which catches the
+    swap the 6/29 sheet carried but not a rotation — a skipped row sliding
+    everything after it up by one. The argument for stopping there is that a
+    rotation misaligns every later board and so announces itself through the
+    cross-checks, where a two-row swap disturbs exactly two. Whether that holds
+    is a question for real sheets.
+  - Note: what to watch is false suggestions rather than missed ones. A
+    suggestion a person has to think about and reject costs more than a swap the
+    cross-checks would have surfaced anyway.
+- [ ] Strip the masterpoint award a club recap prefixes to some player names.
+  - Note: `club/gameresults2/tgif/R260717M.htm` parses pairs named names of the
+    form `0.32(SB) First Last`, so the standings recap's award column is being
+    read into the name beside it. Every pair in that capture is affected; the
+    other club captures are clean, so it is that recap's layout rather than the
+    parser's whole approach.
+  - Note: it would defeat our-row matching for a session we played at that club,
+    since the configured name would no longer match the printed one.
+- [ ] Give the user-specific configuration a home — the player name
+      reconciliation matches on, the ACBL player number the fetchers take, and
+      the club index URL. Trigger: the first command that drives reconciliation,
+      which needs the name from somewhere.
+  - Note: settled in shape already — see travellers.md #configuration. Each
+    value is currently a parameter its caller must supply by hand.
 - [ ] Remote-backed, size-tolerant durable store beyond `bridge-private`, if the
       growing game database outgrows the repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital

@@ -53,12 +53,12 @@ it empty for every row, so in practice the opening lead stays sheet-only (see
 Two sources cover a typical club session; tournaments have only ACBL Live.
 
 - **ACBL Live** — the official ACBL record. Two surfaces, both keyed by the
-  player number (`2475316`): club games at `my.acbl.org/club-results/...` and
-  tournaments at `live.acbl.org/player-results/...`. Identifies pairs by name
-  _and_ number, and carries the deal and par. The two are separate parses
-  despite the shared publisher: a club page carries a JSON blob and is read from
-  that blob, while a tournament page carries none and is read from the markup,
-  which arrives already built in the server's response.
+  player number: club games at `my.acbl.org/club-results/...` and tournaments at
+  `live.acbl.org/player-results/...`. Identifies pairs by name _and_ number, and
+  carries the deal and par. The two are separate parses despite the shared
+  publisher: a club page carries a JSON blob and is read from that blob, while a
+  tournament page carries none and is read from the markup, which arrives
+  already built in the server's response.
   - Only a **pairs** game publishes a traveller. A team game's page carries
     match scores and no per-board rows at all, so there is nothing in it to
     parse — reported as such rather than passed off as an empty traveller.
@@ -310,13 +310,13 @@ each row is printed once in either side's table and the two are joined on the
 pair numbers they both name — though a director awarding an average to both
 sides puts a row off the total legitimately.
 
-## Reconciliation
+## Reconciliation {#reconciliation}
 
 Reconciliation joins a digitized sheet to its traveller(s) and enriches the
 sheet's record. It is best-effort: every traveller cross-check degrades to
 skipped rather than failing (see [Graceful degradation](#graceful-degradation)).
 
-### Finding our row
+### Finding our row {#finding-our-row}
 
 The sheet never records who we are, and partners vary week to week — so our pair
 cannot be a fixed identity. **Match on the user's own name alone:** on each
@@ -329,19 +329,47 @@ Matching on the configured name dissolves the harder "recover our identity by
 content" problem: we know who we are, so reconciliation recovers only the
 _opponents'_ identity (the other pair in our row) and the matchpoints.
 
+**Two spellings match: the configured full name, and its surname alone.** Both
+ACBL surfaces print full names, and so does a club recap whose standings could
+be read; a club recap whose standings could not be read leaves the surnames its
+board rows print (see tasks.md `#one-winner-recap`), and a club PBN prints
+surnames or no names at all. Nothing else matches — testing a bare surname
+against every printed full name would claim every namesake in the field, which
+at a club is a real risk rather than a theoretical one. A board naming us twice
+is reported rather than guessed at.
+
+**The ACBL player number is deliberately not carried.** It would be an exact
+key, but it exists only on the two ACBL surfaces — which already print full
+names. The sources whose names are weak are the club's, and they do not publish
+it at all. So carrying it would touch every parser and `PairIdentity` without
+improving the case that actually needs help.
+
 ### Cross-checks and enrichment
 
-- **Recoverable fields** (contract, declarer, result, matchpoints) are compared
-  between our row and the sheet. A disagreement raises the board's review
-  priority. For the **declarer**, neither side is authoritative — travellers are
-  sometimes wrong where the local notes are right — so a mismatch is surfaced,
-  never auto-resolved (see [spec.md](spec.md#reconciliation)).
+- **Recoverable fields** (contract, declarer, result) are compared between our
+  row and the sheet. A disagreement raises the board's review priority. For the
+  **declarer**, neither side is authoritative — travellers are sometimes wrong
+  where the local notes are right — so a mismatch is surfaced, never
+  auto-resolved (see [spec.md](spec.md#reconciliation)). The matchpoints are not
+  among the compared fields: the sheet has no matchpoint field at all, by
+  design, because our own estimate of them is not worth storing (see
+  [models.md](models.md#vision-output)) — so they are enrichment only.
 - **Enrichment**: the reconciled subset — deal, matchpoints, and both pair
   identities — is copied onto our `Board`, so the per-session record stays
   self-contained for the analysis stage; the par stays in the traveller record,
   read from there by the analysis stage. When two sources disagree on a copied
-  field, the field is flagged and carries both candidates rather than taking a
-  silent tiebreak.
+  field, the field is left unfilled and an issue names what each source said,
+  rather than taking a silent tiebreak — a record that asserts nothing is honest
+  where one that picks a winner is not.
+- **Detail is not disagreement.** Two sources routinely describe one thing at
+  different depths: `Last & Person` and `First Last & Second Person` are one
+  pair written twice. A pair merges when its seat — number, side, and section —
+  matches outright and each name abbreviates the other, and the fuller spelling
+  is kept. That is not the tiebreak above, because nothing is discarded: the
+  sparser spelling is contained in the fuller one. The same holds across formats
+  — a club PBN hand record supplies the deal for boards its HTML recap never
+  covered, and a board dealt but never reached is a board nobody played rather
+  than a source disagreeing.
 - **The deal enables a new integrity check.** The opening lead (sheet-only) must
   be a card in the hand of declarer's left-hand opponent. A violation flags the
   lead, the declarer, or the board numbering — a check the sheet alone cannot
@@ -371,22 +399,22 @@ explicit action produces a reviewable record from the sheet plus computed
 dealer/vulnerability alone. That record is legitimate but analytically
 incomplete — no deal, no matchpoints, no opponent identities.
 
-### Graceful degradation
+### Graceful degradation {#graceful-degradation}
 
 With no traveller, every cross-check is skipped rather than failing, and the
 sheet stands alone. The pipeline runs to completion with zero travellers; the
 consequence is simply an un-enriched record, surfaced through the escape hatch.
 
-## Configuration
+## Configuration {#configuration}
 
 Reconciliation and acquisition need a small amount of stable, user-specific
 configuration, kept out of the code. Where the private data lives is not part of
 it — that is found rather than configured, per [Storage and PII](#pii).
 
-- **The user's name**, as it appears in traveller pairs, for our-row matching.
-  Name variants (nicknames, initial-plus-surname) may need more than one form or
-  a normalization step — an open question until real captures show the range.
-- **The ACBL player number** (`2475316`) for the fetch surfaces.
+- **The user's name** in full, for our-row matching. One value covers every form
+  the captures on hand print, because the surname is derived from it rather than
+  configured beside it — see [Finding our row](#finding-our-row).
+- **The ACBL player number**, which keys both fetch surfaces.
 - **The club index URL** (`paloaltobridge.org/game-results/`).
 
 ## Storage and PII {#pii}
@@ -493,8 +521,10 @@ the public repo.
 
 ## Open questions
 
-- **Name-variant handling** — how many forms of the user's name appear across
-  captures, and whether a normalization step is needed.
+- **Name variants beyond the surname** — the captures on hand print the full
+  name or the surname alone, both of which match. A nickname or an
+  initial-plus-surname would not, and none has appeared yet; if one does, the
+  configured name grows into a list of forms rather than changing shape.
 - **Remote-backup service** — whether `bridge-private` alone suffices or a
   separate size-tolerant backing service is warranted.
 - **Pianola** — support for club games that post only there, deferred until a

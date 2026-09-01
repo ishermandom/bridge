@@ -267,8 +267,16 @@ class Board(FrozenModel):
   opening_lead: Lead | None = None
   outcome: Outcome | None = None
   # Traveller-sourced; filled at reconciliation, `None` until then and for
-  # no-traveller sessions.
+  # no-traveller sessions. Our side's matchpoints on this board.
   matchpoints: float | None = None
+  # Traveller-sourced like `matchpoints`. The deal is what the whole downstream
+  # analysis rests on, and no sheet records it.
+  deal: Deal | None = None
+  # The two pairs at our table, traveller-sourced like `matchpoints`. Both are
+  # per-board rather than per-session: a one-winner movement sits our pair in
+  # both directions over a session, so even our own identity varies by board.
+  our_pair: PairIdentity | None = None
+  opponents: PairIdentity | None = None
   notes: str | None = None
   issues: tuple[Issue, ...] = ()
 
@@ -310,14 +318,15 @@ class CaptureReference(FrozenModel):
 class Source(FrozenModel):
   """Provenance for a digitized session: its image and travellers consulted.
 
-  `travellers` records which travellers the reconciliation pass consulted; it is
-  empty until then and for no-traveller sessions.
+  `travellers` names the captures the reconciliation pass consulted, and is
+  empty until then and for no-traveller sessions. It names the captures rather
+  than the records parsed from them because a record's path follows from its
+  capture's with `.json` appended, and the capture is the durable half — a
+  record is derived, and regenerated whenever a parser changes.
   """
 
   image: SheetImage
-  # TODO: reconciliation will replace these path/URL references with a richer
-  # traveller type once that phase defines one.
-  travellers: tuple[str, ...] = ()
+  travellers: tuple[CaptureReference, ...] = ()
 
 
 class Session(FrozenModel):

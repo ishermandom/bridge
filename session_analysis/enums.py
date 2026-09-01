@@ -19,6 +19,24 @@ class Direction(enum.StrEnum):
   SOUTH = 'S'
   WEST = 'W'
 
+  @property
+  def left_hand_opponent(self) -> 'Direction':
+    """The seat to this one's left.
+
+    Play moves clockwise, so this is the seat that plays first after this one —
+    and against a declarer, the seat that makes the opening lead.
+    """
+    return _LEFT_HAND_OPPONENTS[self]
+
+
+# The seating order play follows, clockwise from North.
+_LEFT_HAND_OPPONENTS: Mapping[Direction, Direction] = {
+  Direction.NORTH: Direction.EAST,
+  Direction.EAST: Direction.SOUTH,
+  Direction.SOUTH: Direction.WEST,
+  Direction.WEST: Direction.NORTH,
+}
+
 
 class Side(enum.StrEnum):
   """A partnership — the pair of seats that plays as one unit.

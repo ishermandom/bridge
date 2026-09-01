@@ -264,17 +264,18 @@ validation pass define the concrete code set (see
   ingest assigns it, downstream of parsing.
 - `event` — raw footer text.
 - `date` — parsed date, or null with an issue if unparseable.
-- `source` — provenance: the sheet image (path + content hash) and the
-  travellers consulted — still a placeholder path list, until the storage task
-  settles what a reference to a stored `Traveller` is (see
-  [travellers.md](travellers.md)).
+- `source` — provenance: the sheet image (path + content hash) and the captures
+  reconciliation consulted, as `CaptureReference`s. It names the captures rather
+  than the records parsed from them because a record's path follows from its
+  capture's, and the capture is the half that is not regenerated whenever a
+  parser changes (see [travellers.md](travellers.md)).
 - `boards` — the tuple of `Board`s.
 - `issues` — session-level issues, such as an unreadable date; board- and
   token-level issues live on the board and its envelopes.
 
 Our own pair identity is intentionally not a field here: it is resolved from the
 travellers at reconciliation, not read from the sheet (see
-[Vision model output](#vision-model-output)).
+[Vision model output](#vision-output)).
 
 ### Board
 
@@ -289,7 +290,7 @@ travellers at reconciliation, not read from the sheet (see
   until reconciliation and for no-traveller sessions.
 - `our_pair` and `opponents` — the two `PairIdentity`s at our table, recovered
   at reconciliation, null until then. The sheet records neither (see
-  [Vision model output](#vision-model-output)).
+  [Vision model output](#vision-output)).
 - `auction` — an ordered tuple of `AuctionEntry`.
 - `notes` — freetext cursive annotations (the inline questions), or null.
 - `issues` — board-level issues.
