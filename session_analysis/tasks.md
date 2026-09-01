@@ -54,6 +54,24 @@ unread.
     failure-containment path were exercised for real in one run. A reviewer
     running it today should expect the same two ACBL failures — that is
     #cloudflare-stopped-clearing, not a fault in the command.
+  - Note: the ingest spine — `ingest`, `scan_decoding`, `session_keys`, and
+    `session_matching` — landed the same way. Its design was settled with the
+    user before it was written: the frame on `SheetImage` rather than `Source`,
+    a provisional key renamed at review rather than a stable id, the key derived
+    from the footer alone with the time of day riding in the footer text, the
+    capture match reading the date alone, the first page of a multi-page scan
+    digitized and the rest reported, and failures moved to `scoresheets/failed/`
+    with a sidecar. Each is argued where it is implemented, so what remains is
+    whether the code does what those decisions say.
+  - Note: the spine has never been run against a real scan. Every test drives it
+    with a drawn grid and a scripted model, so what a reviewer cannot take from
+    the tests is whether a phone's own scan dewarps, whether its EXIF states a
+    capture date, and what a real footer normalizes to. One run over a real
+    sheet is worth more than another reading of `ingest.py`.
+  - Note: `testing/provenance.py` and `testing/scripted_model.py` sit outside
+    this directory deliberately — reviewed tests import both, and code here may
+    not be depended on by reviewed code. Both are test-support with no logic,
+    and they were reviewed as they landed.
   - Open question: whether `reconciliation.py` wants splitting. At 1076 lines it
     is the project's longest module, though only a little past
     `club_html_parsing.py`, so it is a judgment call rather than a clear
@@ -118,9 +136,12 @@ Deciding which travellers cover a session belongs to acquisition, below.
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
-`fetch_travellers` drives a date's fetch and the store pass that follows it.
-What remains is matching a capture to the session it belongs to, and running
-reconciliation off that match.
+`fetch_travellers` drives a date's fetch and the store pass that follows it, and
+`unreviewed.session_matching.match_travellers` places each stored capture
+against the sessions on hand, reading the capture's date alone — travellers.md
+`#matching` covers why an event name cannot be compared across sources. The
+ingest command runs both on its way past, so a capture saved by hand needs no
+command of its own. What remains is running reconciliation off that match.
 
 - [ ] Rework the ACBL fetch to meet the challenge with nothing attached.
       {#cloudflare-stopped-clearing}
@@ -166,14 +187,19 @@ reconciliation off that match.
     publicly, access goes through a person at ACBL, and the samples on record
     read masterpoint and rank data — worth one email if this rework ever stops
     holding.
-- [ ] Match a capture to its session by parsed metadata (event + date), not the
-      filename or URL.
-  - Worktree: ingest-spine
-  - Note: the club calendar's label for a game (`Palo Alto Duplicate`) is not
-    the event name inside its files (`John & Will's Monday Bridge`), so the
-    label can't stand in for the metadata.
-- [ ] Manual-save fallback: a capture dropped in is picked up and matched.
-  - Worktree: ingest-spine
+- [ ] Disambiguate a capture matching two sessions. {#multi-session-days}
+  - Rationale: a two-game day leaves a club capture matching both sessions.
+    `match_travellers` reports the ambiguity and matches neither rather than
+    guessing, so nothing goes silently wrong — but it does leave a manual step.
+  - Note: only the ACBL club surface publishes anything time-like today, as a
+    coarse `club_session` label (`Monday Morning`); the club's own PBN and HTML
+    and the ACBL tournament pages carry a date and nothing finer. Tournament
+    captures are expected to state a session time, which is the first thing to
+    check.
+  - Note: the strongest signal available may be our-row name matching — we
+    appear in the traveller for the session we actually played — but that needs
+    the configured name, which reconciliation defines.
+
 - [ ] Verify the ACBL club index isn't truncated for older dates.
       `fetch_club_travellers` reads the index via an in-page fetch of the raw
       server HTML, which returned every row for the tournament index (not just
@@ -201,6 +227,15 @@ reconciliation off that match.
     published it is the first thing to look at.
 - [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
       reconciliation; review stays deferred until then.
+  - Note: both halves exist and nothing joins them.
+    `unreviewed.ingest.match_new_captures` says which travellers cover which
+    pending session, and `unreviewed.reconciliation.reconcile_session` takes a
+    sheet and the travellers covering it. What is missing is the step that reads
+    the matched records, runs the join, and writes the enriched session back.
+  - Open question: where the enriched record lands. It is still awaiting review,
+    so `sessions/pending/` is the obvious home — but re-running the join has to
+    overwrite in place rather than accumulate, and #corrections-survive-rerun
+    already constrains what a re-run may overwrite.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
       session no traveller arrives for.
 
@@ -211,72 +246,39 @@ reconciliation off that match.
 **Goal:** get a scan from the phone onto the Mac and through the pipeline — the
 first stage that runs extraction end to end and writes a session to disk.
 
+The spine is `unreviewed.ingest.process_inbox`, run as
+`python -m session_analysis.unreviewed.ingest`: `scan_decoding` reads a scan
+file into an image and the day it was taken, `unreviewed.ingest.digitize_scan`
+carries it through extraction and assembly, and `session_keys` names the result
+from its footer. The run also stores newly saved traveller captures and matches
+them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
+record waits for review, and what becomes of a scan that raises.
+
 - [ ] Choose the scanner app and transport.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
   - Note: this gates where `inbox/` lives, not the pipeline code below it — the
     spine can be built and tested against a local directory first.
-- [ ] Wire the extraction run: scan image → `transcribe_sheet` →
-      `parse_and_assemble_voted_session` → a validated `Session`. Nothing calls
-      the two entry points together today.
-  - Worktree: ingest-spine
-  - Note: ingest supplies what they need beyond the image — the `Source`
-    (archived path plus content hash) and the `reference_date`.
-  - Note: `reference_date` is the day of the scan, not the day of the run — it
-    is what fixes the year on a footer that writes only `6/29`. Reprocessing an
-    archived scan resolves the year against the wrong "today" and shifts it
-    silently, so take the date from the image's capture time, not the clock.
-- [ ] Decode the scan into images: rasterize PDF pages, and settle what several
-      pages in one container mean.
-  - Worktree: ingest-spine
-  - Open question: spec.md allows a multi-page scan of one sheet, but
+- [ ] Settle what several pages in one scan container mean. {#multi-page-scans}
+  - Rationale: spec.md allows a multi-page scan of one sheet, but
     `transcribe_sheet` takes a single image. Are the extra pages retakes to
     choose among, parts of one grid to stitch, or separate sheets? The answer
     decides whether this is a decode step or a merge stage.
-- [ ] Persist the detected geometry and `source_quad` with the processed
-      session.
-  - Worktree: ingest-spine
-  - Note: `SheetTranscription`'s docstring already promises these persist
-    "alongside the processed session", so the review UI can reproduce the
-    dewarped frame and its grid from the archived scan instead of re-detecting
-    them — but `Session` and `Source` have no field to hold them. Needs a
-    models.md decision before the writer lands.
-- [ ] Failure disposition: a scan that raises — `SheetGeometryError`, an
-      unreadable file, a failed model invocation — reports loudly and moves
-      somewhere terminal rather than sitting in `inbox/` for the next run to
-      retry.
-  - Worktree: ingest-spine
-  - Rationale: the explicit command was chosen over a watcher so failures stay
-    visible; a scan that silently stays put re-spends a model call every run.
-- [ ] Inbox spine: `inbox/` → `processed/<session-key>.json` + image →
-      `archive/`, idempotent on footer + content hash.
-  - Worktree: ingest-spine
-  - Note: the two keys apply at different points. The content hash is known
-    before extraction and short-circuits a re-dropped file without spending a
-    model call; the footer is known only after extraction, and catches a fresh
-    photo of a sheet already digitized.
-- [ ] Footer self-naming → session key, confirmed in review before commit.
-  - Worktree: ingest-spine
-  - Note: derivation is unspecified beyond the example `pabc-mon-2026-06-29` — a
-    club slug and a weekday off handwritten freetext, so it needs a
-    normalization rule rather than a format string.
-  - Note: the key is also the reconciliation join, so it has to agree with the
-    traveller-side match on event and date (see Traveller acquisition).
-  - Open question: review is deferred until reconciliation runs, so the key
-    can't be confirmed at ingest time. Decide what the record and its image are
-    named in between — a provisional key renamed once confirmed, or a stable id
-    that never moves, with the key as a field only.
-- [ ] The "process inbox" command.
-  - Worktree: ingest-spine
-  - Note: `session_analysis` is a `package = false` uv member with no console
-    script, so this runs as `python -m session_analysis.<module>` unless that
-    changes; `fetch_travellers` is the nearer precedent for the shape, and
-    `convention_cards/make_card.py` the house argparse pattern behind it. This
-    being the second command to land, it is also where a shared CLI shape would
-    first be visible — worth a look for what the two genuinely have in common
-    before extracting anything.
-  - Note: an explicit trigger only beats a watcher if its output says what
-    happened — summarize each scan as digitized, skipped, or failed.
+  - Note: deferred deliberately — the scanner app is not chosen, so no real
+    multi-page scan exists to settle it against. Until one does, `decode_scan`
+    reads the first page and reports the rest as an `extra_scan_pages` issue, so
+    nothing is silently dropped.
+- [ ] Canonicalize the event slug through an alias table. {#canonical-slug}
+  - Rationale: the slug is the footer text normalized literally, so `PABC morn.`
+    one week and `PABC Morning` the next give two slugs for one game. Keys stay
+    correct — each names its own session — but they read inconsistently across
+    weeks.
+  - Note: this is what would introduce `configuration.py`, which travellers.md's
+    Configuration section already calls for and nothing has yet built: the
+    user's name for our-row matching, the ACBL player number, the club index
+    URL, and this table.
+  - Note: an unknown footer should fall back to the literal normalization it
+    does today, not fail — a game played once should not need a config edit.
 
 ---
 
@@ -541,6 +543,35 @@ rationale lives in the design docs' open-question sections —
 ## Cleanup
 
 **Goal:** tidy-ups that only make sense once the work they trail has landed.
+
+- [ ] Look for a shared shape between the two commands. {#shared-command-shape}
+  - Rationale: `unreviewed.fetch_travellers` and `ingest` are both
+    `python -m session_analysis.<module>` entry points that find the private
+    tree, do a pass over it, and print what happened. Two is the first point at
+    which a common shape is visible at all.
+  - Note: look before extracting. They differ in more than they share — one
+    takes arguments and the other none, one reports per source and the other per
+    scan — so the answer may well be that they have only the tree lookup in
+    common, which is already `private_paths`.
+- [ ] Investigate whether `models` should stop importing the image pipeline.
+      {#models-import-direction}
+  - Rationale: `SheetFrame` holds a `SheetGeometry` and a `Quad`, which live in
+    the modules that compute them — so `models` imports `sheet_geometry` and
+    `sheet_dewarp`, and every consumer of the canonical models now loads Pillow
+    transitively. `parsing`, `validation`, `travellers`, and all four capture
+    parsers pay that cost for types they never touch.
+  - Note: it is import weight, not a cycle — neither of those modules imports
+    `models` — so nothing is broken. The question is whether the coupling is
+    worth removing, not whether it is wrong.
+  - Note: the obvious fix inverts it — move `Box`, `Point`, `Quad`, and
+    `SheetGeometry` into `models` as canonical types, the way `Card` and `Deal`
+    are shared with `travellers`, and have the image pipeline import them from
+    there. That is a real refactor: `SheetGeometry` carries `row_pitch` and
+    `footer_box` methods, and `sheet_geometry` owns the constant the second
+    depends on.
+  - Note: measure before deciding. If Pillow's import cost is negligible for a
+    command that loads it anyway, the tidier dependency graph may not earn the
+    churn. models.md `#sheet-frame` records the reasoning as it stands.
 
 - [ ] Drop the `session_analysis/travellers/` entry from `.gitignore`. The
       directory is gone — the captures live in `bridge-private` now — and the
