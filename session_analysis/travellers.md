@@ -154,15 +154,45 @@ Whichever fetch is used:
 - **File under the publishing site's directory.** Both fetchers save beneath the
   directory for the site they read, and a capture saved by hand goes in the same
   place; see [Storage and PII](#pii) for why that is what picks the parser.
-- **Match by parsed metadata, never the filename or URL.** Each capture carries
-  its event name and date; parse those, derive the session key, and match to
-  sessions — mirroring the sheet's own footer self-naming. Filenames
-  (`1472071.html`, `R260629M.html`) and URL patterns are opaque or inconsistent.
+- **Match by parsed metadata, never the filename or URL.** Filenames
+  (`1472071.html`, `R260629M.html`) and URL patterns are opaque or inconsistent,
+  so what a capture belongs to is read out of the capture itself. What that
+  comes to in practice is [Matching a capture to its session](#matching).
 - **Reconciliation auto-runs on availability.** A fetched traveller that matches
   a pending session triggers reconciliation automatically; there is no separate
   "reconcile" command. The escape hatch — finalizing a session that no traveller
   ever arrives for — is the one explicit action (see
   [Reconciliation](#reconciliation)).
+
+### Matching a capture to its session {#matching}
+
+The session key and the capture match are two jobs, not one. The key names a
+session, derived from its sheet's own footer; the match decides which session a
+capture belongs to. They were once meant to be the same mechanism — derive the
+key from each side and compare — and the data does not allow it.
+
+One session's event name, as each source spells it:
+
+| source        | event                                     |
+| ------------- | ----------------------------------------- |
+| sheet footer  | handwritten freetext, transcribed as-is   |
+| club PBN      | `Monday Pairs`                            |
+| club HTML     | `Monday Pairs`                            |
+| ACBL club     | `Monday Morning \| Palo Alto Bridge Club` |
+| club calendar | `Palo Alto Duplicate`                     |
+| the real club | `John & Will's Monday Bridge`             |
+
+No normalization rule takes all of those to one slug, and any event comparison
+between a capture and a sheet rejects true matches far more often than it
+catches false ones. **So the match reads the date alone**, which every source
+states and states alike; `unreviewed.session_matching` holds it.
+
+Date alone is ambiguous only on a day two sessions were played. A capture
+matching more than one is reported and matched to neither, rather than guessed
+at — only the ACBL club surface publishes anything time-like today, as the
+coarse `club_session` label (`Monday Morning`), and the club's own files carry a
+date and nothing finer. tasks.md `#multi-session-days` carries the work to
+resolve it.
 
 ## Traveller data model {#traveller-model}
 
@@ -387,7 +417,7 @@ boards with identical results are indistinguishable, so a human confirms. The
 deal-versus-lead check and the computed dealer/vulnerability are additional,
 traveller-content-independent swap signals.
 
-### Timing and the escape hatch
+### Timing and the escape hatch {#timing}
 
 Travellers are published after the session — sometimes days later, sometimes
 never (paper-only hand records; a club game that posts only to Pianola). So
