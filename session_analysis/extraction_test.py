@@ -8,55 +8,17 @@ vision_model_invocation tests.
 """
 
 import json
-import pathlib
-import subprocess
-import types
-from collections.abc import Sequence
 
 from session_analysis.extraction import transcribe_sheet
+from session_analysis.testing.scripted_model import ScriptedModelRunner
 from session_analysis.testing.synthetic_scans import draw_sheet
 
 # 29 rules bounding 28 board rows at a 20px pitch, on a 600x800-pixel page.
 _STANDARD_RULE_YS = list(range(100, 661, 20))
 
 
-class _RecordingRunner:
-  """A scripted `run_command` fake: returns each of `results` in order,
-  recording every stdin it was called with so a test can inspect every request.
-  """
-
-  def __init__(self, results: Sequence[str]) -> None:
-    self._results = list(results)
-    self.stdin_texts: list[str] = []
-
-  def __call__(
-    self, command: Sequence[str], stdin_text: str, cwd: pathlib.Path
-  ) -> subprocess.CompletedProcess[str]:
-    self.stdin_texts.append(stdin_text)
-    reply = {
-      'type': 'result',
-      'is_error': False,
-      'result': self._results.pop(0),
-    }
-    return subprocess.CompletedProcess(
-      args=[], returncode=0, stdout=json.dumps(reply), stderr=''
-    )
-
-  def __enter__(self) -> '_RecordingRunner':
-    return self
-
-  def __exit__(
-    self,
-    exc_type: type[BaseException] | None,
-    exc: BaseException | None,
-    tb: types.TracebackType | None,
-  ) -> None:
-    if exc_type is None:
-      assert not self._results, f'{len(self._results)} scripted replies unused'
-
-
 def test_transcribe_sheet_returns_both_runs_raw_json() -> None:
-  with _RecordingRunner(
+  with ScriptedModelRunner(
     ['{"sheet": {"boards": []}}', '{"sheet": {"boards": [{}]}}']
   ) as runner:
     transcription = transcribe_sheet(draw_sheet(), run_command=runner)
@@ -68,7 +30,7 @@ def test_transcribe_sheet_returns_both_runs_raw_json() -> None:
 
 
 def test_transcribe_sheet_returns_the_detected_geometry() -> None:
-  with _RecordingRunner(['{}', '{}']) as runner:
+  with ScriptedModelRunner(['{}', '{}']) as runner:
     transcription = transcribe_sheet(
       draw_sheet(_STANDARD_RULE_YS), run_command=runner
     )
@@ -81,7 +43,7 @@ def test_transcribe_sheet_returns_the_detected_geometry() -> None:
 
 
 def test_transcribe_sheet_reads_the_same_strips_both_times() -> None:
-  with _RecordingRunner(['{}', '{}']) as runner:
+  with ScriptedModelRunner(['{}', '{}']) as runner:
     transcribe_sheet(draw_sheet(), run_command=runner)
 
   assert len(runner.stdin_texts) == 2
@@ -89,7 +51,7 @@ def test_transcribe_sheet_reads_the_same_strips_both_times() -> None:
 
 
 def test_transcribe_sheet_sends_labeled_strips_for_every_row() -> None:
-  with _RecordingRunner(['{}', '{}']) as runner:
+  with ScriptedModelRunner(['{}', '{}']) as runner:
     transcribe_sheet(draw_sheet(_STANDARD_RULE_YS), run_command=runner)
 
   content = json.loads(runner.stdin_texts[0])['message']['content']
