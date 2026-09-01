@@ -37,8 +37,8 @@ from session_analysis.travellers import (
 
 TESTDATA = pathlib.Path(__file__).parent / 'testdata/travellers'
 
-# The parser records this on the traveller and no test here reads it back,
-# so every call passes the same one rather than inventing a name apiece.
+# The parser records this on the traveller and no test here reads it back, so
+# every call passes the same one rather than inventing a name apiece.
 _REFERENCE = CaptureReference(path='capture.htm')
 
 # The stem BridgeComposer builds each suit's glyph from: the CSS class

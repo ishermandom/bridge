@@ -10,27 +10,26 @@ hands each capture to the parser that reads its format, and writes the parsed
 traveller beneath the records root.
 
 Parsing reads captures off disk rather than running as part of each fetch,
-because two things that need it involve no fetch at all. A capture saved by
-hand is the acquisition fallback for whatever the fetchers cannot reach, and
-never passes through them. And demonstrating that a parser change altered
-nothing means re-parsing every capture on hand and diffing the records, which
+because two things that need it involve no fetch at all. A capture saved by hand
+is the acquisition fallback for whatever the fetchers cannot reach, and never
+passes through them. And demonstrating that a parser change altered nothing
+means re-parsing every capture on hand and diffing the records, which
 re-fetching could not stand in for — a site makes no promise to serve the same
 bytes twice. Keeping the raw captures is what makes both possible, and this
 module is what reads them back.
 
 A capture's directory picks its parser, one directory per publishing site,
 because nothing inside a capture reliably announces its own format — the ACBL
-login page a gated game answers with parses as far as "no page data" rather
-than declining to be an ACBL page at all. A directory per site keeps that
-judgment where a person makes it once, at filing time, and gives a hand-saved
-capture the same standing as a fetched one.
+login page a gated game answers with parses as far as "no page data" rather than
+declining to be an ACBL page at all. A directory per site keeps that judgment
+where a person makes it once, at filing time, and gives a hand-saved capture the
+same standing as a fetched one.
 
-Records mirror the captures: a capture at `club/sub/dir/foo.pbn`
-stores as `club/sub/dir/foo.pbn.json`. Each record keeps its
-capture's whole name, extension and all, so two captures of one game cannot
-collide. The filename mirroring means that a capture's record
-can be located without opening anything, which lets a run tell at a
-glance which captures still need processing.
+Records mirror the captures: a capture at `club/sub/dir/foo.pbn` stores as
+`club/sub/dir/foo.pbn.json`. Each record keeps its capture's whole name,
+extension and all, so two captures of one game cannot collide. The filename
+mirroring means that a capture's record can be located without opening anything,
+which lets a run tell at a glance which captures still need processing.
 
 A run does only that work: a capture whose record already postdates it is left
 alone. Parsing everything again is only needed for a parser change, not for a
@@ -148,9 +147,8 @@ def store_travellers(
 
   A capture no parser claims, and one that parses to no boards at all, are both
   left unstored and reported as issues rather than raising: a run over a whole
-  tree should not stop at one odd file, and the same discipline the parsers
-  hold to inside a capture holds here across them (travellers.md
-  `#issue-reporting`).
+  tree should not stop at one odd file, and the same discipline the parsers hold
+  to inside a capture holds here across them (travellers.md `#issue-reporting`).
 
   Args:
     tree: the private tree whose capture root is read and whose records root is
@@ -194,10 +192,9 @@ def store_travellers(
       if not refresh and _is_current(record, capture):
         continue
 
-      # TODO: decode by the charset a capture declares rather than
-      # assuming UTF-8. Every capture on hand reads clean, and one that
-      # did not would raise rather than mislead, so this waits on a
-      # capture that exercises it.
+      # TODO: decode by the charset a capture declares rather than assuming
+      # UTF-8. Every capture on hand reads clean, and one that did not would
+      # raise rather than mislead, so this waits on a capture that exercises it.
       recorded_url = capture_urls.read_url(capture)
       issues.extend(recorded_url.issues)
       traveller = parse(

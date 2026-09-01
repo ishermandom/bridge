@@ -8,8 +8,8 @@ covers the shape a real summary arrives in — a section heading above the board
 panels, and each panel sharing a row with the two results tables that state its
 rows from either side.
 
-Names throughout are placeholders; the real captures hold players' names
-and live outside this repo (see travellers.md `#pii`).
+Names throughout are placeholders; the real captures hold players' names and
+live outside this repo (see travellers.md `#pii`).
 """
 
 import datetime
@@ -32,8 +32,8 @@ FIXTURE = (
   / 'testdata/travellers/acbl_tournament_session.html'
 )
 
-# The parser records this on the traveller and no test here reads it back,
-# so every call passes the same one rather than inventing a name apiece.
+# The parser records this on the traveller and no test here reads it back, so
+# every call passes the same one rather than inventing a name apiece.
 _REFERENCE = CaptureReference(path='capture.html')
 
 # The class the page gives each suit's span. The span is empty — the stylesheet
