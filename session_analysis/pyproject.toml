@@ -11,6 +11,8 @@ dependencies = [
   "pillow>=11",
   "playwright>=1.62",
   "pydantic>=2",
+  # Unwraps the image a scanner app's PDF holds; Pillow only writes PDFs.
+  "pypdf",
 ]
 
 [tool.uv]
