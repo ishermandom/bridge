@@ -236,6 +236,7 @@ command of its own. What remains is running reconciliation off that match.
     published it is the first thing to look at.
 - [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
       reconciliation; review stays deferred until then.
+  - Worktree: auto-reconcile
   - Note: both halves exist and nothing joins them.
     `unreviewed.ingest.match_new_captures` says which travellers cover which
     pending session, and `unreviewed.reconciliation.reconcile_session` takes a
@@ -308,6 +309,7 @@ parsed value.
     `#open-questions`.
 - [ ] Tell a hand-corrected field from a traveller-sourced one before shipping
       any hand-editing of the reconciled fields. {#corrections-survive-rerun}
+  - Worktree: review-ui
   - Rationale: reconciliation owns `deal`, `matchpoints`, `our_pair`, and
     `opponents`, and a re-run rewrites all four — clearing them outright when it
     runs with no traveller, which is what makes a withdrawn capture take its
