@@ -13,6 +13,7 @@ this project's data sits under `session_analysis`:
 
 ```text
 bridge-private/session_analysis/
+├── configuration.toml  the player name, ACBL number, and club index URL
 ├── scoresheets/
 │   ├── inbox/      scans waiting to be digitized
 │   ├── archive/    scans already digitized
@@ -61,6 +62,15 @@ class PrivateTree:
   root: Path
 
   @property
+  def configuration_file(self) -> Path:
+    """The settings particular to whoever runs this; `configuration` reads it.
+
+    A full name and a player number identify a real person, so the file belongs
+    here rather than in the public repository.
+    """
+    return self.root / 'configuration.toml'
+
+  @property
   def scan_inbox(self) -> Path:
     """Scans waiting to be digitized; a "process inbox" run reads these."""
     return self.root / 'scoresheets' / 'inbox'
@@ -105,10 +115,9 @@ class PrivateTree:
     """Digitized sessions awaiting reconciliation and review.
 
     Ingest writes here, not to `session_records`: review is deferred until a
-    traveller arrives (travellers.md `#timing-and-the-escape-hatch`), so a
-    freshly digitized record is not yet the reviewed thing the analysis stage
-    reads. A record graduates by being written to `session_records` once its
-    session key is confirmed.
+    traveller arrives (travellers.md `#timing`), so a freshly digitized record
+    is not yet the reviewed thing the analysis stage reads. A record graduates
+    by being written to `session_records` once its session key is confirmed.
     """
     return self.session_records / 'pending'
 

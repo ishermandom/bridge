@@ -449,6 +449,17 @@ it — that is found rather than configured, per [Storage and PII](#pii).
 - **The ACBL player number**, which keys both fetch surfaces.
 - **The club index URL** (`paloaltobridge.org/game-results/`).
 
+It lives in one TOML file in the private tree, read by
+`unreviewed.configuration`. Beside the data rather than in the public repo for
+the reason the captures themselves are, per [Storage and PII](#pii): a full name
+and a player number identify a real person. TOML rather than the JSON every
+record on disk uses, because this is the one file a person writes by hand — and
+unlike JSON, TOML takes the comments a file edited about once a year wants.
+
+Every setting is required, so that "configured" is one state rather than three.
+A partial file that happened to satisfy whichever command ran first would leave
+the next to fail on a value its writer believed they had already supplied.
+
 ## Storage and PII {#pii}
 
 A full game database is every club member's names and results accumulated over
