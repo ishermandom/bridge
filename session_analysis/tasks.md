@@ -168,6 +168,23 @@ the travellers now covering it, as
 `unreviewed.ingest.reconcile_pending_sessions`. So neither a capture saved by
 hand nor the reconciliation a match sets off needs a command of its own.
 
+- [ ] Fetch a real tournament traveller through the reworked ACBL fetch.
+      Trigger: the next tournament played.
+  - Rationale: the rework is proven end to end on the club surface — index, game
+    page, stored record — but the tournament surface has only ever been read as
+    far as its index, because no tournament fell on the date used to validate
+    it. The two surfaces share their machinery, so this is confirmation rather
+    than suspicion.
+- [ ] Stop the two unstorable ACBL captures reporting themselves every run.
+  - Rationale: `1430431` is a saved login page and `1484015` a team game, so
+    neither ever parses to boards and neither ever gets a record. Every run
+    therefore ends with the same two `capture_held_no_boards` issues, and always
+    will. It is why `has_fetch_failures` ignores issues, which is a workaround
+    for the noise rather than an answer to it.
+  - Open question: whether to file such captures somewhere the store does not
+    walk, record that they are known, or teach the store to say "known, still
+    nothing" more quietly. Deleting them would lose the two examples the
+    parsers' tests describe.
 - [ ] Share one browser across a run's two ACBL surfaces.
       {#share-one-acbl-browser}
   - Rationale: `fetch_club_travellers` and `fetch_tournament_travellers` each
