@@ -8,12 +8,13 @@ sheet with what it never recorded — the deal, the matchpoints, and who we and
 our opponents were — and turns every field both records into a cross-check.
 travellers.md `#reconciliation` carries the design.
 
-The join runs on its own rather than as part of ingest, because a traveller
-arrives after the session and sometimes days later. It is re-runnable: a run
-rewrites every field and finding it owns rather than adding to what is already
-there, so a second traveller landing later is handled by running the whole join
-again over both — over the session the last run produced as readily as over the
-sheet that run started from.
+A traveller arrives after the session and sometimes days later, so the join runs
+over every pending session on every ingest pass rather than once, when a session
+is digitized (`unreviewed.ingest.reconcile_pending_sessions`). Being re-runnable
+is what makes that work: a run rewrites every field and finding it owns rather
+than adding to what is already there, so a second traveller landing later is
+handled by running the whole join again over both — over the session the last
+run produced as readily as over the sheet that run started from.
 
 Three properties shape the code:
 

@@ -33,13 +33,20 @@ A scan that raises moves to `scoresheets/failed/` with a sidecar naming what
 went wrong. Terminal rather than staging: leaving it in the inbox would re-spend
 a model call every run, and a directory of files with no explanation beside them
 is not the loud failure this stage is supposed to produce.
+
+The run does not stop at the scans. It stores and matches whatever travellers
+have arrived since the last one, and joins each pending session to those now
+covering it, because reconciliation runs off a match rather than a command of
+its own (travellers.md `#acquisition`). One trigger therefore brings the whole
+tree up to date, whichever half arrived first: a sheet scanned weeks before its
+traveller is published is enriched by the run the traveller lands in front of.
 """
 
 import argparse
 import dataclasses
 import enum
 import hashlib
-from collections.abc import Iterator, Mapping, MutableSet, Sequence
+from collections.abc import Iterator, MutableSet, Sequence, Set
 from pathlib import Path, PurePosixPath
 
 from session_analysis import (
@@ -58,7 +65,10 @@ from session_analysis.models import (
 )
 from session_analysis.private_paths import PrivateTree, discover_private_tree
 from session_analysis.rule_grid import SheetGeometryError
+from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import (
+  configuration,
+  reconciliation,
   scan_decoding,
   session_keys,
   session_matching,
@@ -361,6 +371,11 @@ def _set_aside(scan: Path, tree: PrivateTree, error: Exception) -> None:
   sidecar.write_text(f'{type(error).__name__}: {error}\n')
 
 
+def _plural(count: int) -> str:
+  """The `s` a count of anything but one takes."""
+  return '' if count == 1 else 's'
+
+
 def summarize_run(reports: Sequence[ScanReport]) -> Iterator[str]:
   """The run summary, a line per scan, aligned for reading down the column.
 
@@ -372,15 +387,69 @@ def summarize_run(reports: Sequence[ScanReport]) -> Iterator[str]:
     return
 
   width = max(len(report.outcome) for report in reports)
-  plural = '' if len(reports) == 1 else 's'
-  yield f'{len(reports)} scan{plural} in the inbox:'
+  yield f'{len(reports)} scan{_plural(len(reports))} in the inbox:'
   for report in reports:
     yield f'  {report.outcome:<{width}}  {report.scan} — {report.detail}'
 
 
-def match_new_captures(
+@dataclasses.dataclass(frozen=True)
+class PendingSession:
+  """A digitized session awaiting review, and the travellers covering it.
+
+  `travellers` is empty for a session no capture matches, which is the ordinary
+  state of one whose results have not been published yet. Such a session is
+  carried anyway rather than left out, because the join has something to say
+  about it too — see `reconcile_pending_sessions`.
+  """
+
+  # What the record is called in `pending/`, which is the handle on the file.
+  stem: str
+  session: Session
+  travellers: tuple[Traveller, ...] = ()
+  # Captures the record cites that are still stored yet that this run placed on
+  # no session — an ambiguous date, or a stored record that no longer parses.
+  # They tell a capture that could not be placed from one that was withdrawn,
+  # which is what decides whether the enrichment stands, and they are what the
+  # run names when it says why a session was held.
+  unplaced_captures: tuple[str, ...] = ()
+  # Captures the record cites whose files are gone. Withdrawing a capture is
+  # deleting it, so these are what a record loses its enrichment over — and
+  # naming them is the difference between a run that says the enrichment went
+  # and one that says what took it.
+  withdrawn_captures: tuple[str, ...] = ()
+
+
+class SessionOutcome(enum.StrEnum):
+  """What became of one pending session in a reconciliation pass."""
+
+  # The join rewrote the record — enriched it from the travellers now covering
+  # it, or took the enrichment back off where nothing covers it any more.
+  RECONCILED = 'reconciled'
+  # Left exactly as it stands, because a capture the record cites could not be
+  # placed. Joining without it would take its enrichment off over a fault the
+  # run has already reported, so the record waits for a person instead.
+  HELD = 'held'
+
+
+@dataclasses.dataclass(frozen=True)
+class ReconcileReport:
+  """One session's fate in a reconciliation pass."""
+
+  session: str
+  outcome: SessionOutcome
+  # Why, in a phrase: what the join enriched the record from, what it took back
+  # off, or the capture it could not place.
+  detail: str
+  # What the join said about the record as a whole that it had not said before —
+  # above all a capture naming us in no row, which is the shape a capture
+  # matched to the wrong session takes. Board-level findings stay on the record
+  # for review; these are the ones worth a person's attention at the console.
+  issues: tuple[Issue, ...] = ()
+
+
+def match_pending_sessions(
   tree: PrivateTree,
-) -> issue_reporting.Read[Mapping[str, str]]:
+) -> issue_reporting.Read[Sequence[PendingSession]]:
   """Store any newly saved captures and match them to pending sessions.
 
   Storing runs alongside the inbox rather than under a command of its own
@@ -390,39 +459,281 @@ def match_new_captures(
   separate reconcile command.
 
   Returns:
-    The session each traveller belongs to, keyed by capture path, alongside
-    every issue the storing, reading, and matching raised. A tree with no
-    captures yet is an ordinary empty answer rather than an error — the scans
-    and the captures arrive by unrelated routes, and either can come first.
+    Every pending session, each carrying the travellers matched to it, in a
+    stable order by record name — alongside every issue the storing, reading,
+    and matching raised. A tree with no captures yet is an ordinary answer
+    rather than an error: the scans and the captures arrive by unrelated
+    routes, and either can come first.
   """
   issues: list[Issue] = []
   if tree.traveller_captures.is_dir():
     stored = traveller_store.store_travellers(tree)
     issues.extend(stored.issues)
 
-  travellers = session_matching.read_stored_travellers(tree)
+  records = session_matching.read_stored_travellers(tree)
+  # A record whose capture is gone is not a traveller this run has. The capture
+  # is the durable half and the record only what was derived from it, so
+  # withdrawing a capture is deleting the file — and a record outliving one
+  # would keep enriching the session the capture was taken off.
+  #
+  # A capture root that is missing altogether therefore reads as every capture
+  # withdrawn, and one run takes the enrichment off every pending session. That
+  # is the limit case of the same gesture rather than a separate hazard, and the
+  # private tree is a git checkout, so the records a wrong run rewrites are
+  # recoverable from its history.
+  travellers = tuple(
+    traveller
+    for traveller in records.value
+    if (tree.traveller_captures / traveller.reference.path).is_file()
+  )
   sessions = session_matching.read_pending_sessions(tree)
-  matched = session_matching.match_travellers(travellers.value, sessions.value)
-  issues.extend((*travellers.issues, *sessions.issues, *matched.issues))
-  return issue_reporting.Read(matched.value, tuple(issues))
+  matched = session_matching.match_travellers(travellers, sessions.value)
+  issues.extend((*records.issues, *sessions.issues, *matched.issues))
+
+  # Matching answers "which session is this capture's?", and the join asks the
+  # opposite — "which captures cover this session?" — so the mapping is turned
+  # around here, once, rather than by each reader of it.
+  covering: dict[str, list[Traveller]] = {}
+  for traveller in travellers:
+    stem = matched.value.get(traveller.reference.path)
+    if stem:
+      covering.setdefault(stem, []).append(traveller)
+
+  sessions_by_stem = {
+    session_matching.stem_of(session): session for session in sessions.value
+  }
+  pending = tuple(
+    _pending_session(
+      stem,
+      sessions_by_stem[stem],
+      covering.get(stem, ()),
+      matched.value.keys(),
+      tree.traveller_captures,
+    )
+    for stem in sorted(sessions_by_stem)
+  )
+  return issue_reporting.Read(pending, tuple(issues))
+
+
+def _pending_session(
+  stem: str,
+  session: Session,
+  covering: Sequence[Traveller],
+  placed: Set[str],
+  captures: Path,
+) -> PendingSession:
+  """One pending session, as a run's matching left it.
+
+  Args:
+    stem: what the record is called in `pending/`.
+    session: the record as it stands, before any join this run makes.
+    covering: the travellers this run placed on it, in any order.
+    placed: every capture path this run placed on some session.
+    captures: the capture root, which tells a capture still on disk from one
+      that has been withdrawn.
+  """
+  # What became of each capture the record cites. Read off the file rather than
+  # off the travellers that were parsed, because a capture whose stored record
+  # no longer parses is dropped before matching sees it — it would look placed
+  # nowhere and withdrawn at once.
+  unplaced = []
+  withdrawn = []
+  for reference in session.source.travellers:
+    if not (captures / reference.path).is_file():
+      withdrawn.append(reference.path)
+    elif reference.path not in placed:
+      unplaced.append(reference.path)
+
+  return PendingSession(
+    stem,
+    session,
+    # Sorted, so a record the join rewrites cites its captures in the same order
+    # every run and a re-run compares equal to what the last one wrote.
+    travellers=tuple(
+      sorted(covering, key=lambda traveller: traveller.reference.path)
+    ),
+    unplaced_captures=tuple(unplaced),
+    withdrawn_captures=tuple(withdrawn),
+  )
+
+
+def reconcile_pending_sessions(
+  tree: PrivateTree,
+  pending: Sequence[PendingSession],
+  *,
+  our_name: str,
+) -> Sequence[ReconcileReport]:
+  """Join each pending session to its travellers, rewriting what changed.
+
+  This is what makes a traveller landing trigger reconciliation rather than wait
+  for a command of its own (travellers.md `#acquisition`). The record stays in
+  `pending/` either way: the join enriches a session, and it is review that
+  graduates one (travellers.md `#timing`).
+
+  Every pending session is joined, not only the newly matched ones. A session
+  whose capture has since been withdrawn has to give its enrichment back, or the
+  record would keep asserting a deal that nothing now supports — and a run with
+  no travellers is the only thing that does that. A session citing a capture
+  this run could not place is passed over instead: nothing was withdrawn from
+  it, and rejoining over what is left would drop that capture's enrichment as
+  surely as a withdrawal would. Rewriting is confined to records the join
+  actually changed, so the common re-run, over travellers that have not moved,
+  touches no file and reports nothing.
+
+  Args:
+    tree: the private tree whose pending records are rewritten in place.
+    pending: every pending session and the travellers covering it.
+    our_name: the configured player name, used to find our row.
+
+  Returns:
+    One report per session the join rewrote or held back, in the order they
+    were given. A session it found nothing to do for is absent.
+  """
+  reports: list[ReconcileReport] = []
+  for one in pending:
+    # A record citing a capture that is still stored but that this run could not
+    # place lost it to a fault the run has already reported — an ambiguous date,
+    # or a stored record that no longer parses. Rejoining without it would take
+    # its enrichment and its citation off the record, destroying work nobody
+    # withdrew; that holds whether or not the run placed some other capture on
+    # the same session, so the record is left exactly as it stands.
+    #
+    # Reported rather than passed over quietly: the record is frozen until a
+    # person resolves what the run could not, and every run until then would
+    # otherwise print the same line a healthy tree does.
+    if one.unplaced_captures:
+      reports.append(
+        ReconcileReport(
+          one.stem, SessionOutcome.HELD, _held_detail(one.unplaced_captures)
+        )
+      )
+      continue
+
+    joined = reconciliation.reconcile_session(
+      one.session, one.travellers, our_name=our_name
+    )
+    # Compared as records rather than as serialized text, so a difference in
+    # formatting alone never counts as a change worth a rewrite.
+    if joined == one.session:
+      continue
+
+    record = tree.pending_session_records / f'{one.stem}{_RECORD_SUFFIX}'
+    record.write_text(joined.model_dump_json(indent=2) + '\n')
+    # Only what this join added: a finding the record already carried was
+    # reported by the run that first wrote it.
+    raised = tuple(
+      issue for issue in joined.issues if issue not in one.session.issues
+    )
+    reports.append(
+      ReconcileReport(
+        one.stem,
+        SessionOutcome.RECONCILED,
+        _reconciled_detail(one, joined),
+        raised,
+      )
+    )
+  return tuple(reports)
+
+
+def _held_detail(unplaced: Sequence[str]) -> str:
+  """Why a session was left as it stands, in the terms the summary prints.
+
+  Names the captures rather than counting them: what the reader has to go and do
+  is resolve those files, and a count would send them looking for which.
+  """
+  return (
+    f'cites {", ".join(unplaced)}, which this run could not place — resolve '
+    f'that and the join picks the session up again'
+  )
+
+
+def _reconciled_detail(pending: PendingSession, joined: Session) -> str:
+  """What a rewritten record now holds, in the terms the summary prints."""
+  if not pending.travellers:
+    gone = pending.withdrawn_captures
+    if not gone:
+      # Nothing vanished, so a capture the record cited was placed on some other
+      # session this run — the match moved rather than the file.
+      return 'no traveller covers it now, so its enrichment was taken back off'
+
+    # Named rather than counted: on a whole capture root gone missing this is
+    # the only thing separating an accident from a deliberate withdrawal, and
+    # the reader needs the filename either way.
+    is_gone = 'is' if len(gone) == 1 else 'are'
+    return (
+      f"{', '.join(gone)} {is_gone} no longer stored, so the record's "
+      f'enrichment was taken back off'
+    )
+
+  enriched = sum(1 for board in joined.boards if board.deal)
+  return (
+    f'enriched from {len(pending.travellers)} '
+    f'traveller{_plural(len(pending.travellers))} — '
+    f'{enriched} of {len(joined.boards)} boards have a deal'
+  )
+
+
+def summarize_reconciliation(
+  reports: Sequence[ReconcileReport],
+) -> Iterator[str]:
+  """The reconciliation summary, a line per session the join reports.
+
+  A session the join found nothing to do for says nothing: once a session is
+  reconciled that is what every later run finds, and printing the whole of
+  `pending/` each time would bury the sessions worth reading. A session held
+  back does get a line, because it is frozen until a person resolves what the
+  run could not — and silence there reads as the "nothing to do" a healthy run
+  prints.
+
+  What the join raised against a whole record is printed under it: a record
+  enriched from the wrong session's capture is otherwise indistinguishable here
+  from one enriched from the right one.
+  """
+  if not reports:
+    yield 'Every pending session is up to date.'
+    return
+
+  width = max(len(report.outcome) for report in reports)
+  yield f'{len(reports)} session{_plural(len(reports))} the join reports:'
+  for report in reports:
+    yield f'  {report.outcome:<{width}}  {report.session} — {report.detail}'
+    for issue in report.issues:
+      yield f'    {issue.code}: {issue.message}'
 
 
 def main() -> None:
-  """Process the scan inbox and report what happened to each scan."""
+  """Digitize the inbox, then reconcile what the travellers now cover."""
   _parse_args()
   tree = discover_private_tree()
+
+  # Read before the inbox, so a tree with no configuration yet costs no model
+  # call: a run that transcribed a sheet and then stopped for want of a name
+  # would have spent the expensive part to do half the job.
+  try:
+    settings = configuration.load_configuration(tree)
+  except configuration.ConfigurationError as error:
+    raise SystemExit(str(error)) from error
 
   run = process_inbox(tree)
   for line in summarize_run(run.value):
     print(line)
   _print_issues(run.issues)
 
-  captures = match_new_captures(tree)
+  pending = match_pending_sessions(tree)
+  matched = sum(len(one.travellers) for one in pending.value)
   print()
-  print(f'{len(captures.value)} captures matched to a digitized session.')
-  for capture, stem in sorted(captures.value.items()):
-    print(f'  {capture} — {stem}')
-  _print_issues(captures.issues)
+  print(f'{matched} capture{_plural(matched)} matched to a digitized session.')
+  for one in pending.value:
+    for traveller in one.travellers:
+      print(f'  {traveller.reference.path} — {one.stem}')
+  _print_issues(pending.issues)
+
+  reconciled = reconcile_pending_sessions(
+    tree, pending.value, our_name=settings.player_name
+  )
+  print()
+  for line in summarize_reconciliation(reconciled):
+    print(line)
 
 
 def _print_issues(issues: Sequence[Issue]) -> None:
@@ -440,7 +751,8 @@ def _parse_args() -> argparse.Namespace:
   than a silently ordinary run.
   """
   parser = argparse.ArgumentParser(
-    description='Digitize the scans waiting in the scoresheet inbox.'
+    description='Digitize the scans waiting in the scoresheet inbox, and '
+    'reconcile the sessions their travellers now cover.'
   )
   return parser.parse_args()
 

@@ -95,13 +95,13 @@ def match_travellers(
 
     candidates = sessions_by_date.get(traveller.date, ())
     if len(candidates) == 1:
-      matches[traveller.reference.path] = _stem_of(candidates[0])
+      matches[traveller.reference.path] = stem_of(candidates[0])
     elif len(candidates) > 1:
       issues.append(
         _AMBIGUOUS_SESSION_MATCH.issue(
           f'{traveller.reference.path} is dated {traveller.date}, which '
           f'{len(candidates)} digitized sessions share '
-          f'({", ".join(sorted(_stem_of(one) for one in candidates))}); '
+          f'({", ".join(sorted(stem_of(one) for one in candidates))}); '
           f'assign it by hand'
         )
       )
@@ -129,8 +129,13 @@ def read_pending_sessions(
   return _read_records(tree.pending_session_records, Session, 'session')
 
 
-def _stem_of(session: Session) -> str:
-  """The filename a session's pending record is stored under."""
+def stem_of(session: Session) -> str:
+  """The filename a session's pending record is stored under.
+
+  Public because a match is only useful to a caller that can then find the
+  record: `match_travellers` values its answer by this stem, so reading that
+  answer means deriving the same stem for the sessions it names.
+  """
   return session_keys.record_stem(
     session.session_key, session.source.image.content_hash
   )

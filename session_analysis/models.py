@@ -324,8 +324,8 @@ class CaptureReference(FrozenModel):
   file under their own naming, and an ACBL URL is an opaque game id.
 
   The two handles answer different questions and neither subsumes the other. The
-  path always exists and always resolves to a file that can be parsed again; the
-  URL exists only for a capture something fetched, and is the half nothing can
+  path is always recorded and names a file that can be parsed again; the URL
+  exists only for a capture something fetched, and is the half nothing can
   recover once it is lost.
 
   It sits here beside `SheetImage` rather than in travellers.py because both the

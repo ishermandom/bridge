@@ -18,7 +18,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from session_analysis.models import Session
+from session_analysis import board_rotation
+from session_analysis.models import Board, BoardNumber, Schedule, Session
 from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
@@ -27,12 +28,20 @@ from session_analysis.testing import provenance
 from session_analysis.testing.scripted_model import ScriptedModelRunner
 from session_analysis.testing.synthetic_scans import draw_sheet
 from session_analysis.unreviewed.ingest import (
+  ReconcileReport,
   ScanOutcome,
   ScanReport,
-  match_new_captures,
+  SessionOutcome,
+  match_pending_sessions,
   process_inbox,
+  reconcile_pending_sessions,
+  summarize_reconciliation,
   summarize_run,
 )
+
+# The name our row is matched on. No capture here names it — these cover the
+# join running at all, not what it finds once it does.
+OUR_NAME = 'First Last'
 
 TESTDATA = Path(__file__).parent.parent / 'testdata/travellers'
 
@@ -85,9 +94,16 @@ def _archived_scans(tree: PrivateTree) -> Sequence[Path]:
 
 
 def _write_pending_session(
-  tree: PrivateTree, session_key: str, date: datetime.date
+  tree: PrivateTree,
+  session_key: str,
+  date: datetime.date,
+  board_numbers: Sequence[int] = (),
 ) -> None:
-  """Put a digitized session in the tree, as an earlier run would have."""
+  """Put a digitized session in the tree, as an earlier run would have.
+
+  The boards carry a resolved number and nothing else: reconciliation joins on
+  the number, and every field it fills is one the sheet never recorded.
+  """
   tree.pending_session_records.mkdir(parents=True, exist_ok=True)
   record = tree.pending_session_records / f'{session_key}.json'
   record.write_text(
@@ -96,7 +112,22 @@ def _write_pending_session(
       event='PABC morn.',
       date=date,
       source=provenance.sheet_source(),
+      boards=tuple(_unenriched_board(number) for number in board_numbers),
     ).model_dump_json()
+  )
+
+
+def _unenriched_board(number: int) -> Board:
+  """One sheet row, as it stands before any traveller has been joined to it."""
+  return Board(
+    number=BoardNumber(
+      raw=str(number),
+      schedule=Schedule(
+        number=number,
+        dealer=board_rotation.dealer_for_board(number),
+        vulnerability=board_rotation.vulnerability_for_board(number),
+      ),
+    )
   )
 
 
@@ -472,11 +503,13 @@ def test_a_capture_dropped_in_is_stored_and_matched(tmp_path: Path) -> None:
     tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9)
   )
 
-  matched = match_new_captures(tree)
+  matched = match_pending_sessions(tree)
 
-  assert matched.value == {
-    f'{CLUB_CAPTURE_DIRECTORY}/D260309M.pbn': 'pabc-morn-2026-03-09'
-  }
+  (one,) = matched.value
+  assert one.stem == 'pabc-morn-2026-03-09'
+  assert [traveller.reference.path for traveller in one.travellers] == [
+    f'{CLUB_CAPTURE_DIRECTORY}/D260309M.pbn'
+  ]
 
 
 def test_a_tree_holding_no_captures_yet_is_not_an_error(
@@ -489,7 +522,237 @@ def test_a_tree_holding_no_captures_yet_is_not_an_error(
     tree, 'pabc-morn-2026-06-29', datetime.date(2026, 6, 29)
   )
 
-  matched = match_new_captures(tree)
+  matched = match_pending_sessions(tree)
 
-  assert matched.value == {}
+  (one,) = matched.value
+  assert one.stem == 'pabc-morn-2026-06-29'
+  assert one.travellers == ()
   assert not matched.issues
+
+
+# --- a traveller reconciles the session it covers ---
+
+
+def _drop_capture(tree: PrivateTree, name: str = 'D260309M.pbn') -> Path:
+  """Save a club capture by hand, as the acquisition fallback does."""
+  capture = tree.traveller_captures / CLUB_CAPTURE_DIRECTORY / name
+  capture.parent.mkdir(parents=True, exist_ok=True)
+  capture.write_text((TESTDATA / 'club_game.pbn').read_text())
+  return capture
+
+
+def _stored_record_of(tree: PrivateTree, capture: Path) -> Path:
+  """The traveller record a capture was parsed into."""
+  relative = capture.relative_to(tree.traveller_captures)
+  return tree.traveller_records / f'{relative}.json'
+
+
+def _reconcile(tree: PrivateTree) -> Sequence[ReconcileReport]:
+  """One whole run of the two passes the ingest command makes after a scan."""
+  return reconcile_pending_sessions(
+    tree, match_pending_sessions(tree).value, our_name=OUR_NAME
+  )
+
+
+def test_a_matched_traveller_enriches_the_pending_record(
+  tmp_path: Path,
+) -> None:
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+
+  reports = _reconcile(tree)
+
+  assert [report.session for report in reports] == ['pabc-morn-2026-03-09']
+  enriched = _stored_session(tree, 'pabc-morn-2026-03-09')
+  # The deal is what no sheet records and every traveller carries.
+  assert all(board.deal for board in enriched.boards)
+
+
+def test_a_withdrawn_capture_takes_its_enrichment_back_off(
+  tmp_path: Path,
+) -> None:
+  tree = PrivateTree(tmp_path)
+  capture = _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+  _reconcile(tree)
+
+  # The capture turned out to be a different session's and was taken away. The
+  # record parsed from it stays behind — nothing prunes one whose capture is
+  # gone — so the capture on disk is what says the traveller is still here.
+  capture.unlink()
+  assert _stored_record_of(tree, capture).is_file()
+  reports = _reconcile(tree)
+
+  # Named, not just counted: on a capture root gone missing altogether this
+  # line is the only thing separating an accident from a real withdrawal.
+  assert f'{CLUB_CAPTURE_DIRECTORY}/D260309M.pbn' in reports[0].detail
+  assert 'taken back off' in reports[0].detail
+  cleared = _stored_session(tree, 'pabc-morn-2026-03-09')
+  assert not any(board.deal for board in cleared.boards)
+
+
+def test_a_capture_that_cannot_be_placed_leaves_the_enrichment_alone(
+  tmp_path: Path,
+) -> None:
+  # A second sheet from the same date turns the match ambiguous, so the capture
+  # is placed on neither session. It was not withdrawn, though, so the session
+  # it already enriched keeps what the earlier run wrote.
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+  _reconcile(tree)
+
+  _write_pending_session(
+    tree, 'pabc-eve-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+
+  (held,) = _reconcile(tree)
+  assert held.session == 'pabc-morn-2026-03-09'
+  assert held.outcome == SessionOutcome.HELD
+  assert f'{CLUB_CAPTURE_DIRECTORY}/D260309M.pbn' in held.detail
+  assert all(
+    board.deal for board in _stored_session(tree, 'pabc-morn-2026-03-09').boards
+  )
+
+
+def test_a_rerun_over_unmoved_travellers_changes_nothing(
+  tmp_path: Path,
+) -> None:
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+  _reconcile(tree)
+
+  assert _reconcile(tree) == ()
+  # Reported as unchanged because it is already joined, not because the join was
+  # skipped or its work undone.
+  assert all(
+    board.deal for board in _stored_session(tree, 'pabc-morn-2026-03-09').boards
+  )
+
+
+def test_a_session_no_traveller_covers_is_left_alone(tmp_path: Path) -> None:
+  # A sheet scanned before its results are published, which is the ordinary
+  # state of a session for its first few days.
+  tree = PrivateTree(tmp_path)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-06-29', datetime.date(2026, 6, 29), (1, 2)
+  )
+
+  assert _reconcile(tree) == ()
+
+
+def test_a_traveller_record_that_stopped_parsing_holds_the_enrichment(
+  tmp_path: Path,
+) -> None:
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+  _reconcile(tree)
+
+  # The stored record no longer validates, most likely written under an older
+  # shape of the model. Matching drops it before it can be placed, but the
+  # capture it was parsed from is untouched — nothing was withdrawn.
+  stored = next(tree.traveller_records.rglob('*.json'))
+  stored.write_text('{"source": "club_pbn"}')
+
+  (held,) = _reconcile(tree)
+  assert held.outcome == SessionOutcome.HELD
+  kept = _stored_session(tree, 'pabc-morn-2026-03-09')
+  assert all(board.deal for board in kept.boards)
+
+
+def test_a_capture_that_broke_keeps_its_place_beside_one_that_did_not(
+  tmp_path: Path,
+) -> None:
+  # Two captures of one game, only one of whose records still validates.
+  # Rejoining over the survivor alone would take the other's contribution off a
+  # record nothing was withdrawn from — the same loss as undoing the whole
+  # enrichment, only quieter, since the run still reports a success.
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  recap = _drop_capture(tree, 'D260309M-recap.pbn')
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+  _reconcile(tree)
+
+  _stored_record_of(tree, recap).write_text('{"source": "club_pbn"}')
+
+  (held,) = _reconcile(tree)
+  assert held.outcome == SessionOutcome.HELD
+  # Both citations survive: the run declined to rejoin rather than rewriting
+  # the record from the capture that still parses.
+  cited = _stored_session(tree, 'pabc-morn-2026-03-09').source.travellers
+  assert len(cited) == 2
+
+
+# --- reporting what the join did ---
+
+
+def test_a_run_with_nothing_to_report_says_every_session_is_current() -> None:
+  assert list(summarize_reconciliation([])) == [
+    'Every pending session is up to date.'
+  ]
+
+
+def test_the_reconciliation_summary_names_each_session_it_reports() -> None:
+  reports = [
+    ReconcileReport(
+      'pabc-morn-2026-03-09',
+      SessionOutcome.RECONCILED,
+      'enriched from 1 traveller',
+    ),
+    ReconcileReport(
+      'pabc-eve-2026-03-09', SessionOutcome.HELD, 'cites club/D260309M.pbn'
+    ),
+  ]
+
+  lines = list(summarize_reconciliation(reports))
+
+  assert lines[0] == '2 sessions the join reports:'
+  # The outcome column is padded to the widest of them, as the scan summary
+  # pads its own, so the session keys line up to be read down.
+  assert lines[1] == (
+    '  reconciled  pabc-morn-2026-03-09 — enriched from 1 traveller'
+  )
+  assert (
+    lines[2] == '  held        pabc-eve-2026-03-09 — cites club/D260309M.pbn'
+  )
+
+
+def test_a_single_session_is_not_reported_in_the_plural() -> None:
+  reports = [
+    ReconcileReport('pabc-morn-2026-03-09', SessionOutcome.RECONCILED, 'done')
+  ]
+
+  assert (
+    next(iter(summarize_reconciliation(reports)))
+    == '1 session the join reports:'
+  )
+
+
+def test_a_capture_naming_us_nowhere_is_said_out_loud(tmp_path: Path) -> None:
+  # The shape a capture matched to the wrong session takes. It still fills the
+  # deals in, so the count of enriched boards reads like an ordinary success —
+  # the finding is the only thing at the console that says otherwise.
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+
+  lines = list(summarize_reconciliation(_reconcile(tree)))
+
+  assert any('traveller_never_names_us' in line for line in lines)
