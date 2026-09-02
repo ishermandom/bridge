@@ -42,12 +42,11 @@ unread.
     before it was written — a required `--player-number` rather than a
     configuration file, every source fetched by default with `--source` to
     narrow, a failed source reported and stepped over rather than aborting the
-    run, and a nonzero exit when one fails. The player number stays a flag
+    run, and a nonzero exit when one fails. The player number stayed a flag
     because the shared configuration
-    [travellers.md](travellers.md#configuration) wants does not exist yet, and
-    the join takes the player's name from that same place (travellers.md
-    #finding-our-row) — so whichever work builds it settles the shape for both,
-    and neither should settle it alone.
+    [travellers.md](travellers.md#configuration) wants did not exist yet;
+    auto-reconcile has since built it, so repointing the flag at it is the
+    tracker item below rather than an open question.
   - Note: that command has run against the live sites, not only against its test
     double: on 2026-08-24 it fetched, parsed, and stored both club captures
     while both ACBL sources failed on Cloudflare, so the store pass and the
@@ -149,8 +148,10 @@ save otherwise — and auto-reconcile when one lands. Design in
 `unreviewed.session_matching.match_travellers` places each stored capture
 against the sessions on hand, reading the capture's date alone — travellers.md
 `#matching` covers why an event name cannot be compared across sources. The
-ingest command runs both on its way past, so a capture saved by hand needs no
-command of its own. What remains is running reconciliation off that match.
+ingest command runs both on its way past and then joins each pending session to
+the travellers now covering it, as
+`unreviewed.ingest.reconcile_pending_sessions`. So neither a capture saved by
+hand nor the reconciliation a match sets off needs a command of its own.
 
 - [ ] Rework the ACBL fetch to meet the challenge with nothing attached.
       {#cloudflare-stopped-clearing}
@@ -206,8 +207,8 @@ command of its own. What remains is running reconciliation off that match.
     captures are expected to state a session time, which is the first thing to
     check.
   - Note: the strongest signal available may be our-row name matching — we
-    appear in the traveller for the session we actually played — but that needs
-    the configured name, which reconciliation defines.
+    appear in the traveller for the session we actually played — and the
+    configured name that needs is now on hand, in `unreviewed.configuration`.
 
 - [ ] Verify the ACBL club index isn't truncated for older dates.
       `fetch_club_travellers` reads the index via an in-page fetch of the raw
@@ -234,18 +235,6 @@ command of its own. What remains is running reconciliation off that match.
     and `1441256` is not, both at Palo Alto Duplicate. A game can have more than
     one director and they do not always upload alike, so which director
     published it is the first thing to look at.
-- [ ] Auto-reconcile: a fetched traveller matching a pending session triggers
-      reconciliation; review stays deferred until then.
-  - Worktree: auto-reconcile
-  - Note: both halves exist and nothing joins them.
-    `unreviewed.ingest.match_new_captures` says which travellers cover which
-    pending session, and `unreviewed.reconciliation.reconcile_session` takes a
-    sheet and the travellers covering it. What is missing is the step that reads
-    the matched records, runs the join, and writes the enriched session back.
-  - Open question: where the enriched record lands. It is still awaiting review,
-    so `sessions/pending/` is the obvious home — but re-running the join has to
-    overwrite in place rather than accumulate, and #corrections-survive-rerun
-    already constrains what a re-run may overwrite.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
       session no traveller arrives for.
 
@@ -289,10 +278,10 @@ record waits for review, and what becomes of a scan that raises.
     one week and `PABC Morning` the next give two slugs for one game. Keys stay
     correct — each names its own session — but they read inconsistently across
     weeks.
-  - Note: this is what would introduce `configuration.py`, which travellers.md's
-    Configuration section already calls for and nothing has yet built: the
-    user's name for our-row matching, the ACBL player number, the club index
-    URL, and this table.
+  - Note: the alias table belongs in `unreviewed.configuration`, alongside the
+    settings travellers.md's Configuration section calls for — auto-reconcile
+    built that module for the player name, so this adds a table rather than a
+    file.
   - Note: an unknown footer should fall back to the literal normalization it
     does today, not fail — a game played once should not need a config edit.
 
@@ -321,6 +310,24 @@ parsed value.
     corrections overlay applied after the join, or reconciliation declining to
     clear what it did not write — it has to land before hand-editing does, not
     after.
+- [ ] Rewrite a pending record where it was read from, before review starts
+      renaming records. {#rewrite-where-read}
+  - Worktree: review-ui
+  - Rationale: `reconcile_pending_sessions` derives its destination from the
+    record's contents, as `pending/{stem}.json`, while `read_pending_sessions`
+    collects records with `rglob` from anywhere beneath `pending/`. The two
+    agree only while every record sits flat under that directory and is named
+    for its own key. A record review has renamed is therefore not updated but
+    copied: the join writes a second file at the derived name, and one session
+    then has two records, which double-count in matching and in
+    `_stored_record_stems`.
+  - Note: latent today — ingest is the only writer and writes flat, so nothing
+    reaches the second path. It goes live with the first rename, and
+    `session_keys.record_stem` says review renames the record either way, so
+    this belongs before that lands.
+  - Note: the fix is to carry each record's own path out of
+    `session_matching._read_records` and write back to it, which changes what
+    `read_pending_sessions` and `read_stored_travellers` return.
 - [ ] Triage-ranked field list with image crop beside the parsed value and
       keyboard accept/fix.
   - Worktree: review-ui
@@ -459,12 +466,17 @@ rationale lives in the design docs' open-question sections —
     parser's whole approach.
   - Note: it would defeat our-row matching for a session we played at that club,
     since the configured name would no longer match the printed one.
-- [ ] Give the user-specific configuration a home — the player name
-      reconciliation matches on, the ACBL player number the fetchers take, and
-      the club index URL. Trigger: the first command that drives reconciliation,
-      which needs the name from somewhere.
-  - Note: settled in shape already — see travellers.md #configuration. Each
-    value is currently a parameter its caller must supply by hand.
+- [ ] Read the ACBL player number and the club index URL from the configuration
+      rather than from a flag and a constant.
+  - Note: the home exists — `unreviewed.configuration`, built where
+    auto-reconcile needed the player name from somewhere. It already states all
+    three settings travellers.md #configuration names, and the ingest command
+    reads the name from it. What is left is the two callers still carrying their
+    own: `fetch_travellers`'s required `--player-number`, and `club_fetching`'s
+    `_CLUB_BASE_URL` and `_CALENDAR_PATH`.
+  - Note: the flag should survive as an override rather than being replaced —
+    fetching another player's results is a thing worth being able to do without
+    editing a file.
 - [ ] Remote-backed, size-tolerant durable store beyond `bridge-private`, if the
       growing game database outgrows the repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital
