@@ -126,12 +126,15 @@ records.
   `club_fetching.py`, which downloads each game's PBN and HTML under the site's
   own relative path, because two directors regularly publish the same filename
   for games on one date.
-- **ACBL tournaments — a headless browser past Cloudflare.** Every ACBL page
+- **ACBL tournaments — a browser left alone past Cloudflare.** Every ACBL page
   sits behind a Cloudflare "managed challenge" — JavaScript a browser must run
-  before the real content loads — so a plain HTTP request is turned away. A
-  headless Playwright browser clears it with no login or cookies: the full
-  Chromium (not the lighter headless shell) given a real viewport and locale
-  runs the challenge and is let through. Tournament results are public and
+  before the real content loads — so a plain HTTP request is turned away. No
+  login or cookies are needed, but two things are: the browser must be visible,
+  headless being refused however it is dressed up, and nothing may be attached
+  to the page while the challenge runs, since the challenge probes for a
+  debugger by putting an instrumented payload through every `console` method. So
+  the browser is launched and left alone to clear the challenge, and a debugger
+  attaches only afterwards, to read the page. Tournament results are public and
   enumerable by player number at `live.acbl.org/player-results/<number>`, a
   table listing each session with a link to its traveller. Implemented as
   `fetch_tournament_travellers` in `acbl_fetching.py`, which reads that index,
@@ -141,8 +144,8 @@ records.
 - **ACBL club games — the same fetch, one host over.** A player's club sessions
   are public too, listed by player number at
   `my.acbl.org/club-results/my-results/<number>` in the same shape as the
-  tournament index — a dated table of game links — so the same headless-browser
-  fetch and index walk apply, only against `my.acbl.org` and its
+  tournament index — a dated table of game links — so the same browser fetch and
+  index walk apply, only against `my.acbl.org` and its
   `club-results/details/<id>` travellers. A club detail page embeds its
   traveller as a `var data = {...}` JSON blob, a cleaner parse than its HTML
   tables. Club games also have a BridgeComposer copy on the club site that

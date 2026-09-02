@@ -70,8 +70,11 @@ class Source(enum.StrEnum):
 # What a fetch fails with when a site, rather than this code, is what went
 # wrong: the site or the network is unreachable (`OSError`, which covers
 # `urllib`'s errors and a socket timeout), an index page is no longer the page
-# it was taken for (`ValueError`), Cloudflare never clears (`RuntimeError`), or
-# the browser itself will not start (`PlaywrightError`).
+# it was taken for (`ValueError`), or the browser will not start or Cloudflare
+# never clears (`RuntimeError`). No fetch raises `PlaywrightError` today, since
+# the ACBL fetch retries a browser mishap into a `RuntimeError` of its own; it
+# stays here so that one escaping costs its own source rather than the whole
+# run.
 _FETCH_FAILURES = (OSError, ValueError, RuntimeError, PlaywrightError)
 
 

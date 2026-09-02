@@ -59,11 +59,15 @@ unread.
     auto-reconcile has since built it, so repointing the flag at it is the
     tracker item below rather than an open question.
   - Note: that command has run against the live sites, not only against its test
-    double: on 2026-08-24 it fetched, parsed, and stored both club captures
-    while both ACBL sources failed on Cloudflare, so the store pass and the
-    failure-containment path were exercised for real in one run. A reviewer
-    running it today should expect the same two ACBL failures — that is
-    #cloudflare-stopped-clearing, not a fault in the command.
+    double. Its first run, on 2026-08-24, stored both club captures while both
+    ACBL sources failed on Cloudflare, which exercised the failure-containment
+    path for real; after the ACBL fetch was reworked, the same date fetched all
+    three sources in about fifteen seconds. Both paths have therefore been seen
+    end to end.
+  - Note: expect the ACBL fetch to be uneven rather than instant. Cloudflare's
+    challenge is sometimes harder, and a run that draws one waits out the full
+    sixty seconds before retrying on a fresh tab, which the warning line names.
+    A minute-long run that ends in captures is working, not stuck.
   - Note: the queue is seven modules and about 4,700 lines with their tests,
     having gone from three to seven in one session — and it is meant to keep
     growing for now. Deferring review is a deliberate tactic while the pipeline
@@ -164,50 +168,16 @@ the travellers now covering it, as
 `unreviewed.ingest.reconcile_pending_sessions`. So neither a capture saved by
 hand nor the reconciliation a match sets off needs a command of its own.
 
-- [ ] Rework the ACBL fetch to meet the challenge with nothing attached.
-      {#cloudflare-stopped-clearing}
-  - Rationale: since 8/24 every ACBL request answers HTTP 403 with the ordinary
-    `Just a moment...` interstitial, which never clears, on both
-    `my.acbl.org/club-results/my-results/<number>` and
-    `live.acbl.org/player-results/<number>`. The cause is the debugger, not the
-    browser: Cloudflare's script sprays every `console` method with a
-    getter-instrumented payload, each landing twice, which is how an attached
-    debugger gives itself away. Nothing in `acbl_fetching` changed; the site's
-    posture did.
-  - Note: the shape that works, verified end to end on both hosts from a cold
-    profile. Launch Chrome as an ordinary subprocess with a `--user-data-dir`, a
-    `--remote-debugging-port`, and the URLs on its command line; wait while it
-    solves the challenge with nothing attached; then `connect_over_cdp` and read
-    the pages. Both indexes cleared inside 15 seconds in one launch, and the
-    existing in-page raw-HTML read works unchanged once attached — 54,855 bytes
-    of club index, 199,673 of tournament index, neither still challenged.
-  - Note: this absorbs the separate item that wanted one browser shared across
-    both ACBL surfaces. A single launch takes every URL a run needs, so the
-    surfaces share a browser by construction rather than by making
-    `_BrowserFetcher` public.
-  - Note: what this changes in `_BrowserFetcher` — it stops driving the first
-    navigation, so `fetch` can no longer be a plain per-URL call. The retry loop
-    becomes relaunch-and-wait-longer rather than navigate-again, since attaching
-    to check is itself what breaks the challenge, and the constant that matters
-    becomes how long to wait before attaching rather than
-    `_CHALLENGE_TIMEOUT_MS`.
-  - Note: ruled out along the way, each by a run of its own — headless detection
-    (a headed window fails identically), the length of the wait (two unbroken
-    minutes), the engine (Playwright's Firefox fails the same way), the binary
-    (real Chrome, visible window, refused like the bundled Chromium), a
-    page-specific gate (a game page is challenged like the index), an IP ban (no
-    `1020` page), and the environment (the launched browser reports a real Metal
-    GPU, ten cores, and 30-bit color, so a GUI-less account is not what looks
-    wrong). No Turnstile widget ever mounts, so there was never anything to
-    click.
-  - Note: a game page cleared the challenge and then answered `ACBL Login`,
-    which is the separate sign-in question, not this one.
-  - Note: there is no quieter endpoint to ask instead. A club page carries its
-    traveller inline as `var data = {...}`, and the captures on hand name no XHR
-    behind it. `api.acbl.org` is not challenge-guarded, but it is undocumented
-    publicly, access goes through a person at ACBL, and the samples on record
-    read masterpoint and rank data — worth one email if this rework ever stops
-    holding.
+- [ ] Share one browser across a run's two ACBL surfaces.
+      {#share-one-acbl-browser}
+  - Rationale: `fetch_club_travellers` and `fetch_tournament_travellers` each
+    build a `_BrowserFetcher` of their own, so a run that fetches both launches
+    two browsers and clears two challenges. The 8/24 run shows it plainly —
+    "browser up" twice, on ports 55907 and 55955.
+  - Note: the cost is about five seconds of a fifteen-second run, so this is
+    tidiness rather than a problem. Fixing it means making `_BrowserFetcher`
+    public so the command can open one and hand it to both surfaces; weigh that
+    widening against what it saves.
 - [ ] Disambiguate a capture matching two sessions. {#multi-session-days}
   - Rationale: a two-game day leaves a club capture matching both sessions.
     `match_travellers` reports the ambiguity and matches neither rather than
@@ -284,10 +254,11 @@ record waits for review, and what becomes of a scan that raises.
     inbox; the time they were scanned is in their filenames. Worth checking
     which of the two `scan_decoding` actually reads, since the capture date is
     one of the three unknowns above.
-  - Note: ACBL fetching may be unavailable here — this session runs the older
-    configuration rather than ssh, and #cloudflare-stopped-clearing is being
-    reworked in another lane. The club capture route is unaffected, so a
-    no-traveller run on the tournament sheets is not evidence about either.
+  - Note: ACBL fetching works again, but it needs a desktop session of this
+    account's own to launch its browser into, which a session started through
+    the ssh `claudify` has and an older one does not. The club capture route
+    needs no browser at all, so a no-traveller run on the tournament sheets is
+    not evidence about either.
 - [ ] Choose the scanner app and transport.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
