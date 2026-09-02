@@ -27,6 +27,17 @@ unread.
     reconciliation join, so the automated sweep is done and what is left is
     judgment. Both rounds' remaining findings are TODOs at the lines they
     concern.
+  - Note: five more such rounds ran over the auto-reconcile join, and the first
+    four each found a real defect in the previous round's fix — all in the rule
+    deciding whether a session's enrichment stands. The rule is worth reading on
+    its own terms rather than trusting the round count: a capture is withdrawn
+    when its file is gone, and a capture still on disk that a run placed nowhere
+    holds the session rather than rejoining it.
+  - Note: `ingest` now drives three stages — the scans, the capture matching,
+    and the join — and has grown to around 760 lines. Keeping the join there
+    rather than in a module of its own was settled with the user, but on a
+    smaller expected addition than it turned out to be, so the split is worth
+    weighing again at review.
   - Note: the design is settled — the `CaptureReference` on `Source`, matching
     our row on the configured full name and its surname, leaving the ACBL player
     number uncarried, leaving a disputed field unfilled, searching
