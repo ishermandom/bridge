@@ -264,6 +264,30 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
+- [ ] Run the spine against real scans and fix or queue what it finds.
+      {#first-real-scan}
+  - Worktree: first-real-scan
+  - Rationale: every test drives the spine with a drawn grid and a scripted
+    model, so what a real scan does is unknown. Three things in particular:
+    whether a phone's scan dewarps, whether the file states the day it was
+    taken, and what a real footer normalizes to.
+  - Note: two scans are waiting. `Scanned_20260901-1145.pdf` is one page, a club
+    game. `Scanned_20260901-2252.pdf` is two pages, one per session of a
+    tournament teams game.
+  - Note: two outcomes are expected rather than faults. Only the first page of
+    the two-page scan is digitized — `decode_scan` reports the rest as
+    `extra_scan_pages`, which is #multi-page-scans, below. And a teams game
+    publishes no traveller at all ([travellers.md](travellers.md)), so those
+    sessions reconcile with none, exercising graceful degradation rather than
+    enrichment.
+  - Note: the scans' recorded creation time is when they were copied into the
+    inbox; the time they were scanned is in their filenames. Worth checking
+    which of the two `scan_decoding` actually reads, since the capture date is
+    one of the three unknowns above.
+  - Note: ACBL fetching may be unavailable here — this session runs the older
+    configuration rather than ssh, and #cloudflare-stopped-clearing is being
+    reworked in another lane. The club capture route is unaffected, so a
+    no-traveller run on the tournament sheets is not evidence about either.
 - [ ] Choose the scanner app and transport.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
@@ -276,6 +300,7 @@ record waits for review, and what becomes of a scan that raises.
     `sessions/pending/`) is created on demand, so creating the inbox is the
     whole of the setup.
 - [ ] Settle what several pages in one scan container mean. {#multi-page-scans}
+  - Worktree: first-real-scan
   - Rationale: spec.md allows a multi-page scan of one sheet, but
     `transcribe_sheet` takes a single image. Are the extra pages retakes to
     choose among, parts of one grid to stitch, or separate sheets? The answer
