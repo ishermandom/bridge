@@ -9,14 +9,18 @@ filesystem fake patches (see faking-the-filesystem.md).
 
 import datetime
 import os
+from collections.abc import Sequence
 from pathlib import Path
 
 import pypdf
 import pytest
 from PIL import Image
 
+from session_analysis import issue_reporting
 from session_analysis.unreviewed.scan_decoding import (
+  DecodedScan,
   ScanDecodingError,
+  UndecodedPage,
   decode_scan,
 )
 
@@ -26,6 +30,13 @@ _DATE_TIME = 306
 _DATE_TIME_ORIGINAL = 36867
 _ORIENTATION = 274
 _EXIF_SUB_IFD = 0x8769
+
+
+def _sheets(
+  decoded: issue_reporting.Read[Sequence[DecodedScan | UndecodedPage]],
+) -> list[DecodedScan]:
+  """The pages of a read that yielded a sheet."""
+  return [one for one in decoded.value if isinstance(one, DecodedScan)]
 
 
 def _write_photo(
@@ -89,7 +100,7 @@ def test_a_photo_is_read_at_the_size_it_was_written(tmp_path: Path) -> None:
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.image.size == (40, 60)
+  assert _sheets(decoded)[0].image.size == (40, 60)
 
 
 def test_the_capture_date_comes_from_when_the_shutter_fired(
@@ -104,7 +115,7 @@ def test_the_capture_date_comes_from_when_the_shutter_fired(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.captured_on == datetime.date(2026, 6, 29)
+  assert _sheets(decoded)[0].captured_on == datetime.date(2026, 6, 29)
   assert not decoded.issues
 
 
@@ -117,7 +128,7 @@ def test_the_written_date_stands_in_when_no_original_was_recorded(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.captured_on == datetime.date(2026, 6, 29)
+  assert _sheets(decoded)[0].captured_on == datetime.date(2026, 6, 29)
 
 
 def test_a_photo_stating_no_date_falls_back_to_its_modification_day(
@@ -128,7 +139,7 @@ def test_a_photo_stating_no_date_falls_back_to_its_modification_day(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.captured_on == datetime.date(2026, 6, 29)
+  assert _sheets(decoded)[0].captured_on == datetime.date(2026, 6, 29)
   # Reported, because the fallback is a guess: a file synced long after the
   # session carries the wrong day, and the footer's year rides on it.
   assert [issue.code for issue in decoded.issues] == ['undated_scan']
@@ -146,7 +157,7 @@ def test_an_unreadable_timestamp_falls_back_like_a_missing_one(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.captured_on == datetime.date(2026, 6, 29)
+  assert _sheets(decoded)[0].captured_on == datetime.date(2026, 6, 29)
   assert [issue.code for issue in decoded.issues] == ['undated_scan']
 
 
@@ -159,7 +170,7 @@ def test_a_sideways_photo_is_uprighted_by_its_orientation_tag(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.image.size == (60, 40)
+  assert _sheets(decoded)[0].image.size == (60, 40)
 
 
 def test_a_file_that_is_no_image_at_all_is_refused(tmp_path: Path) -> None:
@@ -178,7 +189,7 @@ def test_a_pdf_yields_the_image_it_wraps(tmp_path: Path) -> None:
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.image.size == (40, 60)
+  assert _sheets(decoded)[0].image.size == (40, 60)
 
 
 def test_a_pdf_capture_date_comes_from_its_own_metadata(
@@ -189,7 +200,7 @@ def test_a_pdf_capture_date_comes_from_its_own_metadata(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.captured_on == datetime.date(2026, 6, 29)
+  assert _sheets(decoded)[0].captured_on == datetime.date(2026, 6, 29)
   assert not decoded.issues
 
 
@@ -204,26 +215,54 @@ def test_a_pdf_whose_stated_date_is_unreadable_falls_back(
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.captured_on == datetime.date(2026, 6, 29)
+  assert _sheets(decoded)[0].captured_on == datetime.date(2026, 6, 29)
   assert [issue.code for issue in decoded.issues] == ['undated_scan']
 
 
-def test_extra_pages_are_reported_and_the_first_is_digitized(
+def test_every_page_of_a_container_is_its_own_sheet(
   tmp_path: Path,
 ) -> None:
+  # A scanner app writes one file per feed, so sheets fed together arrive in one
+  # container and each is a separate session.
   scan = _write_pdf(tmp_path / 'scan.pdf', pages=3, size=(40, 60))
 
   decoded = decode_scan(scan)
 
-  assert decoded.value.image.size == (40, 60)
-  # Reported rather than raised: the first page still digitizes, and what a
-  # further page means is not yet settled.
-  assert [issue.code for issue in decoded.issues] == ['extra_scan_pages']
+  assert len(decoded.value) == 3
+  assert [sheet.page for sheet in _sheets(decoded)] == [1, 2, 3]
+  assert all(sheet.image.size == (40, 60) for sheet in _sheets(decoded))
 
 
-def test_a_pdf_page_holding_several_images_is_refused(
+def test_a_containers_pages_share_its_capture_date(
   tmp_path: Path,
 ) -> None:
+  # They were fed to the scanner together, so the file's own date is every
+  # sheet's — and it is what fixes the year on each footer.
+  scan = _write_pdf(
+    tmp_path / 'scan.pdf', pages=2, created="D:20260629114500-07'00'"
+  )
+
+  decoded = decode_scan(scan)
+
+  assert [sheet.captured_on for sheet in _sheets(decoded)] == [
+    datetime.date(2026, 6, 29),
+    datetime.date(2026, 6, 29),
+  ]
+
+
+def test_a_photo_is_always_page_one(tmp_path: Path) -> None:
+  scan = _write_photo(tmp_path / 'scan.jpg', size=(40, 60))
+
+  decoded = decode_scan(scan)
+
+  assert [sheet.page for sheet in _sheets(decoded)] == [1]
+
+
+def test_a_page_holding_several_images_is_reported_as_that_page(
+  tmp_path: Path,
+) -> None:
+  # Which of the two is the sheet cannot be told, so nothing is guessed — but
+  # the page says so for itself rather than for the file.
   first = _write_pdf(tmp_path / 'first.pdf')
   second = _write_pdf(tmp_path / 'second.pdf')
   writer = pypdf.PdfWriter(clone_from=first)
@@ -232,9 +271,34 @@ def test_a_pdf_page_holding_several_images_is_refused(
   with scan.open('wb') as handle:
     writer.write(handle)
 
-  # Which of the two is the sheet cannot be told, so nothing is guessed.
-  with pytest.raises(ScanDecodingError, match='embedded images'):
-    decode_scan(scan)
+  decoded = decode_scan(scan)
+
+  assert not _sheets(decoded)
+  undecoded = [one for one in decoded.value if isinstance(one, UndecodedPage)]
+  assert [one.page for one in undecoded] == [1]
+  assert 'embedded images' in undecoded[0].reason
+
+
+def test_a_bad_page_does_not_cost_the_sheets_around_it(
+  tmp_path: Path,
+) -> None:
+  # An app that appends a summary page, or a form with a logo beside the sheet,
+  # should not lose the pages that read cleanly.
+  spoiled = _write_pdf(tmp_path / 'spoiled.pdf')
+  extra = _write_pdf(tmp_path / 'extra.pdf')
+  writer = pypdf.PdfWriter(clone_from=_write_pdf(tmp_path / 'feed.pdf'))
+  writer.append(spoiled)
+  writer.pages[1].merge_page(pypdf.PdfReader(extra).pages[0])
+  scan = tmp_path / 'scan.pdf'
+  with scan.open('wb') as handle:
+    writer.write(handle)
+
+  decoded = decode_scan(scan)
+
+  assert [sheet.page for sheet in _sheets(decoded)] == [1]
+  assert [
+    one.page for one in decoded.value if isinstance(one, UndecodedPage)
+  ] == [2]
 
 
 def test_a_file_that_is_no_pdf_at_all_is_refused(tmp_path: Path) -> None:

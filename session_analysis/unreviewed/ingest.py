@@ -27,12 +27,27 @@ A run is idempotent on two different keys, known at two different moments:
 The second doubles as the collision rule. Two records cannot share a key,
 because a second sheet claiming a key already taken is exactly what "this
 session is already digitized" looks like — so it is reported and skipped rather
-than given a disambiguating suffix.
+than given a disambiguating suffix. Two sheets of *one* container never collide
+in the first place: they were fed to the scanner together, so they are different
+sheets whatever their footers say, and `session_keys.record_stem` gives each
+page after the first a suffix of its own.
 
-A scan that raises moves to `scoresheets/failed/` with a sidecar naming what
-went wrong. Terminal rather than staging: leaving it in the inbox would re-spend
-a model call every run, and a directory of files with no explanation beside them
-is not the loud failure this stage is supposed to produce.
+That suffix costs the collision rule its reach over those pages. A sheet already
+digitized alone, re-scanned later as the second page of some container, derives
+a stem no stored record holds and is digitized again — two records for one
+session, and a model call paid twice. Left alone: it needs a sheet to be
+re-scanned *and* bundled with others, the result is two visible records rather
+than a silent loss, and the alternative is a duplicate check that has to know
+which stems came from which bytes.
+
+A file no sheet of which could be read moves to `scoresheets/failed/` with a
+sidecar naming what went wrong, as does one whose model call failed outright.
+Terminal rather than staging: leaving it in the inbox would re-spend a model
+call every run, and a directory of files with no
+explanation beside them is not the loud failure this stage is supposed to
+produce. A container some of whose sheets did read is archived instead, since
+their records name it — with the same sidecar beside it there, because the
+sheets that failed are not coming back on a re-run.
 
 The run does not stop at the scans. It stores and matches whatever travellers
 have arrived since the last one, and joins each pending session to those now
@@ -73,11 +88,23 @@ from session_analysis.unreviewed import (
   session_keys,
   session_matching,
 )
+from session_analysis.unreviewed.sheet_structure import SheetStructureError
 from session_analysis.vision_model_invocation import (
   DEFAULT_MODEL,
   CommandRunner,
   VisionModelInvocationError,
   run_claude,
+)
+
+# A sheet whose boards and whose board rows did not come to the same number.
+# One strip is cut per board row and the model is asked for one board per row
+# strip, so the two counts are the same or the correspondence is broken — and
+# it is positional, so a board dropped in the middle shifts every board after it
+# onto the wrong row. High severity because nothing downstream can notice: the
+# vote compares the two runs against each other, and both runs dropping the same
+# strip is exactly the shape this takes.
+_BOARD_COUNT_MISMATCH = issue_reporting.Failure(
+  'board_count_mismatch', IssueSeverity.HIGH, 'sheet'
 )
 
 # A session whose footer named no key. It is stored and reviewable like any
@@ -92,18 +119,28 @@ _RECORD_SUFFIX = '.json'
 # the sidecar sits next to it in a listing — as `capture_urls` does for a URL.
 _FAILURE_SUFFIX = '.error'
 
-# What a scan can raise on its way to a record. Each is terminal for that scan
-# and harmless to the rest of the run, so they are caught together and the scan
-# is set aside with the message as its explanation.
-_TERMINAL_SCAN_ERRORS = (
-  scan_decoding.ScanDecodingError,
+# What one sheet can raise once the file has been decoded. Terminal for that
+# sheet and harmless to the others, because each of them is a separate session:
+# a container whose third page will not resolve still yields the first two,
+# which have already been paid for by the time it fails. Both are properties of
+# the sheet, so a re-run would fail them again.
+#
+# `VisionModelInvocationError` is deliberately not among them. It says nothing
+# about the sheet — it covers an auth failure and a rate limit as much as a
+# request the model refuses every time — so a container is never archived
+# because of one. `process_inbox` sets that container aside and stops the run,
+# which is the treatment that survives being wrong about which of the two it
+# was. What that costs is the sheets of the container already read: they are
+# given up rather than stored, because a record naming an archive path the
+# container never reaches would be worse than re-reading it.
+_TERMINAL_SHEET_ERRORS = (
   SheetGeometryError,
-  VisionModelInvocationError,
+  SheetStructureError,
 )
 
 
-class ScanOutcome(enum.StrEnum):
-  """What became of one scan in a run."""
+class SheetOutcome(enum.StrEnum):
+  """What became of one sheet in a run."""
 
   DIGITIZED = 'digitized'
   # Recognized as already digitized, by content hash or by session key. The scan
@@ -111,14 +148,22 @@ class ScanOutcome(enum.StrEnum):
   # is where it belongs.
   SKIPPED = 'skipped'
   FAILED = 'failed'
+  # Never opened, because the run stopped at an earlier scan. Distinct from
+  # `FAILED`: nothing is known against this scan at all, it is still in the
+  # inbox rather than in `scoresheets/failed/`, and the next run reaches it with
+  # no intervention.
+  DEFERRED = 'deferred'
 
 
 @dataclasses.dataclass(frozen=True)
-class ScanReport:
-  """One scan's fate, in the terms the run summary prints."""
+class SheetReport:
+  """One sheet's fate, in the terms the run summary prints."""
 
-  scan: str
-  outcome: ScanOutcome
+  # How the summary names it: the scan's filename, or that plus a page when the
+  # file held several sheets. A label rather than a path — a container holding
+  # three sheets is reported three times under one filename.
+  sheet: str
+  outcome: SheetOutcome
   # Why, in a phrase: the key it was digitized as, the record it duplicates, or
   # the error that stopped it.
   detail: str
@@ -129,7 +174,7 @@ def process_inbox(
   *,
   model: str = DEFAULT_MODEL,
   run_command: CommandRunner = run_claude,
-) -> issue_reporting.Read[Sequence[ScanReport]]:
+) -> issue_reporting.Read[Sequence[SheetReport]]:
   """Digitize every scan waiting in the inbox.
 
   Args:
@@ -140,9 +185,10 @@ def process_inbox(
       needs no model call.
 
   Returns:
-    One report per scan, in the order they were processed, alongside any
-    run-level issue. A scan's own findings live on the record it produced, not
-    here — this says what happened to files, not what was hard to read.
+    One report per sheet, in the order they were processed, alongside any
+    run-level issue — a scan file holding several sheets reports each. A
+    sheet's own findings live on the record it produced, not here; this says
+    what happened to files, not what was hard to read.
 
   Raises:
     FileNotFoundError: if the inbox does not exist.
@@ -156,13 +202,75 @@ def process_inbox(
   # and no record has to be opened to build it.
   taken_keys = _stored_record_stems(tree)
 
-  reports = []
-  for scan in _scans_in(inbox):
-    report = _process_scan(
-      scan, tree, taken_keys, model=model, run_command=run_command
-    )
-    reports.append(report)
+  scans = list(_scans_in(inbox))
+  reports: list[SheetReport] = []
+  for index, scan in enumerate(scans):
+    try:
+      reports.extend(
+        _process_scan(
+          scan, tree, taken_keys, model=model, run_command=run_command
+        )
+      )
+    except VisionModelInvocationError as error:
+      # The model call failed, and this stage cannot tell the two reasons apart:
+      # an outage that a later run would sail through, or this scan being one
+      # the model refuses every time — a request too large, a reply that never
+      # satisfied the schema. So each is given the treatment that survives being
+      # wrong about it.
+      #
+      # This scan is set aside, because leaving it would have every later run
+      # meet it first and stop there: a scan that always fails would wedge the
+      # inbox behind it for good, and nothing would say why. The sidecar says
+      # what happened and moving the file back is the whole retry.
+      #
+      # What that costs, when it really was an outage, is one scan a run — so
+      # re-triggering three times through one rate-limit window puts three
+      # untried scans in `failed/` to be dragged back. Worth it against the
+      # alternative: a bounded, visible, reversible cost rather than an inbox
+      # that never moves again.
+      #
+      # The scans behind it are only deferred. They were never opened, so
+      # nothing is known against them, and they cost nothing to leave — but they
+      # are reported all the same, because a summary that simply stopped would
+      # leave a person counting files to notice.
+      _set_aside(
+        scan,
+        PurePosixPath(_archive_name(scan, _content_hash(scan))),
+        tree,
+        f'{type(error).__name__}: {error}',
+      )
+      reports.append(SheetReport(scan.name, SheetOutcome.FAILED, str(error)))
+      reports.extend(
+        SheetReport(
+          later.name,
+          SheetOutcome.DEFERRED,
+          'the run stopped before this scan was read',
+        )
+        for later in scans[index + 1 :]
+      )
+      break
   return issue_reporting.Read(tuple(reports))
+
+
+@dataclasses.dataclass(frozen=True)
+class DigitizedSheet:
+  """One sheet of a scan, read through to a named session."""
+
+  page: int
+  session: Session
+
+
+@dataclasses.dataclass(frozen=True)
+class UndigitizedSheet:
+  """One sheet of a scan that could not be read, and why.
+
+  `reason` does not name the page: the run summary's own label already does, and
+  the sidecar — where the page is the whole point, since the file is what a
+  person is handed — composes the two itself.
+  """
+
+  page: int
+  reason: str
 
 
 def digitize_scan(
@@ -172,44 +280,81 @@ def digitize_scan(
   content_hash: str,
   model: str = DEFAULT_MODEL,
   run_command: CommandRunner = run_claude,
-) -> Session:
-  """Read one scan file through extraction into a named, validated `Session`.
+) -> Sequence[DigitizedSheet | UndigitizedSheet]:
+  """Read one scan file through extraction into named, validated `Session`s.
 
   The wiring the rest of the pipeline was built to be joined by: decode the
-  file, transcribe it twice, vote between the two reads, and name the result
-  from its own footer. `archived_as` and `content_hash` are the provenance the
-  vision model never sees — where the scan will live once the run finishes, and
-  what identifies its bytes.
+  file, transcribe each sheet twice, vote between the two reads, and name the
+  result from its own footer. `archived_as` and `content_hash` are the
+  provenance the vision model never sees — where the scan will live once the run
+  finishes, and what identifies its bytes.
 
-  The reference date resolving the footer's year comes from the scan's own
-  capture date, never today's: a scan reprocessed months later must resolve
-  `6/29` against the day it was taken, or the year shifts silently.
+  One outcome per sheet, in page order: a scanner app writes one file per feed,
+  so a container holding several sheets yields several sessions, each with its
+  own footer and key. A sheet that cannot be read is reported in place rather
+  than abandoning the file, because the sheets before it have already been
+  transcribed and paying for them twice is the alternative.
+
+  The reference date resolving a footer's year comes from the scan's own capture
+  date, never today's: a scan reprocessed months later must resolve `6/29`
+  against the day it was taken, or the year shifts silently.
 
   Raises:
-    ScanDecodingError: the file yielded no image to transcribe.
-    SheetGeometryError: the scan's grid could not be resolved.
-    VisionModelInvocationError: a headless model invocation failed.
+    ScanDecodingError: the file could not be opened at all, so there are no
+      pages to report on. A page that yields no image is reported as itself.
+    VisionModelInvocationError: the model call failed. Not per-sheet, because it
+      says nothing about any particular sheet — see `process_inbox`, which sets
+      the container aside and stops the run. The sheets of it already read are
+      given up with it: their records would name an archive path the container
+      never reaches.
   """
   decoded = scan_decoding.decode_scan(scan)
-  transcription = extraction.transcribe_sheet(
-    decoded.value.image, model=model, run_command=run_command
-  )
-  source = Source(
-    image=SheetImage(
-      path=str(archived_as),
-      content_hash=content_hash,
-      frame=SheetFrame(
-        geometry=transcription.geometry,
-        source_quad=transcription.source_quad,
-      ),
+  outcomes: list[DigitizedSheet | UndigitizedSheet] = []
+  for read in decoded.value:
+    if isinstance(read, scan_decoding.UndecodedPage):
+      outcomes.append(UndigitizedSheet(read.page, read.reason))
+      continue
+
+    sheet = read
+    try:
+      transcription = extraction.transcribe_sheet(
+        sheet.image, model=model, run_command=run_command
+      )
+    except _TERMINAL_SHEET_ERRORS as error:
+      outcomes.append(
+        UndigitizedSheet(sheet.page, f'{type(error).__name__}: {error}')
+      )
+      continue
+
+    source = Source(
+      image=SheetImage(
+        path=str(archived_as),
+        content_hash=content_hash,
+        page=sheet.page,
+        frame=SheetFrame(
+          geometry=transcription.geometry,
+          source_quad=transcription.source_quad,
+        ),
+      )
     )
-  )
-  session = assembly.parse_and_assemble_voted_session(
-    *transcription.raw_jsons,
-    source,
-    reference_date=decoded.value.captured_on,
-  )
-  return _named(session, decoded.issues)
+    session = assembly.parse_and_assemble_voted_session(
+      *transcription.raw_jsons,
+      source,
+      reference_date=sheet.captured_on,
+    )
+    outcomes.append(
+      DigitizedSheet(
+        sheet.page,
+        _named(
+          session,
+          (
+            *decoded.issues,
+            *_counted(session, len(transcription.geometry.row_boxes)),
+          ),
+        ),
+      )
+    )
+  return tuple(outcomes)
 
 
 def _process_scan(
@@ -219,8 +364,12 @@ def _process_scan(
   *,
   model: str,
   run_command: CommandRunner,
-) -> ScanReport:
-  """Take one scan as far as it goes, and move it out of the inbox."""
+) -> Sequence[SheetReport]:
+  """Take one scan file as far as it goes, and move it out of the inbox.
+
+  One report per sheet the file held, or a single report for the file when it
+  never got as far as its sheets.
+  """
   content_hash = _content_hash(scan)
   archived_as = PurePosixPath(_archive_name(scan, content_hash))
   archive = tree.scan_archive / archived_as
@@ -233,47 +382,125 @@ def _process_scan(
     # identical by definition, so a second copy would differ only in the name
     # the file happened to arrive under.
     _move(scan, already_archived[0])
-    return ScanReport(
-      scan.name,
-      ScanOutcome.SKIPPED,
-      f'the same scan is already archived as {already_archived[0].name}',
+    return (
+      SheetReport(
+        scan.name,
+        SheetOutcome.SKIPPED,
+        f'the same scan is already archived as {already_archived[0].name}',
+      ),
     )
 
   try:
-    session = digitize_scan(
+    outcomes = digitize_scan(
       scan,
       archived_as=archived_as,
       content_hash=content_hash,
       model=model,
       run_command=run_command,
     )
-  except _TERMINAL_SCAN_ERRORS as error:
-    _set_aside(scan, tree, error)
-    return ScanReport(scan.name, ScanOutcome.FAILED, str(error))
+  except scan_decoding.ScanDecodingError as error:
+    # The file would not open at all, so there are no pages to report on. The
+    # type is named in the sidecar as it is for a per-sheet failure, so a person
+    # reading one can tell a file that would not open from a sheet whose grid
+    # would not resolve.
+    _set_aside(scan, archived_as, tree, f'{type(error).__name__}: {error}')
+    return (SheetReport(scan.name, SheetOutcome.FAILED, str(error)),)
 
-  stem = session_keys.record_stem(session.session_key, content_hash)
-  # A key already taken means this sheet's session is on hand under different
-  # bytes — a second photograph of a sheet already digitized. An unnamed record
-  # leads with its own content hash, so it never lands here spuriously.
-  if stem in taken_keys:
-    _move(scan, archive)
-    return ScanReport(
-      scan.name,
-      ScanOutcome.SKIPPED,
-      f'this session is already digitized as {stem}',
+  digitized = [one for one in outcomes if isinstance(one, DigitizedSheet)]
+  # The page belongs in the sidecar even when the file held one sheet: what it
+  # is read beside is the container, not the sheet.
+  failures = [
+    f'page {one.page}: {one.reason}'
+    for one in outcomes
+    if isinstance(one, UndigitizedSheet)
+  ]
+  if not digitized:
+    _set_aside(scan, archived_as, tree, '\n'.join(failures))
+    return tuple(
+      SheetReport(
+        _sheet_label(scan, one.page, outcomes), SheetOutcome.FAILED, one.reason
+      )
+      for one in outcomes
+      if isinstance(one, UndigitizedSheet)
     )
 
-  record = tree.pending_session_records / f'{stem}{_RECORD_SUFFIX}'
-  record.parent.mkdir(parents=True, exist_ok=True)
-  record.write_text(session.model_dump_json(indent=2) + '\n')
-  taken_keys.add(stem)
-  _move(scan, archive)
+  reports: list[SheetReport] = []
+  for one in outcomes:
+    label = _sheet_label(scan, one.page, outcomes)
+    if isinstance(one, UndigitizedSheet):
+      reports.append(SheetReport(label, SheetOutcome.FAILED, one.reason))
+      continue
 
-  return ScanReport(
-    scan.name,
-    ScanOutcome.DIGITIZED,
-    f'{stem} — {len(session.boards)} boards, '
-    f'{len(session.issues)} session issues',
+    session = one.session
+    stem = session_keys.record_stem(session.session_key, content_hash, one.page)
+    if stem in taken_keys:
+      # A key already taken means this sheet's session is on hand under
+      # different bytes — a second photograph of a sheet already digitized. Two
+      # sheets of one container never land here, because `record_stem` gives
+      # each page after the first a suffix of its own.
+      reports.append(
+        SheetReport(
+          label,
+          SheetOutcome.SKIPPED,
+          f'this session is already digitized as {stem}',
+        )
+      )
+      continue
+
+    record = tree.pending_session_records / f'{stem}{_RECORD_SUFFIX}'
+    record.parent.mkdir(parents=True, exist_ok=True)
+    record.write_text(session.model_dump_json(indent=2) + '\n')
+    taken_keys.add(stem)
+    reports.append(
+      SheetReport(
+        label,
+        SheetOutcome.DIGITIZED,
+        f'{stem} — {len(session.boards)} boards, '
+        f'{len(session.issues)} session issues',
+      )
+    )
+
+  _move(scan, archive)
+  # A sidecar from an earlier attempt describes a scan that has now been read,
+  # so it goes with the failure it explained. Left behind it would sit in
+  # `failed/` naming a file no longer there.
+  _forget_failure(tree, archived_as)
+  if failures:
+    # Beside the archived file rather than in `failed/`: the sheets that did
+    # read name this path, so the file has to live here — but a re-run finds it
+    # by content hash and never retries, so what failed is written down.
+    archive.with_name(archive.name + _FAILURE_SUFFIX).write_text(
+      '\n'.join(failures) + '\n'
+    )
+  return tuple(reports)
+
+
+def _sheet_label(
+  scan: Path, page: int, outcomes: Sequence[DigitizedSheet | UndigitizedSheet]
+) -> str:
+  """How one sheet is named in the run summary.
+
+  The page is named only when the file held more than one, so the ordinary
+  one-sheet scan reads as its own filename.
+  """
+  return scan.name if len(outcomes) == 1 else f'{scan.name} page {page}'
+
+
+def _counted(session: Session, row_strips: int) -> tuple[Issue, ...]:
+  """Whether the boards read back number the same as the row strips sent.
+
+  One strip is cut per board row, and neither the printed header nor the footer
+  is among them, so any difference means the model dropped or invented a board
+  and every board after it is now against the wrong row.
+  """
+  if len(session.boards) == row_strips:
+    return ()
+  return (
+    _BOARD_COUNT_MISMATCH.issue(
+      f'{row_strips} board rows were sent as strips but '
+      f'{len(session.boards)} boards came back, so which row each board '
+      f'belongs to is no longer certain'
+    ),
   )
 
 
@@ -306,11 +533,18 @@ def _scans_in(inbox: Path) -> Iterator[Path]:
   Leaves out anything whose name starts with a dot: `.DS_Store` rides along in a
   directory the Finder has been near, and a sync client parks its own
   bookkeeping there too. Neither is worth a failure report every run.
+
+  Leaves out a failure sidecar too. Retrying a scan that was set aside means
+  moving it back, and the sidecar sits beside it in `scoresheets/failed/` — so
+  whoever drags one drags both, and the explanation should not then be read as
+  a scan of its own.
   """
   return (
     path
     for path in sorted(inbox.iterdir())
-    if path.is_file() and not path.name.startswith('.')
+    if path.is_file()
+    and not path.name.startswith('.')
+    and not path.name.endswith(_FAILURE_SUFFIX)
   )
 
 
@@ -325,8 +559,16 @@ def _archive_name(scan: Path, content_hash: str) -> str:
   Leads with the abbreviated content hash so a run can find an already-archived
   scan by its bytes without opening anything, and keeps the scanner's own name
   after it, which is often the only human-readable thing about a scan.
+
+  A scan that already carries the prefix keeps the one it has. Retrying a
+  set-aside scan means dragging it back from `scoresheets/failed/`, where it was
+  filed under this same name, and prefixing it again on each attempt would grow
+  the name a hash at a time.
   """
-  return f'{session_keys.short_hash(content_hash)}-{scan.name}'
+  prefix = session_keys.short_hash(content_hash)
+  if scan.name.startswith(f'{prefix}-'):
+    return scan.name
+  return f'{prefix}-{scan.name}'
 
 
 def _archived_scans(tree: PrivateTree, content_hash: str) -> Sequence[Path]:
@@ -334,7 +576,14 @@ def _archived_scans(tree: PrivateTree, content_hash: str) -> Sequence[Path]:
   if not tree.scan_archive.is_dir():
     return ()
   prefix = session_keys.short_hash(content_hash)
-  return sorted(tree.scan_archive.glob(f'{prefix}-*'))
+  # The sidecar a partial failure leaves beside a scan shares its prefix, and is
+  # not a scan — returning it would have a re-dropped copy reported as already
+  # archived under the sidecar's name, and then move onto it.
+  return sorted(
+    path
+    for path in tree.scan_archive.glob(f'{prefix}-*')
+    if not path.name.endswith(_FAILURE_SUFFIX)
+  )
 
 
 def _stored_record_stems(tree: PrivateTree) -> MutableSet[str]:
@@ -356,19 +605,33 @@ def _move(scan: Path, destination: Path) -> None:
 
   `replace` rather than a copy-and-delete: the inbox and its destination sit in
   one tree, so the move is atomic, and a destination that already exists holds
-  bytes identical to these — it is only ever reached by way of the content hash
-  that named it.
+  bytes identical to these — every destination is named by the content hash, in
+  the failure directory as much as the archive.
   """
   destination.parent.mkdir(parents=True, exist_ok=True)
   scan.replace(destination)
 
 
-def _set_aside(scan: Path, tree: PrivateTree, error: Exception) -> None:
-  """Move a scan that raised somewhere terminal, saying why beside it."""
-  failed = tree.scan_failures / scan.name
+def _forget_failure(tree: PrivateTree, named_as: PurePosixPath) -> None:
+  """Remove the sidecar a previous run left for a scan that has now read."""
+  stale = tree.scan_failures / f'{named_as}{_FAILURE_SUFFIX}'
+  stale.unlink(missing_ok=True)
+
+
+def _set_aside(
+  scan: Path, named_as: PurePosixPath, tree: PrivateTree, reason: str
+) -> None:
+  """Move a scan no sheet of which could be read, saying why beside it.
+
+  Filed under the same content-hashed name the archive would have given it, so
+  two scans that arrive under one filename — a scanner app that numbers nothing
+  writes `Scan.pdf` every time — do not overwrite each other here. Losing a
+  failed scan silently is the opposite of what this directory is for.
+  """
+  failed = tree.scan_failures / str(named_as)
   _move(scan, failed)
   sidecar = failed.with_name(failed.name + _FAILURE_SUFFIX)
-  sidecar.write_text(f'{type(error).__name__}: {error}\n')
+  sidecar.write_text(reason + '\n')
 
 
 def _plural(count: int) -> str:
@@ -376,20 +639,22 @@ def _plural(count: int) -> str:
   return '' if count == 1 else 's'
 
 
-def summarize_run(reports: Sequence[ScanReport]) -> Iterator[str]:
-  """The run summary, a line per scan, aligned for reading down the column.
+def summarize_run(reports: Sequence[SheetReport]) -> Iterator[str]:
+  """The run summary, a line per report, aligned for reading down the column.
 
   An explicit trigger only beats a watcher if its output says what happened, so
-  every scan gets a line whatever became of it.
+  every sheet that was reached gets a line whatever became of it. A file that
+  was never opened, or a run the model went away during, gets a single line
+  under the file's own name instead — there were no sheets to speak of.
   """
   if not reports:
     yield 'The inbox is empty.'
     return
 
   width = max(len(report.outcome) for report in reports)
-  yield f'{len(reports)} scan{_plural(len(reports))} in the inbox:'
+  yield f'{len(reports)} sheet{_plural(len(reports))} from the inbox:'
   for report in reports:
-    yield f'  {report.outcome:<{width}}  {report.scan} — {report.detail}'
+    yield f'  {report.outcome:<{width}}  {report.sheet} — {report.detail}'
 
 
 @dataclasses.dataclass(frozen=True)

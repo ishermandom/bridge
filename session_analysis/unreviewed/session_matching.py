@@ -137,7 +137,9 @@ def stem_of(session: Session) -> str:
   answer means deriving the same stem for the sessions it names.
   """
   return session_keys.record_stem(
-    session.session_key, session.source.image.content_hash
+    session.session_key,
+    session.source.image.content_hash,
+    session.source.image.page,
   )
 
 

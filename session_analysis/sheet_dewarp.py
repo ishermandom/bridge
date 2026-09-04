@@ -41,7 +41,6 @@ from session_analysis.rule_grid import (
   pixel_column_profile,
   resolve_grid_consensus,
 )
-from session_analysis.sheet_geometry import FOOTER_HEIGHT_IN_ROW_PITCHES
 
 # When fitting a straight line through the slices' top (or bottom) rule
 # positions, a slice whose position misses the first fit by more than this many
@@ -68,7 +67,16 @@ _BORDER_OUTLIER_TOLERANCE_IN_PITCHES = 2
 # each side for handwriting overshooting a border. Larger margins would pull the
 # dark table background into frame, which the dip detectors would read as marks.
 _DEWARP_TOP_MARGIN_IN_PITCHES = 0.5
-_DEWARP_BOTTOM_MARGIN_IN_PITCHES = FOOTER_HEIGHT_IN_ROW_PITCHES + 0.5
+# How far the footer region extends below the grid's bottom rule, in row
+# pitches. The footer is one handwritten line (event, date, pair number) just
+# below the grid, and 2.5 pitches covers it with margin. The dewarp runs before
+# anything has read the sheet's layout, so it cannot know whether this form
+# prints a footer at all, and spends the margin either way — on a form without
+# one it buys blank paper that the stages below simply find nothing in.
+# TODO: a footer sitting further down than this is cropped away before the model
+# can read it. See tasks.md `#dewarp-needs-the-reading`.
+_FOOTER_HEIGHT_IN_ROW_PITCHES = 2.5
+_DEWARP_BOTTOM_MARGIN_IN_PITCHES = _FOOTER_HEIGHT_IN_ROW_PITCHES + 0.5
 _DEWARP_SIDE_MARGIN_IN_PITCHES = 0.5
 
 
@@ -96,13 +104,14 @@ class Quad(FrozenModel):
 class DewarpedSheet:
   """A scan mapped upright: the transformed image and how it was derived.
 
-  `row_count` is the grid size the quad fit resolved — callers cross-check it
-  against what detection later finds in the dewarped frame.
+  The row count the quad fit resolved is deliberately not among these. The count
+  that governs is the one the sheet's layout reading reports, checked against
+  the printed rules by `sheet_geometry`, so a second count derived here would be
+  a value nothing reads.
   """
 
   image: Image.Image
   source_quad: Quad
-  row_count: int
 
 
 class _RuleLines(NamedTuple):
@@ -177,9 +186,7 @@ def dewarp_sheet(image: Image.Image) -> DewarpedSheet:
     resample=Image.Resampling.BICUBIC,
     fillcolor='white',
   )
-  return DewarpedSheet(
-    image=dewarped, source_quad=quad, row_count=consensus.row_count
-  )
+  return DewarpedSheet(image=dewarped, source_quad=quad)
 
 
 def _fit_rule_lines(consensus: GridConsensus) -> _RuleLines:

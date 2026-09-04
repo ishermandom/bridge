@@ -182,7 +182,9 @@ mode**, on the existing Claude subscription — no separate API billing.
   - **Cost**: ~$0.34 per sheet on Opus 5 against ~$0.22 on Sonnet 5, counting
     both runs of the vote. The second run rides the prompt cache the first one
     filled and costs about half as much, so a per-run price says little without
-    naming which of the two runs it describes.
+    naming which of the two runs it describes. Measured on real scans: about
+    $0.15 a transcription run, plus about $0.06 for the layout reading that
+    precedes the pair.
 - **Voting, not escalation** {#extraction-voting}: each scan is read by two
   independent Opus calls over its cut strips (`transcribe_sheet`), compared cell
   by cell and merged (`voting.vote_sessions`) — a cell both runs agree on is
@@ -216,21 +218,30 @@ mode**, on the existing Claude subscription — no separate API billing.
   `--output-format stream-json` in turn, so the response is a `result` event
   parsed out of a JSON-lines stream rather than a single `--output-format json`
   envelope; `--json-schema` keeps that event's payload schema-conformant JSON.
-- **Input format: labeled per-row strips at native resolution.** The CLI
-  downscales a full 12MP scan to ~56% linear before the model sees it, and a
-  live comparison on the 6/29 sheet showed every resolution-class error (a
-  misread contract digit, dropped announcements, box-vs-circle swaps on dense
-  rows) vanishing when the sheet arrives as native-resolution crops instead — at
-  lower cost than the full-sheet run ($0.21 vs $0.29 — one run each, on Sonnet 5
-  before the switch to Opus, so neither figure lines up with the per-sheet ones
-  above). The request is an ordered sequence of labeled parts: one crop per
-  printed board row, each preceded by a text label naming its printed row, then
-  the footer crop. Three details are load-bearing, found by live experiment:
-  each crop includes the printed `Bd` column (without it the model substitutes
-  the adjacent `Vs` number), the labels fix board identity, and the prompt says
-  explicitly to emit blank rows. Per-row is the tile size because the review UI
-  needs per-row crops regardless, so row-precision geometry exists either way;
-  coarser bands would save only the labeling machinery.
+- **Input format: labeled per-row strips at native resolution.** A full 12MP
+  scan reaches the model at ~56% linear, and a live comparison on the 6/29 sheet
+  showed every resolution-class error (a misread contract digit, dropped
+  announcements, box-vs-circle swaps on dense rows) vanishing when the sheet
+  arrives as native-resolution crops instead — at lower cost than the full-sheet
+  run ($0.21 vs $0.29 — one run each, on Sonnet 5 before the switch to Opus, so
+  neither figure lines up with the per-sheet ones above). The request is an
+  ordered sequence of labeled parts: one crop per printed board row, each
+  preceded by a text label naming its printed row, then the footer crop. Three
+  details are load-bearing, found by live experiment: each crop includes the
+  printed `Bd` column (without it the model substitutes the adjacent `Vs`
+  number), the labels fix board identity, and the prompt says explicitly to emit
+  blank rows. Per-row is the tile size because the review UI needs per-row crops
+  regardless, so row-precision geometry exists either way; coarser bands would
+  save only the labeling machinery.
+
+  The ~56% figure is a property of a raw photo, where most of the frame is not
+  sheet. A scanner app that rectifies and crops writes a file that is all sheet,
+  and those reach the model at 78-98% linear — so the gap this works around has
+  largely closed for scanned input. The strips earn their place even so: a
+  whole-page read measures close but not better, and the geometry they are cut
+  from is needed for the review UI regardless. Reading the layout from the sheet
+  changed where the cut lines come from, not whether to cut.
+
 - **The scan is dewarped from its own printed grid before anything else reads
   it.** The live 6/29 scan (a raw phone photo) showed why: perspective slants
   the top rules ~1.5 row pitches across the sheet's width, tapering to flat at
@@ -244,31 +255,42 @@ mode**, on the existing Claude subscription — no separate API billing.
   native scale. This supersedes the earlier reliance on the scanner app's
   perspective correction (see Ingest): good capture still helps, but correctness
   no longer depends on it.
-- **Row geometry is detected per scan in dewarped space, and padding is the
-  consumer's job.** Rule positions are per-rule medians across the column
-  slices' chains — a full-width profile stays blind to a rule that page curl
-  still drifts a fraction of a pitch, while each slice sees it sharply. The grid
-  is identified structurally: the longest chain of near-uniform-pitch dips,
-  skipping handwriting's interloper dips. The row count is not configured but
-  voted — each column slice's chain length votes and the modal count wins, so
-  forms with more or fewer rows resolve unchanged, and a slice that chained a
-  ghost rule (the footer's printed guide underlines) is outvoted; a tie whose
-  two readings end at the same bottom rule resolves to the longer one, since the
-  shorter is the same grid missing top rows. Chained rows that aren't board rows
-  are handled by kind: partial-width lines (the v4 form's scale charts above the
-  grid, footer guide underlines below) are trimmed by ink coverage — a true grid
-  rule spans the sheet's full width — while v4's board-pitch printed header row
-  stays, and the prompt has the model emit no board object for its strip.
-  Validated on a rendered blank v4 form, clean and synthetically degraded (the
-  committed fixture in `testdata/`). The result is a typed `SheetGeometry` of
-  tight rule-to-rule row boxes — the footer region is derived from them, not
-  stored — persisted with the source quad alongside the processed session:
+- **Row geometry is resolved per scan in dewarped space, from two readings of
+  the sheet, and padding is the consumer's job.** The model reads the sheet's
+  layout first (`sheet_structure`): how many ruled rows each panel has, roughly
+  where each panel sits, and where the footer band is. Detection then finds
+  where every printed rule actually is — per-rule medians across the column
+  slices' chains, because a full-width profile stays blind to a rule that page
+  curl drifts a fraction of a pitch while each slice sees it sharply — and takes
+  the run of rules matching the reported count. The split is deliberate: what a
+  line _means_ is a judgement about the form, and where it _is_ is a
+  measurement. Measured over repeated runs the reported row count is exactly
+  stable while the reported coordinates drift about a percent of the page, so
+  the count is a hard constraint and the coordinates only place it; every
+  coordinate in the result comes from a rule found in the pixels.
+
+  This replaced three heuristics that each assumed a single full-width grid and
+  each failed on real scans: a row-count vote across the slices, an ink-coverage
+  trim meant to drop chart rules above the grid and footer guide underlines
+  below it, and a footer region derived at a fixed offset under the last row.
+  The footer's underline defeated the trim outright — it runs nearly the full
+  width one pitch below the grid, so its coverage sat within 0.09 of a true
+  rule's — which refused two of three real pages and, on the third, took the
+  underline for the grid's last rule and put the footer region on blank paper
+  below it. Losing the footer loses the event and date, so the session got no
+  key and no traveller could ever match it. Validated on a rendered blank v4
+  form, clean and synthetically degraded (the committed fixture in `testdata/`).
+  The result is a typed `SheetGeometry` of tight rule-to-rule row boxes and the
+  footer region beside them — carried rather than derived at a fixed offset
+  below the last row, since several forms print charts there and no footer at
+  all — persisted with the source quad alongside the processed session:
   extraction cuts strips from it, a voting rerun reuses the same strips, and the
   review UI crops from it. Handwriting bleeds past the printed rules and curl
   leaves residual drift, so each consumer pads the tight boxes at cut time —
   extraction expands each strip by a fraction of the row pitch into its
   neighbors, and the prompt's "transcribe the row whose middle line the strip
   shows" rule disambiguates the duplicated content that padding creates.
+
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
   markup (parens, `!`, `_`/`^`, `*`, `[ ]`), the contract cell verbatim, and the
@@ -375,13 +397,19 @@ Whichever is chosen:
   **unwrapped rather than rasterized**: a scanner app's PDF is a container
   around the photo it already took, so the embedded image is the original pixels
   where rendering the page would resample them.
-- **Multiple pages are not yet supported.** The multi-page container absorbs
-  glare and binding splits at capture time, but `transcribe_sheet` takes a
-  single image, so what a second page means — a retake to choose among, half a
-  grid to stitch, a separate sheet — decides whether this is a decode step or a
-  merge stage. The first page is digitized and the rest reported; tasks.md
-  `#multi-page-scans` carries the question, which wants a real multi-page scan
-  to settle it against.
+- **Every page of a container is its own sheet.** A scanner app writes one file
+  per feed, so several sheets fed together arrive in one PDF; each is a separate
+  session with its own footer, key and traveller. `decode_scan` yields one
+  decoded sheet per page and ingest digitizes each, recording which page a
+  record came from (`SheetImage.page`) so it can be re-derived. A page that will
+  not decode is reported as itself and the rest go on — an app that appends a
+  summary page, or a form with a logo beside the sheet, should not cost the
+  sheets around it. The container is still what moves, so where some sheets read
+  and others did not it is archived with a sidecar naming the pages that failed;
+  a file that will not open at all is terminal as a whole, as is one whose model
+  call failed outright — that one says nothing about any sheet in particular, so
+  the container is set aside and the run stops rather than carrying on into the
+  same failure.
 - **Self-naming**: the footer (event, date) is read first so the file names
   itself by session key — no manual tagging. The derivation is literal: the
   footer text casefolded and hyphenated, joined to the parsed date, giving

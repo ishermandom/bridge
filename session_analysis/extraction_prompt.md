@@ -35,12 +35,21 @@ board. Every value is a string.
 
 The sheet arrives as horizontal strips cut from one scan at full resolution: one
 strip per printed board row, each preceded by a text label naming the printed
-row it shows, followed by a final strip of the footer. Adjacent strips overlap a
-little vertically — transcribe each board row from the strip whose middle line
-it occupies, and emit one board object per row strip, blank rows included.
+row it shows. Adjacent strips overlap a little vertically — transcribe each
+board row from the strip whose middle line it occupies.
 
-One strip may show the sheet's printed column-header row instead of a board row.
-It is not a board: emit no board object for it.
+Emit exactly one board object per row strip, always: blank rows included, and
+whatever a strip appears to show. The row strips and the boards correspond one
+to one, and that count is how the rest of the pipeline lines them up.
+
+Go by the labels, not by position. A footer strip follows the row strips only
+when the form prints a footer, and its label says so. The footer strip is not a
+board row: it fills `event` and `date`, and gets no board object of its own — a
+board emitted for it would leave the boards outnumbering the rows they were cut
+from, and the sheet is then flagged for a person to check. If no strip is
+labelled as the footer, leave `event` and `date` empty rather than reading them
+off the last row strip — an invented event and date name the wrong session,
+where empty ones leave the sheet to be named by hand.
 
 ## What to leave out
 

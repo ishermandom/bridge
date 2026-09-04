@@ -22,7 +22,7 @@ default grid the same way and for the same reason.
 
 from session_analysis.models import SheetFrame, SheetImage, Source
 from session_analysis.sheet_dewarp import Point, Quad
-from session_analysis.sheet_geometry import Box, SheetGeometry
+from session_analysis.unreviewed.sheet_geometry import Box, SheetGeometry
 
 
 def sheet_frame() -> SheetFrame:

@@ -12,9 +12,12 @@ patches (see faking-the-filesystem.md).
 
 import datetime
 import json
+import statistics
+import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+import pypdf
 import pytest
 from PIL import Image
 
@@ -24,14 +27,16 @@ from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
+from session_analysis.rule_grid import resolve_grid_consensus
+from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.testing import provenance
 from session_analysis.testing.scripted_model import ScriptedModelRunner
 from session_analysis.testing.synthetic_scans import draw_sheet
 from session_analysis.unreviewed.ingest import (
   ReconcileReport,
-  ScanOutcome,
-  ScanReport,
   SessionOutcome,
+  SheetOutcome,
+  SheetReport,
   match_pending_sessions,
   process_inbox,
   reconcile_pending_sessions,
@@ -48,8 +53,11 @@ TESTDATA = Path(__file__).parent.parent / 'testdata/travellers'
 # EXIF's top-level `DateTime`, which is what a PNG carries through a round trip.
 _DATE_TIME = 306
 
-# 29 rules bounding 28 board rows, unlike `draw_sheet`'s default 24 — so a test
-# needing a second, differently-drawn scan has one whose bytes differ.
+# The grid a scan carries when a test has no opinion. Only its row count is
+# depended on: no assertion here turns on where these rules sit.
+_TWENTY_FOUR_ROWS = list(range(80, 657, 24))
+# 29 rules bounding 28 board rows — so a test needing a second, differently
+# drawn scan has one whose bytes differ.
 _TWENTY_EIGHT_ROWS = list(range(100, 661, 20))
 
 
@@ -58,16 +66,81 @@ def _write_scan(
   name: str,
   *,
   taken: datetime.date = datetime.date(2026, 7, 1),
-  rule_ys: Sequence[int] | None = None,
+  rule_ys: Sequence[int] = _TWENTY_FOUR_ROWS,
 ) -> Path:
   """Draw a scan into the inbox, stating the day it was taken."""
-  image = draw_sheet() if rule_ys is None else draw_sheet(rule_ys)
+  image = draw_sheet(rule_ys)
   exif = image.getexif()
   exif[_DATE_TIME] = f'{taken:%Y:%m:%d} 11:30:00'
   tree.scan_inbox.mkdir(parents=True, exist_ok=True)
   scan = tree.scan_inbox / name
   image.save(scan, exif=exif)
   return scan
+
+
+def _write_container(
+  tree: PrivateTree,
+  name: str,
+  *,
+  pages: int,
+  taken: datetime.date = datetime.date(2026, 7, 1),
+  rule_ys: Sequence[int] = _TWENTY_FOUR_ROWS,
+) -> Path:
+  """Write a multi-page PDF into the inbox, as a scanner app does for a feed."""
+  drawn = [draw_sheet(rule_ys).convert('RGB') for _ in range(pages)]
+  tree.scan_inbox.mkdir(parents=True, exist_ok=True)
+  scan = tree.scan_inbox / name
+  drawn[0].save(scan, save_all=True, append_images=drawn[1:])
+  writer = pypdf.PdfWriter(clone_from=scan)
+  writer.add_metadata({'/CreationDate': f"D:{taken:%Y%m%d}114500-07'00'"})
+  with scan.open('wb') as handle:
+    writer.write(handle)
+  return scan
+
+
+def _reading(
+  rule_ys: Sequence[int] = _TWENTY_FOUR_ROWS, *, row_count: int | None = None
+) -> str:
+  """A scripted layout reading of the scan `_write_scan` draws.
+
+  Every sheet costs one of these before its two transcription runs. It names
+  roughly where the rows are, as a real reading does; the drawn grid carries
+  nothing but its own rules, so the slice consensus over the dewarped frame is
+  the grid, and only the row count has to match what was drawn.
+  """
+  frame = dewarp_sheet(draw_sheet(rule_ys)).image
+  # Where the drawn grid lands once the dewarp has added its margins. A reading
+  # names roughly where the rows are, as a real one does; the drawn sheet
+  # carries nothing but its own rules, so the slice consensus is the grid.
+  chains = resolve_grid_consensus(frame.convert('L')).chains
+  return json.dumps(
+    {
+      'panels': [
+        {
+          'board_row_count': (
+            len(rule_ys) - 1 if row_count is None else row_count
+          ),
+          'grid': {
+            'left': 0,
+            'top': round(
+              statistics.median(chain.rule_ys[0] for chain in chains)
+            ),
+            'right': frame.width,
+            'bottom': round(
+              statistics.median(chain.rule_ys[-1] for chain in chains)
+            ),
+          },
+        }
+      ],
+      'footer': {
+        'left': 0,
+        'top': frame.height - 50,
+        'right': frame.width,
+        'bottom': frame.height,
+      },
+      'notes': '',
+    }
+  )
 
 
 def _sheet_json(
@@ -140,11 +213,13 @@ def test_a_scan_is_filed_under_the_key_its_footer_names(
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'scan.png')
 
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     run = process_inbox(tree, run_command=runner)
 
   assert (tree.pending_session_records / 'pabc-morn-2026-06-29.json').is_file()
-  assert run.value[0].outcome == ScanOutcome.DIGITIZED
+  assert run.value[0].outcome == SheetOutcome.DIGITIZED
 
 
 def test_the_record_carries_the_key_as_well_as_the_filename(
@@ -153,7 +228,9 @@ def test_the_record_carries_the_key_as_well_as_the_filename(
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'scan.png')
 
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   session = _stored_session(tree, 'pabc-morn-2026-06-29')
@@ -170,7 +247,7 @@ def test_the_footer_year_resolves_against_the_scan_not_today(
   _write_scan(tree, 'scan.png', taken=datetime.date(2026, 1, 5))
 
   with ScriptedModelRunner(
-    [_sheet_json(date='12/29'), _sheet_json(date='12/29')]
+    [_reading(), _sheet_json(date='12/29'), _sheet_json(date='12/29')]
   ) as runner:
     process_inbox(tree, run_command=runner)
 
@@ -190,7 +267,7 @@ def test_the_boards_the_model_read_reach_the_record(tmp_path: Path) -> None:
   }
 
   with ScriptedModelRunner(
-    [_sheet_json(boards=[board]), _sheet_json(boards=[board])]
+    [_reading(), _sheet_json(boards=[board]), _sheet_json(boards=[board])]
   ) as runner:
     process_inbox(tree, run_command=runner)
 
@@ -209,7 +286,9 @@ def test_a_digitized_scan_leaves_the_inbox_for_the_archive(
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'scan.png')
 
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   assert list(tree.scan_inbox.iterdir()) == []
@@ -223,7 +302,9 @@ def test_the_record_points_at_the_archived_scan(tmp_path: Path) -> None:
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'scan.png')
 
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   session = _stored_session(tree, 'pabc-morn-2026-06-29')
@@ -234,7 +315,9 @@ def test_the_detected_grid_persists_on_the_record(tmp_path: Path) -> None:
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'scan.png', rule_ys=_TWENTY_EIGHT_ROWS)
 
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(_TWENTY_EIGHT_ROWS), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   frame = _stored_session(tree, 'pabc-morn-2026-06-29').source.image.frame
@@ -242,6 +325,331 @@ def test_the_detected_grid_persists_on_the_record(tmp_path: Path) -> None:
   # re-detecting it from the archived scan.
   assert len(frame.geometry.row_boxes) == 28
   assert frame.source_quad.top_left.y < 100
+
+
+# --- several sheets in one container ---
+
+
+def test_every_sheet_of_a_container_becomes_its_own_record(
+  tmp_path: Path,
+) -> None:
+  tree = PrivateTree(tmp_path)
+  _write_container(tree, 'feed.pdf', pages=2)
+
+  with ScriptedModelRunner(
+    [
+      _reading(),
+      _sheet_json(event='PABC morn.'),
+      _sheet_json(event='PABC morn.'),
+      _reading(),
+      _sheet_json(event='PABC eve.'),
+      _sheet_json(event='PABC eve.'),
+    ]
+  ) as runner:
+    run = process_inbox(tree, run_command=runner)
+
+  assert [report.outcome for report in run.value] == [
+    SheetOutcome.DIGITIZED,
+    SheetOutcome.DIGITIZED,
+  ]
+  assert sorted(
+    record.stem for record in tree.pending_session_records.iterdir()
+  ) == ['pabc-eve-2026-06-29-p2', 'pabc-morn-2026-06-29']
+
+
+def test_two_sheets_of_one_container_sharing_a_key_both_survive(
+  tmp_path: Path,
+) -> None:
+  # Two sessions of one event on one day, whose footers read alike. They were
+  # fed to the scanner together, so neither is a re-photograph of the other —
+  # discarding the second would throw away a sheet already paid for.
+  tree = PrivateTree(tmp_path)
+  _write_container(tree, 'feed.pdf', pages=2)
+
+  same = _sheet_json(event='PABC morn.', date='6/29')
+  with ScriptedModelRunner(
+    [_reading(), same, same, _reading(), same, same]
+  ) as runner:
+    run = process_inbox(tree, run_command=runner)
+
+  assert [report.outcome for report in run.value] == [
+    SheetOutcome.DIGITIZED,
+    SheetOutcome.DIGITIZED,
+  ]
+  assert sorted(
+    record.stem for record in tree.pending_session_records.iterdir()
+  ) == ['pabc-morn-2026-06-29', 'pabc-morn-2026-06-29-p2']
+
+  # The stem a record was written under has to be the one derived back from it,
+  # or the second sheet is never listed for reconciliation and never matched.
+  pending = match_pending_sessions(tree)
+  assert sorted(one.stem for one in pending.value) == [
+    'pabc-morn-2026-06-29',
+    'pabc-morn-2026-06-29-p2',
+  ]
+
+
+def test_a_sheet_that_will_not_resolve_does_not_cost_the_ones_before_it(
+  tmp_path: Path,
+) -> None:
+  # The sheets ahead of it have already been transcribed by the time it fails,
+  # so abandoning the whole container would spend that money twice.
+  tree = PrivateTree(tmp_path)
+  _write_container(tree, 'feed.pdf', pages=2)
+
+  with ScriptedModelRunner(
+    [
+      _reading(),
+      _sheet_json(),
+      _sheet_json(),
+      # A row count the drawn grid cannot support, so geometry refuses it.
+      _reading(row_count=99),
+    ]
+  ) as runner:
+    run = process_inbox(tree, run_command=runner)
+
+  assert [report.outcome for report in run.value] == [
+    SheetOutcome.DIGITIZED,
+    SheetOutcome.FAILED,
+  ]
+  assert [record.stem for record in tree.pending_session_records.iterdir()] == [
+    'pabc-morn-2026-06-29'
+  ]
+
+
+def test_a_failed_sheet_is_named_by_page_beside_the_archived_container(
+  tmp_path: Path,
+) -> None:
+  # The container is archived because the sheet that did read names it, so a
+  # re-run finds it by content hash and never retries — which makes the sidecar
+  # the only durable record of what went wrong.
+  tree = PrivateTree(tmp_path)
+  _write_container(tree, 'feed.pdf', pages=2)
+
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json(), _reading(row_count=99)]
+  ) as runner:
+    process_inbox(tree, run_command=runner)
+
+  archived = list(tree.scan_archive.glob('*.pdf'))
+  assert len(archived) == 1
+  sidecar = archived[0].with_name(archived[0].name + '.error')
+  assert 'page 2' in sidecar.read_text()
+
+
+def test_a_container_no_sheet_of_which_reads_is_set_aside(
+  tmp_path: Path,
+) -> None:
+  tree = PrivateTree(tmp_path)
+  _write_container(tree, 'feed.pdf', pages=2)
+
+  with ScriptedModelRunner(
+    [_reading(row_count=99), _reading(row_count=99)]
+  ) as runner:
+    run = process_inbox(tree, run_command=runner)
+
+  assert [report.outcome for report in run.value] == [
+    SheetOutcome.FAILED,
+    SheetOutcome.FAILED,
+  ]
+  assert not list(tree.scan_archive.glob('*.pdf'))
+  set_aside = list(tree.scan_failures.glob('*.pdf'))
+  assert len(set_aside) == 1
+  assert set_aside[0].name.endswith('feed.pdf')
+
+
+def test_a_container_redropped_after_a_partial_failure_is_recognized(
+  tmp_path: Path,
+) -> None:
+  # The sidecar a partial failure leaves shares the archived scan's name prefix,
+  # so it must not be mistaken for the scan itself when the file comes back.
+  tree = PrivateTree(tmp_path)
+  scan = _write_container(tree, 'feed.pdf', pages=2)
+  # Kept rather than rewritten: a PDF writer stamps its own identifier, so
+  # writing the same pages twice does not give the same bytes.
+  same_bytes = scan.read_bytes()
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json(), _reading(row_count=99)]
+  ) as runner:
+    process_inbox(tree, run_command=runner)
+
+  (tree.scan_inbox / 'feed.pdf').write_bytes(same_bytes)
+  with ScriptedModelRunner([]) as runner:
+    run = process_inbox(tree, run_command=runner)
+
+  assert [report.outcome for report in run.value] == [SheetOutcome.SKIPPED]
+  assert 'feed.pdf' in run.value[0].detail
+  assert '.error' not in run.value[0].detail
+
+
+def test_two_failing_scans_of_one_name_do_not_overwrite_each_other(
+  tmp_path: Path,
+) -> None:
+  # A scanner app that numbers nothing writes the same filename every time.
+  # Losing a set-aside scan — and the explanation beside it — silently is the
+  # opposite of what that directory is for.
+  tree = PrivateTree(tmp_path)
+  _write_scan(tree, 'scan.png')
+  with ScriptedModelRunner([_reading(row_count=99)]) as runner:
+    process_inbox(tree, run_command=runner)
+
+  _write_scan(tree, 'scan.png', rule_ys=_TWENTY_EIGHT_ROWS)
+  with ScriptedModelRunner(
+    [_reading(_TWENTY_EIGHT_ROWS, row_count=99)]
+  ) as runner:
+    process_inbox(tree, run_command=runner)
+
+  assert len(list(tree.scan_failures.glob('*.png'))) == 2
+  assert len(list(tree.scan_failures.glob('*.error'))) == 2
+
+
+class _OutageAfter:
+  """A runner that answers a few calls and then cannot reach the model.
+
+  A structural stub rather than a scripted reply: `ScriptedModelRunner` returns
+  transcriptions, and what this has to produce is the nonzero exit that
+  `invoke_vision_model` turns into a `VisionModelInvocationError`.
+  """
+
+  def __init__(self, replies: Sequence[str]) -> None:
+    self._replies = list(replies)
+
+  def __call__(
+    self, command: Sequence[str], stdin_text: str, cwd: Path
+  ) -> subprocess.CompletedProcess[str]:
+    if not self._replies:
+      return subprocess.CompletedProcess(
+        list(command), 1, '', 'rate limit exceeded'
+      )
+    result = self._replies.pop(0)
+    event = {'type': 'result', 'is_error': False, 'result': result}
+    return subprocess.CompletedProcess(
+      list(command), 0, json.dumps(event) + '\n', ''
+    )
+
+
+def test_a_model_outage_ends_the_container_without_writing_records(
+  tmp_path: Path,
+) -> None:
+  # An outage says nothing about any sheet, so the container is given up whole:
+  # archiving it would have a re-drop recognized by its bytes and never retried,
+  # losing a sheet to a passing rate limit for good.
+  tree = PrivateTree(tmp_path)
+  _write_container(tree, 'feed.pdf', pages=2)
+
+  # The first sheet reads through; the model is unreachable for the second.
+  run = process_inbox(
+    tree,
+    run_command=_OutageAfter([_reading(), _sheet_json(), _sheet_json()]),
+  )
+
+  # Set aside rather than left in the inbox: this stage cannot tell an outage
+  # from a request the model refuses every time, and leaving it would have every
+  # later run meet it first and stop there. The sidecar says what happened, and
+  # moving the file back is the whole retry.
+  assert [report.outcome for report in run.value] == [SheetOutcome.FAILED]
+  assert not list(tree.pending_session_records.glob('*.json'))
+  assert not list(tree.scan_archive.glob('*.pdf'))
+  assert not list(tree.scan_inbox.iterdir())
+  assert len(list(tree.scan_failures.glob('*.pdf'))) == 1
+
+
+def test_scans_behind_an_outage_are_reported_rather_than_dropped(
+  tmp_path: Path,
+) -> None:
+  # A summary that simply stopped would leave a person counting files to notice
+  # that the rest were never opened.
+  tree = PrivateTree(tmp_path)
+  _write_scan(tree, 'first.png')
+  _write_scan(tree, 'second.png', rule_ys=_TWENTY_EIGHT_ROWS)
+
+  run = process_inbox(tree, run_command=_OutageAfter([]))
+
+  assert [report.sheet for report in run.value] == ['first.png', 'second.png']
+  # The first is set aside because it is the one that failed; the second was
+  # never opened, so nothing is known against it and it waits where it is.
+  assert [report.outcome for report in run.value] == [
+    SheetOutcome.FAILED,
+    SheetOutcome.DEFERRED,
+  ]
+  assert [path.name for path in tree.scan_inbox.iterdir()] == ['second.png']
+
+
+def test_a_scan_the_model_always_refuses_does_not_wedge_the_inbox(
+  tmp_path: Path,
+) -> None:
+  # This stage cannot tell an outage from a request the model refuses every
+  # time. Left in the inbox, the second kind would have every later run meet it
+  # first and stop there — the scan behind it never read, and nothing saying
+  # why.
+  tree = PrivateTree(tmp_path)
+  _write_scan(tree, 'first.png')
+  _write_scan(tree, 'second.png', rule_ys=_TWENTY_EIGHT_ROWS)
+  process_inbox(tree, run_command=_OutageAfter([]))
+
+  with ScriptedModelRunner(
+    [_reading(_TWENTY_EIGHT_ROWS), _sheet_json(), _sheet_json()]
+  ) as runner:
+    rerun = process_inbox(tree, run_command=runner)
+
+  # The refused scan is out of the way, so the one behind it gets read.
+  assert [report.outcome for report in rerun.value] == [SheetOutcome.DIGITIZED]
+  assert not list(tree.scan_inbox.iterdir())
+
+
+def test_fewer_boards_than_strips_is_flagged_on_the_record(
+  tmp_path: Path,
+) -> None:
+  # One strip is cut per board row and one board asked for per row strip, so a
+  # missing board means every board after it is against the wrong row. The vote
+  # cannot see it: both runs dropping the same strip is exactly the shape it
+  # takes, and two agreeing runs raise nothing.
+  tree = PrivateTree(tmp_path)
+  _write_scan(tree, 'scan.png')
+  one_board = [
+    {
+      'board_number': '1',
+      'auction': '1N p p p',
+      'contract': '1N N =',
+      'lead': 'HQ',
+      'notes': '',
+    }
+  ]
+
+  with ScriptedModelRunner(
+    [
+      _reading(),
+      _sheet_json(boards=one_board),
+      _sheet_json(boards=one_board),
+    ]
+  ) as runner:
+    process_inbox(tree, run_command=runner)
+
+  session = _stored_session(tree, 'pabc-morn-2026-06-29')
+  assert 'board_count_mismatch' in {issue.code for issue in session.issues}
+
+
+def test_a_retried_scan_leaves_no_explanation_behind_it(
+  tmp_path: Path,
+) -> None:
+  # Dragging a set-aside scan back is the documented retry. Its sidecar would
+  # otherwise stay in `failed/`, naming a file no longer there and describing a
+  # failure that has since been read through.
+  tree = PrivateTree(tmp_path)
+  scan = _write_scan(tree, 'scan.png')
+  same_bytes = scan.read_bytes()
+  with ScriptedModelRunner([_reading(row_count=99)]) as runner:
+    process_inbox(tree, run_command=runner)
+  assert list(tree.scan_failures.glob('*.error'))
+
+  set_aside = next(iter(tree.scan_failures.glob('*.png')))
+  (tree.scan_inbox / set_aside.name).write_bytes(same_bytes)
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
+    process_inbox(tree, run_command=runner)
+
+  assert not list(tree.scan_failures.glob('*.error'))
 
 
 # --- running twice ---
@@ -253,7 +661,9 @@ def test_the_same_scan_dropped_in_again_costs_no_model_call(
   tree = PrivateTree(tmp_path)
   scan = _write_scan(tree, 'scan.png')
   original = scan.read_bytes()
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   (tree.scan_inbox / 'scan.png').write_bytes(original)
@@ -261,7 +671,7 @@ def test_the_same_scan_dropped_in_again_costs_no_model_call(
   with ScriptedModelRunner([]) as runner:
     rerun = process_inbox(tree, run_command=runner)
 
-  assert rerun.value[0].outcome == ScanOutcome.SKIPPED
+  assert rerun.value[0].outcome == SheetOutcome.SKIPPED
   assert 'already archived' in rerun.value[0].detail
 
 
@@ -271,7 +681,9 @@ def test_the_same_scan_under_a_new_name_leaves_one_archived_copy(
   tree = PrivateTree(tmp_path)
   scan = _write_scan(tree, 'scan.png')
   original = scan.read_bytes()
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   # The same photograph, renamed on its way back in — a copy step or a re-sync.
@@ -290,16 +702,20 @@ def test_a_second_photograph_of_a_digitized_sheet_is_skipped(
 ) -> None:
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'first.png')
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   # Different pixels, so a different content hash — but the same footer, which
   # is what says the two are one session.
   _write_scan(tree, 'second.png', rule_ys=_TWENTY_EIGHT_ROWS)
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(_TWENTY_EIGHT_ROWS), _sheet_json(), _sheet_json()]
+  ) as runner:
     rerun = process_inbox(tree, run_command=runner)
 
-  assert rerun.value[0].outcome == ScanOutcome.SKIPPED
+  assert rerun.value[0].outcome == SheetOutcome.SKIPPED
   assert 'already digitized as pabc-morn-2026-06-29' in rerun.value[0].detail
   # One record, not two: the second photograph added nothing.
   assert len(list(tree.pending_session_records.iterdir())) == 1
@@ -310,11 +726,15 @@ def test_a_re_photographed_sheet_still_reaches_the_archive(
 ) -> None:
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'first.png')
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   _write_scan(tree, 'second.png', rule_ys=_TWENTY_EIGHT_ROWS)
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(_TWENTY_EIGHT_ROWS), _sheet_json(), _sheet_json()]
+  ) as runner:
     process_inbox(tree, run_command=runner)
 
   # It is a scan of a session on hand, so it belongs with the rest — and it must
@@ -333,12 +753,16 @@ def test_an_unreadable_footer_is_still_stored_under_a_hash_name(
   _write_scan(tree, 'scan.png')
 
   with ScriptedModelRunner(
-    [_sheet_json(event='', date=''), _sheet_json(event='', date='')]
+    [
+      _reading(),
+      _sheet_json(event='', date=''),
+      _sheet_json(event='', date=''),
+    ]
   ) as runner:
     run = process_inbox(tree, run_command=runner)
 
   # Nothing is garbage: the session is stored and reviewable, just not named.
-  assert run.value[0].outcome == ScanOutcome.DIGITIZED
+  assert run.value[0].outcome == SheetOutcome.DIGITIZED
   stored = list(tree.pending_session_records.iterdir())
   assert len(stored) == 1
   assert stored[0].name.startswith('unnamed-')
@@ -349,7 +773,11 @@ def test_an_unreadable_footer_is_flagged_for_review(tmp_path: Path) -> None:
   _write_scan(tree, 'scan.png')
 
   with ScriptedModelRunner(
-    [_sheet_json(event='', date=''), _sheet_json(event='', date='')]
+    [
+      _reading(),
+      _sheet_json(event='', date=''),
+      _sheet_json(event='', date=''),
+    ]
   ) as runner:
     process_inbox(tree, run_command=runner)
 
@@ -367,14 +795,16 @@ def test_two_unreadable_footers_do_not_read_as_one_session(
   _write_scan(tree, 'second.png', rule_ys=_TWENTY_EIGHT_ROWS)
 
   blank = _sheet_json(event='', date='')
-  with ScriptedModelRunner([blank, blank, blank, blank]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), blank, blank, _reading(_TWENTY_EIGHT_ROWS), blank, blank]
+  ) as runner:
     run = process_inbox(tree, run_command=runner)
 
   # Each unnamed record leads with its own content hash, so neither is mistaken
   # for a second photograph of the other.
   assert [report.outcome for report in run.value] == [
-    ScanOutcome.DIGITIZED,
-    ScanOutcome.DIGITIZED,
+    SheetOutcome.DIGITIZED,
+    SheetOutcome.DIGITIZED,
   ]
   assert len(list(tree.pending_session_records.iterdir())) == 2
 
@@ -392,10 +822,10 @@ def test_a_scan_that_is_no_image_is_set_aside_with_its_reason(
   with ScriptedModelRunner([]) as runner:
     run = process_inbox(tree, run_command=runner)
 
-  assert run.value[0].outcome == ScanOutcome.FAILED
+  assert run.value[0].outcome == SheetOutcome.FAILED
   assert list(tree.scan_inbox.iterdir()) == []
-  assert (tree.scan_failures / 'scan.png').is_file()
-  sidecar = tree.scan_failures / 'scan.png.error'
+  set_aside = next(iter(tree.scan_failures.glob('*.png')))
+  sidecar = set_aside.with_name(set_aside.name + '.error')
   assert 'ScanDecodingError' in sidecar.read_text()
 
 
@@ -408,9 +838,9 @@ def test_a_scan_with_no_grid_to_find_is_set_aside(tmp_path: Path) -> None:
   with ScriptedModelRunner([]) as runner:
     run = process_inbox(tree, run_command=runner)
 
-  assert run.value[0].outcome == ScanOutcome.FAILED
-  assert (tree.scan_failures / 'scan.png').is_file()
-  assert (tree.scan_failures / 'scan.png.error').is_file()
+  assert run.value[0].outcome == SheetOutcome.FAILED
+  set_aside = next(iter(tree.scan_failures.glob('*.png')))
+  assert set_aside.with_name(set_aside.name + '.error').is_file()
 
 
 def test_a_failed_scan_does_not_stop_the_ones_behind_it(
@@ -421,12 +851,14 @@ def test_a_failed_scan_does_not_stop_the_ones_behind_it(
   (tree.scan_inbox / 'a-broken.png').write_text('not an image')
   _write_scan(tree, 'b-good.png')
 
-  with ScriptedModelRunner([_sheet_json(), _sheet_json()]) as runner:
+  with ScriptedModelRunner(
+    [_reading(), _sheet_json(), _sheet_json()]
+  ) as runner:
     run = process_inbox(tree, run_command=runner)
 
   assert [report.outcome for report in run.value] == [
-    ScanOutcome.FAILED,
-    ScanOutcome.DIGITIZED,
+    SheetOutcome.FAILED,
+    SheetOutcome.DIGITIZED,
   ]
 
 
@@ -464,26 +896,26 @@ def test_a_missing_inbox_is_an_error(tmp_path: Path) -> None:
 # --- what the run prints ---
 
 
-def test_the_summary_gives_every_scan_a_line() -> None:
+def test_the_summary_gives_every_sheet_a_line() -> None:
   reports = [
-    ScanReport('a.png', ScanOutcome.DIGITIZED, 'pabc-morn-2026-06-29'),
-    ScanReport('b.png', ScanOutcome.SKIPPED, 'already archived'),
-    ScanReport('c.png', ScanOutcome.FAILED, 'no grid could be resolved'),
+    SheetReport('a.png', SheetOutcome.DIGITIZED, 'pabc-morn-2026-06-29'),
+    SheetReport('b.png', SheetOutcome.SKIPPED, 'already archived'),
+    SheetReport('c.png', SheetOutcome.FAILED, 'no grid could be resolved'),
   ]
 
   lines = list(summarize_run(reports))
 
-  assert lines[0] == '3 scans in the inbox:'
+  assert lines[0] == '3 sheets from the inbox:'
   assert 'a.png — pabc-morn-2026-06-29' in lines[1]
   assert 'digitized' in lines[1]
   assert 'skipped' in lines[2]
   assert 'failed' in lines[3]
 
 
-def test_a_single_scan_is_not_reported_in_the_plural() -> None:
-  reports = [ScanReport('a.png', ScanOutcome.DIGITIZED, 'a-key')]
+def test_a_single_sheet_is_not_reported_in_the_plural() -> None:
+  reports = [SheetReport('a.png', SheetOutcome.DIGITIZED, 'a-key')]
 
-  assert next(iter(summarize_run(reports))) == '1 scan in the inbox:'
+  assert next(iter(summarize_run(reports))) == '1 sheet from the inbox:'
 
 
 def test_an_empty_run_says_the_inbox_was_empty() -> None:
@@ -588,8 +1020,8 @@ def test_a_withdrawn_capture_takes_its_enrichment_back_off(
   assert _stored_record_of(tree, capture).is_file()
   reports = _reconcile(tree)
 
-  # Named, not just counted: on a capture root gone missing altogether this
-  # line is the only thing separating an accident from a real withdrawal.
+  # Named, not just counted: on a capture root gone missing altogether this line
+  # is the only thing separating an accident from a real withdrawal.
   assert f'{CLUB_CAPTURE_DIRECTORY}/D260309M.pbn' in reports[0].detail
   assert 'taken back off' in reports[0].detail
   cleared = _stored_session(tree, 'pabc-morn-2026-03-09')
@@ -692,8 +1124,8 @@ def test_a_capture_that_broke_keeps_its_place_beside_one_that_did_not(
 
   (held,) = _reconcile(tree)
   assert held.outcome == SessionOutcome.HELD
-  # Both citations survive: the run declined to rejoin rather than rewriting
-  # the record from the capture that still parses.
+  # Both citations survive: the run declined to rejoin rather than rewriting the
+  # record from the capture that still parses.
   cited = _stored_session(tree, 'pabc-morn-2026-03-09').source.travellers
   assert len(cited) == 2
 
@@ -722,8 +1154,8 @@ def test_the_reconciliation_summary_names_each_session_it_reports() -> None:
   lines = list(summarize_reconciliation(reports))
 
   assert lines[0] == '2 sessions the join reports:'
-  # The outcome column is padded to the widest of them, as the scan summary
-  # pads its own, so the session keys line up to be read down.
+  # The outcome column is padded to the widest of them, as the scan summary pads
+  # its own, so the session keys line up to be read down.
   assert lines[1] == (
     '  reconciled  pabc-morn-2026-03-09 — enriched from 1 traveller'
   )

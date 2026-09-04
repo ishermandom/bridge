@@ -10,10 +10,10 @@ import io
 
 from PIL import Image
 
-from session_analysis.sheet_geometry import Box, SheetGeometry
 from session_analysis.strip_cutting import cut_strips
+from session_analysis.unreviewed.sheet_geometry import Box, SheetGeometry
 
-# Three tight 20px rows on a 100x200 page.
+# Three tight 20px rows on a 100x200 page, with a 50px footer band below them.
 _GEOMETRY = SheetGeometry(
   image_width=100,
   image_height=200,
@@ -22,6 +22,7 @@ _GEOMETRY = SheetGeometry(
     Box(left=10, top=70, right=90, bottom=90),
     Box(left=10, top=90, right=90, bottom=110),
   ),
+  footer=Box(left=10, top=110, right=90, bottom=160),
 )
 
 
@@ -68,10 +69,29 @@ def test_strip_padding_clamps_at_the_image_edges() -> None:
   assert _decode(parts[0].image_bytes).size == (80, 24)
 
 
-def test_the_footer_strip_is_cut_unpadded() -> None:
+def test_the_footer_strip_is_padded_like_a_row() -> None:
+  # The footer band is read off the sheet rather than derived with a margin of
+  # its own, so it can hug the printed guide underlines that ascenders cross —
+  # and it is the only place the session key comes from.
   image = Image.new('RGB', (100, 200), color='white')
 
   parts = cut_strips(image, _GEOMETRY)
 
-  # The derived footer box: 2.5 pitches (50px) below the bottom rule at 110.
-  assert _decode(parts[-1].image_bytes).size == (80, 50)
+  # The footer box as given, 110..160, plus 6px of padding at each end.
+  assert _decode(parts[-1].image_bytes).size == (80, 62)
+
+
+def test_a_sheet_with_no_footer_contributes_no_footer_strip() -> None:
+  # Several vendor forms print conversion charts below the table and no footer
+  # at all; cutting one anyway would hand the model a chart to read an event
+  # and date out of.
+  image = Image.new('RGB', (100, 200), color='white')
+  geometry = SheetGeometry(
+    image_width=100,
+    image_height=200,
+    row_boxes=(Box(left=10, top=50, right=90, bottom=70),),
+  )
+
+  parts = cut_strips(image, geometry)
+
+  assert [part.label for part in parts] == ['Strip for printed row 1:']

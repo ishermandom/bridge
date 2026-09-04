@@ -27,6 +27,14 @@ unread.
     reconciliation join, so the automated sweep is done and what is left is
     judgment. Both rounds' remaining findings are TODOs at the lines they
     concern.
+  - Note: eighteen `/code-review high` rounds then ran over the change that had
+    the model read the sheet's layout, converging: the last found no correctness
+    defect. Weight the tail lightly — rounds twelve to seventeen each found
+    defects mostly in the previous round's fix rather than in the change, and
+    three times a proposed tightening would have broken real pages, which
+    measurement caught. The thresholds in `rule_grid` and `sheet_geometry` carry
+    their measurements in comments for that reason; read those before retuning
+    any of them.
   - Note: five more such rounds ran over the auto-reconcile join, and the first
     four each found a real defect in the previous round's fix — all in the rule
     deciding whether a session's enrichment stands. The rule is worth reading on
@@ -82,15 +90,16 @@ unread.
     user before it was written: the frame on `SheetImage` rather than `Source`,
     a provisional key renamed at review rather than a stable id, the key derived
     from the footer alone with the time of day riding in the footer text, the
-    capture match reading the date alone, the first page of a multi-page scan
-    digitized and the rest reported, and failures moved to `scoresheets/failed/`
-    with a sidecar. Each is argued where it is implemented, so what remains is
+    capture match reading the date alone, every page of a scan container
+    digitized as its own sheet, and failures moved to `scoresheets/failed/` with
+    a sidecar. Each is argued where it is implemented, so what remains is
     whether the code does what those decisions say.
-  - Note: the spine has never been run against a real scan. Every test drives it
-    with a drawn grid and a scripted model, so what a reviewer cannot take from
-    the tests is whether a phone's own scan dewarps, whether its EXIF states a
-    capture date, and what a real footer normalizes to. One run over a real
-    sheet is worth more than another reading of `ingest.py`.
+  - Note: the spine has now been run against real scans, which answered three
+    things the tests could not. A phone scan needs almost no dewarping —
+    Google's ML Kit scanner rectifies and crops before writing the PDF; the file
+    does state the day it was taken, in the PDF's own `/CreationDate`; and a
+    real footer normalizes as expected, `PABC mon.` on 8/31 giving
+    `pabc-mon-2026-08-31`.
   - Note: `testing/provenance.py` and `testing/scripted_model.py` sit outside
     this directory deliberately — reviewed tests import both, and code here may
     not be depended on by reviewed code. Both are test-support with no logic,
@@ -115,18 +124,6 @@ output, parsed into the canonical model.
   - Rationale: the date is often not written on the sheet at all, and a vision
     model can plausibly infer it from available context in a way static code
     can't do accurately.
-- [ ] Explore replacing local geometry processing (dewarp, grid detection, strip
-      cutting) with one or more vision-model calls.
-  - Rationale: the local pipeline exists largely to work around a resolution
-    limitation in Claude's vision input. The code is fragile; solving the
-    problem natively in the vision model would be much more robust.
-  - Note: if this pans out, it reshapes the Backlog's multi-format geometry item
-    — a model-driven approach may handle two-column layouts without a hand-built
-    column-grid stage.
-  - Note: this subsumes re-measuring the full-sheet side of spec.md's
-    strips-versus-full-sheet cost figures, which are still Sonnet-era. Whether a
-    whole-sheet read works at all is the question worth answering; its price
-    alone is not.
 - [ ] Decide whether the two-run vote still earns its keep on Opus 5.
   - Rationale: the refreshed strips comparison found Opus 5's two runs agreeing
     completely on the 6/29 sheet — the pass flags nothing, and the errors that
@@ -167,6 +164,12 @@ ingest command runs both on its way past and then joins each pending session to
 the travellers now covering it, as
 `unreviewed.ingest.reconcile_pending_sessions`. So neither a capture saved by
 hand nor the reconciliation a match sets off needs a command of its own.
+
+Every ACBL fetch needs a desktop session of this account's own to launch its
+browser into, which a session started through the ssh `claudify` has and an
+older one does not. The club capture route needs no browser at all, so a run
+that returns club captures and no ACBL ones may be reporting the environment
+rather than a fault.
 
 - [ ] Fetch a real tournament traveller through the reworked ACBL fetch.
       Trigger: the next tournament played.
@@ -251,52 +254,96 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
-- [ ] Run the spine against real scans and fix or queue what it finds.
-      {#first-real-scan}
-  - Worktree: first-real-scan
-  - Rationale: every test drives the spine with a drawn grid and a scripted
-    model, so what a real scan does is unknown. Three things in particular:
-    whether a phone's scan dewarps, whether the file states the day it was
-    taken, and what a real footer normalizes to.
-  - Note: two scans are waiting. `Scanned_20260901-1145.pdf` is one page, a club
-    game. `Scanned_20260901-2252.pdf` is two pages, one per session of a
-    tournament teams game.
-  - Note: two outcomes are expected rather than faults. Only the first page of
-    the two-page scan is digitized — `decode_scan` reports the rest as
-    `extra_scan_pages`, which is #multi-page-scans, below. And a teams game
-    publishes no traveller at all ([travellers.md](travellers.md)), so those
-    sessions reconcile with none, exercising graceful degradation rather than
-    enrichment.
-  - Note: the scans' recorded creation time is when they were copied into the
-    inbox; the time they were scanned is in their filenames. Worth checking
-    which of the two `scan_decoding` actually reads, since the capture date is
-    one of the three unknowns above.
-  - Note: ACBL fetching works again, but it needs a desktop session of this
-    account's own to launch its browser into, which a session started through
-    the ssh `claudify` has and an older one does not. The club capture route
-    needs no browser at all, so a no-traveller run on the tournament sheets is
-    not evidence about either.
+- [ ] Give the dewarp the row count too, rather than voting for it.
+      {#dewarp-needs-the-reading}
+  - Rationale: `dewarp_sheet` still calls `resolve_grid_consensus`, which is the
+    row-count vote the geometry stage stopped using. It runs before
+    `read_sheet_structure`, so a sheet the vote refuses never reaches the model
+    at all — and a two-panel form whose panels differ in height is exactly what
+    it refuses, since the slices then split between two counts and the tie-break
+    wants both readings to share a bottom rule. Bridge Buddy dewarps (its panels
+    are the same height); Baron Barclay does not.
+  - Note: the dewarp's bottom margin is the same assumption in another place. It
+    keeps three row pitches below the grid's last rule, which is where the
+    footer sits on the forms in hand — but `read_sheet_structure` reads the
+    dewarped frame, so a form printing a chart between the table and its footer
+    has that footer cropped away before the model can report it. The sheet then
+    digitizes, files unnamed, and says only that the footer was unreadable.
+    Reading the raw scan closes this too.
+  - Note: the quad itself should stay measured. It comes from four least-squares
+    line fits over ~40 observations, and a homography is exactly determined by
+    its corners, so a reported corner's error would bend the whole page — the
+    opposite of the row count, where the reading is the reliable half.
+  - Note: removing `resolve_grid_consensus` takes three test files with it.
+    `extraction_test`, `ingest_test`, and `sheet_dewarp_test` each call it to
+    work out where a drawn grid lands in the dewarped frame, standing in for the
+    reading a real run gets from the model. They want a replacement stand-in
+    before the function goes.
+  - Note: the reading would have to run on the raw scan, before dewarping, and
+    its coordinates be carried through the homography the dewarp computes. The
+    row count itself transfers unchanged, and the model reads a raw 12MP photo's
+    row count correctly at 55% linear, so the input is there.
+  - Note: a two-panel sheet also doubles the strip count — 36 row strips plus a
+    footer, against 29 for a single-panel sheet. Above 20 image blocks in one
+    request a stricter per-image dimension limit applies to every image in it,
+    documented as 2000px a side to be safe on all platforms. Unquantified rather
+    than known-bad: a real run has already sent 29 strips 2262px wide through
+    the CLI without complaint, so the first-party limit is evidently higher than
+    the cross-platform figure. Worth measuring before a two-panel sheet is
+    transcribed for real, since a rejected image fails the whole request and no
+    board is read.
+- [ ] Tell two sessions of one day apart when matching a traveller.
+      {#same-day-sessions}
+  - Rationale: `match_travellers` keys on the date alone, so two sheets scanned
+    together — an afternoon and an evening session — leave every traveller for
+    that day reporting `ambiguous_session_match` and matching neither. This did
+    not arise while only a container's first page was digitized, because the
+    second session was never stored.
+  - Open question: the event text is the obvious tiebreak, and `session_keys`
+    explains why matching on it was rejected — the sources spell one event four
+    different ways. A fuzzy tiebreak used only when the date is ambiguous is a
+    weaker claim than keying on it, and may be enough.
+  - Note: this bites every multi-sheet feed, not an unusual one. A scanner feed
+    is by nature a set of sheets from one day, so each of them lands in the
+    ambiguous branch and no traveller matches any of them — the auto-reconcile
+    join does nothing for exactly the containers the multi-page change
+    introduces.
+- [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
+  - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
+    panels reported flush against each other pass — and a single table read as
+    two halves then resolves both against the same printed rules, cutting every
+    board in two and transcribing it twice. Verified: panels at `[26,600]` and
+    `[600,1174]`, each claiming 28 rows, yield 56 row boxes over 29 rules.
+    Nothing notices, because the strips double alongside the boards.
+  - Open question: the signal is whether the printed rules run continuously
+    across the boundary — a genuine form leaves a gutter, a misread one does not
+    — which is real new machinery rather than a threshold. Unlikely enough to
+    defer: the right-hand half of a single table carries no board numbers, so a
+    reading has little reason to call it a panel.
+
 - [ ] Choose the scanner app and transport.
   - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
     (Open questions) and the Ingest section's tradeoffs.
   - Note: this gates where `inbox/` lives, not the pipeline code below it — the
     spine is built and tested already.
-  - Note: `scoresheets/inbox/` does not exist in the private tree yet, which is
-    the one thing standing between a first run and a digitized sheet — the run
-    refuses outright rather than inventing the directory a person is expected to
-    drop scans into. Everything below it (`archive/`, `failed/`,
-    `sessions/pending/`) is created on demand, so creating the inbox is the
-    whole of the setup.
-- [ ] Settle what several pages in one scan container mean. {#multi-page-scans}
-  - Worktree: first-real-scan
-  - Rationale: spec.md allows a multi-page scan of one sheet, but
-    `transcribe_sheet` takes a single image. Are the extra pages retakes to
-    choose among, parts of one grid to stitch, or separate sheets? The answer
-    decides whether this is a decode step or a merge stage.
-  - Note: deferred deliberately — the scanner app is not chosen, so no real
-    multi-page scan exists to settle it against. Until one does, `decode_scan`
-    reads the first page and reports the rest as an `extra_scan_pages` issue, so
-    nothing is silently dropped.
+  - Note: `scoresheets/inbox/` exists now and scans have been through it, so
+    nothing gates a run. Everything below it (`archive/`, `failed/`,
+    `sessions/pending/`) is created on demand.
+  - Note: the scanner app is settled in practice if not in principle — both real
+    scans were written by Google's ML Kit document scanner, whose rectifying and
+    cropping is what closed the resolution gap that per-row strips were
+    introduced to work around.
+- [ ] Write `configuration.toml` in the private tree.
+  - Note: this is what a first real run waits on. The spine has been exercised
+    end to end, but only against copies in a scratch tree — both scans are still
+    sitting in the private tree's inbox, and nothing has been archived or
+    written to `sessions/pending/`.
+  - Note: it does not exist, and `python -m session_analysis.unreviewed.ingest`
+    exits on its absence before reading the inbox — deliberately, since a run
+    that transcribed a sheet and then stopped for want of a name would have
+    spent the expensive part to do half the job. It wants `player_name`,
+    `acbl_player_number` and `club_index_url`, all of which identify a real
+    person, so it is the one piece of setup that has to be written by hand.
 - [ ] Canonicalize the event slug through an alias table. {#canonical-slug}
   - Rationale: the slug is the footer text normalized literally, so `PABC morn.`
     one week and `PABC Morning` the next give two slugs for one game. Keys stay
@@ -507,32 +554,25 @@ rationale lives in the design docs' open-question sections —
       traveller — they carry the deal, too.
 - [ ] Pianola as a traveller source, for club games that post only there
       (deferred: the sessions currently played don't use it).
-- [-] Model escalation: a stronger-model fallback for low-confidence auction
-  rows, if single-model accuracy proves insufficient.
-  - Dropped: superseded by extraction voting — see spec.md `#extraction-voting`.
-- [ ] Multi-format sheet geometry: support two-column scoresheet layouts (the
-      Baron Barclay and Bridge Buddy samples in
-      `bridge-private/session_analysis/scoresheets/samples`). Not a detection
-      tweak — needs column-grid segmentation before row detection,
-      `SheetGeometry` reshaped as multiple grids with per-grid row counts (Baron
-      Barclay prints 16 rows left, 20 right), strip labels that carry column
-      identity, and exclusion of the printed VP/IMP scale tables, which are
-      themselves uniform grids that pollute the row-count vote.
+- [ ] Transcribe the vendor two-column forms, not only resolve their geometry.
+      {#two-column-forms}
+  - Rationale: `sheet_geometry` reads both vendor samples correctly — 18+18 rows
+    on Bridge Buddy and 16+20 on Baron Barclay, 36 row boxes each in board
+    order. Everything after the cut is untried. Both samples are blank, so no
+    two-panel sheet has been transcribed, and these forms carry no auction or
+    notes columns, which the extraction prompt, the output schema and the parser
+    contract all assume. Supporting a format is a form-template decision, not
+    only cropping.
   - Note: which layout a session used follows from which sheet was to hand — the
     custom single-column form, or a double-column one provided at the venue —
     and not from the kind of event. Club games and tournaments both turn up
     either way, so this is a live driver rather than a sample-only concern. See
     spec.md `#scope`.
-  - Note: current behavior on the samples — both Baron Barclay forms error
-    loudly (ambiguous row count; too few slices), but both Bridge Buddy forms
-    return confidently wrong geometry: row boxes spanning both columns (a strip
-    would mix two boards) with scale-table rows chained into the grid. Until
-    this lands, that silent-wrong mode is the hazard if a two-column scan ever
-    enters the pipeline.
-  - Note: geometry is the smaller half. These forms have no auction or notes
-    columns, so the extraction prompt, output schema, and parser contract are
-    club-form-specific too — supporting a new format is a form-template
-    decision, not only cropping.
+  - Note: the samples are in
+    `bridge-private/session_analysis/scoresheets/samples`. Getting Baron Barclay
+    as far as the cut needs #dewarp-needs-the-reading first: its panels differ
+    in height, so the dewarp's own row-count vote refuses the sheet before the
+    model is ever called.
 - [ ] Maybe: grid-extent cross-check in `transcribe_sheet` — compare the
       detected `grid_left`/`grid_right` against where the dewarp placed the
       borders by construction (`_DEWARP_SIDE_MARGIN_IN_PITCHES` from the frame
@@ -542,12 +582,26 @@ rationale lives in the design docs' open-question sections —
     detection's single full-height column profile, which today silently crops
     the `Bd` column and makes the model substitute `Vs` numbers (observed live).
     Also catches future drift between the two derivations.
-  - Note: does not catch uniformly faint borders — both stages then agree on the
-    same wrong interior line and the `Bd` column is lost at dewarp time. The
-    check lives in `transcribe_sheet`, not `detect_sheet_geometry`, which also
-    runs on images that never went through the dewarp.
-- [ ] Maybe: board-number continuity check in validation — flag a session whose
+  - Note: reshaped by the layout reading, and worth rethinking against it before
+    it is written. `_panel_sides` no longer profiles the full height for the
+    outermost line; it takes the printed line nearest the reported border, so
+    the failure this was written against — detection diluting a partly visible
+    border that the dewarp still resolved — is not the one to guard now. What
+    remains worth catching is both readings agreeing on a border that is not the
+    table's.
+- [ ] Board-number continuity check in validation — flag a session whose
       transcribed board numbers don't run consecutively from their start.
+      {#board-number-continuity}
+  - Note: promoted from "maybe". `rules_bounding_rows` documents a hole only
+    this can close: a reported grid box shifted bodily by more than half a row
+    pitch resolves to the neighbouring run of rules, and the two cases are
+    provably indistinguishable from the box alone — at 0.3 and 0.7 of a pitch
+    the chosen run sits the same distance from the reported bounds and wins by
+    the same margin. Swept on the v4 fixture, drift past about three quarters of
+    a pitch resolves one row off with nothing raised: the first strip is the
+    printed header row, the last board row is dropped, and the board count still
+    matches the strip count so `_counted` stays quiet. Board numbers that stop
+    running consecutively are what remains to notice it.
   - Rationale: output-side catch-all for geometry failures no pixel check can
     see — a silently truncated grid (washed-out top rows), a shifted grid (a
     header row voted in as row 1), or `Bd`-column loss (substituted `Vs` numbers
@@ -619,9 +673,9 @@ rationale lives in the design docs' open-question sections —
   - Note: the obvious fix inverts it — move `Box`, `Point`, `Quad`, and
     `SheetGeometry` into `models` as canonical types, the way `Card` and `Deal`
     are shared with `travellers`, and have the image pipeline import them from
-    there. That is a real refactor: `SheetGeometry` carries `row_pitch` and
-    `footer_box` methods, and `sheet_geometry` owns the constant the second
-    depends on.
+    there. That is a real refactor: `SheetGeometry` carries a `row_pitch` method
+    and `Box` a `width` one, and `sheet_structure` reads `Box` from
+    `sheet_geometry` too.
   - Note: measure before deciding. If Pillow's import cost is negligible for a
     command that loads it anyway, the tidier dependency graph may not earn the
     churn. models.md `#sheet-frame` records the reasoning as it stands.

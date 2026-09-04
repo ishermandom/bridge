@@ -63,12 +63,22 @@ def derive_session_key(event: str, date: datetime.date | None) -> str | None:
   return f'{slug}-{date:%Y-%m-%d}'
 
 
-def record_stem(session_key: str | None, content_hash: str) -> str:
-  """What a pending record and its archived scan are called on disk.
+def record_stem(session_key: str | None, content_hash: str, page: int) -> str:
+  """What a pending record is called on disk.
 
   The key when there is one, so a pending record is recognizable at a glance;
   otherwise a name built from the content hash, which is the one handle an
   unnamed session always has. Review renames the record either way, once a
   person has confirmed what the footer said.
+
+  A sheet after the first in its container takes a page suffix. A scanner app
+  writes one file per feed, so two sheets fed together share their file's bytes
+  and can share a footer as well — two sessions of one event on one day — and
+  without the suffix the second would read as a re-photograph of the first and
+  be discarded after being paid for. Only pages beyond the first carry it, so
+  the ordinary one-sheet scan keeps the plain name, and the stem stays a pure
+  function of the record: `session_matching.stem_of` derives it again from the
+  stored session rather than being told what it was called.
   """
-  return session_key or f'{_UNNAMED_PREFIX}-{short_hash(content_hash)}'
+  named = session_key or f'{_UNNAMED_PREFIX}-{short_hash(content_hash)}'
+  return named if page == 1 else f'{named}-p{page}'

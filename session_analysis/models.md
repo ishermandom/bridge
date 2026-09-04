@@ -449,20 +449,21 @@ the envelope whose parse produced it, or on the board for board-level issues.
 ### SheetImage and SheetFrame {#sheet-frame}
 
 `SheetImage` is the scan a session was digitized from: its path under the
-archive root, the hash of its bytes, and the `SheetFrame` it was read through.
-`SheetFrame` pairs the corner `Quad` the scan was dewarped by with the
-`SheetGeometry` detected in the resulting frame, so the review UI reproduces the
-dewarped image and its grid from the archived scan rather than re-detecting
-them.
+archive root, the hash of its bytes, the page of that file it was read from, and
+the `SheetFrame` it was read through. `SheetFrame` pairs the corner `Quad` the
+scan was dewarped by with the `SheetGeometry` resolved in the resulting frame,
+so the review UI reproduces the dewarped image and its grid from the archived
+scan rather than resolving them again.
 
 The frame sits on `SheetImage` rather than beside it on `Source` because it is
-valid for exactly one set of bytes. `source_quad` is in original-scan pixels and
+valid for exactly one image. `source_quad` is in original-scan pixels and
 `geometry` in the dewarped frame those corners map to; hand either to a
 different image and the coordinates are quietly wrong rather than an error.
-`content_hash` is what certifies which bytes they describe, so keeping the two
-in one model makes that structural — re-hash the archived scan and the frame
-either still applies or does not. Split across two models it would be a
-convention someone has to remember.
+`content_hash` and `page` together certify which image they describe — the hash
+alone names the file, and a scanner app puts a whole feed of sheets in one file
+— so keeping them in one model makes that structural: re-hash the archived scan,
+take that page, and the frame either still applies or does not. Split across two
+models it would be a convention someone has to remember.
 
 The argument the other way is that a frame is derived, and a better detector
 could re-derive it while the file sits unchanged — which sounds like a property

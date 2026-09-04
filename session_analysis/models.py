@@ -36,7 +36,7 @@ from session_analysis.enums import (
 )
 from session_analysis.frozen_model import FrozenModel
 from session_analysis.sheet_dewarp import Quad
-from session_analysis.sheet_geometry import SheetGeometry
+from session_analysis.unreviewed.sheet_geometry import SheetGeometry
 
 
 class Issue(FrozenModel):
@@ -312,6 +312,11 @@ class SheetImage(FrozenModel):
   # `CaptureReference` keeps for a traveller capture.
   path: str
   content_hash: str
+  # Which page of that file this session was read from, counting from one. A
+  # scanner app puts several sheets in one container when they are fed together,
+  # and each is its own session — so the path alone does not identify the image
+  # a frame describes, and re-deriving a record needs the page too.
+  page: Annotated[int, pydantic.Field(gt=0)] = 1
   frame: SheetFrame
 
 

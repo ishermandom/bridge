@@ -63,13 +63,13 @@ def test_an_unreadable_date_names_no_key() -> None:
 
 
 def test_a_named_session_is_filed_under_its_key() -> None:
-  stem = record_stem('pabc-morn-2026-06-29', 'deadbeefcafe1234')
+  stem = record_stem('pabc-morn-2026-06-29', 'deadbeefcafe1234', 1)
 
   assert stem == 'pabc-morn-2026-06-29'
 
 
 def test_an_unnamed_session_is_filed_under_its_content_hash() -> None:
-  stem = record_stem(None, 'deadbeefcafe1234')
+  stem = record_stem(None, 'deadbeefcafe1234', 1)
 
   assert stem == 'unnamed-deadbeefcafe'
 
@@ -77,10 +77,29 @@ def test_an_unnamed_session_is_filed_under_its_content_hash() -> None:
 def test_two_unnamed_sessions_never_collide() -> None:
   # An unreadable footer must not read as "already digitized" — the content hash
   # is what keeps each unnamed record distinct.
-  first = record_stem(None, 'deadbeefcafe1234')
-  second = record_stem(None, 'facefeed99991234')
+  first = record_stem(None, 'deadbeefcafe1234', 1)
+  second = record_stem(None, 'facefeed99991234', 1)
 
   assert first != second
+
+
+def test_two_unnamed_sheets_from_one_container_never_collide() -> None:
+  # Sheets scanned together share their file's bytes, so the hash alone names
+  # the container rather than the sheet; the page is what tells them apart.
+  first = record_stem(None, 'deadbeefcafe1234', 1)
+  second = record_stem(None, 'deadbeefcafe1234', 2)
+
+  assert first != second
+
+
+def test_two_named_sheets_from_one_container_never_collide() -> None:
+  # Two sessions of one event on one day derive the same key, so the page is
+  # the only thing keeping their records apart.
+  first = record_stem('pabc-morn-2026-06-29', 'deadbeefcafe1234', 1)
+  second = record_stem('pabc-morn-2026-06-29', 'deadbeefcafe1234', 2)
+
+  assert first == 'pabc-morn-2026-06-29'
+  assert second == 'pabc-morn-2026-06-29-p2'
 
 
 def test_the_short_hash_leaves_the_rest_of_a_name_readable() -> None:

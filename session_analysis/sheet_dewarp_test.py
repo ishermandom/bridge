@@ -2,49 +2,96 @@
 # SPDX-License-Identifier: MIT
 """Tests for sheet_dewarp."""
 
+import statistics
+from collections.abc import Sequence
+
 import pytest
 from PIL import Image, ImageDraw
 
-from session_analysis.rule_grid import SheetGeometryError
+from session_analysis.rule_grid import (
+  SheetGeometryError,
+  resolve_grid_consensus,
+)
 from session_analysis.sheet_dewarp import dewarp_sheet
-from session_analysis.sheet_geometry import detect_sheet_geometry
-from session_analysis.testing.synthetic_scans import (
-  GRID_LEFT,
-  GRID_RIGHT,
-  draw_sheet,
+from session_analysis.testing.synthetic_scans import draw_sheet
+from session_analysis.unreviewed.sheet_geometry import (
+  BoardPanel,
+  Box,
+  resolve_sheet_geometry,
 )
 
 
-def _draw_skewed_sheet() -> Image.Image:
-  """A synthetic perspective-skewed scan, mimicking the reference scan: each
-  rule slants down to the right, two row pitches at the grid's top fading to
-  flat at its bottom.
+def _draw_skewed_sheet(rule_ys: Sequence[int]) -> Image.Image:
+  """A synthetic perspective-skewed scan, mimicking the reference scan.
+
+  Rules sit at `rule_ys` down the sheet's left edge and slant down to the right
+  — 40px at the grid's top, fading to flat at its bottom. Drawn between x=40
+  and x=560 on a 600x800 page.
   """
   image = Image.new('L', (600, 800), color=255)
   draw = ImageDraw.Draw(image)
-  left_rule_ys = list(range(100, 661, 20))
-  for rule_index, left_y in enumerate(left_rule_ys):
-    slant = round(40 * (28 - rule_index) / 28)
-    draw.line(
-      [(GRID_LEFT, left_y), (GRID_RIGHT, left_y + slant)], fill=0, width=2
-    )
-  draw.line([(GRID_LEFT, 100), (GRID_LEFT, 660)], fill=0, width=2)
-  draw.line([(GRID_RIGHT, 140), (GRID_RIGHT, 660)], fill=0, width=2)
+  row_count = len(rule_ys) - 1
+  for rule_index, left_y in enumerate(rule_ys):
+    slant = round(40 * (row_count - rule_index) / row_count)
+    draw.line([(40, left_y), (560, left_y + slant)], fill=0, width=2)
+  draw.line([(40, rule_ys[0]), (40, rule_ys[-1])], fill=0, width=2)
+  draw.line([(560, rule_ys[0] + 40), (560, rule_ys[-1])], fill=0, width=2)
   return image
 
 
+def _panel_spanning(
+  image: Image.Image, row_count: int, *, top: int, bottom: int
+) -> BoardPanel:
+  """A reading reporting one panel the full frame wide, as the model returns
+  one for a sheet that carries nothing but its own board rows.
+  """
+  return BoardPanel(
+    board_row_count=row_count,
+    grid=Box(left=0, top=top, right=image.width, bottom=bottom),
+  )
+
+
 def test_dewarp_straightens_a_perspective_skewed_scan() -> None:
-  # The skewed grid is undetectable as drawn — rules drift two row pitches — but
-  # detection succeeds in the dewarped frame.
-  dewarped = dewarp_sheet(_draw_skewed_sheet())
+  # 29 rules at a 20px pitch bounding 28 board rows, running y=100 to y=660 at
+  # the left edge and two pitches lower at the right.
+  skewed = _draw_skewed_sheet(range(100, 661, 20))
 
-  geometry = detect_sheet_geometry(dewarped.image)
+  # As drawn, each column slice resolves its 29 rules a different distance down
+  # the page, so no run of rules is the reported rows and the geometry is
+  # refused. Straightening the frame is what makes the same panel resolvable,
+  # and is the whole of what this asserts: the row box count is no evidence,
+  # since `resolve_sheet_geometry` returns one box per row asked for or raises.
+  with pytest.raises(SheetGeometryError, match='not reading the same rows'):
+    resolve_sheet_geometry(
+      skewed, [_panel_spanning(skewed, 28, top=100, bottom=660)]
+    )
 
-  assert len(geometry.row_boxes) == 28
+  dewarped = dewarp_sheet(skewed).image
+
+  # Where the straightened grid sits, standing in for a reading of it — the
+  # drawn sheet carries nothing but its own rules, so the slice consensus is the
+  # grid, and the dewarp's margins have moved it off y=100..660.
+  chains = resolve_grid_consensus(dewarped.convert('L')).chains
+  geometry = resolve_sheet_geometry(
+    dewarped,
+    [
+      _panel_spanning(
+        dewarped,
+        28,
+        top=round(statistics.median(c.rule_ys[0] for c in chains)),
+        bottom=round(statistics.median(c.rule_ys[-1] for c in chains)),
+      )
+    ],
+  )
+
+  # Rule-to-rule heights within a few pixels of each other on a ~19px pitch: the
+  # straightened rules run parallel, where the drawn ones fan apart.
+  heights = [box.bottom - box.top for box in geometry.row_boxes]
+  assert max(heights) - min(heights) <= 3
 
 
 def test_dewarp_recovers_the_slanted_corner_quad() -> None:
-  quad = dewarp_sheet(_draw_skewed_sheet()).source_quad
+  quad = dewarp_sheet(_draw_skewed_sheet(range(100, 661, 20))).source_quad
 
   # The top edge slants 40px down to the right; the bottom edge is flat. The
   # dewarp margins shift both corners of an edge alike, so the recovered slant

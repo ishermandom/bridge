@@ -25,8 +25,9 @@ from PIL import Image
 from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.sheet_dewarp import dewarp_sheet
-from session_analysis.sheet_geometry import detect_sheet_geometry
 from session_analysis.strip_cutting import cut_strips
+from session_analysis.unreviewed.sheet_geometry import resolve_sheet_geometry
+from session_analysis.unreviewed.sheet_structure import read_sheet_structure
 from session_analysis.vision_model_invocation import (
   LabeledImage,
   invoke_vision_model,
@@ -134,10 +135,18 @@ def main() -> None:
   arguments.output_directory.mkdir(parents=True, exist_ok=True)
 
   # Cut once, outside the model loop: every model reads byte-identical strips.
+  # The layout reading costs its own call, and is deliberately not varied with
+  # the model under comparison — the strips are what is being compared.
   dewarped = dewarp_sheet(Image.open(arguments.image))
-  geometry = detect_sheet_geometry(dewarped.image)
+  structure = read_sheet_structure(dewarped.image)
+  geometry = resolve_sheet_geometry(
+    dewarped.image, structure.panels, structure.footer
+  )
   strips = cut_strips(dewarped.image, geometry)
-  print(f'cut {len(strips)} strips ({len(geometry.row_boxes)} rows + footer)')
+  print(
+    f'cut {len(strips)} strips from {len(geometry.row_boxes)} rows'
+    f'{" plus a footer" if geometry.footer else " (this form prints no footer)"}'
+  )
 
   # Keep the strips themselves alongside the runs — judging a disagreement means
   # looking at the same crop the model was given.

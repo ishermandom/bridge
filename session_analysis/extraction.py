@@ -16,12 +16,12 @@ from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.frozen_model import FrozenModel
 from session_analysis.rule_grid import SheetGeometryError
 from session_analysis.sheet_dewarp import Quad, dewarp_sheet
-from session_analysis.sheet_geometry import (
-  MAXIMUM_TRIMMED_ROWS,
-  SheetGeometry,
-  detect_sheet_geometry,
-)
 from session_analysis.strip_cutting import cut_strips
+from session_analysis.unreviewed.sheet_geometry import (
+  SheetGeometry,
+  resolve_sheet_geometry,
+)
+from session_analysis.unreviewed.sheet_structure import read_sheet_structure
 from session_analysis.vision_model_invocation import (
   DEFAULT_MODEL,
   CommandRunner,
@@ -52,34 +52,46 @@ def transcribe_sheet(
   model: str = DEFAULT_MODEL,
   run_command: CommandRunner = run_claude,
 ) -> SheetTranscription:
-  """Dewarp, detect the grid, cut strips once, and transcribe twice.
+  """Dewarp, resolve the grid, cut strips once, and transcribe twice.
 
-  The extraction entry point for one scan: geometry detection and strip cutting
-  happen once, since both are deterministic over the same image; the model then
+  The extraction entry point for one scan. The grid is resolved once, from a
+  reading of the sheet's layout (`sheet_structure`) measured against its printed
+  rules (`sheet_geometry`), and the strips are cut once from it; the model then
   reads those same strips twice, independently, for `assembly.
   parse_and_assemble_voted_session` to compare — see spec.md
-  `#extraction-voting` for why two independent reads beat one. The grid's row
-  count comes from the scan itself, so any form with a plausible row count
-  (eight or more rows) transcribes without configuration.
+  `#extraction-voting` for why two independent reads beat one. Both the row
+  count and the layout come from the scan itself, so a form this pipeline has
+  never seen transcribes without configuration.
 
   Raises:
-    SheetGeometryError: the scan's grid could not be resolved, or the dewarp
-      and detection passes disagreed on it.
+    SheetStructureError: the sheet's layout could not be read.
+    SheetGeometryError: the printed rules could not be resolved against that
+      reading, so the two disagree about the sheet.
     VisionModelInvocationError: a headless `claude` invocation failed.
   """
   dewarped = dewarp_sheet(image)
-  geometry = detect_sheet_geometry(dewarped.image)
-  # The two passes read the grid independently (raw scan vs dewarped frame).
-  # Detection may legitimately run short of the dewarp's count by the rows its
-  # coverage trim removed (scale charts, footer underlines); any other
-  # disagreement means at least one pass misread the grid, so refuse rather than
-  # send strips cut against an untrusted grid.
-  trimmed_rows = dewarped.row_count - len(geometry.row_boxes)
-  if not 0 <= trimmed_rows <= MAXIMUM_TRIMMED_ROWS:
-    raise SheetGeometryError(
-      f'the dewarp pass resolved {dewarped.row_count} rows but detection in '
-      f'the dewarped frame resolved {len(geometry.row_boxes)}'
+  # What the sheet is made of, then where its rules are: the vision model reads
+  # the layout and `sheet_geometry` measures it. Read before the strips are cut,
+  # because the reading is what says which rules to cut between.
+  structure = read_sheet_structure(
+    dewarped.image, model=model, run_command=run_command
+  )
+  try:
+    geometry = resolve_sheet_geometry(
+      dewarped.image, structure.panels, structure.footer
     )
+  except SheetGeometryError as error:
+    # The model said how many board rows each panel holds and where it sits;
+    # `resolve_sheet_geometry` went looking for the printed rules bounding that
+    # many rows, evenly pitched, in that place — and found no run it could
+    # match, or two it could not choose between. That is the one moment when the
+    # model's notes on this sheet earn a person's time: an overprint hiding
+    # rules, a layout it could not place. The notes join the message rather than
+    # a log, because the message is what reaches the failure sidecar.
+    read_as = (
+      f'; the sheet was read as: {structure.notes}' if structure.notes else ''
+    )
+    raise SheetGeometryError(f'{error}{read_as}') from error
   strips = cut_strips(dewarped.image, geometry)
   raw_json_a = invoke_vision_model(
     strips,

@@ -9,7 +9,7 @@ transcription-scoped system prompt and a JSON Schema for its output. See spec.md
 shaped.
 
 The request is an ordered sequence of `LabeledImage` parts — per-row strips, in
-production — closed by the fixed transcription ask. Images are embedded directly
+production — closed by the caller's one-line ask. Images are embedded directly
 in the request rather than left to `Read` tool calls: that collapses the
 exchange to one turn and skips the tool definition's token cost entirely.
 Embedding requires `--input-format stream-json`, which the CLI only allows
@@ -37,11 +37,11 @@ _SCRATCH_DIRECTORY = (
 
 DEFAULT_MODEL = 'claude-opus-5'
 
-# The user-turn ask that closes each request, after the images. All real
-# instruction lives in the system prompt; the user turn exists because the API
-# needs one to respond to, and this line makes its ask explicit rather than
-# sending images with no request.
-_TRANSCRIPTION_INSTRUCTION = 'Transcribe the attached scan.'
+# The user-turn ask that closes a transcription request, after the images. All
+# real instruction lives in the system prompt; the user turn exists because the
+# API needs one to respond to, and this line makes its ask explicit rather than
+# sending images with no request. Other callers pass their own.
+TRANSCRIPTION_INSTRUCTION = 'Transcribe the attached scan.'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -84,7 +84,7 @@ def run_claude(
   )
 
 
-def _build_request(parts: Sequence[LabeledImage]) -> str:
+def _build_request(parts: Sequence[LabeledImage], instruction: str) -> str:
   """Return the stream-json request line carrying the labeled images."""
   content: list[dict[str, object]] = []
   for part in parts:
@@ -99,7 +99,7 @@ def _build_request(parts: Sequence[LabeledImage]) -> str:
         },
       }
     )
-  content.append({'type': 'text', 'text': _TRANSCRIPTION_INSTRUCTION})
+  content.append({'type': 'text', 'text': instruction})
   message = {'type': 'user', 'message': {'role': 'user', 'content': content}}
   return json.dumps(message) + '\n'
 
@@ -153,8 +153,9 @@ def invoke_vision_model(
   *,
   model: str = DEFAULT_MODEL,
   run_command: CommandRunner = run_claude,
+  instruction: str = TRANSCRIPTION_INSTRUCTION,
 ) -> str:
-  """Run one scoresheet transcription through headless Claude Code.
+  """Run one headless Claude Code request over a sequence of images.
 
   Args:
     parts: the images to transcribe, in request order, each embedded as base64
@@ -165,6 +166,7 @@ def invoke_vision_model(
       `--json-schema` so the result is directly parseable rather than prose or
       markdown-fenced JSON.
     model: the model alias or full name to invoke.
+    instruction: the one-line user-turn ask closing the request.
     run_command: the subprocess runner to use. Defaults to a real
       `subprocess.run` call, which creates the scratch directory if missing;
       tests substitute a fake that returns a scripted `CompletedProcess` with
@@ -178,7 +180,7 @@ def invoke_vision_model(
       its output failed to yield a successful result event — see
       `_parse_result`.
   """
-  request = _build_request(parts)
+  request = _build_request(parts, instruction)
 
   command = [
       'claude', '-p',
