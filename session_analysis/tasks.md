@@ -432,7 +432,6 @@ given, or every stored one. Both comparisons below write into that same report.
 
 - [ ] Report each board's result against the double dummy for the best opening
       lead. {#result-versus-double-dummy}
-  - Worktree: session-transcript
   - Rationale: a published double-dummy table already answers this. It states
     the tricks available with best play on both sides, which presumes the best
     lead — so this is a comparison to make, not an analysis to run.
