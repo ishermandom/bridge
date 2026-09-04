@@ -121,6 +121,10 @@ output, parsed into the canonical model.
   - Rationale: the date is often not written on the sheet at all, and a vision
     model can plausibly infer it from available context in a way static code
     can't do accurately.
+  - Note: a real sheet exercises this now. The tournament scan's footer states
+    no date, so both of its sessions filed as `unnamed-<hash>` records instead
+    of under a session key — which is also what leaves them unmatchable to a
+    traveller, since matching reads a capture's date.
 - [ ] Decide whether the two-run vote still earns its keep on Opus 5.
   - Rationale: the refreshed strips comparison found Opus 5's two runs agreeing
     completely on the 6/29 sheet — the pass flags nothing, and the errors that
@@ -329,8 +333,7 @@ record waits for review, and what becomes of a scan that raises.
     attempt. A run spends a model call per sheet, roughly $0.25–0.30 by
     spec.md's measurement, so the output is worth reading closely rather than
     re-running for a second look.
-  - Note: three findings are expected rather than faults. Only the first page of
-    the two-page tournament scan is digitized (#multi-page-scans). That sheet's
+  - Note: two findings are expected rather than faults. The tournament sheet's
     footer states no date at all, which is what the session key is derived from.
     And it is a teams game scored in IMPs where the club sheet is a pairs game
     scored in matchpoints, so whether the schema reads that column the same way
