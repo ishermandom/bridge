@@ -425,21 +425,11 @@ parsed value.
 **Goal:** turn a digitized session into something a person reads — the boards as
 text, and how the table's result compares with what the deal allowed.
 
-- [ ] Render a session as plain text: every board's auction, opening lead,
-      contract and result. {#session-transcript}
-  - Worktree: session-transcript
-  - Rationale: the pipeline's output today is a JSON record, and nothing renders
-    it. So the first thing anyone wants from a digitized sheet — reading the
-    session back — currently takes a JSON viewer.
-  - Note: the model already carries all of this. `Board.number` fixes the dealer
-    and vulnerability, `Board.auction` holds each written token with its circled
-    and alerted marks, and `Board.outcome` resolves to a contract and result or
-    to a passout. `AuctionEntry.raw` is populated whether or not the token
-    parsed, so a board still renders where the parse fell short.
-  - Note: what a run could not read belongs in the output rather than omitted
-    from it. `Issue`s sit on the board and on its envelopes, and a transcript
-    that silently drops an unreadable call reads as though the sheet said
-    nothing there.
+`unreviewed.transcript` reads a stored session back as plain text, a line per
+board in the sheet's own shorthand;
+`python -m session_analysis.unreviewed.transcript` prints the records it is
+given, or every stored one. Both comparisons below write into that same report.
+
 - [ ] Report each board's result against the double dummy for the best opening
       lead. {#result-versus-double-dummy}
   - Worktree: session-transcript
@@ -464,8 +454,9 @@ text, and how the table's result compares with what the deal allowed.
     a new dependency, which is a decision worth taking on its own.
     `practice/squeezes` records the groundwork: `endplay` has no Python 3.14
     wheels but builds from sdist, verified 2026-08-04.
-  - Note: sequence this after #session-transcript rather than beside it. Both
-    write the same report, so run together they would settle its shape twice.
+  - Note: sequence this after #result-versus-double-dummy rather than beside it.
+    Both add a column to the same report, so run together they would settle its
+    shape twice.
 
 ---
 
