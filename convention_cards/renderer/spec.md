@@ -31,6 +31,10 @@ complete.
   exports, so this renderer's 8″ × 8.5″ output is not a valid input to it today;
   integrating the two is deferred as a nice-to-have. Until then the two tools
   stay independent.
+- **Consumer**: `convention_cards/renderer/make_two_sided_card.py` renders a
+  card JSON through this renderer onto the front of a two-sided print sheet,
+  which one straight cut trims to size; the back is converted from a hand-built
+  HTML card. The script's module docstring describes the sheet's layout.
 
 ## Core design: overlay on the original, never re-typeset
 
