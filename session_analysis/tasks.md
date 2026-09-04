@@ -318,14 +318,42 @@ record waits for review, and what becomes of a scan that raises.
     defer: the right-hand half of a single table carries no board numbers, so a
     reading has little reason to call it a panel.
 
-- [ ] Choose the scanner app and transport.
-  - Open question: Android scanner + Drive-mirror vs. Syncthing — see spec.md
-    (Open questions) and the Ingest section's tradeoffs.
-  - Note: this gates where `inbox/` lives, not the pipeline code below it — the
-    spine is built and tested already.
-  - Note: `scoresheets/inbox/` exists now and scans have been through it, so
-    nothing gates a run. Everything below it (`archive/`, `failed/`,
-    `sessions/pending/`) is created on demand.
+- [ ] Run the inbox for real and act on what comes back. {#first-inbox-run}
+  - Worktree: ingest-run
+  - Rationale: nothing has been through the pipeline yet. Both scans are still
+    in the inbox, `archive/` and `failed/` are empty, and `sessions/pending/`
+    does not exist — so every stage below extraction has only ever seen a drawn
+    grid and a scripted model.
+  - Note: the configuration that gated a run exists now, so
+    `python -m session_analysis.unreviewed.ingest` reads the inbox on the next
+    attempt. A run spends a model call per sheet, roughly $0.25–0.30 by
+    spec.md's measurement, so the output is worth reading closely rather than
+    re-running for a second look.
+  - Note: three findings are expected rather than faults. Only the first page of
+    the two-page tournament scan is digitized (#multi-page-scans). That sheet's
+    footer states no date at all, which is what the session key is derived from.
+    And it is a teams game scored in IMPs where the club sheet is a pairs game
+    scored in matchpoints, so whether the schema reads that column the same way
+    is untried.
+  - Note: fix what is cheap and queue what is not. The run's worth is in its
+    findings, and a session spent repairing one of them is a session that never
+    reaches the others.
+- [ ] Sync scans from Google Drive into the inbox, without anyone copying them.
+      {#drive-sync}
+  - Worktree: drive-sync
+  - Rationale: the transport is settled now — Drive, rather than Syncthing — and
+    the scanner app was already settled in practice. What remains is the
+    mechanism that lands a scan in the inbox.
+  - Note: the inbox stays where it is. This delivers into the private tree's
+    existing `scoresheets/inbox/`, so nothing below it moves and spec.md's
+    ingest tree is unchanged.
+  - Note: re-delivering a scan is harmless by design. The spine is idempotent on
+    the content hash before extraction and on the footer after it, so a mirror
+    that copies the same file twice costs nothing and spends no second model
+    call.
+  - Note: whichever mechanism is chosen wants the user's Google credentials at
+    some point. Have them authenticate in their own terminal rather than passing
+    anything through the session.
   - Note: the scanner app is settled in practice if not in principle — both real
     scans were written by Google's ML Kit document scanner, whose rectifying and
     cropping is what closed the resolution gap that per-row strips were
