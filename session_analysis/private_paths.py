@@ -13,7 +13,7 @@ this project's data sits under `session_analysis`:
 
 ```text
 bridge-private/session_analysis/
-├── configuration.toml  the player name, ACBL number, and club index URL
+├── configuration.toml  the player name and ACBL number
 ├── scoresheets/
 │   ├── inbox/      scans waiting to be digitized
 │   ├── archive/    scans already digitized

@@ -330,18 +330,6 @@ record waits for review, and what becomes of a scan that raises.
     scans were written by Google's ML Kit document scanner, whose rectifying and
     cropping is what closed the resolution gap that per-row strips were
     introduced to work around.
-- [ ] Write `configuration.toml` in the private tree.
-  - Worktree: configuration-toml
-  - Note: this is what a first real run waits on. The spine has been exercised
-    end to end, but only against copies in a scratch tree — both scans are still
-    sitting in the private tree's inbox, and nothing has been archived or
-    written to `sessions/pending/`.
-  - Note: it does not exist, and `python -m session_analysis.unreviewed.ingest`
-    exits on its absence before reading the inbox — deliberately, since a run
-    that transcribed a sheet and then stopped for want of a name would have
-    spent the expensive part to do half the job. It wants `player_name`,
-    `acbl_player_number` and `club_index_url`, all of which identify a real
-    person, so it is the one piece of setup that has to be written by hand.
 - [ ] Canonicalize the event slug through an alias table. {#canonical-slug}
   - Rationale: the slug is the footer text normalized literally, so `PABC morn.`
     one week and `PABC Morning` the next give two slugs for one game. Keys stay
@@ -584,14 +572,13 @@ rationale lives in the design docs' open-question sections —
     parser's whole approach.
   - Note: it would defeat our-row matching for a session we played at that club,
     since the configured name would no longer match the printed one.
-- [ ] Read the ACBL player number and the club index URL from the configuration
-      rather than from a flag and a constant.
+- [ ] Read the ACBL player number from the configuration rather than from a
+      flag.
   - Note: the home exists — `unreviewed.configuration`, built where
-    auto-reconcile needed the player name from somewhere. It already states all
-    three settings travellers.md #configuration names, and the ingest command
-    reads the name from it. What is left is the two callers still carrying their
-    own: `fetch_travellers`'s required `--player-number`, and `club_fetching`'s
-    `_CLUB_BASE_URL` and `_CALENDAR_PATH`.
+    auto-reconcile needed the player name from somewhere. It states both
+    settings travellers.md #configuration names, and the ingest command reads
+    the name from it. What is left is the one caller still carrying its own:
+    `fetch_travellers`'s required `--player-number`.
   - Note: the flag should survive as an override rather than being replaced —
     fetching another player's results is a thing worth being able to do without
     editing a file.

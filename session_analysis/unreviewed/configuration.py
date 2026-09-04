@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: MIT
 """The user-specific settings this pipeline reads rather than hard-codes.
 
-Three values are particular to whoever runs this and stable across every run:
-the name our row in a traveller is matched on, the ACBL player number both fetch
-surfaces index a player's results by, and the club's own results calendar.
-travellers.md `#configuration` settles what they are and why each is
-configuration rather than code.
+Two values are particular to whoever runs this and stable across every run: the
+name our row in a traveller is matched on, and the ACBL player number both fetch
+surfaces index a player's results by. travellers.md `#configuration` settles
+what they are and why each is configuration rather than code.
 
-They are read from one TOML file in the private tree, never this repository, and
-every setting is required — a file stating some of them is incomplete rather
-than partial. travellers.md `#configuration` argues both choices.
+They are read from one TOML file in the private tree, never this repository,
+because both identify a real person. Every setting is required — a file stating
+one of them is incomplete rather than partial. travellers.md `#configuration`
+argues both choices.
 """
 
 import tomllib
@@ -51,8 +51,6 @@ class Configuration(FrozenModel):
   # Keys both ACBL fetch surfaces; a string because it is an identifier that may
   # carry leading zeros, never a number to do arithmetic on.
   acbl_player_number: Setting
-  # The club's results calendar, which its fetch walks a month at a time.
-  club_index_url: Setting
 
 
 def read_configuration(source: BinaryIO) -> Configuration:

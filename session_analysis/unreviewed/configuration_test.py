@@ -31,23 +31,18 @@ def _read(text: str) -> Configuration:
 
 def test_every_setting_reaches_the_configuration() -> None:
   configuration = _read(
-    'player_name = "First Last"\n'
-    'acbl_player_number = "0000000"\n'
-    'club_index_url = "https://example.com/game-results/"\n'
+    'player_name = "First Last"\nacbl_player_number = "0000000"\n'
   )
 
   assert configuration.player_name == 'First Last'
   assert configuration.acbl_player_number == '0000000'
-  assert configuration.club_index_url == 'https://example.com/game-results/'
 
 
 def test_a_player_number_keeps_its_leading_zeros() -> None:
   # Quoted in the file and a string in the model: it is an identifier, and
   # reading it as a number would drop the zeros it starts with.
   configuration = _read(
-    'player_name = "First Last"\n'
-    'acbl_player_number = "0001234"\n'
-    'club_index_url = "https://example.com/game-results/"\n'
+    'player_name = "First Last"\nacbl_player_number = "0001234"\n'
   )
 
   assert configuration.acbl_player_number == '0001234'
@@ -58,10 +53,7 @@ def test_a_player_number_keeps_its_leading_zeros() -> None:
 
 def test_a_missing_setting_is_named() -> None:
   with pytest.raises(ConfigurationError) as raised:
-    _read(
-      'player_name = "First Last"\n'
-      'club_index_url = "https://example.com/game-results/"\n'
-    )
+    _read('player_name = "First Last"\n')
 
   assert 'acbl_player_number' in str(raised.value)
 
@@ -71,11 +63,7 @@ def test_a_setting_written_the_wrong_way_is_not_called_missing() -> None:
   # key sitting there, so being told it is absent sends them looking for
   # nothing.
   with pytest.raises(ConfigurationError) as raised:
-    _read(
-      'player_name = "First Last"\n'
-      'acbl_player_number = 1234\n'
-      'club_index_url = "https://example.com/game-results/"\n'
-    )
+    _read('player_name = "First Last"\nacbl_player_number = 1234\n')
 
   assert 'cannot use acbl_player_number' in str(raised.value)
   assert 'states no' not in str(raised.value)
@@ -101,11 +89,7 @@ def test_a_setting_left_blank_is_not_taken_as_supplied() -> None:
   # match no row in any traveller and report itself as a session that never
   # names us, far from the file that is actually unfinished.
   with pytest.raises(ConfigurationError) as raised:
-    _read(
-      'player_name = ""\n'
-      'acbl_player_number = "0000000"\n'
-      'club_index_url = "https://example.com/game-results/"\n'
-    )
+    _read('player_name = ""\nacbl_player_number = "0000000"\n')
 
   assert 'cannot use player_name' in str(raised.value)
 
@@ -118,9 +102,7 @@ def test_the_configuration_is_read_from_the_tree_it_accompanies(
 ) -> None:
   tree = PrivateTree(tmp_path)
   tree.configuration_file.write_text(
-    'player_name = "First Last"\n'
-    'acbl_player_number = "0000000"\n'
-    'club_index_url = "https://example.com/game-results/"\n'
+    'player_name = "First Last"\nacbl_player_number = "0000000"\n'
   )
 
   assert load_configuration(tree).player_name == 'First Last'
