@@ -432,6 +432,7 @@ given, or every stored one. Both comparisons below write into that same report.
 
 - [ ] Report each board's result against the double dummy for the best opening
       lead. {#result-versus-double-dummy}
+  - Worktree: double-dummy-comparisons
   - Rationale: a published double-dummy table already answers this. It states
     the tricks available with best play on both sides, which presumes the best
     lead — so this is a comparison to make, not an analysis to run.
@@ -445,6 +446,7 @@ given, or every stored one. Both comparisons below write into that same report.
     rather than printing a result against nothing.
 - [ ] Report each board's result against the double dummy for the lead actually
       made. {#result-versus-actual-lead}
+  - Worktree: double-dummy-comparisons
   - Rationale: the published table cannot answer this one. It states what was
     available from the start, not what remained after a particular card, so this
     has to be solved rather than read.
