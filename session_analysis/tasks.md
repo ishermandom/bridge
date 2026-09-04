@@ -101,10 +101,6 @@ unread.
     - The file states the day it was taken, in the PDF's own `/CreationDate`.
     - A real footer normalizes as expected: `PABC mon.` on 8/31 gives
       `pabc-mon-2026-08-31`.
-  - Note: `testing/provenance.py` and `testing/scripted_model.py` sit outside
-    this directory deliberately — reviewed tests import both, and code here may
-    not be depended on by reviewed code. Both are test-support with no logic,
-    and they were reviewed as they landed.
   - Open question: whether `reconciliation.py` wants splitting. At 1076 lines it
     is the project's longest module, though only a little past
     `club_html_parsing.py`, so it is a judgment call rather than a clear
