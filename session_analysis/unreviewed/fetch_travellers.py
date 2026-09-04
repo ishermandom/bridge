@@ -10,7 +10,7 @@ that runs both:
 
 ```shell
 .venv/bin/python -m session_analysis.unreviewed.fetch_travellers 2026-06-29 \
-    --player-number 2475316
+    --player-number 1234567
 ```
 
 A run fetches every source by default, since which of them published a given
