@@ -341,6 +341,10 @@ record waits for review, and what becomes of a scan that raises.
     file.
   - Note: an unknown footer should fall back to the literal normalization it
     does today, not fail — a game played once should not need a config edit.
+  - Note: `configuration._what_is_wrong` names a rejected setting by the first
+    element of its location, which for a table is the table itself, so a blank
+    alias reports as `cannot use event_aliases` without saying which one.
+    Confirmed against pydantic; worth widening when the table lands.
 
 ---
 
