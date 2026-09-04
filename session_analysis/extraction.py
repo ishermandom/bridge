@@ -14,9 +14,9 @@ from PIL import Image
 from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.frozen_model import FrozenModel
-from session_analysis.rule_grid import SheetGeometryError
 from session_analysis.sheet_dewarp import Quad, dewarp_sheet
 from session_analysis.strip_cutting import cut_strips
+from session_analysis.unreviewed.rule_grid import SheetGeometryError
 from session_analysis.unreviewed.sheet_geometry import (
   SheetGeometry,
   resolve_sheet_geometry,
@@ -88,10 +88,10 @@ def transcribe_sheet(
     # model's notes on this sheet earn a person's time: an overprint hiding
     # rules, a layout it could not place. The notes join the message rather than
     # a log, because the message is what reaches the failure sidecar.
-    read_as = (
-      f'; the sheet was read as: {structure.notes}' if structure.notes else ''
+    model_notes = (
+      f'; the model noted: {structure.notes}' if structure.notes else ''
     )
-    raise SheetGeometryError(f'{error}{read_as}') from error
+    raise SheetGeometryError(f'{error}{model_notes}') from error
   strips = cut_strips(dewarped.image, geometry)
   raw_json_a = invoke_vision_model(
     strips,

@@ -17,9 +17,9 @@ which of several images is the sheet.
 Every page of a container is its own sheet. A scanner app writes one PDF per
 feed, so several sheets scanned together arrive in one file, and each is a
 separate session with its own footer, key and traveller. A page that cannot be
-decoded is reported as itself and the rest go on — a page that wraps two images
-because the app appended a summary should not cost the sheets around it. A file
-that will not open at all is different, and raises.
+decoded is reported as that page's own failure and the rest go on — a summary
+page an app appended, or a form with a logo beside the sheet, should not cost
+the sheets around it. A file that will not open at all is different, and raises.
 
 The capture date comes from the file's own metadata, never the clock. A scan
 reprocessed months later must resolve its footer against the day it was taken,

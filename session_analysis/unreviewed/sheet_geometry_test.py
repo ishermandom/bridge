@@ -12,8 +12,8 @@ import pydantic
 import pytest
 from PIL import Image, ImageDraw
 
-from session_analysis.rule_grid import SheetGeometryError
 from session_analysis.testing.synthetic_scans import draw_sheet
+from session_analysis.unreviewed.rule_grid import SheetGeometryError
 from session_analysis.unreviewed.sheet_geometry import (
   BoardPanel,
   Box,
@@ -311,7 +311,7 @@ def test_a_margin_outside_the_table_is_not_taken_for_its_border() -> None:
 
 
 def test_two_panels_contribute_their_rows_in_reading_order() -> None:
-  # A vendor form printing boards 1-3 down the left and 4-9 down the right, the
+  # A vendor form printing boards 1-4 down the left and 5-11 down the right, the
   # right panel running lower because no chart sits beneath it.
   image = Image.new('L', (600, 800), color=255)
   draw = ImageDraw.Draw(image)

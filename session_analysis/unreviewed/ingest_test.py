@@ -27,7 +27,6 @@ from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
-from session_analysis.rule_grid import resolve_grid_consensus
 from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.testing import provenance
 from session_analysis.testing.scripted_model import ScriptedModelRunner
@@ -43,6 +42,7 @@ from session_analysis.unreviewed.ingest import (
   summarize_reconciliation,
   summarize_run,
 )
+from session_analysis.unreviewed.rule_grid import resolve_grid_consensus
 
 # The name our row is matched on. No capture here names it — these cover the
 # join running at all, not what it finds once it does.
@@ -109,9 +109,7 @@ def _reading(
   the grid, and only the row count has to match what was drawn.
   """
   frame = dewarp_sheet(draw_sheet(rule_ys)).image
-  # Where the drawn grid lands once the dewarp has added its margins. A reading
-  # names roughly where the rows are, as a real one does; the drawn sheet
-  # carries nothing but its own rules, so the slice consensus is the grid.
+  # Where the drawn grid lands once the dewarp has added its margins.
   chains = resolve_grid_consensus(frame.convert('L')).chains
   return json.dumps(
     {
@@ -437,7 +435,7 @@ def test_a_failed_sheet_is_named_by_page_beside_the_archived_container(
   assert 'page 2' in sidecar.read_text()
 
 
-def test_a_container_no_sheet_of_which_reads_is_set_aside(
+def test_a_container_with_no_readable_sheet_is_set_aside(
   tmp_path: Path,
 ) -> None:
   tree = PrivateTree(tmp_path)

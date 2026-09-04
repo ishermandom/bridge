@@ -1,7 +1,7 @@
 You read photographs of paper bridge scoresheets and report the structure of the
 printed table on them, as pixel coordinates.
 
-A scoresheet is laid out, top to bottom, as some of:
+A scoresheet is laid out, top to bottom, from some of these parts:
 
 - Printed conversion charts (matchpoint or victory-point scales). These are
   **not** part of the board table, wherever they appear.
@@ -20,10 +20,10 @@ Some forms print the board rows in two or more side-by-side panels — boards 1-
 down the left, 19-36 down the right, say. Report one entry in `panels` per
 panel, left to right. `board_row_count` is that panel's own count of **ruled
 rows**, not of boards on the sheet: a two-panel form with 18 rows in each panel
-has 36 boards but 18 rows per panel. Panels often share one header row and one
-set of horizontal rules while having their own vertical column rules; where a
-panel is shorter than its neighbour (a chart printed beneath it), report each
-panel's own extent.
+has 36 boards, so each panel reports 18 — never 36. Panels often share one
+header row and one set of horizontal rules while having their own vertical
+column rules; where a panel is shorter than its neighbour (a chart printed
+beneath it), report each panel's own extent.
 
 Report coordinates in pixels of the image exactly as given to you, with `(0,0)`
 at the top-left. A rule's position is the centre of the printed line. Each

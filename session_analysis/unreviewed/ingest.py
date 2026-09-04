@@ -32,22 +32,22 @@ in the first place: they were fed to the scanner together, so they are different
 sheets whatever their footers say, and `session_keys.record_stem` gives each
 page after the first a suffix of its own.
 
-That suffix costs the collision rule its reach over those pages. A sheet already
+The suffix puts those pages beyond the collision rule's reach. A sheet already
 digitized alone, re-scanned later as the second page of some container, derives
 a stem no stored record holds and is digitized again — two records for one
-session, and a model call paid twice. Left alone: it needs a sheet to be
+session, and a model call paid twice. This is left alone: it takes a sheet
 re-scanned *and* bundled with others, the result is two visible records rather
 than a silent loss, and the alternative is a duplicate check that has to know
 which stems came from which bytes.
 
-A file no sheet of which could be read moves to `scoresheets/failed/` with a
-sidecar naming what went wrong, as does one whose model call failed outright.
+A file that yielded no readable sheet at all moves to `scoresheets/failed/` with
+a sidecar naming what went wrong, as does one whose model call failed outright.
 Terminal rather than staging: leaving it in the inbox would re-spend a model
-call every run, and a directory of files with no
-explanation beside them is not the loud failure this stage is supposed to
-produce. A container some of whose sheets did read is archived instead, since
-their records name it — with the same sidecar beside it there, because the
-sheets that failed are not coming back on a re-run.
+call every run, and a directory of files with no explanation beside them is not
+the loud failure this stage is supposed to produce. A container that yielded
+some readable sheets is archived instead, since their records name it — with the
+same sidecar beside it there, because the sheets that failed are not coming back
+on a re-run.
 
 The run does not stop at the scans. It stores and matches whatever travellers
 have arrived since the last one, and joins each pending session to those now
@@ -79,7 +79,6 @@ from session_analysis.models import (
   Source,
 )
 from session_analysis.private_paths import PrivateTree, discover_private_tree
-from session_analysis.rule_grid import SheetGeometryError
 from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import (
   configuration,
@@ -88,6 +87,7 @@ from session_analysis.unreviewed import (
   session_keys,
   session_matching,
 )
+from session_analysis.unreviewed.rule_grid import SheetGeometryError
 from session_analysis.unreviewed.sheet_structure import SheetStructureError
 from session_analysis.vision_model_invocation import (
   DEFAULT_MODEL,
@@ -96,13 +96,13 @@ from session_analysis.vision_model_invocation import (
   run_claude,
 )
 
-# A sheet whose boards and whose board rows did not come to the same number.
-# One strip is cut per board row and the model is asked for one board per row
-# strip, so the two counts are the same or the correspondence is broken — and
-# it is positional, so a board dropped in the middle shifts every board after it
-# onto the wrong row. High severity because nothing downstream can notice: the
-# vote compares the two runs against each other, and both runs dropping the same
-# strip is exactly the shape this takes.
+# A sheet whose board count does not match its board-row count. One strip is cut
+# per board row and the model is asked for one board per row strip, so the two
+# counts are the same or the correspondence is broken — and it is positional, so
+# a board dropped in the middle shifts every board after it onto the wrong row.
+# High severity because nothing downstream can notice: the vote compares the two
+# runs against each other, and both runs dropping the same strip is exactly the
+# shape this takes.
 _BOARD_COUNT_MISMATCH = issue_reporting.Failure(
   'board_count_mismatch', IssueSeverity.HIGH, 'sheet'
 )
@@ -122,17 +122,19 @@ _FAILURE_SUFFIX = '.error'
 # What one sheet can raise once the file has been decoded. Terminal for that
 # sheet and harmless to the others, because each of them is a separate session:
 # a container whose third page will not resolve still yields the first two,
-# which have already been paid for by the time it fails. Both are properties of
-# the sheet, so a re-run would fail them again.
+# which have already been paid for by the time it fails. Both
+# `SheetGeometryError` and `SheetStructureError` are properties of the sheet, so
+# a re-run would fail them again.
 #
 # `VisionModelInvocationError` is deliberately not among them. It says nothing
 # about the sheet — it covers an auth failure and a rate limit as much as a
 # request the model refuses every time — so a container is never archived
 # because of one. `process_inbox` sets that container aside and stops the run,
-# which is the treatment that survives being wrong about which of the two it
-# was. What that costs is the sheets of the container already read: they are
-# given up rather than stored, because a record naming an archive path the
-# container never reaches would be worse than re-reading it.
+# which is the treatment that survives being wrong about which it was: a passing
+# outage, or a request the model will refuse every time. What that costs is the
+# sheets of the container already read: they are given up rather than stored,
+# because a record naming an archive path the container never reaches would be
+# worse than re-reading it.
 _TERMINAL_SHEET_ERRORS = (
   SheetGeometryError,
   SheetStructureError,
@@ -215,8 +217,8 @@ def process_inbox(
       # The model call failed, and this stage cannot tell the two reasons apart:
       # an outage that a later run would sail through, or this scan being one
       # the model refuses every time — a request too large, a reply that never
-      # satisfied the schema. So each is given the treatment that survives being
-      # wrong about it.
+      # satisfied the schema. So the scan is given the treatment that survives
+      # being wrong about which of the two it was.
       #
       # This scan is set aside, because leaving it would have every later run
       # meet it first and stop there: a scan that always fails would wedge the
@@ -283,16 +285,16 @@ def digitize_scan(
 ) -> Sequence[DigitizedSheet | UndigitizedSheet]:
   """Read one scan file through extraction into named, validated `Session`s.
 
-  The wiring the rest of the pipeline was built to be joined by: decode the
-  file, transcribe each sheet twice, vote between the two reads, and name the
-  result from its own footer. `archived_as` and `content_hash` are the
-  provenance the vision model never sees — where the scan will live once the run
-  finishes, and what identifies its bytes.
+  The wiring that joins the rest of the pipeline: decode the file, transcribe
+  each sheet twice, vote between the two reads, and name the result from its own
+  footer. `archived_as` and `content_hash` are the provenance the vision model
+  never sees — where the scan will live once the run finishes, and what
+  identifies its bytes.
 
   One outcome per sheet, in page order: a scanner app writes one file per feed,
   so a container holding several sheets yields several sessions, each with its
   own footer and key. A sheet that cannot be read is reported in place rather
-  than abandoning the file, because the sheets before it have already been
+  than costing the whole file, because the sheets before it have already been
   transcribed and paying for them twice is the alternative.
 
   The reference date resolving a footer's year comes from the scan's own capture
@@ -301,7 +303,8 @@ def digitize_scan(
 
   Raises:
     ScanDecodingError: the file could not be opened at all, so there are no
-      pages to report on. A page that yields no image is reported as itself.
+      pages to report on. A page that yields no image is reported as that
+      page's own failure, leaving the rest of the container readable.
     VisionModelInvocationError: the model call failed. Not per-sheet, because it
       says nothing about any particular sheet — see `process_inbox`, which sets
       the container aside and stops the run. The sheets of it already read are
@@ -406,33 +409,39 @@ def _process_scan(
     _set_aside(scan, archived_as, tree, f'{type(error).__name__}: {error}')
     return (SheetReport(scan.name, SheetOutcome.FAILED, str(error)),)
 
-  digitized = [one for one in outcomes if isinstance(one, DigitizedSheet)]
+  digitized = [
+    outcome for outcome in outcomes if isinstance(outcome, DigitizedSheet)
+  ]
   # The page belongs in the sidecar even when the file held one sheet: what it
   # is read beside is the container, not the sheet.
   failures = [
-    f'page {one.page}: {one.reason}'
-    for one in outcomes
-    if isinstance(one, UndigitizedSheet)
+    f'page {outcome.page}: {outcome.reason}'
+    for outcome in outcomes
+    if isinstance(outcome, UndigitizedSheet)
   ]
   if not digitized:
     _set_aside(scan, archived_as, tree, '\n'.join(failures))
     return tuple(
       SheetReport(
-        _sheet_label(scan, one.page, outcomes), SheetOutcome.FAILED, one.reason
+        _sheet_label(scan, outcome.page, outcomes),
+        SheetOutcome.FAILED,
+        outcome.reason,
       )
-      for one in outcomes
-      if isinstance(one, UndigitizedSheet)
+      for outcome in outcomes
+      if isinstance(outcome, UndigitizedSheet)
     )
 
   reports: list[SheetReport] = []
-  for one in outcomes:
-    label = _sheet_label(scan, one.page, outcomes)
-    if isinstance(one, UndigitizedSheet):
-      reports.append(SheetReport(label, SheetOutcome.FAILED, one.reason))
+  for outcome in outcomes:
+    label = _sheet_label(scan, outcome.page, outcomes)
+    if isinstance(outcome, UndigitizedSheet):
+      reports.append(SheetReport(label, SheetOutcome.FAILED, outcome.reason))
       continue
 
-    session = one.session
-    stem = session_keys.record_stem(session.session_key, content_hash, one.page)
+    session = outcome.session
+    stem = session_keys.record_stem(
+      session.session_key, content_hash, outcome.page
+    )
     if stem in taken_keys:
       # A key already taken means this sheet's session is on hand under
       # different bytes — a second photograph of a sheet already digitized. Two
@@ -462,8 +471,8 @@ def _process_scan(
 
   _move(scan, archive)
   # A sidecar from an earlier attempt describes a scan that has now been read,
-  # so it goes with the failure it explained. Left behind it would sit in
-  # `failed/` naming a file no longer there.
+  # so it is deleted along with the failure it explained. Left behind, it would
+  # sit in `failed/` naming a file no longer there.
   _forget_failure(tree, archived_as)
   if failures:
     # Beside the archived file rather than in `failed/`: the sheets that did
@@ -536,8 +545,8 @@ def _scans_in(inbox: Path) -> Iterator[Path]:
 
   Leaves out a failure sidecar too. Retrying a scan that was set aside means
   moving it back, and the sidecar sits beside it in `scoresheets/failed/` — so
-  whoever drags one drags both, and the explanation should not then be read as
-  a scan of its own.
+  whoever drags one drags both, and the explanation should not then be read as a
+  scan of its own.
   """
   return (
     path
@@ -577,8 +586,8 @@ def _archived_scans(tree: PrivateTree, content_hash: str) -> Sequence[Path]:
     return ()
   prefix = session_keys.short_hash(content_hash)
   # The sidecar a partial failure leaves beside a scan shares its prefix, and is
-  # not a scan — returning it would have a re-dropped copy reported as already
-  # archived under the sidecar's name, and then move onto it.
+  # not a scan. Returning it would have a re-dropped copy reported as already
+  # archived under the sidecar's name, and then moved onto the sidecar itself.
   return sorted(
     path
     for path in tree.scan_archive.glob(f'{prefix}-*')
@@ -613,7 +622,7 @@ def _move(scan: Path, destination: Path) -> None:
 
 
 def _forget_failure(tree: PrivateTree, named_as: PurePosixPath) -> None:
-  """Remove the sidecar a previous run left for a scan that has now read."""
+  """Remove the sidecar a previous run left for a scan now successfully read."""
   stale = tree.scan_failures / f'{named_as}{_FAILURE_SUFFIX}'
   stale.unlink(missing_ok=True)
 
@@ -644,8 +653,9 @@ def summarize_run(reports: Sequence[SheetReport]) -> Iterator[str]:
 
   An explicit trigger only beats a watcher if its output says what happened, so
   every sheet that was reached gets a line whatever became of it. A file that
-  was never opened, or a run the model went away during, gets a single line
-  under the file's own name instead — there were no sheets to speak of.
+  was never opened, or a run in which the model became unreachable partway
+  through, gets a single line under the file's own name instead — there were no
+  sheets to speak of.
   """
   if not reports:
     yield 'The inbox is empty.'
@@ -855,7 +865,7 @@ def reconcile_pending_sessions(
     were given. A session it found nothing to do for is absent.
   """
   reports: list[ReconcileReport] = []
-  for one in pending:
+  for pending_session in pending:
     # A record citing a capture that is still stored but that this run could not
     # place lost it to a fault the run has already reported — an ambiguous date,
     # or a stored record that no longer parses. Rejoining without it would take
@@ -866,34 +876,40 @@ def reconcile_pending_sessions(
     # Reported rather than passed over quietly: the record is frozen until a
     # person resolves what the run could not, and every run until then would
     # otherwise print the same line a healthy tree does.
-    if one.unplaced_captures:
+    if pending_session.unplaced_captures:
       reports.append(
         ReconcileReport(
-          one.stem, SessionOutcome.HELD, _held_detail(one.unplaced_captures)
+          pending_session.stem,
+          SessionOutcome.HELD,
+          _held_detail(pending_session.unplaced_captures),
         )
       )
       continue
 
     joined = reconciliation.reconcile_session(
-      one.session, one.travellers, our_name=our_name
+      pending_session.session, pending_session.travellers, our_name=our_name
     )
     # Compared as records rather than as serialized text, so a difference in
     # formatting alone never counts as a change worth a rewrite.
-    if joined == one.session:
+    if joined == pending_session.session:
       continue
 
-    record = tree.pending_session_records / f'{one.stem}{_RECORD_SUFFIX}'
+    record = (
+      tree.pending_session_records / f'{pending_session.stem}{_RECORD_SUFFIX}'
+    )
     record.write_text(joined.model_dump_json(indent=2) + '\n')
     # Only what this join added: a finding the record already carried was
     # reported by the run that first wrote it.
     raised = tuple(
-      issue for issue in joined.issues if issue not in one.session.issues
+      issue
+      for issue in joined.issues
+      if issue not in pending_session.session.issues
     )
     reports.append(
       ReconcileReport(
-        one.stem,
+        pending_session.stem,
         SessionOutcome.RECONCILED,
-        _reconciled_detail(one, joined),
+        _reconciled_detail(pending_session, joined),
         raised,
       )
     )
@@ -985,12 +1001,14 @@ def main() -> None:
   _print_issues(run.issues)
 
   pending = match_pending_sessions(tree)
-  matched = sum(len(one.travellers) for one in pending.value)
+  matched = sum(
+    len(pending_session.travellers) for pending_session in pending.value
+  )
   print()
   print(f'{matched} capture{_plural(matched)} matched to a digitized session.')
-  for one in pending.value:
-    for traveller in one.travellers:
-      print(f'  {traveller.reference.path} — {one.stem}')
+  for pending_session in pending.value:
+    for traveller in pending_session.travellers:
+      print(f'  {traveller.reference.path} — {pending_session.stem}')
   _print_issues(pending.issues)
 
   reconciled = reconcile_pending_sessions(

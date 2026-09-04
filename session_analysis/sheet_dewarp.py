@@ -34,7 +34,7 @@ from typing import NamedTuple
 from PIL import Image
 
 from session_analysis.frozen_model import FrozenModel
-from session_analysis.rule_grid import (
+from session_analysis.unreviewed.rule_grid import (
   GridConsensus,
   SheetGeometryError,
   dip_centers,
@@ -71,8 +71,9 @@ _DEWARP_TOP_MARGIN_IN_PITCHES = 0.5
 # pitches. The footer is one handwritten line (event, date, pair number) just
 # below the grid, and 2.5 pitches covers it with margin. The dewarp runs before
 # anything has read the sheet's layout, so it cannot know whether this form
-# prints a footer at all, and spends the margin either way — on a form without
-# one it buys blank paper that the stages below simply find nothing in.
+# prints a footer at all, and keeps the margin either way. On a form without a
+# footer the margin is blank paper, which the stages below simply find nothing
+# in.
 # TODO: a footer sitting further down than this is cropped away before the model
 # can read it. See tasks.md `#dewarp-needs-the-reading`.
 _FOOTER_HEIGHT_IN_ROW_PITCHES = 2.5
@@ -104,10 +105,11 @@ class Quad(FrozenModel):
 class DewarpedSheet:
   """A scan mapped upright: the transformed image and how it was derived.
 
-  The row count the quad fit resolved is deliberately not among these. The count
-  that governs is the one the sheet's layout reading reports, checked against
-  the printed rules by `sheet_geometry`, so a second count derived here would be
-  a value nothing reads.
+  The fields are the image and the quad alone. The row count that the quad fit
+  resolved is deliberately not among them: the count that governs is the one the
+  sheet's layout reading reports, checked against the printed rules by
+  `sheet_geometry`, so a second count derived here would be a value nothing
+  reads.
   """
 
   image: Image.Image

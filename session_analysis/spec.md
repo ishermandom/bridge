@@ -235,10 +235,10 @@ mode**, on the existing Claude subscription — no separate API billing.
   save only the labeling machinery.
 
   The ~56% figure is a property of a raw photo, where most of the frame is not
-  sheet. A scanner app that rectifies and crops writes a file that is all sheet,
-  and those reach the model at 78-98% linear — so the gap this works around has
-  largely closed for scanned input. The strips earn their place even so: a
-  whole-page read measures close but not better, and the geometry they are cut
+  sheet. A scanner app that rectifies and crops writes files that are all sheet,
+  and they reach the model at 78-98% linear — so the gap the strips work around
+  has largely closed for scanned input. The strips earn their place even so: a
+  whole-page read comes close but never better, and the geometry they are cut
   from is needed for the review UI regardless. Reading the layout from the sheet
   changed where the cut lines come from, not whether to cut.
 
@@ -261,35 +261,35 @@ mode**, on the existing Claude subscription — no separate API billing.
   where each panel sits, and where the footer band is. Detection then finds
   where every printed rule actually is — per-rule medians across the column
   slices' chains, because a full-width profile stays blind to a rule that page
-  curl drifts a fraction of a pitch while each slice sees it sharply — and takes
-  the run of rules matching the reported count. The split is deliberate: what a
-  line _means_ is a judgement about the form, and where it _is_ is a
-  measurement. Measured over repeated runs the reported row count is exactly
-  stable while the reported coordinates drift about a percent of the page, so
-  the count is a hard constraint and the coordinates only place it; every
-  coordinate in the result comes from a rule found in the pixels.
+  curl has pushed a fraction of a pitch out of line while each slice still sees
+  it sharply — and takes the run of rules matching the reported count. The split
+  is deliberate: what a line _means_ is a judgement about the form, and where it
+  _is_ is a measurement. Measured over repeated runs the reported row count is
+  exactly stable while the reported coordinates drift about a percent of the
+  page, so the count is a hard constraint and the coordinates only place it;
+  every coordinate in the result comes from a rule found in the pixels.
 
   This replaced three heuristics that each assumed a single full-width grid and
   each failed on real scans: a row-count vote across the slices, an ink-coverage
   trim meant to drop chart rules above the grid and footer guide underlines
   below it, and a footer region derived at a fixed offset under the last row.
-  The footer's underline defeated the trim outright — it runs nearly the full
-  width one pitch below the grid, so its coverage sat within 0.09 of a true
-  rule's — which refused two of three real pages and, on the third, took the
-  underline for the grid's last rule and put the footer region on blank paper
-  below it. Losing the footer loses the event and date, so the session got no
-  key and no traveller could ever match it. Validated on a rendered blank v4
-  form, clean and synthetically degraded (the committed fixture in `testdata/`).
-  The result is a typed `SheetGeometry` of tight rule-to-rule row boxes and the
-  footer region beside them — carried rather than derived at a fixed offset
-  below the last row, since several forms print charts there and no footer at
-  all — persisted with the source quad alongside the processed session:
-  extraction cuts strips from it, a voting rerun reuses the same strips, and the
-  review UI crops from it. Handwriting bleeds past the printed rules and curl
-  leaves residual drift, so each consumer pads the tight boxes at cut time —
-  extraction expands each strip by a fraction of the row pitch into its
-  neighbors, and the prompt's "transcribe the row whose middle line the strip
-  shows" rule disambiguates the duplicated content that padding creates.
+  The footer's underline defeated the trim outright: it runs nearly the full
+  width one pitch below the grid, so on a 0-to-1 coverage scale its ink sat
+  within 0.09 of a true rule's. The trim refused two of three real pages and, on
+  the third, took the underline for the grid's last rule and put the footer
+  region on blank paper below it. Losing the footer loses the event and date, so
+  the session got no key and no traveller could ever match it. Validated on a
+  rendered blank v4 form, clean and synthetically degraded (the committed
+  fixture in `testdata/`). The result is a typed `SheetGeometry` of tight
+  rule-to-rule row boxes and the footer region beside them — carried rather than
+  derived at a fixed offset below the last row, since several forms print charts
+  there and no footer at all — persisted with the source quad alongside the
+  processed session: extraction cuts strips from it, a voting rerun reuses the
+  same strips, and the review UI crops from it. Handwriting bleeds past the
+  printed rules and curl leaves residual drift, so each consumer pads the tight
+  boxes at cut time — extraction expands each strip by a fraction of the row
+  pitch into its neighbors, and the extraction prompt's input-format rule for
+  overlapping strips disambiguates the duplicated content that padding creates.
 
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
@@ -402,14 +402,14 @@ Whichever is chosen:
   session with its own footer, key and traveller. `decode_scan` yields one
   decoded sheet per page and ingest digitizes each, recording which page a
   record came from (`SheetImage.page`) so it can be re-derived. A page that will
-  not decode is reported as itself and the rest go on — an app that appends a
-  summary page, or a form with a logo beside the sheet, should not cost the
-  sheets around it. The container is still what moves, so where some sheets read
-  and others did not it is archived with a sidecar naming the pages that failed;
-  a file that will not open at all is terminal as a whole, as is one whose model
-  call failed outright — that one says nothing about any sheet in particular, so
-  the container is set aside and the run stops rather than carrying on into the
-  same failure.
+  not decode is reported as that page's own failure and the rest go on — an app
+  that appends a summary page, or a form with a logo beside the sheet, should
+  not cost the sheets around it. The container is still what moves, so where
+  some sheets read and others did not it is archived with a sidecar naming the
+  pages that failed. A file that will not open at all is terminal as a whole. So
+  is one whose model call failed outright: that failure says nothing about any
+  sheet in particular, so the container is set aside and the run stops rather
+  than carrying on into the same failure.
 - **Self-naming**: the footer (event, date) is read first so the file names
   itself by session key — no manual tagging. The derivation is literal: the
   footer text casefolded and hyphenated, joined to the parsed date, giving

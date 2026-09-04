@@ -104,7 +104,7 @@ _MINIMUM_VALID_SLICES = 4
 _MINIMUM_ROW_COUNT = 8
 
 # How much better the run of rules chosen by `rules_bounding_rows` must fit the
-# reported bounds than the next run down, in row pitches. Runs sit a pitch
+# reported bounds than the next-best run, in row pitches. Runs sit a pitch
 # apart, so a sound reading wins by about one; anything much closer means the
 # bounds fall between two runs and the answer is a coin toss. Measured on the
 # three real scan pages, the median slice preferred its window by 1.55 to 1.82
@@ -272,12 +272,30 @@ def rules_bounding_rows(
 
   The alternative to inferring the row count from the scan
   (`resolve_grid_consensus`): here it is already known, and the job is only to
-  find which detected rules it refers to. A slice's chain routinely runs past
-  the grid at either end — a scale chart above, the footer's guide underline
-  below — and the window of the chain that is the right length and best fits
-  `top`..`bottom` is the grid. Since the count is exact and those bounds are
-  approximate, the count decides the window's size and the bounds only its
-  position.
+  find which of the detected rules it counts. A slice's chain routinely runs
+  past the grid at either end — a scale chart above, the footer's guide
+  underline below — and the window of the chain that is the right length and
+  best fits `top`..`bottom` is the grid. Since the count is exact and those
+  bounds are approximate, the count decides the window's size and the bounds
+  only its position.
+
+  The bounds must be good to better than half a row pitch, and nothing here can
+  check that they were. Drifting both ends the same way by more than half a
+  pitch makes the neighbouring run the nearer one, and it is then chosen as
+  decisively as the right one would have been: at 0.3 and 0.7 of a pitch the
+  chosen run sits the same distance from the reported bounds and beats its rival
+  by the same margin, so neither the distance nor the margin separates them.
+  Swept on the v4 fixture, drift beyond about a third of a pitch either way is
+  refused, and beyond about three quarters it resolves one row off with nothing
+  raised.
+
+  What saves a real reading is that its drift is one-ended — measured at a few
+  pixels on the top edge against up to 0.7 of a pitch on the bottom — so the
+  accurate end anchors the score. A reading that shifts bodily is the case this
+  cannot see, and tasks.md `#board-number-continuity` carries the check that
+  can: a grid taken one row high makes the first strip the printed header and
+  drops the last board row, so the transcribed board numbers stop running
+  consecutively.
 
   Args:
     gray: the sheet in grayscale (PIL mode `'L'`).
@@ -292,23 +310,6 @@ def rules_bounding_rows(
     Each rule's pixel row, top to bottom, as the median across the slices that
     resolved a window — the same way the slices' readings are combined
     elsewhere, so page curl is averaged out rather than followed.
-
-  The bounds must be good to better than half a row pitch, and nothing here can
-  check that they were. Drifting both ends the same way by more than half a
-  pitch makes the neighbouring run the nearer one, and it is then chosen as
-  decisively as the right one would have been: at 0.3 and 0.7 of a pitch the
-  chosen run sits the same distance from the reported bounds and beats its rival
-  by the same margin, so no threshold on either separates them. Swept on the v4
-  fixture, drift beyond about a third of a pitch either way is refused, and
-  beyond about three quarters it resolves one row off with nothing raised.
-
-  What saves a real reading is that its drift is one-ended — measured at a few
-  pixels on the top edge against up to 0.7 of a pitch on the bottom — so the
-  accurate end anchors the score. A reading that shifts bodily is the case this
-  cannot see, and tasks.md `#board-number-continuity` carries the check that
-  can: a grid taken one row high makes the first strip the printed header and
-  drops the last board row, so the transcribed board numbers stop running
-  consecutively.
 
   Raises:
     SheetGeometryError: too few slices resolved a chain long enough to hold
@@ -354,7 +355,8 @@ def rules_bounding_rows(
   # that agreed on it, since a stray slice is precisely one whose two best runs
   # scored alike — it would otherwise drag the median down and refuse a sheet
   # the rest of the slices were sure of. Judged only when enough of them had a
-  # rival to judge from: the median of one margin is that margin.
+  # rival to judge from — a median over a single margin is just that margin, and
+  # says nothing about whether the slices agreed.
   margins = [
     reading.margin for reading in agreeing if reading.margin is not None
   ]
@@ -443,7 +445,7 @@ def _agreeing_on_one_run(
   that picked up a doubled dip beside a rule lands a whole rule off, and
   averaging it in drags every position toward it — while a half-and-half split
   between two runs puts the median *between* them, equidistant from both, so
-  every slice looks to agree with it. The answer would then be rules sitting
+  every slice appears to agree with it. The answer would then be rules sitting
   mid-row, every strip cut across a printed rule, and the row count agreeing all
   the while, so nothing downstream would notice.
 

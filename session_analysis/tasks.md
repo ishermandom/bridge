@@ -95,11 +95,12 @@ unread.
     a sidecar. Each is argued where it is implemented, so what remains is
     whether the code does what those decisions say.
   - Note: the spine has now been run against real scans, which answered three
-    things the tests could not. A phone scan needs almost no dewarping —
-    Google's ML Kit scanner rectifies and crops before writing the PDF; the file
-    does state the day it was taken, in the PDF's own `/CreationDate`; and a
-    real footer normalizes as expected, `PABC mon.` on 8/31 giving
-    `pabc-mon-2026-08-31`.
+    things the tests could not:
+    - A phone scan needs almost no dewarping — Google's ML Kit scanner rectifies
+      and crops before writing the PDF.
+    - The file states the day it was taken, in the PDF's own `/CreationDate`.
+    - A real footer normalizes as expected: `PABC mon.` on 8/31 gives
+      `pabc-mon-2026-08-31`.
   - Note: `testing/provenance.py` and `testing/scripted_model.py` sit outside
     this directory deliberately — reviewed tests import both, and code here may
     not be depended on by reviewed code. Both are test-support with no logic,

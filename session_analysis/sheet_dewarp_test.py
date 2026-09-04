@@ -8,12 +8,12 @@ from collections.abc import Sequence
 import pytest
 from PIL import Image, ImageDraw
 
-from session_analysis.rule_grid import (
+from session_analysis.sheet_dewarp import dewarp_sheet
+from session_analysis.testing.synthetic_scans import draw_sheet
+from session_analysis.unreviewed.rule_grid import (
   SheetGeometryError,
   resolve_grid_consensus,
 )
-from session_analysis.sheet_dewarp import dewarp_sheet
-from session_analysis.testing.synthetic_scans import draw_sheet
 from session_analysis.unreviewed.sheet_geometry import (
   BoardPanel,
   Box,
@@ -25,8 +25,8 @@ def _draw_skewed_sheet(rule_ys: Sequence[int]) -> Image.Image:
   """A synthetic perspective-skewed scan, mimicking the reference scan.
 
   Rules sit at `rule_ys` down the sheet's left edge and slant down to the right
-  — 40px at the grid's top, fading to flat at its bottom. Drawn between x=40
-  and x=560 on a 600x800 page.
+  — 40px at the grid's top, fading to flat at its bottom. Drawn between x=40 and
+  x=560 on a 600x800 page.
   """
   image = Image.new('L', (600, 800), color=255)
   draw = ImageDraw.Draw(image)
@@ -42,8 +42,8 @@ def _draw_skewed_sheet(rule_ys: Sequence[int]) -> Image.Image:
 def _panel_spanning(
   image: Image.Image, row_count: int, *, top: int, bottom: int
 ) -> BoardPanel:
-  """A reading reporting one panel the full frame wide, as the model returns
-  one for a sheet that carries nothing but its own board rows.
+  """A reading reporting one panel the full frame wide, as the model returns one
+  for a sheet that carries nothing but its own board rows.
   """
   return BoardPanel(
     board_row_count=row_count,
@@ -78,8 +78,8 @@ def test_dewarp_straightens_a_perspective_skewed_scan() -> None:
       _panel_spanning(
         dewarped,
         28,
-        top=round(statistics.median(c.rule_ys[0] for c in chains)),
-        bottom=round(statistics.median(c.rule_ys[-1] for c in chains)),
+        top=round(statistics.median(chain.rule_ys[0] for chain in chains)),
+        bottom=round(statistics.median(chain.rule_ys[-1] for chain in chains)),
       )
     ],
   )

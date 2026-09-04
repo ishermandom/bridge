@@ -59,14 +59,24 @@ def test_an_image_within_the_limits_is_sent_unscaled() -> None:
   assert scale == 1.0
 
 
-def test_an_oversized_image_is_scaled_to_the_visual_token_budget() -> None:
-  # A 4K frame: both edges are inside the 2576px limit only after the 4784-token
-  # budget has already forced a scale, which is the case that binds for every
-  # page-shaped image.
+def test_a_wide_image_is_scaled_by_the_edge_limit() -> None:
+  # A 4K frame is over the 2576px edge limit, and for a frame this wide that
+  # limit is what binds: the scaled result lands at 4761 visual tokens, just
+  # inside the 4784 budget.
   sent, scale = image_for_model(Image.new('L', (3840, 2160)))
 
   assert sent.size == (2576, 1449)
   assert scale == pytest.approx(2576 / 3840)
+
+
+def test_a_page_shaped_image_is_scaled_by_the_token_budget() -> None:
+  # A letter-shaped scan at 300 dpi, which is the shape this pipeline actually
+  # sends. Its long edge comes back at 2184, well inside the 2576px limit — the
+  # 4784-token budget ran out first, at 4702 tokens.
+  sent, scale = image_for_model(Image.new('L', (2550, 3300)))
+
+  assert sent.size == (1688, 2184)
+  assert scale == pytest.approx(1688 / 2550)
 
 
 # --- returning the reading to the sheet's own space ---
@@ -169,7 +179,7 @@ def test_a_reply_that_is_not_a_sheet_structure_is_refused() -> None:
     read_sheet_structure(Image.new('L', (600, 800)), run_command=runner)
 
 
-def test_a_footer_flush_with_the_page_edge_is_accepted() -> None:
+def test_a_footer_just_past_the_page_edge_is_accepted() -> None:
   # The ordinary answer for a band at the bottom of the sheet, and a pixel or
   # two beyond it is the ordinary rounding. `sheet_geometry` clamps both;
   # refusing them here would lose a whole sheet to a rounding.

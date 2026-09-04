@@ -40,7 +40,7 @@ import pydantic
 from PIL import Image
 
 from session_analysis.frozen_model import FrozenModel
-from session_analysis.rule_grid import (
+from session_analysis.unreviewed.rule_grid import (
   SheetGeometryError,
   dip_centers,
   pixel_column_profile,
@@ -52,10 +52,10 @@ from session_analysis.rule_grid import (
 # Sized between the two things it has to separate: a reported border sat at most
 # 0.8% of the panel's width from the printed rule across the real pages, while
 # the narrowest column on those single-panel forms is about 3% of it (65px of
-# 2158). Reaching further than
-# a column is wide would have a border that faded below detection snap to the
-# first interior rule instead of falling back to where it was reported — losing
-# the printed board number the transcription prompt relies on, and quietly.
+# 2158). A reach wider than a column is what to avoid: a border that has faded
+# below detection would then snap to the first interior rule rather than falling
+# back to where it was reported, quietly losing the printed board number the
+# transcription prompt relies on.
 _BORDER_SNAP_FRACTION = 0.015
 
 # The least `_panel_sides` will reach, whatever the panel's width. The drift a
@@ -63,8 +63,8 @@ _BORDER_SNAP_FRACTION = 0.015
 # at 0.8% of a 2158px single-panel form and 1.4% of a 351px one, so a fraction
 # alone leaves the narrowest panels no room. Ten pixels covers the 6px of drift
 # seen on the two-panel forms, and sits under the narrowest column measured on
-# either of them — 26px on Baron Barclay's 351px panels, which are the tightest
-# of the four.
+# either of them — 26px on Baron Barclay's 351px panels, the tightest of the
+# four panels measured.
 _MINIMUM_BORDER_REACH = 10
 
 # How far one panel may reach into the previous one, as a fraction of its own
@@ -172,9 +172,10 @@ def resolve_sheet_geometry(
   row_boxes: list[Box] = []
   previous: Box | None = None
   # Sorted rather than trusted: the order is what makes `row_boxes` run in the
-  # sheet's board order, and only the prompt asks for it. A right-hand panel
-  # reported first would have every strip labelled with the other panel's row
-  # number, which the transcription prompt is told to go by.
+  # sheet's board order, and nothing but the prompt asks the model to report it
+  # that way. A right-hand panel reported first would have every strip labelled
+  # with the other panel's row number, which the transcription prompt is told to
+  # go by.
   for reported in sorted(panels, key=lambda panel: panel.grid.left):
     # Clamped like the footer is: every coordinate here was reported rather than
     # measured, and PIL pads a crop reaching past the edge with black, which
@@ -193,13 +194,13 @@ def resolve_sheet_geometry(
         f'the panel reported at {reported.grid} has no area inside the '
         f'{gray.width}x{gray.height} frame'
       )
-    # What this guards is a reading that describes one block of rows twice:
-    # both copies would resolve against the same printed rules and every board
-    # would be transcribed twice — invisibly, since the strips double alongside
-    # the boards and the counts still agree. Compared against the clamped box
-    # and with room to spare, because panels sharing a printed divider are
-    # reported a pixel or two either side of it, and refusing those would lose
-    # the sheet to a rounding.
+    # What this guards is a reading that describes one block of rows twice: both
+    # copies would resolve against the same printed rules and every board would
+    # be transcribed twice — invisibly, since the strips double alongside the
+    # boards and the counts still agree. Compared against the clamped box and
+    # with room to spare, because panels sharing a printed divider are reported
+    # a pixel or two either side of it, and refusing those would lose the sheet
+    # to a rounding.
     if previous and previous.right - panel.grid.left > (
       _PANEL_OVERLAP_FRACTION * panel.grid.width()
     ):
@@ -266,14 +267,15 @@ def _panel_sides(
 ) -> tuple[int, int]:
   """One panel's left and right border rules.
 
-  A border is the printed vertical line within `reach` of where it was reported.
-  Sized under the panel's narrowest column, `reach` rules out the interior rule
-  beside the border and the punched margin outside the table. It does not always
-  rule out a neighbouring panel's border: on the Bridge Buddy proportions the
-  gutter and the reach are both about 8px, so both borders can be candidates,
-  and the nearest of them is taken. That holds while the reported edge is the
-  more accurate of the two, which the measured drift says it is — but it is a
-  margin, not a guarantee, and a wider gutter is what would make it one.
+  A border is the printed vertical line nearest where it was reported, within a
+  reach sized under the panel's narrowest column (see `_BORDER_SNAP_FRACTION`).
+  That reach rules out the interior rule beside the border and the punched
+  margin outside the table. It does not always rule out a neighbouring panel's
+  border: on the Bridge Buddy proportions the gutter and the reach are both
+  about 8px, so both borders can be candidates. Taking the nearest is right
+  while the reported edge is the more accurate of the two, which the measured
+  drift says it is — a margin rather than a guarantee, and a wider gutter is
+  what would turn it into one.
 
   Where a border has faded below detection nothing is within reach at all, and
   the reported border stands, because approximate and whole beats precise and

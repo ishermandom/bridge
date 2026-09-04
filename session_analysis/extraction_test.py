@@ -5,7 +5,8 @@
 `transcribe_sheet` is tested end to end on a synthetic drawn grid with a
 scripted `run_command` fake — no real `claude` process, mirroring the
 vision_model_invocation tests. The fake answers three calls per sheet: the
-layout reading first, then the two transcription runs it voted between.
+layout reading first, then the two transcription runs that assembly votes
+between.
 """
 
 import json
@@ -15,10 +16,10 @@ from collections.abc import Sequence
 from PIL import Image
 
 from session_analysis.extraction import transcribe_sheet
-from session_analysis.rule_grid import resolve_grid_consensus
 from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.testing.scripted_model import ScriptedModelRunner
 from session_analysis.testing.synthetic_scans import draw_sheet
+from session_analysis.unreviewed.rule_grid import resolve_grid_consensus
 
 # The grid a test with no opinion about the geometry draws. Only its row count
 # is depended on: no assertion here turns on where these rules sit.
@@ -97,9 +98,9 @@ def test_transcribe_sheet_returns_the_resolved_geometry() -> None:
   ) as runner:
     transcription = transcribe_sheet(draw_sheet(rule_ys), run_command=runner)
 
-  # The reading's 28 reached the geometry: a count mis-parsed as 27 would still
-  # resolve against these rules, so this is not the row count coming back to
-  # meet itself.
+  # The reading's 28 reached the geometry. The assertion is not circular: a
+  # count mis-parsed as 27 would still have resolved against these rules, and
+  # come back as 27 boxes.
   assert len(transcription.geometry.row_boxes) == 28
   # The source quad sits just outside the drawn grid: the dewarp margins push
   # its top corner above and left of the first rule's start at (40, 100).
@@ -133,7 +134,7 @@ def test_transcribe_sheet_sends_labeled_strips_for_every_row() -> None:
   assert len(content) == 59
   assert content[0] == {'type': 'text', 'text': 'Strip for printed row 1:'}
   # The footer's label is what the prompt tells the model to go by — without a
-  # strip named this way it is to leave the event and date empty — so the
+  # strip named this way the model leaves the event and date empty — so the
   # wording is load-bearing rather than cosmetic.
   assert content[-3] == {'type': 'text', 'text': 'Strip for the footer:'}
   assert content[-1] == {

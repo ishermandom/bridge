@@ -461,9 +461,10 @@ valid for exactly one image. `source_quad` is in original-scan pixels and
 different image and the coordinates are quietly wrong rather than an error.
 `content_hash` and `page` together certify which image they describe — the hash
 alone names the file, and a scanner app puts a whole feed of sheets in one file
-— so keeping them in one model makes that structural: re-hash the archived scan,
-take that page, and the frame either still applies or does not. Split across two
-models it would be a convention someone has to remember.
+— so keeping the frame beside the hash and the page in one model makes that
+check structural: re-hash the archived scan, take that page, and the frame
+either still applies or does not. Split across two models it would be a
+convention someone has to remember.
 
 The argument the other way is that a frame is derived, and a better detector
 could re-derive it while the file sits unchanged — which sounds like a property

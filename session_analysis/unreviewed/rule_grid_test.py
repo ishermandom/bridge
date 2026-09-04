@@ -5,11 +5,11 @@
 import pytest
 from PIL import Image, ImageDraw
 
-from session_analysis.rule_grid import (
+from session_analysis.testing.synthetic_scans import draw_sheet
+from session_analysis.unreviewed.rule_grid import (
   SheetGeometryError,
   resolve_grid_consensus,
 )
-from session_analysis.testing.synthetic_scans import draw_sheet
 
 # 29 rules bounding 28 board rows at a 20px pitch, on a 600x800-pixel page.
 _STANDARD_RULE_YS = list(range(100, 661, 20))

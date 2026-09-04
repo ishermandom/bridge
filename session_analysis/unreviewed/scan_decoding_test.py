@@ -258,11 +258,11 @@ def test_a_photo_is_always_page_one(tmp_path: Path) -> None:
   assert [sheet.page for sheet in _sheets(decoded)] == [1]
 
 
-def test_a_page_holding_several_images_is_reported_as_that_page(
+def test_a_page_holding_several_images_fails_only_that_page(
   tmp_path: Path,
 ) -> None:
-  # Which of the two is the sheet cannot be told, so nothing is guessed — but
-  # the page says so for itself rather than for the file.
+  # Which of the two embedded images is the sheet cannot be told, so nothing is
+  # guessed — and the failure is the page's, not the file's.
   first = _write_pdf(tmp_path / 'first.pdf')
   second = _write_pdf(tmp_path / 'second.pdf')
   writer = pypdf.PdfWriter(clone_from=first)
@@ -274,8 +274,10 @@ def test_a_page_holding_several_images_is_reported_as_that_page(
   decoded = decode_scan(scan)
 
   assert not _sheets(decoded)
-  undecoded = [one for one in decoded.value if isinstance(one, UndecodedPage)]
-  assert [one.page for one in undecoded] == [1]
+  undecoded = [
+    read for read in decoded.value if isinstance(read, UndecodedPage)
+  ]
+  assert [page.page for page in undecoded] == [1]
   assert 'embedded images' in undecoded[0].reason
 
 
@@ -297,7 +299,7 @@ def test_a_bad_page_does_not_cost_the_sheets_around_it(
 
   assert [sheet.page for sheet in _sheets(decoded)] == [1]
   assert [
-    one.page for one in decoded.value if isinstance(one, UndecodedPage)
+    read.page for read in decoded.value if isinstance(read, UndecodedPage)
   ] == [2]
 
 

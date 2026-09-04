@@ -33,23 +33,27 @@ board. Every value is a string.
 
 ## Input format
 
-The sheet arrives as horizontal strips cut from one scan at full resolution: one
-strip per printed board row, each preceded by a text label naming the printed
-row it shows. Adjacent strips overlap a little vertically — transcribe each
-board row from the strip whose middle line it occupies.
+The sheet arrives as horizontal strips cut from one scan, each preceded by a
+text label. There are two kinds of strip, and the label says which one you are
+looking at:
 
-Emit exactly one board object per row strip, always: blank rows included, and
-whatever a strip appears to show. The row strips and the boards correspond one
-to one, and that count is how the rest of the pipeline lines them up.
+- `Strip for printed row N` — one printed board row. Emit exactly one board
+  object for it, always: blank rows included, and whatever the strip shows even
+  where it looks incomplete.
+- `Strip for the footer` — the handwritten line below the table. It fills
+  `event` and `date`, and gets no board object of its own.
 
-Go by the labels, not by position. A footer strip follows the row strips only
-when the form prints a footer, and its label says so. The footer strip is not a
-board row: it fills `event` and `date`, and gets no board object of its own — a
-board emitted for it would leave the boards outnumbering the rows they were cut
-from, and the sheet is then flagged for a person to check. If no strip is
+Go by those labels, not by position. The boards you emit then match the printed
+row strips one for one, in order, which is how the rest of the pipeline lines
+them up.
+
+Adjacent strips overlap a little vertically — transcribe each board row from the
+strip whose middle line it occupies.
+
+A footer strip is there only when the form prints a footer. If no strip is
 labelled as the footer, leave `event` and `date` empty rather than reading them
-off the last row strip — an invented event and date name the wrong session,
-where empty ones leave the sheet to be named by hand.
+off the last printed row strip — an invented event and date name the wrong
+session, where empty ones leave the sheet to be named by hand.
 
 ## What to leave out
 

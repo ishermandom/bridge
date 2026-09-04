@@ -49,7 +49,8 @@ SHEET_STRUCTURE_SYSTEM_PROMPT: str = (
 ).read_text()
 
 # The user turn that closes the request. All real instruction lives in the
-# system prompt; this states the ask, as extraction's does for transcription.
+# system prompt; this states the ask, the way extraction's own instruction does
+# for transcription.
 _STRUCTURE_INSTRUCTION = (
   'Report the structure of the printed table in this scoresheet image.'
 )
@@ -63,9 +64,11 @@ _PAGE_JPEG_QUALITY = 92
 # in the scaled image's pixels; sending the already-scaled image makes the two
 # spaces one. These are the high-resolution tier's published limits, which
 # `DEFAULT_MODEL` is on — see the vision guide's "Resolution and token cost".
-# `_check_fits` checks that they held rather than trusting them: were they
-# smaller, the image would be scaled again and every coordinate would come back
-# in a space this module does not know about.
+# `_check_fits` catches a reading that landed nowhere near the image. It cannot
+# catch these limits being too large: a second rescaling shrinks every
+# coordinate inward, which stays inside the frame and so passes that check —
+# `sheet_geometry` is what refuses it, since the shrunken coordinates place the
+# grid nowhere near the printed rules.
 SCALE_LIMITS = (2576, 4784)
 # The model sees an image as patches this many pixels on a side, one visual
 # token each.
@@ -222,8 +225,8 @@ def read_sheet_structure(
     structure = SheetStructure.model_validate_json(raw_json)
   except pydantic.ValidationError as error:
     raise SheetStructureError(
-      f'the model reading of the sheet did not parse: {error}; the response '
-      f'was {raw_json[:500]}'
+      f"the model's reading of the sheet did not parse: {error}; the "
+      f'response was {raw_json[:500]}'
     ) from error
   _check_fits(structure, scaled.width, scaled.height)
   return structure.rescaled(scale)
@@ -310,6 +313,8 @@ def _scaled_size(
   if fits(width, height):
     return (width, height)
   if height > width:
+    # A portrait image is solved in the transposed frame and swapped back: the
+    # binary search below assumes the long edge is the width.
     tall_height, tall_width = _scaled_size(height, width, max_edge, max_tokens)
     return (tall_width, tall_height)
 
