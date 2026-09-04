@@ -92,3 +92,22 @@ production signatures for the tests' benefit.
     code to a fake instead of an invented injection seam.
   - Note: dotfiles changes need explicit permission for the specific edit, per
     CLAUDE.md, so this one is raised rather than done.
+
+---
+
+## Backlog
+
+- [ ] List the captured HTML fixtures in a `.prettierignore` at the repo root.
+      {#prettier-ignores-fixtures}
+  - Rationale: `session_analysis/testdata/travellers/` holds five files captured
+    verbatim from live sites, and reformatting one silently changes what the
+    parser tests are parsing. Prettier rewrote all five when it was pointed at
+    `session_analysis/` during this session's wrap-up.
+  - Note: the Stop hook does not reach them. `quiet-prettier.sh` with no
+    arguments only offers `*.md`, `*.js` and `*.ts`, so the hazard appears only
+    when someone passes a directory explicitly and prettier picks the HTML up on
+    its own. An ignore file closes it at the source rather than relying on
+    remembering.
+  - Note: the repo has no `.prettierignore` and no project-level prettier
+    config; `quiet-prettier.sh` falls back to `~/.prettierrc`. Adding an ignore
+    file is a repo-local change and does not touch dotfiles.
