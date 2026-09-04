@@ -331,6 +331,7 @@ record waits for review, and what becomes of a scan that raises.
     cropping is what closed the resolution gap that per-row strips were
     introduced to work around.
 - [ ] Write `configuration.toml` in the private tree.
+  - Worktree: configuration-toml
   - Note: this is what a first real run waits on. The spine has been exercised
     end to end, but only against copies in a scratch tree — both scans are still
     sitting in the private tree's inbox, and nothing has been archived or
@@ -424,6 +425,55 @@ parsed value.
     (an edit that didn't touch the flagged field, or a retry) will accumulate
     duplicate `Issue` entries unless this task also strips prior
     validation-origin issues before re-running the checks.
+
+---
+
+## Reporting
+
+**Goal:** turn a digitized session into something a person reads — the boards as
+text, and how the table's result compares with what the deal allowed.
+
+- [ ] Render a session as plain text: every board's auction, opening lead,
+      contract and result. {#session-transcript}
+  - Worktree: session-transcript
+  - Rationale: the pipeline's output today is a JSON record, and nothing renders
+    it. So the first thing anyone wants from a digitized sheet — reading the
+    session back — currently takes a JSON viewer.
+  - Note: the model already carries all of this. `Board.number` fixes the dealer
+    and vulnerability, `Board.auction` holds each written token with its circled
+    and alerted marks, and `Board.outcome` resolves to a contract and result or
+    to a passout. `AuctionEntry.raw` is populated whether or not the token
+    parsed, so a board still renders where the parse fell short.
+  - Note: what a run could not read belongs in the output rather than omitted
+    from it. `Issue`s sit on the board and on its envelopes, and a transcript
+    that silently drops an unreadable call reads as though the sheet said
+    nothing there.
+- [ ] Report each board's result against the double dummy for the best opening
+      lead. {#result-versus-double-dummy}
+  - Worktree: session-transcript
+  - Rationale: a published double-dummy table already answers this. It states
+    the tricks available with best play on both sides, which presumes the best
+    lead — so this is a comparison to make, not an analysis to run.
+  - Note: `TravellerBoard.double_dummy_tricks` carries the table, but `Board`
+    does not — reconciliation fills `deal`, `matchpoints`, `our_pair` and
+    `opponents` and stops there. Reading the stored traveller alongside the
+    session, through the `CaptureReference` on `Source`, avoids widening the
+    model for what is a reporting concern.
+  - Note: only a pairs game publishes a traveller, so a teams session has
+    neither deal nor table and this comparison has nothing to say for it. Say so
+    rather than printing a result against nothing.
+- [ ] Report each board's result against the double dummy for the lead actually
+      made. {#result-versus-actual-lead}
+  - Rationale: the published table cannot answer this one. It states what was
+    available from the start, not what remained after a particular card, so this
+    has to be solved rather than read.
+  - Note: nothing in this project solves a deal — `double_dummy` appears here
+    only inside the parsers that read a published table. This wants a solver as
+    a new dependency, which is a decision worth taking on its own.
+    `practice/squeezes` records the groundwork: `endplay` has no Python 3.14
+    wheels but builds from sdist, verified 2026-08-04.
+  - Note: sequence this after #session-transcript rather than beside it. Both
+    write the same report, so run together they would settle its shape twice.
 
 ---
 
