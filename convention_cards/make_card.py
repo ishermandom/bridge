@@ -9,7 +9,7 @@ print-ready PDF suitable for printing on US Letter paper.
 Layout of the output page (8.5" x 11"):
   - Top 2.5" (180pt): reminders strip — fold this behind the card and tuck
                         it into the holder so it is hidden away.
-  - Bottom 8.5" (612pt): convention card scaled to 93%.
+  - Bottom 8.5" (612pt): convention card scaled to 90.5%.
 
 The right 0.5" (beyond the 8" cut guide) is trimmed off when inserting the card
 into the holder.
@@ -39,13 +39,17 @@ CUT_GUIDE_X = 576  # 8" from left; vertical right-edge trim guide
 # ---------------------------------------------------------------------------
 # Scale and positioning of the convention card (in page-space coordinates)
 #
-# merge_transformed_page operates in page space, so TX/TY are straightforward:
+# merge_transformed_page operates in page space: a source point lands at SCALE *
+# (x, y) + (TX_page, TY_page). The BridgeWinners PDF is letter-size with the
+# card's ink occupying x in [4.5, 551], y in [163.5, 765] (measured from the
+# artwork), so this transform puts the ink at:
 #
-# - Card top (original page_y = 792) → FOLD_LINE_Y = 612
-# - Card left (original page_x = 0) → LEFT_MARGIN_PT = 0.2" = 14.4pt
+# - top: 0.905*765 - 85 ≈ 607 — about 5pt below the fold line (612)
+# - left: 0.905*4.5 + 2 ≈ 6pt in from the paper's left edge
+# - right: 0.905*551 + 2 ≈ 501 — well inside the 8" cut guide (576)
+# - bottom: 0.905*163.5 - 85 ≈ 63 — well above the paper's bottom edge
 #
-# TY_page = FOLD_LINE_Y - SCALE * PAGE_H = 612 - 0.93*792 ≈ -124.6 TX_page and
-# TY_page can be tuned independently; 1pt ≈ 1/72".
+# 1pt = 1/72"; nudge TX_page/TY_page if a printed card sits misaligned.
 # ---------------------------------------------------------------------------
 
 SCALE = 0.905
