@@ -61,9 +61,9 @@ _TRICK_COUNTS = _for_each_seat(_TRICK_COUNT)
 # first — `4S`, `1/-S` — or the trick count last — `S4`, `S7/6`.
 _MAKEABLE_PATTERN = re.compile(
   rf"""
-  (?P<levels>{_MAKEABLE_LEVELS})(?P<level_strain>{notation.STRAIN_SPELLINGS})
+  (?P<levels>{_MAKEABLE_LEVELS})(?P<level_strain>{notation.ANY_STRAIN})
   |
-  (?P<trick_strain>{notation.STRAIN_SPELLINGS})(?P<tricks>{_TRICK_COUNTS})
+  (?P<trick_strain>{notation.ANY_STRAIN})(?P<tricks>{_TRICK_COUNTS})
   """,
   re.VERBOSE,
 )

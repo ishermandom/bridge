@@ -121,11 +121,18 @@ LEVEL_PATTERN = r'(?P<level>[1-7])'
 # Derived from `STRAIN_BY_LETTER` rather than written out, so the spellings and
 # the map a match is looked up in cannot fall out of step.
 #
+# Private, because this form is an alternation and `|` binds loosest: dropped
+# bare into a larger pattern it would bind to whatever sits beside it instead of
+# to itself, and only the first spelling would keep that neighbour. Every
+# exported form below closes the alternation off, so a caller can interpolate
+# one without knowing what it is made of.
+_STRAIN_SPELLINGS = '|'.join(sorted(STRAIN_BY_LETTER, key=len, reverse=True))
+
 # Two forms, because a named group may appear only once in a pattern: take
-# `STRAIN_PATTERN` for the usual single strain slot, and the group-free
-# `STRAIN_SPELLINGS` where one pattern names the strain more than once.
-STRAIN_SPELLINGS = '|'.join(sorted(STRAIN_BY_LETTER, key=len, reverse=True))
-STRAIN_PATTERN = rf'(?P<strain>{STRAIN_SPELLINGS})'
+# `STRAIN_PATTERN` for the usual single strain slot, and `ANY_STRAIN` where a
+# pattern matches a strain more than once, or gives it a name of its own.
+STRAIN_PATTERN = rf'(?P<strain>{_STRAIN_SPELLINGS})'
+ANY_STRAIN = rf'(?:{_STRAIN_SPELLINGS})'
 
 # The marks a doubling trails: one for doubled, two for redoubled, none for
 # neither. Every spelling any source writes is accepted, because which mark it

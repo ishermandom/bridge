@@ -12,7 +12,7 @@ See models.md `#parsing`.
 import dataclasses
 import datetime
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from session_analysis import board_rotation, glyphs
 from session_analysis.enums import (
@@ -39,6 +39,7 @@ from session_analysis.models import (
   Schedule,
 )
 from session_analysis.notation import (
+  ANY_STRAIN,
   BOOK,
   CONTRACT_PATTERN,
   LEVEL_PATTERN,
@@ -121,28 +122,65 @@ _LEAD_PATTERN = re.compile(_CARD_RANK + _LEAD_OF + _CARD_SUIT)
 # pattern.
 _STRUCK_THROUGH_PATTERN = re.compile(rf'[{_DASHES}]+')
 
-# The pieces a glued auction chunk splits into (see `_split_glued_calls`): a
-# circled call is one `( … )` group, a run of `*` penalty marks is one
-# double/redouble, and any stretch free of those seams is one bare call. An
-# `x`-written double is not currently treated as a seam — letters occur inside
-# calls and announcement text, so only the `*` spelling splits unambiguously.
-_CIRCLED_CALL = r'\([^()]*\)'
-_PENALTY_MARK_RUN = r'\*+'
-_SEAM_FREE_STRETCH = r'[^()*]+'
+# The glyphs that open a bid: a level, then a strain.
+_BID_START = rf'[1-7]{ANY_STRAIN}'
+
+# What one call looks like inside a glued auction chunk (see
+# `_split_glued_calls`). Every call is a body and the markup riding on it, and
+# the body is where the seams are: a circle closes one, a penalty mark opens
+# one, and any other call runs until it meets either.
+#
+# Both spellings of a penalty mark seam. The model writes `x` where the sheet
+# says `*` often enough that seaming only on `*` would lose real doubles. A
+# letter is unsafe only inside announcement text, which is free-form and might
+# theoretically contain one (`1N_XYZ`) — and that text always follows a `_` or
+# `^`, so the letter seams in the stretch before such a marker and never after.
+#
+# Every group here is non-capturing, and must stay that way: `re.findall`
+# returns group contents rather than whole matches as soon as a pattern holds
+# one capturing group anywhere, so a numbered group added below would have
+# `_split_glued_calls` read a list of empty strings, fail its coverage check,
+# and quietly stop splitting anything at all.
 _GLUED_CALL_PIECE_PATTERN = re.compile(
-  '|'.join((_CIRCLED_CALL, _PENALTY_MARK_RUN, _SEAM_FREE_STRETCH))
+  rf"""
+    \( [^()]* \)                # a circled call: the opponents', circle and all
+  |
+    (?: [*xX]+                  # a double or redouble, in either spelling
+      | [^()*xX_^]+             # or any other call's own glyphs
+    )
+    (?: [_^]                    # then the markup it carries: an announcement,
+        (?: (?!{_BID_START})    #   whose free-form text gives way to the next
+            [^()*]              #   call rather than swallowing it
+        )*
+      | !                       # or an alert
+    )*
+  """,
+  re.VERBOSE,
 )
 
 # The two halves of a notrump-range announcement, each tagged by its marker so
 # order does not matter: `^` is the superscript floor (an optional `+` marks 'a
-# good N'), `_` the subscript ceiling. The vision model may transcribe them in
-# either order (`^0_2` or `_2^0`); both mean the same range. Each digit is a
-# teens value with the leading `1` implied (`^0` is 10, `_7` is 17).
+# good N'), `_` the subscript ceiling. The sheet always writes the range this
+# way round — the lower end above, the higher below — so the marker says which
+# bound it is and the two may be transcribed in either order (`^0_2` or `_2^0`)
+# without changing the range. Each digit is a teens value with the leading `1`
+# implied (`^0` is 10, `_7` is 17).
 _NOTRUMP_FLOOR_PATTERN = re.compile(r'\^(?P<floor>\d)(?P<soft>\+?)')
 _NOTRUMP_CEILING_PATTERN = re.compile(r'_(?P<ceiling>\d)')
 
-# Notrump ranges are written as their ones digit with the tens `1` implied.
+# What a range's ones digit is added to, the tens `1` above being implied.
 _TEENS_BASE = 10
+
+# The kind each written spelling of a penalty call names: one mark doubles and
+# two redouble, in either the `*` or the `x` spelling.
+_PENALTY_CALL_KINDS: Mapping[str, CallKind] = {
+  '*': CallKind.DOUBLE,
+  'x': CallKind.DOUBLE,
+  'X': CallKind.DOUBLE,
+  '**': CallKind.REDOUBLE,
+  'xx': CallKind.REDOUBLE,
+  'XX': CallKind.REDOUBLE,
+}
 
 # Card ranks keyed by their sheet glyph. The enum values cover every rank (the
 # ten as `T`); the sheet also writes the ten as `10`, mapped in alongside.
@@ -417,9 +455,10 @@ def _split_glued_calls(chunk_core: str) -> Sequence[str]:
 
   The vision model sometimes omits the space between adjacent calls, always at a
   markup seam: between circled calls (`(1D)(1S)`), or between a call and a
-  penalty mark (`1H*`, `(1D)(1H)*`). Splitting at those seams here keeps flag
-  counts stable instead of depending on the model to police its spacing. A
-  seam-free chunk passes through as the single token it already is.
+  penalty mark in either spelling (`1H*`, `1Hx`, `(1D)(1H)*`). Splitting at
+  those seams here keeps flag counts stable instead of depending on the model to
+  police its spacing. A seam-free chunk passes through as the single token it
+  already is.
 
   The split must be lossless — a chunk the piece scan cannot fully cover (an
   unbalanced circle, say) is returned whole so the call parser flags it with the
@@ -482,23 +521,44 @@ def _parse_call_core(core: str) -> _ParsedCore:
 
   if body in ('p', 'P'):
     return _ParsedCore(Call(kind=CallKind.PASS), alerted, issues)
-  if body in ('*', 'x', 'X'):
-    return _ParsedCore(Call(kind=CallKind.DOUBLE), alerted, issues)
-  if body in ('**', 'xx', 'XX'):
-    return _ParsedCore(Call(kind=CallKind.REDOUBLE), alerted, issues)
+
+  # A double or redouble may be annotated like a bid — `*_H` doubles to show
+  # hearts — so its announcement is split off before the mark is recognized. A
+  # pass is matched on the whole core above rather than on its glyphs alone,
+  # because no sheet in hand annotates one: an annotated pass is likelier a
+  # misread than a convention, and is worth surfacing as unparseable.
+  penalty_marks, announcement_text = _split_announcement(body)
+  penalty_kind = _PENALTY_CALL_KINDS.get(penalty_marks)
+  if penalty_kind:
+    announcement = (
+      _parse_announcement(announcement_text, None)
+      if announcement_text
+      else None
+    )
+    return _ParsedCore(
+      Call(kind=penalty_kind, announcement=announcement), alerted, issues
+    )
 
   parsed = _parse_bid(body, alerted)
   return _ParsedCore(parsed.call, alerted, issues + parsed.issues)
 
 
-def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
-  """Parse a bid core (`2H`, `1N_SF`, `1N^0_2`) into a bid `Call`."""
-  # The announcement, if any, begins at the first `_` or `^`; the bid glyphs
-  # precede it.
+def _split_announcement(core: str) -> tuple[str, str]:
+  """A call core split into its own glyphs and its announcement markup.
+
+  The announcement, if any, begins at the first `_` or `^` and runs to the end
+  of the core; the call's glyphs precede it. Both halves come back as written,
+  the markers still on the announcement, so each can be parsed on its own. A
+  core carrying no announcement yields an empty second half.
+  """
   marker_positions = [core.index(mark) for mark in ('_', '^') if mark in core]
   announcement_start = min(marker_positions, default=len(core))
-  bid_glyphs = core[:announcement_start]
-  announcement_text = core[announcement_start:]
+  return core[:announcement_start], core[announcement_start:]
+
+
+def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
+  """Parse a bid core (`2H`, `1N_SF`, `1N^0_2`) into a bid `Call`."""
+  bid_glyphs, announcement_text = _split_announcement(core)
 
   match = _BID_PATTERN.fullmatch(bid_glyphs)
   if not match:
@@ -524,15 +584,21 @@ def _parse_bid(core: str, alerted: bool) -> _ParsedCore:
   return _ParsedCore(call, alerted, ())
 
 
-def _parse_announcement(text: str, bid_strain: Strain) -> Announcement:
-  """Interpret a bid's announcement markup into an `Announcement`.
+def _parse_announcement(text: str, strain: Strain | None) -> Announcement:
+  """Interpret a call's announcement markup into an `Announcement`.
 
   `text` still carries its `_`/`^` markers. A superscript is a notrump range; a
   subscript strain letter is an artificial suit shown; a subscript digit is a
-  minimum length in the bid's own suit; `SF`/`F` are semi-forcing/forcing.
+  minimum length in the call's own suit; `SF`/`F` are semi-forcing/forcing.
   Anything else unrecognized degrades to `AnnouncementType.OTHER` with the raw
   text preserved, so a novel form never fails. See models.md
   `#announcement-decoding`.
+
+  Args:
+    text: the announcement markup, markers included.
+    strain: the strain of the call being annotated, or None for a double or
+      redouble, which names none. Only a length subscript consults it, having
+      no suit to describe without one.
   """
   # A superscript means a notrump range; detect it first, since its subscript
   # ceiling would otherwise look like the bare min-length subscript below.
@@ -543,23 +609,35 @@ def _parse_announcement(text: str, bid_strain: Strain) -> Announcement:
   # reads as `S`, matching how the range above keeps its markers in `raw`.
   body = text.removeprefix('_')
 
-  if body in STRAIN_BY_LETTER:
+  # Recognized without regard to case, because a handwritten capital and its
+  # lowercase are frequently the same stroke: two reads of one mark that differ
+  # only in case mean the same thing, and parsing them differently would report
+  # a voting disagreement over nothing. `raw` keeps the case as transcribed,
+  # since that is what the sheet was read as saying.
+  spelling = body.upper()
+
+  if spelling in STRAIN_BY_LETTER:
     return Announcement(
       raw=body,
       type=AnnouncementType.ARTIFICIAL_SUIT,
-      shown_strain=STRAIN_BY_LETTER[body],
+      shown_strain=STRAIN_BY_LETTER[spelling],
     )
-  if body == 'SF':
+  if spelling == 'SF':
     return Announcement(raw=body, type=AnnouncementType.SEMI_FORCING)
-  if body == 'F':
+  if spelling == 'F':
     return Announcement(raw=body, type=AnnouncementType.FORCING)
-  # A digit is a minimum length in the bid's own suit; notrump has no suit for
-  # the length to describe, so such a mark degrades to `other`.
-  if body.isdigit() and bid_strain != Strain.NOTRUMP:
+  # A digit *on its own* is a minimum length in the call's own suit — `1C_2` is
+  # two or more clubs. A notrump point range is the other digit form and is not
+  # this one: it writes both of its bounds, and the superscript check above sent
+  # it elsewhere before reaching here. So what is left is a lone subscript, and
+  # notrump and a penalty call alike name no suit for a length to describe,
+  # which is why such a mark degrades to `other` rather than being read as half
+  # a range.
+  if body.isdigit() and strain and strain != Strain.NOTRUMP:
     return Announcement(
       raw=body,
       type=AnnouncementType.MIN_SUIT_LENGTH,
-      suit=Suit(bid_strain.value),
+      suit=Suit(strain.value),
       minimum_length=int(body),
     )
   return Announcement(raw=body, type=AnnouncementType.OTHER)

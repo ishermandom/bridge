@@ -120,6 +120,35 @@ def test_redouble_glued_to_its_call_splits_off() -> None:
   assert second.call == Call(kind=CallKind.REDOUBLE)
 
 
+@pytest.mark.parametrize('written', ['1Hx', '1HX'])
+def test_letter_written_double_glued_to_its_call_splits_off(
+  written: str,
+) -> None:
+  # The model writes `x` where the sheet says `*` often enough that the letter
+  # spelling has to seam too, or a real double is lost.
+  first, second = parse_auction(written)
+  assert first.call == Call(kind=CallKind.BID, level=1, strain=Strain.HEARTS)
+  assert second.call == Call(kind=CallKind.DOUBLE)
+
+
+def test_letter_written_redouble_glued_to_its_call_splits_off() -> None:
+  first, second = parse_auction('1Hxx')
+  assert first.call == Call(kind=CallKind.BID, level=1, strain=Strain.HEARTS)
+  assert second.call == Call(kind=CallKind.REDOUBLE)
+
+
+def test_letter_inside_announcement_text_does_not_split_its_call() -> None:
+  # Announcement text is free-form and may contain an `x`, so the letter seams
+  # only before the `_` or `^` that opens one — everything after belongs to the
+  # one call.
+  (entry,) = parse_auction('1N_XYZ')
+  assert entry.raw == '1N_XYZ'
+  assert entry.call is not None
+  assert entry.call.announcement == Announcement(
+    raw='XYZ', type=AnnouncementType.OTHER
+  )
+
+
 def test_double_glued_to_a_circled_call_splits_off() -> None:
   _first, second, third = parse_auction('(1D)(1H)*')
   assert second.by_opponents is True
@@ -254,6 +283,109 @@ def test_unrecognized_announcement_degrades_to_other() -> None:
   assert entry.call is not None
   assert entry.call.announcement == Announcement(
     raw='XYZ', type=AnnouncementType.OTHER
+  )
+
+
+def test_lowercase_strain_letter_shows_the_same_suit() -> None:
+  # Handwriting draws a capital and its lowercase with the same stroke, so the
+  # two spellings have to decode alike — otherwise two reads of one mark that
+  # differ only in case are reported as a voting disagreement over nothing.
+  (entry,) = parse_auction('3H_s')
+  assert entry.call is not None
+  assert entry.call.announcement == Announcement(
+    raw='s',
+    type=AnnouncementType.ARTIFICIAL_SUIT,
+    shown_strain=Strain.SPADES,
+  )
+
+
+def test_lowercase_semi_forcing_announcement() -> None:
+  (entry,) = parse_auction('1N_sf')
+  assert entry.call is not None
+  assert entry.call.announcement == Announcement(
+    raw='sf', type=AnnouncementType.SEMI_FORCING
+  )
+
+
+# --- auction: marks on a penalty call ---
+
+
+def test_double_carries_its_alert() -> None:
+  # A double is alerted like any other call; the mark must not split off, or the
+  # alert becomes a token that parses as nothing.
+  (entry,) = parse_auction('*!')
+  assert entry.call == Call(kind=CallKind.DOUBLE)
+  assert entry.alerted
+
+
+def test_redouble_carries_its_alert() -> None:
+  (entry,) = parse_auction('**!')
+  assert entry.call == Call(kind=CallKind.REDOUBLE)
+  assert entry.alerted
+
+
+def test_double_carries_an_alert_and_an_announcement_together() -> None:
+  (entry,) = parse_auction('*_H!')
+  assert entry.alerted
+  assert entry.call is not None
+  assert entry.call.kind == CallKind.DOUBLE
+  assert entry.call.announcement == Announcement(
+    raw='H',
+    type=AnnouncementType.ARTIFICIAL_SUIT,
+    shown_strain=Strain.HEARTS,
+  )
+
+
+def test_alerted_double_glued_to_its_neighbours_is_one_call() -> None:
+  first, second, third = parse_auction('1C*!2D')
+  assert first.raw == '1C'
+  assert second.call is not None
+  assert second.call.kind == CallKind.DOUBLE
+  assert second.alerted
+  assert third.raw == '2D'
+
+
+def test_double_carries_its_announcement() -> None:
+  # A double can be as artificial as a bid: this one shows hearts.
+  (entry,) = parse_auction('*_H')
+  assert entry.call == Call(
+    kind=CallKind.DOUBLE,
+    announcement=Announcement(
+      raw='H',
+      type=AnnouncementType.ARTIFICIAL_SUIT,
+      shown_strain=Strain.HEARTS,
+    ),
+  )
+
+
+def test_redouble_carries_its_announcement() -> None:
+  (entry,) = parse_auction('**_D')
+  assert entry.call == Call(
+    kind=CallKind.REDOUBLE,
+    announcement=Announcement(
+      raw='D',
+      type=AnnouncementType.ARTIFICIAL_SUIT,
+      shown_strain=Strain.DIAMONDS,
+    ),
+  )
+
+
+def test_announced_double_glued_to_its_neighbours_is_one_call() -> None:
+  # The announcement must not split the chunk: were it a token of its own it
+  # would parse as no call at all, and the double would lose what it showed.
+  first, second, third = parse_auction('1C*_H2D')
+  assert first.raw == '1C'
+  assert second.call is not None
+  assert second.call.kind == CallKind.DOUBLE
+  assert third.raw == '2D'
+
+
+def test_length_subscript_on_a_double_degrades_to_other() -> None:
+  # A minimum length describes the call's own suit, and a double names none.
+  (entry,) = parse_auction('*_5')
+  assert entry.call is not None
+  assert entry.call.announcement == Announcement(
+    raw='5', type=AnnouncementType.OTHER
   )
 
 

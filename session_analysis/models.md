@@ -65,9 +65,14 @@ the contract rather than fought with retries (see `extraction_schema.py`).
 ```
 
 Every value is a string, transcribed as written — mistakes included. There is
-deliberately **no score field**: the sheet's matchpoint estimate is not
-trustworthy, and the traveller is authoritative (matchpoints are filled in at
-reconciliation, and are simply absent for a no-traveller session).
+deliberately **no score field**: the traveller is authoritative for what the
+sheet's `Score` and `MPs` columns hold, so neither is transcribed (matchpoints
+are filled in at reconciliation, and are simply absent for a no-traveller
+session). What those two columns actually carry varies by game — a pairs sheet
+scores in matchpoints where a teams sheet writes the raw score and an IMP swing
+— and the rule is the same either way. The assumption it rests on is weakest for
+a teams game, which often publishes no traveller at all; it stands until a
+session is lost to it.
 
 The footer — handwritten below the board grid, alongside a pair number that
 isn't transcribed (see below) — carries `event` and `date`. `event` is stored
@@ -170,15 +175,18 @@ transcription (see [Auction string syntax](#auction-string-syntax)); decoding
 them is the parser's job.
 
 - A subscript **strain letter** (`_S`) → `artificial_suit`, showing that strain.
-- A subscript **digit** (`_2`) → `min_suit_length`, that many cards in the bid's
-  own suit.
+- A subscript **digit alone** (`_2`) → `min_suit_length`, that many cards in the
+  bid's own suit. Alone is the operative word: a digit paired with a superscript
+  is the range below, not a length, so a subscript digit means a length only
+  where no superscript accompanies it.
 - `_SF` → `semi_forcing`; `_F` → `forcing`.
 - A **superscript** is a notrump range: the superscript is the minimum and the
   subscript the maximum, each a teens value with the leading `1` implied, so
-  `^0_2` is 10–12 and `^5_7` is 15–17. The two halves may be transcribed in
-  either order — `^0_2` and `_2^0` are the same range. A `+` on the minimum
-  (`^4+` is 'a good 14') sets `minimum_points_is_soft`; the floor (14) is kept
-  and the `+` also survives in `raw`.
+  `^0_2` is 10–12, `^2_4` is 12–14 and `^5_7` is 15–17. The two halves may be
+  transcribed in either order — `^0_2` and `_2^0` are the same range — since the
+  mark, not the position, says which bound each is. A `+` on the minimum (`^4+`
+  is 'a good 14') sets `minimum_points_is_soft`; the floor (14) is kept and the
+  `+` also survives in `raw`.
 - Anything else unrecognized → `other`, raw preserved, so a novel form never
   fails.
 

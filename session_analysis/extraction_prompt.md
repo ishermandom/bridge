@@ -60,8 +60,9 @@ session, where empty ones leave the sheet to be named by hand.
 Three things a printed sheet carries are deliberately not part of your output —
 leave them out even though they're on the page:
 
-- **Score.** The sheet's matchpoint estimate isn't trustworthy; do not
-  transcribe it.
+- **Score and MPs.** Neither column is transcribed, whatever either holds — a
+  raw score, a matchpoint percentage, an IMP swing. To the extent these matter
+  they come from the session's published traveller, not from the sheet.
 - **Dealer and vulnerability.** These are computed from the board number, not
   read from the sheet; do not transcribe the printed dealer/vulnerability
   markings.

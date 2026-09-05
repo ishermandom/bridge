@@ -211,6 +211,21 @@ rather than a fault.
   - Note: the strongest signal available may be our-row name matching — we
     appear in the traveller for the session we actually played — and the
     configured name that needs is now on hand, in `unreviewed.configuration`.
+  - Note: this is live, not hypothetical. Naming both Friday sessions of the
+    Santa Clara tournament put two on 2026-09-04, and the tournament capture
+    that had reconciled to the morning one now matches neither. Its enrichment
+    survives — the join holds a session whose capture a run could not place
+    rather than rejoining without it — but the record is frozen there, and every
+    run reports the same ambiguity until this lands.
+  - Note: it bites every multi-sheet feed, not an unusual one. A scanner feed is
+    by nature a set of sheets from one day, so once those sheets are dated each
+    lands in the ambiguous branch and no traveller matches any of them — the
+    auto-reconcile join does nothing for exactly the containers multi-page
+    scanning introduces.
+  - Open question: the event text is the obvious tiebreak, and `session_keys`
+    explains why matching on it was rejected — the sources spell one event four
+    different ways. A fuzzy tiebreak used only when the date is ambiguous is a
+    weaker claim than keying on it, and may be enough.
 
 - [ ] Verify the ACBL club index isn't truncated for older dates.
       `fetch_club_travellers` reads the index via an in-page fetch of the raw
@@ -293,22 +308,6 @@ record waits for review, and what becomes of a scan that raises.
     the cross-platform figure. Worth measuring before a two-panel sheet is
     transcribed for real, since a rejected image fails the whole request and no
     board is read.
-- [ ] Tell two sessions of one day apart when matching a traveller.
-      {#same-day-sessions}
-  - Rationale: `match_travellers` keys on the date alone, so two sheets scanned
-    together — an afternoon and an evening session — leave every traveller for
-    that day reporting `ambiguous_session_match` and matching neither. This did
-    not arise while only a container's first page was digitized, because the
-    second session was never stored.
-  - Open question: the event text is the obvious tiebreak, and `session_keys`
-    explains why matching on it was rejected — the sources spell one event four
-    different ways. A fuzzy tiebreak used only when the date is ambiguous is a
-    weaker claim than keying on it, and may be enough.
-  - Note: this bites every multi-sheet feed, not an unusual one. A scanner feed
-    is by nature a set of sheets from one day, so each of them lands in the
-    ambiguous branch and no traveller matches any of them — the auto-reconcile
-    join does nothing for exactly the containers the multi-page change
-    introduces.
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
     panels reported flush against each other pass — and a single table read as
@@ -322,25 +321,96 @@ record waits for review, and what becomes of a scan that raises.
     defer: the right-hand half of a single table carries no board numbers, so a
     reading has little reason to call it a panel.
 
-- [ ] Run the inbox for real and act on what comes back. {#first-inbox-run}
-  - Worktree: ingest-run
-  - Rationale: nothing has been through the pipeline yet. Both scans are still
-    in the inbox, `archive/` and `failed/` are empty, and `sessions/pending/`
-    does not exist — so every stage below extraction has only ever seen a drawn
-    grid and a scripted model.
-  - Note: the configuration that gated a run exists now, so
-    `python -m session_analysis.unreviewed.ingest` reads the inbox on the next
-    attempt. A run spends a model call per sheet, roughly $0.25–0.30 by
-    spec.md's measurement, so the output is worth reading closely rather than
-    re-running for a second look.
-  - Note: two findings are expected rather than faults. The tournament sheet's
-    footer states no date at all, which is what the session key is derived from.
-    And it is a teams game scored in IMPs where the club sheet is a pairs game
-    scored in matchpoints, so whether the schema reads that column the same way
-    is untried.
-  - Note: fix what is cheap and queue what is not. The run's worth is in its
-    findings, and a session spent repairing one of them is a session that never
-    reaches the others.
+- [ ] Give a match's running IMP total a place to go. {#running-imp-totals}
+  - Rationale: a teams sheet writes the running total at intervals, circled, out
+    in the notes column away from the auction — `(-15)`, `(+29)`. Nothing tells
+    the model what they are, so one read takes them as that board's notes and
+    the other ignores them. That produced 8 of the 9 flags the first real
+    tournament run raised, on both sheets.
+  - Note: the disagreement is per sheet, not per board. Within one sheet a run
+    either takes all of them or none, so a third read breaks no tie — the two
+    are reading the sheet differently, not misreading a mark.
+  - Open question: what to do with them. Telling the model to ignore them is the
+    cheap answer and settles the disagreement, but it discards the only written
+    record of the match's progression this pipeline would hold: a running total
+    is the cumulative sum of the per-board IMP swings, those live in the `MPs`
+    column nothing transcribes, and a teams game frequently publishes no
+    traveller to supply them either (#capture-diagnosis).
+- [ ] Stop reporting the two captures kept for having no boards.
+      {#capture-diagnosis}
+  - Rationale: `traveller_store` reports `capture_held_no_boards` for every
+    capture that stores nothing, and two of the captures on disk are kept
+    precisely because they hold none — travellers.md `#which-real-capture` names
+    both and why. So every ingest run ends with two complaints that will never
+    be actionable, which is how a summary teaches its reader to skim.
+  - Open question: whether to suppress a known-barren capture, or to say why it
+    is barren. The parse already distinguishes the causes — a gated page wants
+    re-fetching where a teams game is permanent — and the store drops that
+    distinction, so either fix needs it carried outward.
+- [ ] Keep what the model said, so a parser fix need not re-buy it.
+      {#keep-raw-transcriptions}
+  - Rationale: `parse_and_assemble_voted_session` consumes both raw model
+    responses and stores neither, so a stored record holds only what the parser
+    of the day made of them. Fixing the parser therefore cannot reach a session
+    already digitized — re-deriving it means paying for the sheet again, and the
+    content-hash check means moving the scan back to the inbox to do it.
+  - Note: the two parser fixes that landed with the first real run were patched
+    into its three records instead, by a throwaway script. That worked only
+    because what each fix changed happened to survive in the record: an orphaned
+    announcement kept its raw, and a spurious `voting_disagreement` carries both
+    candidates in its own message, so the vote could be recomputed. A fix that
+    changed how a contract cell is read would have had nothing to work from.
+  - Note: the two responses are small JSON blobs beside a record that already
+    carries a full grid geometry, so the cost is nearly nothing. Keeping them
+    turns a per-fix repair script into one re-derivation step that works for any
+    fix.
+- [ ] Name a dateless session from the scan that carries it. {#date-from-scan}
+  - Rationale: a tournament sheet's footer states no date. All seven digitized
+    so far leave it blank, across four days of one event, so every one files
+    unnamed and none can ever match a traveller. The date is not missing from
+    the pipeline, only from the footer: `scan_decoding` already reads the
+    capture date and hands it to assembly as `reference_date`.
+  - Note: the footer corroborates the scan. Every one of those seven names a
+    weekday in its event text — `tues. aft.`, `Wed. morn.`, `thu. aft.`,
+    `Fri. morn.` — and every scan's capture date falls on exactly that weekday.
+    So the fallback need not be taken on trust: derive the date from the scan,
+    then accept it only where the weekday it lands on is the one the event text
+    names.
+  - Note: that check is what makes it safe, because same-day scanning is a habit
+    rather than a rule. The one club sheet in hand was scanned the morning after
+    it was played, and its capture date would have dated it a day late — the
+    weekday guard rejects exactly that case, and its footer states a date
+    anyway.
+  - Open question: whether a derived date names the session outright or is
+    offered to review as a suggestion. It is an inference where a read footer is
+    a reading, so the record arguably should say which it got.
+- [ ] Give a sit-out round somewhere to go. {#sit-out-rounds}
+  - Rationale: a pairs sheet writes `SIT OUT` across the contract cell of each
+    board the round sat out, and nothing recognizes it — the cell is reported as
+    `unparseable_contract`, twice on the first pairs sheet digitized. A sit-out
+    is not a passout: the board was never played, so it has no contract, no
+    lead, and no result to record, where a passout has a real auction that ended
+    in four passes.
+  - Note: the struck-through convention is the nearest thing that exists and is
+    the wrong one, since it means the board was played and passed out.
+- [ ] Let the lead cell say what the sheet says. {#partial-and-marked-leads}
+  - Rationale: two forms the sheet really writes both come back as
+    `unparseable_lead`, and both are faithful transcriptions rather than
+    misreads — confirmed with the player. `oH` is a lead whose suit was seen and
+    whose rank was not recalled, and `KoC!` is a lead marked as unusual. The
+    model wrote down what was on the page in each case; nothing downstream can
+    hold either.
+  - Note: neither is covered by the prompt, which asks for "a rank and a suit"
+    and lists `!` only as a mark on a call. That silence is the safer failure —
+    the model transcribed what it saw instead of inventing a rank — but it is
+    worth saying outright, so a later read is not tempted to fill the gap.
+  - Open question: a rankless lead wants either an optional rank on `Card` or a
+    partial-card type beside it, and the choice ripples — anything reading a
+    lead as a full card has to say what it does with half of one.
+  - Open question: what to call the unusual mark. `AuctionEntry.alerted` is the
+    nearest parallel and the same `!` glyph, but an alert is a disclosure
+    obligation where this is the player's own note to revisit, and
+    `flagged_for_discussion` is already taken by the drawn box.
 - [ ] Sync scans from Google Drive into the inbox, without anyone copying them.
       {#drive-sync}
   - Worktree: drive-sync
@@ -376,6 +446,11 @@ record waits for review, and what becomes of a scan that raises.
     element of its location, which for a table is the table itself, so a blank
     alias reports as `cannot use event_aliases` without saying which one.
     Confirmed against pydantic; worth widening when the table lands.
+  - Note: the vote should compare whatever normalization this settles on, not
+    the raw footer text. One live sheet reports a high-severity disagreement
+    between `Santa Clara Wed. aft teams` and `Santa Clara wed. aft. teams`,
+    which differ only in case and a period — and already slug identically, so
+    the flag asks a person to resolve a difference that changes nothing.
 
 ---
 
