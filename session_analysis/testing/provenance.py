@@ -20,7 +20,14 @@ numbers beside the assertions that depend on them. `synthetic_scans` chooses its
 default grid the same way and for the same reason.
 """
 
-from session_analysis.models import SheetFrame, SheetImage, Source
+from collections.abc import Sequence
+
+from session_analysis.models import (
+  CaptureReference,
+  SheetFrame,
+  SheetImage,
+  Source,
+)
 from session_analysis.sheet_dewarp import Point, Quad
 from session_analysis.unreviewed.sheet_geometry import Box, SheetGeometry
 
@@ -52,13 +59,19 @@ def sheet_source(
   *,
   path: str = 'stand-in-scan.png',
   content_hash: str = 'standinhash0000000000',
+  travellers: Sequence[CaptureReference] = (),
 ) -> Source:
   """Provenance for a digitized session, with a stand-in frame.
 
   The path names no real scan and the hash is no real digest, so a test reading
   either without having passed it announces itself rather than looking plausible
   — a stem built from this hash reads `unnamed-standinhash`.
+
+  `travellers` defaults to none, which is the shape of a session reconciliation
+  has not reached. A test that turns on a session having been joined to its
+  captures passes them.
   """
   return Source(
-    image=SheetImage(path=path, content_hash=content_hash, frame=sheet_frame())
+    image=SheetImage(path=path, content_hash=content_hash, frame=sheet_frame()),
+    travellers=tuple(travellers),
   )

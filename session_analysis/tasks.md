@@ -115,6 +115,27 @@ unread.
 **Goal:** a sheet image becomes the vision model's compact per-board string
 output, parsed into the canonical model.
 
+- [ ] Read a sit-out as a sit-out rather than as an unreadable contract.
+      {#sit-out}
+  - Rationale: a pair sits out whenever the field is odd, so the sheet writes
+    one regularly and it is an ordinary entry rather than a failure. The
+    contract cell has no reading for it, so it lands as `unparseable_contract`
+    at high severity — and severity is what #triage ranks by, so every sit-out
+    would sit at the top of a review queue asking to be corrected while nothing
+    about it is wrong.
+  - Note: the lead cell already does this properly, and is the behaviour to
+    match. A struck-through lead reads as recorded-but-not-played, carrying no
+    card and no issue, which is why the sit-out boards of
+    santa-clara-fri-morn-pairs-2026-09-04 show a clean `lead=---` beside a
+    flagged `?SIT ouT?`.
+  - Note: `Passout` is the shape to follow — a `Resolution` member of its own
+    rather than a flag on the envelope, spelled out by the transcript as
+    `PASSED OUT` is. A sat-out board has no contract, no lead and no
+    matchpoints, and yet carries a deal: the board was dealt whether or not we
+    played it, so reconciliation fills it like any other.
+  - Note: one spelling seen so far, `SIT ouT`, twice, in that one session. The
+    sheet's capitalization is erratic, so read it case-insensitively and expect
+    other wordings rather than pinning to this one.
 - [ ] Experiment: have the vision model interpret a missing date instead of
       leaving it to the parser. Validate quality before adopting — this is a
       trial, not a settled direction. {#model-reads-the-date}
@@ -125,6 +146,10 @@ output, parsed into the canonical model.
     no date, so both of its sessions filed as `unnamed-<hash>` records instead
     of under a session key — which is also what leaves them unmatchable to a
     traveller, since matching reads a capture's date.
+  - Note: a date supplied by hand does not survive re-digitizing. It is set on
+    the record rather than derived from anything the scan carries, so reading
+    that scan again files the session unnamed once more and loses the traveller
+    it had been joined to.
   - Note: #date-from-scan is the other candidate for this gap, and weighs the
     two against each other.
 - [ ] Decide whether the two-run vote still earns its keep on Opus 5.
@@ -514,7 +539,7 @@ parsed value.
     `session_matching._read_records` and write back to it, which changes what
     `read_pending_sessions` and `read_stored_travellers` return.
 - [ ] Triage-ranked field list with image crop beside the parsed value and
-      keyboard accept/fix.
+      keyboard accept/fix. {#triage}
   - Worktree: review-ui
   - Note: an unresolved auction token is currently flagged twice with no shared
     identity — once as `unparseable_call` on the `AuctionEntry` itself
@@ -550,38 +575,41 @@ parsed value.
 text, and how the table's result compares with what the deal allowed.
 
 `unreviewed.transcript` reads a stored session back as plain text, a line per
-board in the sheet's own shorthand;
-`python -m session_analysis.unreviewed.transcript` prints the records it is
-given, or every stored one. Both comparisons below write into that same report.
+board in the sheet's own shorthand, and totals the two double-dummy comparisons
+under them; `python -m session_analysis.unreviewed.transcript` prints the
+records it is given, or every stored one. The comparisons themselves, and what
+their silences mean, are argued in `unreviewed.double_dummy_comparison`.
 
-- [ ] Report each board's result against the double dummy for the best opening
-      lead. {#result-versus-double-dummy}
-  - Worktree: double-dummy-comparisons
-  - Rationale: a published double-dummy table already answers this. It states
-    the tricks available with best play on both sides, which presumes the best
-    lead — so this is a comparison to make, not an analysis to run.
-  - Note: `TravellerBoard.double_dummy_tricks` carries the table, but `Board`
-    does not — reconciliation fills `deal`, `matchpoints`, `our_pair` and
-    `opponents` and stops there. Reading the stored traveller alongside the
-    session, through the `CaptureReference` on `Source`, avoids widening the
-    model for what is a reporting concern.
-  - Note: only a pairs game publishes a traveller, so a teams session has
-    neither deal nor table and this comparison has nothing to say for it. Say so
-    rather than printing a result against nothing.
-- [ ] Report each board's result against the double dummy for the lead actually
-      made. {#result-versus-actual-lead}
-  - Worktree: double-dummy-comparisons
-  - Rationale: the published table cannot answer this one. It states what was
-    available from the start, not what remained after a particular card, so this
-    has to be solved rather than read.
-  - Note: nothing in this project solves a deal — `double_dummy` appears here
-    only inside the parsers that read a published table. This wants a solver as
-    a new dependency, which is a decision worth taking on its own.
-    `practice/squeezes` records the groundwork: `endplay` has no Python 3.14
-    wheels but builds from sdist, verified 2026-08-04.
-  - Note: sequence this after #result-versus-double-dummy rather than beside it.
-    Both add a column to the same report, so run together they would settle its
-    shape twice.
+- [ ] Label the recap's rows by player rather than by seat, if a seat can be
+      tied to a player at all. {#recap-by-player}
+  - Note: the recap groups by seat because no source on hand says who sat where.
+    The club's PBN carries `[North]`, `[South]`, `[East]` and `[West]` tags for
+    every board and leaves all of them empty; its names arrive instead from the
+    `ScoreTable`'s `Names_NS` and `Names_EW` columns, one field per pair. The
+    club's HTML recap has no per-seat markup at all, and an ACBL player entry
+    hangs off a `pair_summary_id` with no direction on it. So
+    `PairIdentity.names` is the partnership's two players in whatever order the
+    source printed, which is why the same tuple comes back for our pair whether
+    it sat East-West or North-South on 2026-08-31.
+  - Note: guessing the mapping is worse than leaving it. A wrong guess swaps two
+    partners' declaring records silently, and the result looks authoritative.
+  - Open question: which route to take. Seating could be configured beside
+    `player_name` — but a pair changes direction mid-session, as that session
+    does over boards 13 to 15, so the setting would have to say which seat each
+    player takes in each direction, and it would break unnoticed the first time
+    they swapped. Recording the seat on the sheet would be real data rather than
+    an assumption, at the cost of a change to what gets written down.
+- [ ] Refine the `PLAY` column's label. {#play-label}
+  - Note: `DD` was settled with the user; `PLAY` was not, and stands as a first
+    cut. It names the count taken from the position the opening lead left, so
+    the gap between the two columns is what the lead was worth.
+- [ ] Decide whether the no-traveller line under the header earns its place.
+      {#no-traveller-line}
+  - Open question: it fires for every session no traveller has reached, which is
+    a teams game and an unreconciled pairs game alike — the record cannot tell
+    those apart. The quieter alternative is to let the empty columns speak for
+    themselves, as the matchpoints column already does. Two of the three stored
+    sessions are teams games, so it is doing real work today.
 
 ---
 

@@ -141,6 +141,17 @@ def _captures_in(site_directory: Path) -> Sequence[Path]:
   )
 
 
+def record_for(tree: PrivateTree, capture_path: PurePosixPath | str) -> Path:
+  """Where the record parsed from a capture is filed.
+
+  A record keeps its capture's whole name and adds `.json`, so two captures of
+  one game cannot collide and a capture's record is located without opening
+  anything. `capture_path` is relative to the capture root, which is the
+  spelling `CaptureReference` keeps.
+  """
+  return tree.traveller_records / f'{capture_path}.json'
+
+
 def store_travellers(
   tree: PrivateTree, *, refresh: bool = False
 ) -> issue_reporting.Read[Sequence[PurePosixPath]]:
@@ -181,7 +192,7 @@ def store_travellers(
 
     for capture in _captures_in(site_directory):
       relative_to_root = PurePosixPath(capture.relative_to(captures_root))
-      record = tree.traveller_records / f'{relative_to_root}.json'
+      record = record_for(tree, relative_to_root)
 
       parse = _parser_for(site, capture.suffix)
       if not parse:

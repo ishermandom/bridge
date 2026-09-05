@@ -13,17 +13,20 @@ is for is finding records on disk, so a stream would test something else.
 """
 
 import datetime
-from collections.abc import Sequence
+import itertools
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import pytest
 
+from session_analysis import notation
 from session_analysis.enums import (
   CallKind,
   Direction,
   IssueSeverity,
   Penalty,
   Rank,
+  Side,
   Strain,
   Suit,
   Vulnerability,
@@ -33,11 +36,14 @@ from session_analysis.models import (
   Board,
   BoardNumber,
   Call,
+  CaptureReference,
   Card,
   Contract,
+  Deal,
   Issue,
   Lead,
   Outcome,
+  PairIdentity,
   Passout,
   PlayedContract,
   Result,
@@ -45,6 +51,12 @@ from session_analysis.models import (
   Session,
 )
 from session_analysis.testing import provenance
+from session_analysis.testing.deals import a_deal_the_lead_decides
+from session_analysis.travellers import (
+  Traveller,
+  TravellerBoard,
+  TravellerSource,
+)
 from session_analysis.unreviewed.transcript import main, render_session
 
 
@@ -104,11 +116,11 @@ def _make_unread_call(raw: str) -> AuctionEntry:
 
 
 def _make_outcome(
+  *,
   level: int,
   strain: Strain,
   declarer: Direction,
   tricks_taken: int,
-  *,
   penalty: Penalty = Penalty.NONE,
 ) -> Outcome:
   """A contract cell that parsed into a contract and its result."""
@@ -149,14 +161,23 @@ def _make_board(
   outcome: Outcome | None = None,
   opening_lead: Lead | None = None,
   matchpoints: float | None = None,
+  our_side: Side | None = None,
+  deal: Deal | None = None,
 ) -> Board:
-  """A board carrying only the cells a test is asserting on."""
+  """A board carrying only the cells a test is asserting on.
+
+  `our_side` fills the pair reconciliation would have placed us as, which the
+  double-dummy column needs to tell a board we declared from one we defended.
+  It stays absent for the tests about the rest of the line.
+  """
   return Board(
     number=_make_number(number),
     auction=tuple(auction),
     outcome=outcome,
     opening_lead=opening_lead,
     matchpoints=matchpoints,
+    our_pair=PairIdentity(number='3', side=our_side) if our_side else None,
+    deal=deal,
   )
 
 
@@ -165,24 +186,67 @@ def _make_session(
   event: str = 'Monday Pairs',
   date: datetime.date | None = datetime.date(2026, 6, 29),
   session_key: str | None = 'pabc-mon-2026-06-29',
+  travellers: Sequence[CaptureReference] = (
+    CaptureReference(path='club/D260629M.pbn'),
+  ),
 ) -> Session:
-  """A digitized session, with stand-in provenance nothing here reads."""
+  """A digitized session, with stand-in provenance nothing here reads.
+
+  It names a traveller by default, as a reconciled session does, so that the
+  header's no-traveller caveat stays out of the way of every test that is about
+  something else. The tests about the caveat pass their own.
+  """
   return Session(
     session_key=session_key,
     event=event,
     date=date,
-    source=provenance.sheet_source(),
+    source=provenance.sheet_source(travellers=travellers),
     boards=boards,
   )
 
 
-def _board_line(board: Board) -> str:
-  """The one board line a single-board session renders to.
+def _make_traveller(
+  board_number: int, *, declarer: Direction, strain: Strain, tricks: int
+) -> Traveller:
+  """A traveller whose table states one cell and leaves the other nineteen.
 
-  It is the last line of the transcript, so the header above it does not have to
-  be counted.
+  A published table holds all twenty cells and writes as `None` any it has
+  nothing to say about, so the nineteen no test asserts on are built that way
+  rather than left out.
   """
-  return list(render_session(_make_session(board)))[-1]
+  table: dict[Direction, dict[Strain, int | None]] = {
+    seat: dict.fromkeys(notation.STRAINS_LOW_TO_HIGH) for seat in Direction
+  }
+  table[declarer][strain] = tricks
+  return Traveller(
+    source=TravellerSource.CLUB_PBN,
+    reference=CaptureReference(path='club/D260629M.pbn'),
+    event='Monday Pairs',
+    boards=(TravellerBoard(number=board_number, double_dummy_tricks=table),),
+  )
+
+
+def _board_line(board: Board) -> str:
+  """The one board line a single-board session renders to."""
+  return _board_line_of(render_session(_make_session(board)))
+
+
+def _board_line_of(lines: Iterable[str]) -> str:
+  """The first board's line — the only one, in the sessions built here.
+
+  Every test that reaches for this builds a session of a single board, so
+  "first" and "only" coincide; it reads the first either way.
+
+  A transcript runs header, blank, boards, and then — where anything could be
+  compared — a second blank and the recap. The line just past the header's
+  blank is therefore the first board. Neither end of the transcript would do,
+  the header sitting above the boards and the recap below them, and nor would
+  the `#` a board line usually opens with: a board number that did not parse
+  writes its transcription there instead.
+  """
+  past_header = itertools.dropwhile(bool, lines)
+  next(past_header)  # the blank line that closes the header
+  return next(past_header)
 
 
 # --- the auction, in the sheet's own marks ---
@@ -285,7 +349,9 @@ def test_a_box_running_to_the_end_of_the_auction_is_closed() -> None:
 
 def test_a_contract_that_came_home_counts_tricks_beyond_book() -> None:
   board = _make_board(
-    outcome=_make_outcome(4, Strain.CLUBS, Direction.WEST, tricks_taken=10)
+    outcome=_make_outcome(
+      level=4, strain=Strain.CLUBS, declarer=Direction.WEST, tricks_taken=10
+    )
   )
 
   # Ten tricks is book plus four, which is 4C making exactly.
@@ -294,7 +360,9 @@ def test_a_contract_that_came_home_counts_tricks_beyond_book() -> None:
 
 def test_an_overtrick_raises_the_count_beyond_book() -> None:
   board = _make_board(
-    outcome=_make_outcome(4, Strain.SPADES, Direction.NORTH, tricks_taken=12)
+    outcome=_make_outcome(
+      level=4, strain=Strain.SPADES, declarer=Direction.NORTH, tricks_taken=12
+    )
   )
 
   assert '4SN+6' in _board_line(board)
@@ -302,7 +370,9 @@ def test_an_overtrick_raises_the_count_beyond_book() -> None:
 
 def test_a_notrump_contract_writes_its_strain_as_one_letter() -> None:
   board = _make_board(
-    outcome=_make_outcome(3, Strain.NOTRUMP, Direction.SOUTH, tricks_taken=9)
+    outcome=_make_outcome(
+      level=3, strain=Strain.NOTRUMP, declarer=Direction.SOUTH, tricks_taken=9
+    )
   )
 
   # One character wide is what keeps the declarer legible after the strain,
@@ -312,7 +382,9 @@ def test_a_notrump_contract_writes_its_strain_as_one_letter() -> None:
 
 def test_a_contract_that_failed_counts_the_tricks_it_fell_short() -> None:
   board = _make_board(
-    outcome=_make_outcome(6, Strain.HEARTS, Direction.WEST, tricks_taken=11)
+    outcome=_make_outcome(
+      level=6, strain=Strain.HEARTS, declarer=Direction.WEST, tricks_taken=11
+    )
   )
 
   assert '6HW-1' in _board_line(board)
@@ -321,9 +393,9 @@ def test_a_contract_that_failed_counts_the_tricks_it_fell_short() -> None:
 def test_a_doubled_contract_trails_one_mark() -> None:
   board = _make_board(
     outcome=_make_outcome(
-      2,
-      Strain.SPADES,
-      Direction.SOUTH,
+      level=2,
+      strain=Strain.SPADES,
+      declarer=Direction.SOUTH,
       tricks_taken=7,
       penalty=Penalty.DOUBLED,
     )
@@ -335,9 +407,9 @@ def test_a_doubled_contract_trails_one_mark() -> None:
 def test_a_redoubled_contract_trails_two_marks() -> None:
   board = _make_board(
     outcome=_make_outcome(
-      2,
-      Strain.SPADES,
-      Direction.SOUTH,
+      level=2,
+      strain=Strain.SPADES,
+      declarer=Direction.SOUTH,
       tricks_taken=8,
       penalty=Penalty.REDOUBLED,
     )
@@ -525,6 +597,176 @@ def test_a_line_carries_no_trailing_whitespace() -> None:
   ] == []
 
 
+# --- the result against the double dummy ---
+
+
+def _comparison_line(
+  *,
+  we_declared: bool,
+  tricks_taken: int,
+  double_dummy_tricks: int,
+  declarer: Direction = Direction.NORTH,
+  strain: Strain = Strain.SPADES,
+  deal: Deal | None = None,
+  opening_lead: Lead | None = None,
+) -> str:
+  """The board line for one board, set against a stated double-dummy count.
+
+  Only the board number and the level the contract was bid to are fixed, since
+  no column reads either. The seat and strain default for the same reason, and
+  are worth passing when a deal is: a deal solves for a particular declarer in
+  a particular strain, so those three go together.
+
+  `deal` and `opening_lead` are what the solved `PLAY` column needs. Given no
+  deal, only the published `DD` column can answer.
+  """
+  declaring_side = (
+    Side.NORTH_SOUTH if declarer in Side.NORTH_SOUTH.seats else Side.EAST_WEST
+  )
+  defending_side = (
+    Side.EAST_WEST if declaring_side is Side.NORTH_SOUTH else Side.NORTH_SOUTH
+  )
+  session = _make_session(
+    _make_board(
+      5,
+      outcome=_make_outcome(
+        level=4,
+        strain=strain,
+        declarer=declarer,
+        tricks_taken=tricks_taken,
+      ),
+      opening_lead=opening_lead,
+      our_side=declaring_side if we_declared else defending_side,
+      deal=deal,
+    )
+  )
+  traveller = _make_traveller(
+    5, declarer=declarer, strain=strain, tricks=double_dummy_tricks
+  )
+  return _board_line_of(render_session(session, [traveller]))
+
+
+def test_a_board_that_went_our_way_shows_a_positive_count() -> None:
+  # We declared and took ten tricks where best play by both sides yields nine.
+  line = _comparison_line(
+    we_declared=True, tricks_taken=10, double_dummy_tricks=9
+  )
+
+  assert 'DD+1' in line
+
+
+def test_a_board_that_went_against_us_shows_a_negative_count() -> None:
+  line = _comparison_line(
+    we_declared=True, tricks_taken=8, double_dummy_tricks=10
+  )
+
+  assert 'DD-2' in line
+
+
+def test_a_board_we_defended_counts_the_shortfall_our_way() -> None:
+  # The same board as above, defended rather than declared: the declarer fell
+  # two short of the count, which is two tricks our way and so reads as a gain.
+  line = _comparison_line(
+    we_declared=False, tricks_taken=8, double_dummy_tricks=10
+  )
+
+  assert 'DD+2' in line
+
+
+def test_a_result_matching_the_double_dummy_carries_a_signed_zero() -> None:
+  line = _comparison_line(
+    we_declared=True, tricks_taken=9, double_dummy_tricks=9
+  )
+
+  # A board that came out exactly even is a comparison, not an empty column, so
+  # it is written with its sign like every other value.
+  assert 'DD+0' in line
+
+
+def test_a_board_the_traveller_does_not_record_is_not_compared() -> None:
+  session = _make_session(
+    _make_board(
+      5,
+      outcome=_make_outcome(
+        level=4, strain=Strain.CLUBS, declarer=Direction.WEST, tricks_taken=10
+      ),
+      our_side=Side.EAST_WEST,
+    )
+  )
+  # The sheet played board five; this traveller records board six and nothing
+  # else, so it has nothing to say about the board in hand.
+  traveller = _make_traveller(
+    6, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
+  )
+
+  assert 'DD' not in _board_line_of(render_session(session, [traveller]))
+
+
+def test_the_play_column_is_solved_rather_than_read_from_the_table() -> None:
+  # `a_deal_the_lead_decides` is held to nine by a heart lead and runs to
+  # thirteen against anything else, so the table's nine and the thirteen a
+  # spade leaves are both true of this one board — neither is invented.
+  line = _comparison_line(
+    we_declared=True,
+    declarer=Direction.SOUTH,
+    strain=Strain.NOTRUMP,
+    tricks_taken=11,
+    double_dummy_tricks=9,
+    deal=a_deal_the_lead_decides(),
+    opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
+  )
+
+  # Eleven tricks against the table's nine is two our way; against the thirteen
+  # the spade lead left standing, two against us. One number cannot be both, so
+  # a `PLAY` quietly reusing the table would fail here.
+  assert 'DD+2' in line
+  assert 'PLAY-2' in line
+
+
+def test_the_play_column_stands_empty_without_a_deal_to_solve() -> None:
+  line = _comparison_line(
+    we_declared=True,
+    declarer=Direction.SOUTH,
+    strain=Strain.NOTRUMP,
+    tricks_taken=11,
+    double_dummy_tricks=9,
+    opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
+  )
+
+  # The table still answers, being read from the traveller; the solved count
+  # cannot, since a board reconciliation has not reached carries no deal.
+  assert 'DD+2' in line
+  assert 'PLAY' not in line
+
+
+def test_a_session_no_traveller_has_reached_says_so() -> None:
+  session = _make_session(
+    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]), travellers=()
+  )
+
+  assert [
+    line for line in render_session(session) if 'No traveller' in line
+  ] == ['No traveller has reached this session; nothing to compare against.']
+
+
+def test_a_session_a_traveller_has_reached_carries_no_caveat() -> None:
+  session = _make_session(_make_board(5, auction=[_make_bid(1, Strain.CLUBS)]))
+
+  assert not [
+    line for line in render_session(session) if 'No traveller' in line
+  ]
+
+
+def test_a_session_that_recorded_nothing_carries_no_caveat() -> None:
+  session = _make_session(Board(number=BoardNumber(raw='')), travellers=())
+
+  # There was nothing to compare in the first place, so the absence of a
+  # traveller is not what a reader of this session needs told.
+  assert not [
+    line for line in render_session(session) if 'No traveller' in line
+  ]
+
+
 # --- the command ---
 
 
@@ -542,7 +784,9 @@ def test_the_command_transcribes_a_record_it_is_given(
     _make_board(
       5,
       auction=[_make_bid(1, Strain.CLUBS)],
-      outcome=_make_outcome(4, Strain.CLUBS, Direction.WEST, tricks_taken=10),
+      outcome=_make_outcome(
+        level=4, strain=Strain.CLUBS, declarer=Direction.WEST, tricks_taken=10
+      ),
     )
   )
   record = _write_record(tmp_path, session)
