@@ -185,6 +185,16 @@ mode**, on the existing Claude subscription — no separate API billing.
     naming which of the two runs it describes. Measured on real scans: about
     $0.15 a transcription run, plus about $0.06 for the layout reading that
     precedes the pair.
+- **Checked against the sheet's own arithmetic** {#extraction-accuracy}: a teams
+  sheet fills a `Score` column that extraction deliberately drops, and a score
+  follows from the contract, the result and the board's vulnerability — so
+  scoring what was transcribed and comparing it to what was written checks the
+  reading without a second model. Run over the first two real teams sheets, all
+  48 boards reconciled exactly: every level, strain, declarer, penalty and trick
+  count. Not a blind check, since the model saw the column it was told not to
+  transcribe, but a strong one — nothing downstream carries that column, so a
+  misread contract has nothing to hide behind. It is also the only check of this
+  kind available: a pairs sheet leaves `Score` blank.
 - **Voting, not escalation** {#extraction-voting}: each scan is read by two
   independent Opus calls over its cut strips (`transcribe_sheet`), compared cell
   by cell and merged (`voting.vote_sessions`) — a cell both runs agree on is
