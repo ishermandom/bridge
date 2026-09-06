@@ -122,9 +122,21 @@ _FAILURE_SUFFIX = '.error'
 # What one sheet can raise once the file has been decoded. Terminal for that
 # sheet and harmless to the others, because each of them is a separate session:
 # a container whose third page will not resolve still yields the first two,
-# which have already been paid for by the time it fails. Both
-# `SheetGeometryError` and `SheetStructureError` are properties of the sheet, so
-# a re-run would fail them again.
+# which have already been paid for by the time it fails.
+#
+# Terminal for the run rather than for the sheet, though. Both are raised
+# against the model's reading of the layout rather than against the scan itself,
+# and that reading varies between attempts: a sheet that raised
+# `SheetGeometryError` here digitized on the next run, unchanged, its grid
+# bounds landing where the first reading had put them half a row out. So a
+# set-aside scan is worth one retry, and a cheap one — the layout reading
+# precedes the two transcription calls, so a sheet that fails here pays for that
+# reading alone.
+#
+# Retrying is left to a person moving the file back out of
+# `scoresheets/failed/`, rather than done here: an automatic retry would spend
+# again on every run, where a person can weigh whether this scan is worth
+# another reading.
 #
 # `VisionModelInvocationError` is deliberately not among them. It says nothing
 # about the sheet — it covers an auth failure and a rate limit as much as a

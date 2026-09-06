@@ -117,7 +117,7 @@ output, parsed into the canonical model.
 
 - [ ] Experiment: have the vision model interpret a missing date instead of
       leaving it to the parser. Validate quality before adopting — this is a
-      trial, not a settled direction.
+      trial, not a settled direction. {#model-reads-the-date}
   - Rationale: the date is often not written on the sheet at all, and a vision
     model can plausibly infer it from available context in a way static code
     can't do accurately.
@@ -125,6 +125,8 @@ output, parsed into the canonical model.
     no date, so both of its sessions filed as `unnamed-<hash>` records instead
     of under a session key — which is also what leaves them unmatchable to a
     traveller, since matching reads a capture's date.
+  - Note: #date-from-scan is the other candidate for this gap, and weighs the
+    two against each other.
 - [ ] Decide whether the two-run vote still earns its keep on Opus 5.
   - Rationale: the refreshed strips comparison found Opus 5's two runs agreeing
     completely on the 6/29 sheet — the pass flags nothing, and the errors that
@@ -365,14 +367,15 @@ record waits for review, and what becomes of a scan that raises.
     turns a per-fix repair script into one re-derivation step that works for any
     fix.
 - [ ] Name a dateless session from the scan that carries it. {#date-from-scan}
-  - Rationale: a tournament sheet's footer states no date. All seven digitized
-    so far leave it blank, across four days of one event, so every one files
-    unnamed and none can ever match a traveller. The date is not missing from
-    the pipeline, only from the footer: `scan_decoding` already reads the
-    capture date and hands it to assembly as `reference_date`.
-  - Note: the footer corroborates the scan. Every one of those seven names a
+  - Rationale: a tournament sheet's footer states no date. All eight digitized
+    so far leave it blank, across four days of one event, so each files unnamed
+    and matches no traveller until a person supplies the date by hand — as two
+    of the eight have had done. The date is not missing from the pipeline, only
+    from the footer: `scan_decoding` already reads the capture date and hands it
+    to assembly as `reference_date`.
+  - Note: the footer corroborates the scan. Every one of those eight names a
     weekday in its event text — `tues. aft.`, `Wed. morn.`, `thu. aft.`,
-    `Fri. morn.` — and every scan's capture date falls on exactly that weekday.
+    `fri. aft.` — and every scan's capture date falls on exactly that weekday.
     So the fallback need not be taken on trust: derive the date from the scan,
     then accept it only where the weekday it lands on is the one the event text
     names.
@@ -384,6 +387,12 @@ record waits for review, and what becomes of a scan that raises.
   - Open question: whether a derived date names the session outright or is
     offered to review as a suggestion. It is an inference where a read footer is
     a reading, so the record arguably should say which it got.
+  - Open question: whether this or #model-reads-the-date is the answer, or both.
+    Deriving is the cheaper and the checkable one — it spends nothing and the
+    weekday guard above says when to trust it — but it holds only where the scan
+    was taken on the day it records. Having the model infer the date is what
+    covers a scan that was not, and a sheet whose event text names no weekday to
+    check against.
 - [ ] Give a sit-out round somewhere to go. {#sit-out-rounds}
   - Rationale: a pairs sheet writes `SIT OUT` across the contract cell of each
     board the round sat out, and nothing recognizes it — the cell is reported as
