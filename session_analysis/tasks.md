@@ -366,17 +366,15 @@ record waits for review, and what becomes of a scan that raises.
     carries a full grid geometry, so the cost is nearly nothing. Keeping them
     turns a per-fix repair script into one re-derivation step that works for any
     fix.
-- [ ] Say whether `transcripts/` is part of the private tree. {#transcripts-dir}
-  - Rationale: a `session_analysis/transcripts/` directory is tracked in the
-    private repo now, holding one rendered read-back. `private_paths` calls
-    itself the one place that layout is written down and does not mention it, so
-    the two disagree — and the module is what a later reader will trust.
-  - Note: the directory came from the double-dummy comparison's lane rather than
-    from an ingest run; its one file prints columns the public repo's
-    `transcript` does not. So whether a rendered transcript is something the
-    tree keeps at all is that lane's call, not ingest's.
-  - Note: whichever way it goes, the file that is there is named for a record
-    since renamed, so it wants re-rendering or removing either way.
+- [ ] Re-render the one stored transcript under its session's real name.
+      {#stale-transcript}
+  - Rationale: `transcripts/unnamed-29d1a35e5cfb.txt` is named for what its
+    record was called before a date was supplied by hand and it was renamed
+    `santa-clara-fri-morn-pairs-2026-09-04`. The name is wrong and stays wrong;
+    re-rendering fixes it and the stale file goes.
+  - Note: for whichever lane owns the renderer. The file prints double-dummy and
+    play-quality columns the public repo's `transcript` does not, so it came
+    from the comparison's own version rather than from an ingest run.
 - [ ] Name a dateless session from the scan that carries it. {#date-from-scan}
   - Rationale: a tournament sheet's footer states no date. All eight digitized
     so far leave it blank, across four days of one event, so each files unnamed

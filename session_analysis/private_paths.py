@@ -22,8 +22,9 @@ bridge-private/session_analysis/
 ├── travellers/
 │   ├── raw/        captures, under a subdirectory per publishing site
 │   └── parsed/     the travellers those captures parse into
-└── sessions/       the reconciled records this pipeline exists to write
-    └── pending/    digitized, still awaiting reconciliation and review
+├── sessions/       the reconciled records this pipeline exists to write
+│   └── pending/    digitized, still awaiting reconciliation and review
+└── transcripts/    sessions rendered to read back, regenerable from those
 ```
 
 The trees divide by what they hold rather than by which stage touches them, so a
