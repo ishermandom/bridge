@@ -101,6 +101,13 @@ unread.
     - The file states the day it was taken, in the PDF's own `/CreationDate`.
     - A real footer normalizes as expected: `PABC mon.` on 8/31 gives
       `pabc-mon-2026-08-31`.
+  - Note: the double-dummy comparison has been checked against real published
+    analysis, not only against its fixtures. Over the 2026-08-31 session the
+    solver's minimum across the leader's thirteen possible leads matched the
+    club's own published cell on all 24 boards, which exercises the seat, strain
+    and rank mappings in `double_dummy_solving` at once. The sign convention was
+    checked the same way: across 47 real boards, no board we declared had `PLAY`
+    above `DD` and none we defended had it below.
   - Open question: whether `reconciliation.py` wants splitting. At 1076 lines it
     is the project's longest module, though only a little past
     `club_html_parsing.py`, so it is a judgment call rather than a clear
@@ -129,8 +136,8 @@ output, parsed into the canonical model.
     santa-clara-fri-morn-pairs-2026-09-04 show a clean `lead=---` beside a
     flagged `?SIT ouT?`.
   - Note: `Passout` is the shape to follow — a `Resolution` member of its own
-    rather than a flag on the envelope, spelled out by the transcript as
-    `PASSED OUT` is. A sat-out board has no contract, no lead and no
+    rather than a flag on the envelope, and spelled out by the transcript the
+    way `PASSED OUT` is. A sat-out board has no contract, no lead and no
     matchpoints, and yet carries a deal: the board was dealt whether or not we
     played it, so reconciliation fills it like any other.
   - Note: one spelling seen so far, `SIT ouT`, twice, in that one session. The
@@ -594,22 +601,33 @@ their silences mean, are argued in `unreviewed.double_dummy_comparison`.
   - Note: guessing the mapping is worse than leaving it. A wrong guess swaps two
     partners' declaring records silently, and the result looks authoritative.
   - Open question: which route to take. Seating could be configured beside
-    `player_name` — but a pair changes direction mid-session, as that session
-    does over boards 13 to 15, so the setting would have to say which seat each
-    player takes in each direction, and it would break unnoticed the first time
-    they swapped. Recording the seat on the sheet would be real data rather than
-    an assumption, at the cost of a change to what gets written down.
+    `player_name` — but a pair changes direction mid-session, as the 2026-08-31
+    session does over boards 13 to 15, so the setting would have to say which
+    seat each player takes in each direction, and it would break unnoticed the
+    first time they swapped. Recording the seat on the sheet would be real data
+    rather than an assumption, at the cost of a change to what gets written
+    down.
+- [ ] Leave a printed row the sheet never filled out of the transcript.
+      {#blank-printed-rows}
+  - Rationale: a form prints more rows than a session fills, and every real
+    sheet so far ends in a few. `transcript._holds_a_record` counts a row as
+    recorded when its number cell was read, so those rows transcribe as a bare
+    `#25` through `#28` — a line naming a board and nothing about it, which is
+    what that function's own docstring says is worth less than no line at all.
+  - Note: the number alone cannot settle it. A board played and left otherwise
+    unrecorded looks identical to a row nobody reached, so this wants a rule
+    about what else the row holds rather than a tighter reading of the number.
 - [ ] Refine the `PLAY` column's label. {#play-label}
   - Note: `DD` was settled with the user; `PLAY` was not, and stands as a first
     cut. It names the count taken from the position the opening lead left, so
     the gap between the two columns is what the lead was worth.
 - [ ] Decide whether the no-traveller line under the header earns its place.
       {#no-traveller-line}
-  - Open question: it fires for every session no traveller has reached, which is
-    a teams game and an unreconciled pairs game alike — the record cannot tell
-    those apart. The quieter alternative is to let the empty columns speak for
-    themselves, as the matchpoints column already does. Two of the three stored
-    sessions are teams games, so it is doing real work today.
+  - Open question: it fires for every session no traveller has reached, which
+    covers a teams game and an unreconciled pairs game alike — the record cannot
+    tell those apart. The quieter alternative is to let the empty columns speak
+    for themselves, as the matchpoints column already does. Two of the three
+    stored sessions are teams games, so it is doing real work today.
 
 ---
 
@@ -621,6 +639,21 @@ rationale lives in the design docs' open-question sections —
 [travellers.md](travellers.md#open-questions), and
 [models.md](models.md#open-questions-and-todos).
 
+- [ ] Move off `endplay` to the double-dummy solver's own Python binding, if its
+      staleness starts to bite. {#solver-migration}
+  - Rationale: `endplay` wraps a copy of Bo Haglund's solver frozen at 2.9.1 and
+    has been untouched since March 2025, with a single maintainer. The solver
+    itself released 3.0 and 3.1 in 2026 after seven quiet years, and its own
+    Python binding is tested against 3.14.
+  - Note: not taken now because that binding builds only under Bazel, publishes
+    no release assets, and is not on PyPI — a much larger undertaking than a
+    dependency pinned to a release tag.
+  - Note: `unreviewed.double_dummy_solving` is the project's only seam onto a
+    solver, and exists to keep this a one-module change.
+  - Note: one point in the old solver's favour. Version 3.0 introduced a bug
+    that under-counted tricks after a specified opening lead, fixed in 3.1;
+    2.9.1 predates it. So bundling an old solver is a staleness concern here
+    rather than a correctness one.
 - [ ] Final storage format (queryable DB) and the JSON → DB migration.
   - Note: the canonical models store cards as `Card` objects for uniformity and
     for the in-memory checks. That is roughly an order of magnitude larger than
