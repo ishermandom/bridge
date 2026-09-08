@@ -383,9 +383,10 @@ record waits for review, and what becomes of a scan that raises.
     record was called before a date was supplied by hand and it was renamed
     `santa-clara-fri-morn-pairs-2026-09-04`. The name is wrong and stays wrong;
     re-rendering fixes it and the stale file goes.
-  - Note: for whichever lane owns the renderer. The file prints double-dummy and
-    play-quality columns the public repo's `transcript` does not, so it came
-    from the comparison's own version rather than from an ingest run.
+  - Note: nothing gates it now. The double-dummy and play-quality columns the
+    file prints came from the comparison, which has since landed, so
+    `python -m session_analysis.unreviewed.transcript` given that record
+    re-renders it.
 - [ ] Name a dateless session from the scan that carries it. {#date-from-scan}
   - Rationale: a tournament sheet's footer states no date. All eight digitized
     so far leave it blank, across four days of one event, so each files unnamed
