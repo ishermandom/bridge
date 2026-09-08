@@ -86,9 +86,10 @@ def _make_board(
 ) -> Board:
   """A board whose contract cell parsed into a contract and its result.
 
-  `our_side` is the half of `our_pair` the comparison reads — which side we sat
-  is what says whether the declarer was us, and so which way the sign runs. The
-  level and our pair number are fixed, at values no test asserts on.
+  `our_side` fills the `side` field of `our_pair`, which is the part the
+  comparison reads: which side we sat is what says whether the declarer was us,
+  and so which way the sign runs. The level and our pair number are fixed, at
+  values no test asserts on.
   """
   return Board(
     number=_make_number(number),
@@ -140,7 +141,7 @@ def _make_traveller(
   tricks: int | None,
   path: str = _CLUB_CAPTURE,
 ) -> Traveller:
-  """A traveller whose table states one cell and leaves the other nineteen.
+  """A traveller stating one cell of its table and leaving the other nineteen.
 
   A published table holds all twenty cells and writes as `None` any it has
   nothing to say about, so the nineteen no test asserts on are built that way
@@ -611,7 +612,7 @@ def test_a_board_carrying_no_deal_is_not_compared() -> None:
     )
   )
 
-  # A sheet records no deal, so a board reconciliation has not reached has
+  # A sheet records no deal, so a board that reconciliation has not reached has
   # nothing to solve.
   assert _after_lead(session) == {}
 
@@ -670,10 +671,9 @@ def test_a_malformed_deal_is_not_compared() -> None:
 
 # --- the session recap ---
 
-# North holds every spade, so a spade contract from either of North's side
-# takes all thirteen whatever is led, and one from either of the opponents'
-# takes none. `testing.deals` argues both.
-_A_HEART = Card(rank=Rank.TWO, suit=Suit.HEARTS)
+# North holds every spade, so a spade contract declared by North or South takes
+# all thirteen whatever is led, and one declared by East or West takes none.
+# `testing.deals` argues both.
 _A_DIAMOND = Card(rank=Rank.TWO, suit=Suit.DIAMONDS)
 _A_CLUB = Card(rank=Rank.TWO, suit=Suit.CLUBS)
 _A_SPADE = Card(rank=Rank.TWO, suit=Suit.SPADES)
@@ -747,8 +747,10 @@ def test_our_defended_boards_group_by_which_of_us_led() -> None:
 
   recap = recap_of(compare_boards(session, travellers))
 
-  # Neither opponent can reach a trump, so the solved count is none for both;
-  # each took more than that, which runs against us.
+  # Neither opponent can reach a trump, so the solved count is none for both,
+  # and each took more than that, which runs against us. Against the published
+  # count, the board we led from North came out even and the one from South a
+  # trick down.
   assert recap.defending.by_seat == {
     Direction.NORTH: ComparisonTotals(boards=1, whole_deal=0, after_lead=-1),
     Direction.SOUTH: ComparisonTotals(boards=1, whole_deal=-1, after_lead=-2),

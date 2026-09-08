@@ -11,7 +11,7 @@ prose spelling. Whoever wrote the sheet already reads its shorthand fluently, so
 a board comes back as they wrote it:
 
 ```text
-#5    1C (DBL) 3C (3H)    4CW+4    lead=9oH    MP=6
+#5    1C (DBL) 3C (3H)    4CW+4    lead=9oH    MP=6    DD+1    PLAY-1
 ```
 
 Opponents' calls sit in parentheses, standing in for the circles the sheet draws
@@ -29,33 +29,32 @@ record supports.
 Each value is rendered from its parse rather than from the envelope's `raw`, so
 one spelling reaches the reader however the sheet happened to write it — `p`
 and `P` both arrive here as `PASS`, `x` and `*` as `DBL`, `1N` and `1NT` alike
-as `1N`. Where a parse failed there
-is nothing to spell, and the raw transcription stands in wrapped in `?…?`: a
-call dropped for being unreadable would leave a line reading as though the sheet
-had said nothing there.
+as `1N`. Where a parse failed there is nothing to spell, and the raw
+transcription stands in its place, wrapped in `?…?`: a call dropped for being
+unreadable would leave a line reading as though the sheet had said nothing
+there.
 
 Two last columns set each result beside what the deal allowed, from our own
 side's point of view: `DD+1` says the board went a trick our way against what
 best play by both sides yields, `DD-2` two tricks against us. Defending counts
 the same way as declaring — the opponents held to a trick short of the count is
-`DD+1`, exactly as our own overtrick is.
+`DD+1`, exactly as our own declarer taking a trick more than the count is.
 
 `PLAY` counts the same way but from the position the opening lead left, so it
 is the play with the lead taken out of the reckoning, and the gap between the
 two columns is what the lead itself was worth.
 
-Which way that gap can run is fixed, not free. The best lead is by definition
-the one holding declarer to fewest tricks, so any other lead leaves declarer at
-least as many — and a board therefore reads one of two ways. Declaring, `PLAY`
-never exceeds `DD`: `DD+1 PLAY-1` is an opening lead that handed us two tricks,
-one of which the play gave back. Defending, `PLAY` never falls below `DD`:
-`DD-1 PLAY+1` is a lead of ours that cost two tricks, of which the defense won
-one back — still a trick down on what the deal offered, not recovered from.
+Which way that gap can run is fixed rather than free, for the reason
+`double_dummy_comparison` argues. Declaring, `PLAY` never exceeds `DD`, and the
+line above is that case: an opening lead that handed us two tricks, one of which
+the play gave back. Defending, `PLAY` never falls below `DD`, so `DD-1 PLAY+1`
+is a lead of ours that cost two tricks, of which the defense won one back —
+still a trick down on what the deal offered, not recovered from.
 
-Both are filled from what the session's travellers supply, so they stand empty
-for a board no traveller reached and are absent altogether from a session none
-has reached — `double_dummy_comparison` carries both and what their silences
-mean.
+The published cell comes from a traveller, and the deal the solved count needs
+is written onto the board from one at reconciliation. So both columns stand
+empty for a board no traveller reached, and are absent altogether from a session
+none has reached — `double_dummy_comparison` carries what their silences mean.
 
 A recap under the boards totals the two columns, and organizes them by our own
 position throughout: the boards we declared split by which of us declared, the
@@ -144,8 +143,8 @@ def _header_lines(
     yield session.session_key
 
   # Only a pairs game publishes a traveller, so a teams session has no
-  # double-dummy analysis to be set against and never will have; a session
-  # reconciliation has not reached yet has none so far. The record cannot tell
+  # double-dummy analysis to set against, and never will; a session that
+  # reconciliation has not yet reached has none for now. The record cannot tell
   # the two apart, so the line states what they share rather than guessing.
   # Left unsaid, an absent column would read as a session whose every board
   # came out even.
@@ -189,10 +188,10 @@ def _recap_lines(recap: double_dummy_comparison.SessionRecap) -> Iterator[str]:
   # incomparable, so a board carrying only one count sits out — worth saying,
   # since the totals then no longer add up the column printed above.
   if recap.partly_compared:
-    boards = 'board' if recap.partly_compared == 1 else 'boards'
+    board_or_boards = 'board' if recap.partly_compared == 1 else 'boards'
     yield (
-      f'({recap.partly_compared} {boards} carried only one of the two counts, '
-      f'and so sat out of these totals.)'
+      f'({recap.partly_compared} {board_or_boards} carried only one of the two '
+      f'counts, and so sat out of these totals.)'
     )
 
 
@@ -262,8 +261,8 @@ class _BoardColumns:
 def _laid_out(rows: Sequence[Sequence[str]]) -> Iterator[str]:
   """Pad every column to its widest value, so the rows read as a table.
 
-  A trailing column every row left empty is stripped rather than padded, so a
-  session where no traveller has landed yet does not print a page of trailing
+  A trailing column that every row left empty is stripped rather than padded, so
+  a session where no traveller has landed yet does not print a page of trailing
   whitespace.
   """
   column_count = len(rows[0])
@@ -529,8 +528,9 @@ def _private_tree_if_any() -> PrivateTree | None:
   """The private tree beside this checkout, or None where there is none.
 
   A record named on the command line is transcribed wherever it sits, so having
-  no tree is not fatal on that path — it costs only the double-dummy
-  comparison, which `_travellers_for` complains about if a session wanted one.
+  no tree is not fatal on that path. It costs only the double-dummy comparison,
+  and `_travellers_for` says so on standard error when a session named
+  travellers.
   """
   try:
     return discover_private_tree()
@@ -554,7 +554,7 @@ def _travellers_for(
   if not tree:
     print(
       f'{session.event}: no private tree beside this checkout, so the '
-      f'travellers it names went unread',
+      f'travellers this session names went unread',
       file=sys.stderr,
     )
     return ()

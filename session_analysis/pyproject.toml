@@ -21,7 +21,7 @@ dependencies = [
 package = false
 
 [tool.uv.sources]
-# The published sdist cannot build: it carries the DDS sources but no
+# The published sdist cannot build: it carries the solver's C sources but no
 # CMakeLists.txt, while its build hook shells out to cmake, so a plain install
 # fails on every Python version. There are no CPython 3.14 wheels either. The
 # release tag carries the build files the sdist drops, so it is what we build

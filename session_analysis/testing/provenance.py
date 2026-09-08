@@ -67,9 +67,9 @@ def sheet_source(
   either without having passed it announces itself rather than looking plausible
   — a stem built from this hash reads `unnamed-standinhash`.
 
-  `travellers` defaults to none, which is the shape of a session reconciliation
-  has not reached. A test that turns on a session having been joined to its
-  captures passes them.
+  `travellers` defaults to none, which is the shape of a session that
+  reconciliation has not reached. A test whose subject is a session joined to
+  its captures passes its own.
   """
   return Source(
     image=SheetImage(path=path, content_hash=content_hash, frame=sheet_frame()),

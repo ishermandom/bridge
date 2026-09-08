@@ -47,6 +47,24 @@ def _hand(spades: str, hearts: str, diamonds: str, clubs: str) -> Hand:
   )
 
 
+def whole_suit(suit: Suit) -> Hand:
+  """Every card of one suit, which is a whole hand in `a_suit_to_each_seat`."""
+  return Hand(cards=tuple(Card(rank=rank, suit=suit) for rank in Rank))
+
+
+def a_suit_to_each_seat() -> Deal:
+  """North holds the spades, East the hearts, South the diamonds, West the
+  clubs."""
+  return Deal(
+    hands={
+      Direction.NORTH: whole_suit(Suit.SPADES),
+      Direction.EAST: whole_suit(Suit.HEARTS),
+      Direction.SOUTH: whole_suit(Suit.DIAMONDS),
+      Direction.WEST: whole_suit(Suit.CLUBS),
+    }
+  )
+
+
 def a_deal_the_lead_decides() -> Deal:
   """A deal where the opening lead is worth four tricks and nothing else is.
 
@@ -72,22 +90,5 @@ def a_deal_the_lead_decides() -> Deal:
       Direction.EAST: _hand('76', '8765432', '76', '43'),
       Direction.SOUTH: _hand('T98', 'T9', 'T98', '98765'),
       Direction.WEST: _hand('5432', 'AKQJ', '5432', '2'),
-    }
-  )
-
-
-def whole_suit(suit: Suit) -> Hand:
-  """Every card of one suit, which is a whole hand in `a_suit_to_each_seat`."""
-  return Hand(cards=tuple(Card(rank=rank, suit=suit) for rank in Rank))
-
-
-def a_suit_to_each_seat() -> Deal:
-  """North holds the spades, East the hearts, South the diamonds, West clubs."""
-  return Deal(
-    hands={
-      Direction.NORTH: whole_suit(Suit.SPADES),
-      Direction.EAST: whole_suit(Suit.HEARTS),
-      Direction.SOUTH: whole_suit(Suit.DIAMONDS),
-      Direction.WEST: whole_suit(Suit.CLUBS),
     }
   )

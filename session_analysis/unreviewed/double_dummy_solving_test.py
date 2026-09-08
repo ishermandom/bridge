@@ -2,15 +2,13 @@
 # SPDX-License-Identifier: MIT
 """Tests for solving a deal for the tricks an opening lead leaves behind.
 
-A double-dummy count is not something a test can assert by restating the search
-— that would only check the solver against itself. So every deal here is one
-whose answer can be reasoned out in a sentence, and each test carries that
-reasoning beside the number. What they are really testing is the adaptation: a
-seat, a strain, a rank or a leader wired up wrongly moves these answers a long
-way, because the deals are built so that everything turns on who holds what.
+What these tests are really checking is the adaptation onto the solver: a seat,
+a strain, a rank or a leader wired up wrongly moves their answers a long way,
+because the deals are built so that everything turns on who holds what.
 
-The deals these tests use, and the reasoning their answers rest on, are in
-`testing.deals`.
+The deals themselves, and the reasoning their answers rest on, are in
+`testing.deals` — which is also where the case for reasoning an answer out
+rather than restating the search is made.
 """
 
 import pytest
@@ -73,10 +71,10 @@ def test_a_ten_is_led_by_the_letter_the_solver_reads() -> None:
     opening_lead=Card(rank=Rank.TEN, suit=Suit.HEARTS),
   )
 
-  # The canonical ten is `T` on both sides of the adaptation, where the sheet
-  # writes two characters. A ten spelled `10` would leave the solver reading a
-  # hand of twelve cards and a stray one, so this would raise rather than
-  # answer.
+  # The canonical ten is `T` on both sides of the adaptation; the sheet is what
+  # writes it as two characters. A ten spelled `10` would leave the solver
+  # reading a hand of twelve cards and a stray one, so the call would raise
+  # rather than answer.
   assert tricks == 0
 
 
@@ -103,11 +101,11 @@ def test_the_card_led_changes_what_remains_of_the_deal() -> None:
 
 
 def test_a_lead_the_leading_hand_does_not_hold_is_refused() -> None:
-  # West holds the clubs, and it is East on lead against North. The solver is
-  # given a precondition rather than a check, so an impossible position is an
-  # error from it rather than a number that means nothing. `DDSError` is a
-  # `RuntimeError`, and naming the base keeps the library's private module out
-  # of this test.
+  # West holds the clubs, and it is East on lead against North.
+  # `tricks_after_lead` states that as a precondition rather than checking it,
+  # so an impossible position comes back as an error rather than as a number
+  # that means nothing. `DDSError` is a `RuntimeError`, and naming the base
+  # keeps the library's private module out of this test.
   with pytest.raises(RuntimeError):
     tricks_after_lead(
       a_suit_to_each_seat(),

@@ -10,11 +10,11 @@ board, for the transcript to print.
 Each comparison is a signed count of tricks, read from our own side's point of
 view rather than from declarer's: `+1` says the board went a trick our way
 against what best play yields, `-2` two tricks against us, and `0` that it
-landed exactly where best play does. Which table the tricks were won at is what
-the sign absorbs. Where we declared, a gain is our taking more tricks than the
-double dummy allows; where the opponents declared, it is their taking fewer. One
-reading therefore holds down the whole column — positive is a board that went
-our way — instead of flipping meaning with every board we defended.
+landed exactly where best play does. Which side took the tricks is what the sign
+absorbs. Where we declared, a gain is our taking more tricks than the double
+dummy allows; where the opponents declared, it is their taking fewer. One
+reading therefore holds for the whole column — positive is a board that went our
+way — instead of flipping meaning with every board we defended.
 
 There are two such comparisons — `BoardComparison` carries both — and the
 difference between them is the point of having both:
@@ -32,13 +32,12 @@ difference between them is the point of having both:
 So the first is the whole board and the second is the play within it, and the
 gap between them is what the opening lead was worth. Which way that gap can run
 is fixed rather than free: the best lead is by definition the one holding
-declarer to fewest tricks, so any other lead leaves declarer at least as many,
-and `after_lead` can only move away from `whole_deal` in the direction the
-leading side owns. Declaring, `after_lead` never exceeds `whole_deal`, and the
-difference is what the opponents' lead handed us; defending, it never falls
-below, and the difference is what our own lead cost. A defense that found the
-killing lead leaves nothing between them, so the two come back equal however
-the play then went.
+declarer to fewest tricks, so any other lead leaves declarer at least as many.
+Declaring, `after_lead` never exceeds `whole_deal`, and the difference is what
+the opponents' lead handed us; defending, it never falls below, and the
+difference is what our own lead cost. A defense that found the killing lead
+leaves nothing between them, so the two come back equal however the play then
+went.
 
 `SessionRecap` totals both over a whole session, split across our own seats.
 
@@ -66,10 +65,10 @@ from session_analysis.private_paths import PrivateTree
 from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import deal_checks, double_dummy_solving
 
-# A traveller a session names but nothing can read back. Worth reporting rather
-# than passing over: the session says the capture was consulted, so its absence
-# means the record was never stored or no longer parses, and either way the
-# comparisons that capture would have supplied are quietly missing.
+# A traveller that a session names but that cannot be read back. Worth reporting
+# rather than passing over: the session says the capture was consulted, so a
+# record either never stored or no longer parsing leaves the comparisons that
+# capture would have supplied quietly missing.
 _UNREADABLE_TRAVELLER = issue_reporting.Failure(
   'unreadable_traveller_record', IssueSeverity.LOW, 'traveller'
 )
@@ -88,9 +87,9 @@ class BoardComparison:
 
   declared_by_us: bool
   # The seat of ours the board turned on: the one that declared where we
-  # declared, the one that led where we defended. Either way it is one of our
-  # own two, since the lead comes from declarer's left — so a recap split by it
-  # is always a split across our own partnership.
+  # declared, the one that led where we defended. Either way it is one of the two
+  # seats our pair sat in on that board, since the lead comes from declarer's
+  # left — so a recap split by it is always a split across our own partnership.
   our_seat: Direction
   whole_deal: int | None
   after_lead: int | None
@@ -101,9 +100,10 @@ def compare_boards(
 ) -> Mapping[int, BoardComparison]:
   """Both comparisons for every board either of them could be made for.
 
-  Keyed by board number. A board `_comparable` turns away is absent, as is one
-  neither comparison reached — the caller has nothing to print for either, and
-  the reasons differ in ways no reader of a transcript acts on.
+  Keyed by board number. A board that `_comparable` turns away is absent, and so
+  is one that neither comparison reached. The caller has nothing to print in
+  either case, and the difference between the two reasons is not something a
+  transcript's reader acts on.
 
   Both are gathered in one pass because they answer about the same board and
   are read side by side: the whole deal, and the play within it once the
@@ -145,13 +145,13 @@ class ComparisonTotals:
   after_lead: int
 
   @staticmethod
-  def summed(totals: Iterable['ComparisonTotals']) -> 'ComparisonTotals':
+  def summed(groups: Iterable['ComparisonTotals']) -> 'ComparisonTotals':
     """Several groups of boards added into one."""
-    gathered = list(totals)
+    gathered = list(groups)
     return ComparisonTotals(
-      boards=sum(one.boards for one in gathered),
-      whole_deal=sum(one.whole_deal for one in gathered),
-      after_lead=sum(one.after_lead for one in gathered),
+      boards=sum(totals.boards for totals in gathered),
+      whole_deal=sum(totals.whole_deal for totals in gathered),
+      after_lead=sum(totals.after_lead for totals in gathered),
     )
 
 
@@ -160,8 +160,9 @@ class RecapHalf:
   """The boards we played in one role, split across the seats we sat in it.
 
   A pair does not always keep one direction for a whole session, so `by_seat`
-  can hold more than the two seats of a single partnership — a pair that moved
-  declared from three seats over an evening, and each is its own row.
+  can hold more than the two seats of a single partnership: a pair that changed
+  direction mid-session may have declared from three seats over an evening, and
+  each seat is its own row.
   """
 
   by_seat: Mapping[Direction, ComparisonTotals]
@@ -183,8 +184,8 @@ class SessionRecap:
   one we led, and every board therefore lands under one of our own two seats.
 
   Read across a row, the gap between the two totals is what the opening leads
-  were worth. Defending, `whole_deal` short of `after_lead` is the cost of that
-  seat's leads; declaring, `whole_deal` beyond `after_lead` is what the
+  were worth. Defending, `whole_deal` below `after_lead` is the cost of that
+  seat's leads; declaring, `whole_deal` above `after_lead` is what the
   opponents' leads handed that declarer. Either way the difference runs the
   same way round as the totals do — our side's gain.
   """
@@ -192,9 +193,10 @@ class SessionRecap:
   # Split by the seat of ours that declared, and that led, respectively.
   declaring: RecapHalf
   defending: RecapHalf
-  # Boards carrying one count but not the other, and so left out of every row:
-  # totalling two columns over different boards would leave them incomparable,
-  # which is the one thing a row of this table is read for.
+  # Boards carrying one count but not the other, and so left out of every row.
+  # Totalling the two columns over different boards would leave the totals
+  # incomparable, and comparing them is the one thing a row of this table is
+  # read for.
   partly_compared: int
 
   @property
@@ -256,8 +258,9 @@ def read_referenced_travellers(
   keeps the comparison honest as well as cheap: a capture of some other session
   that happens to number its boards the same way is never consulted here.
 
-  A record that is missing or no longer parses costs its own contribution and
-  not the run's, and is reported rather than passed over.
+  A record that is missing or no longer parses costs only the comparisons it
+  would have supplied, not the rest of the run, and is reported rather than
+  passed over.
   """
   travellers = []
   issues = []
@@ -286,9 +289,9 @@ def read_referenced_travellers(
 class _ComparableBoard:
   """What every comparison needs from a board, before its own inputs.
 
-  Gathered once because both comparisons want the same three things — which
-  board, what was played, and whether the declarer was us — and differ only in
-  the count they set the result against.
+  Gathered once because both comparisons want the same things from a board —
+  which board it was, what was played on it, and which side we were — and differ
+  only in the count they set the result against.
   """
 
   number: int
@@ -319,9 +322,9 @@ def _comparable(board: Board) -> _ComparableBoard | None:
   played = _played_contract(board)
   # A board is found by the number the sheet gave it, so one whose number could
   # not be read reaches no traveller row. Which side we sat is what orients the
-  # sign, and reconciliation is what fills it, so a board it never placed us on
-  # is left uncompared rather than compared from declarer's point of view — half
-  # of those would read backwards.
+  # sign, and reconciliation is what records it, so a board that reconciliation
+  # never placed us on is left uncompared rather than compared from declarer's
+  # point of view — half of those would read backwards.
   if not board.number.schedule or not played or not board.our_pair:
     return None
 
@@ -390,7 +393,7 @@ def _published_tricks(
   nothing at all about a declarer held under seven tricks.
 
   None again where two sources state the cell and disagree. Nothing picks a
-  winner, for the reason reconciliation's own merge does not either — a silent
+  winner, for the same reason reconciliation's own merge does not: a silent
   tiebreak between two records hides exactly the disagreement worth seeing.
   """
   stated: set[int] = set()

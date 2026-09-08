@@ -5,16 +5,16 @@
 A published double-dummy table states what best play by both sides yields, and
 best play by the defense includes its choice of lead — so a table answers what
 the *best* lead holds declarer to and nothing about any other. The lead actually
-made leaves a different position, and reading which one it left is a search
-rather than a lookup. That search is what this module runs.
+made leaves a different position, and finding what that position yields is a
+search rather than a lookup. That search is what this module runs.
 
 It is the project's only seam onto a double-dummy solver. Everything else states
 the question in this project's own terms — a `Deal`, a `Direction`, a `Strain`,
 a `Card` — and this module alone knows how the solver spells them. Keeping the
 adaptation in one place is what makes the solver replaceable: `endplay` bundles
-Bo Haglund's DDS and is the only Python package that ships it in a usable form
-today, but it is a thin ctypes wrapper over a C library that has since moved on
-without it, so the day may come to swap it.
+Bo Haglund's double-dummy solver and is the only Python package that ships it in
+a usable form today, but it is a thin wrapper around a copy of that solver
+frozen at an old release, so the day may come to swap the package out.
 
 The count that comes back is declarer's, as a published table's cells are, so
 the two compare directly and their difference is what the opening lead cost.
@@ -89,10 +89,11 @@ def tricks_after_lead(
     endplay._dds.DDSError: if the deal is malformed or the lead is not in the
       leading hand.
 
-  Both preconditions are checked, and reported as issues, by
-  `deal_checks.find_deal_issues` and `deal_checks.find_lead_issues`. This raises
-  rather than repeating those checks, so that a caller which skipped them hears
-  about it instead of receiving a number that means nothing.
+  Both preconditions are established, and reported as issues, by
+  `deal_checks.find_deal_issues` and `deal_checks.find_lead_issues`.
+  `tricks_after_lead` raises rather than repeating those checks, so that a
+  caller which skipped them hears about it instead of receiving a number that
+  means nothing.
   """
   position = endplay.types.Deal(
     _written_deal(deal), first=_SOLVER_SEATS[declarer.left_hand_opponent]
@@ -101,8 +102,9 @@ def tricks_after_lead(
 
   # The solver reports the position before the first card and after each one, so
   # a single lead comes back as two counts and the second is the one wanted.
-  # Unpacking rather than indexing is what holds it to two: a solver that
-  # answered otherwise would be doing something this has misunderstood.
+  # Unpacking rather than indexing is what holds it to two: any other number of
+  # counts would mean this adaptation has misread the solver's contract, and the
+  # unpacking then fails loudly instead of quietly taking the wrong one.
   _, after_lead = endplay.dds.analyse_play(
     position, [_written_card(opening_lead)]
   )
@@ -122,8 +124,9 @@ def _written_deal(deal: Deal) -> str:
 def _written_hand(hand: Hand) -> str:
   """One hand as its four suits, each high card first, in the written order.
 
-  A void is written as the empty string between its dots, which is what falls
-  out of grouping by suit and joining — the suit simply contributes nothing.
+  A void is written as nothing at all between the dots that separate the suits,
+  which is what falls out of grouping by suit and joining — a suit with no cards
+  simply contributes no characters.
   """
   # A default dictionary rather than a plain one, so that the void suits below
   # answer with an empty list instead of raising.

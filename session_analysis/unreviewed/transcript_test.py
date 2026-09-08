@@ -208,7 +208,7 @@ def _make_session(
 def _make_traveller(
   board_number: int, *, declarer: Direction, strain: Strain, tricks: int
 ) -> Traveller:
-  """A traveller whose table states one cell and leaves the other nineteen.
+  """A traveller stating one cell of its table and leaving the other nineteen.
 
   A published table holds all twenty cells and writes as `None` any it has
   nothing to say about, so the nineteen no test asserts on are built that way
@@ -234,15 +234,15 @@ def _board_line(board: Board) -> str:
 def _board_line_of(lines: Iterable[str]) -> str:
   """The first board's line — the only one, in the sessions built here.
 
-  Every test that reaches for this builds a session of a single board, so
-  "first" and "only" coincide; it reads the first either way.
+  Every test that reaches for this builds a single-board session, so the first
+  board line is the only one.
 
   A transcript runs header, blank, boards, and then — where anything could be
-  compared — a second blank and the recap. The line just past the header's
-  blank is therefore the first board. Neither end of the transcript would do,
-  the header sitting above the boards and the recap below them, and nor would
-  the `#` a board line usually opens with: a board number that did not parse
-  writes its transcription there instead.
+  compared — a second blank and the recap. The line just past the header's blank
+  is therefore the first board. Neither end of the transcript would do: the
+  header sits above the boards and the recap below them. Nor would matching the
+  `#` a board line usually opens with — a board number that did not parse writes
+  its transcription there instead.
   """
   past_header = itertools.dropwhile(bool, lines)
   next(past_header)  # the blank line that closes the header
@@ -613,9 +613,10 @@ def _comparison_line(
   """The board line for one board, set against a stated double-dummy count.
 
   Only the board number and the level the contract was bid to are fixed, since
-  no column reads either. The seat and strain default for the same reason, and
-  are worth passing when a deal is: a deal solves for a particular declarer in
-  a particular strain, so those three go together.
+  no assertion here turns on either. The seat and strain carry defaults for the
+  same reason, and are worth passing whenever a deal is passed too: a deal
+  solves for a particular declarer in a particular strain, so those three go
+  together.
 
   `deal` and `opening_lead` are what the solved `PLAY` column needs. Given no
   deal, only the published `DD` column can answer.
@@ -703,9 +704,9 @@ def test_a_board_the_traveller_does_not_record_is_not_compared() -> None:
 
 
 def test_the_play_column_is_solved_rather_than_read_from_the_table() -> None:
-  # `a_deal_the_lead_decides` is held to nine by a heart lead and runs to
-  # thirteen against anything else, so the table's nine and the thirteen a
-  # spade leaves are both true of this one board — neither is invented.
+  # In `a_deal_the_lead_decides`, South is held to nine by a heart lead and
+  # takes thirteen against anything else — so the table's nine and the thirteen
+  # a spade leaves are both true of this one board, and neither is invented.
   line = _comparison_line(
     we_declared=True,
     declarer=Direction.SOUTH,
@@ -734,7 +735,7 @@ def test_the_play_column_stands_empty_without_a_deal_to_solve() -> None:
   )
 
   # The table still answers, being read from the traveller; the solved count
-  # cannot, since a board reconciliation has not reached carries no deal.
+  # cannot, since a board that reconciliation has not reached carries no deal.
   assert 'DD+2' in line
   assert 'PLAY' not in line
 
@@ -761,7 +762,7 @@ def test_a_session_that_recorded_nothing_carries_no_caveat() -> None:
   session = _make_session(Board(number=BoardNumber(raw='')), travellers=())
 
   # There was nothing to compare in the first place, so the absence of a
-  # traveller is not what a reader of this session needs told.
+  # traveller is not something a reader of this session needs to be told.
   assert not [
     line for line in render_session(session) if 'No traveller' in line
   ]
