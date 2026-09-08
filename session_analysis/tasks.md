@@ -122,27 +122,6 @@ unread.
 **Goal:** a sheet image becomes the vision model's compact per-board string
 output, parsed into the canonical model.
 
-- [ ] Read a sit-out as a sit-out rather than as an unreadable contract.
-      {#sit-out}
-  - Rationale: a pair sits out whenever the field is odd, so the sheet writes
-    one regularly and it is an ordinary entry rather than a failure. The
-    contract cell has no reading for it, so it lands as `unparseable_contract`
-    at high severity — and severity is what #triage ranks by, so every sit-out
-    would sit at the top of a review queue asking to be corrected while nothing
-    about it is wrong.
-  - Note: the lead cell already does this properly, and is the behaviour to
-    match. A struck-through lead reads as recorded-but-not-played, carrying no
-    card and no issue, which is why the sit-out boards of
-    santa-clara-fri-morn-pairs-2026-09-04 show a clean `lead=---` beside a
-    flagged `?SIT ouT?`.
-  - Note: `Passout` is the shape to follow — a `Resolution` member of its own
-    rather than a flag on the envelope, and spelled out by the transcript the
-    way `PASSED OUT` is. A sat-out board has no contract, no lead and no
-    matchpoints, and yet carries a deal: the board was dealt whether or not we
-    played it, so reconciliation fills it like any other.
-  - Note: one spelling seen so far, `SIT ouT`, twice, in that one session. The
-    sheet's capitalization is erratic, so read it case-insensitively and expect
-    other wordings rather than pinning to this one.
 - [ ] Experiment: have the vision model interpret a missing date instead of
       leaving it to the parser. Validate quality before adopting — this is a
       trial, not a settled direction. {#model-reads-the-date}
@@ -441,8 +420,25 @@ record waits for review, and what becomes of a scan that raises.
     is not a passout: the board was never played, so it has no contract, no
     lead, and no result to record, where a passout has a real auction that ended
     in four passes.
-  - Note: the struck-through convention is the nearest thing that exists and is
-    the wrong one, since it means the board was played and passed out.
+  - Note: a sit-out is an ordinary entry rather than a failure — a pair sits out
+    whenever the field is odd — and yet `unparseable_contract` carries high
+    severity, which is what #triage ranks by. So every sit-out would head a
+    review queue asking to be corrected while nothing about it is wrong.
+  - Note: the lead cell and the contract cell read a struck-through mark
+    differently, and the lead cell has it right. A struck-through lead reads as
+    recorded-but-not-played, carrying no card and no issue, which is why the
+    sit-out boards of santa-clara-fri-morn-pairs-2026-09-04 show a clean
+    `lead=---` beside a flagged `?SIT ouT?`. A struck-through contract says the
+    board was played and passed out, so the nearest convention the contract cell
+    has is the wrong one.
+  - Note: `Passout` is nonetheless the shape to follow — a `Resolution` member
+    of its own rather than a flag on the envelope, and spelled out by the
+    transcript the way `PASSED OUT` is. A sat-out board carries no contract, no
+    lead and no matchpoints, and yet carries a deal: it was dealt whether or not
+    we played it, so reconciliation fills it like any other.
+  - Note: one spelling seen so far, `SIT ouT`, twice, in that one session. The
+    sheet's capitalization is erratic, so read it case-insensitively and expect
+    other wordings rather than pinning to this one.
 - [ ] Let the lead cell say what the sheet says. {#partial-and-marked-leads}
   - Rationale: two forms the sheet really writes both come back as
     `unparseable_lead`, and both are faithful transcriptions rather than
