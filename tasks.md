@@ -97,6 +97,20 @@ production signatures for the tests' benefit.
 
 ## Backlog
 
+- [ ] **Consider contributing the pypdfium2 stubs to typeshed**
+      {#typeshed-pypdfium2}: the acceptance criteria fit — pypdfium2 is on PyPI
+      and ships no types of its own — and per
+      [typeshed#15118](https://github.com/python/typeshed/issues/15118),
+      pypdfium2's maintainers would rather the stubs live in typeshed than in
+      the package. That issue's "not planned" closure is procedural, not a
+      rejection: typeshed keeps no stub-request issues open, and its closing
+      comment welcomes a contribution following `CONTRIBUTING.md`, with
+      `create_baseline_stubs.py` to generate the starting point.
+  - Note: a contribution means covering the public helpers API under typeshed's
+    stubtest CI (the raw ctypes layer can stay a marked partial stub) and
+    maintaining the stubs as pypdfium2 evolves. Either way `stubs/` stays until
+    a published `types-pypdfium2` exists to swap in.
+
 - [ ] List the captured HTML fixtures in a `.prettierignore` at the repo root.
       {#prettier-ignores-fixtures}
   - Rationale: `session_analysis/testdata/travellers/` holds five files captured
