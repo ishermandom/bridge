@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 # Minimal stubs for pypdfium2: only the surface this repo calls. See the
-# README beside this package before extending.
+# README two levels up before extending.
 
 from os import PathLike
 

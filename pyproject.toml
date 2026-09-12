@@ -40,10 +40,10 @@ dev = [
 # The whole repo is typed to mypy's strict bar; declaring it here makes every
 # run strict, whichever runner launches it.
 strict = true
-# uv builds the local stub package (stubs/) with setuptools, which drops its
-# build scratch at stubs/build/ — untracked copies that would otherwise collide
-# with the originals as duplicate modules.
-exclude = ['^stubs/build/']
+# uv builds the local stub packages (stubs/*/) with setuptools, which drops
+# build scratch at stubs/<library>/build/ — untracked copies that would
+# otherwise collide with the originals as duplicate modules.
+exclude = ['^stubs/[^/]+/build/']
 
 [tool.pytest.ini_options]
 # Tests are named <module>_test.py, beside the module they cover.

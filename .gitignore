@@ -19,5 +19,5 @@ node_modules/
 club_sites/palo_alto/fixtures/raw/
 session_analysis/travellers/
 
-# setuptools build scratch from building the local stubs package.
-stubs/build/
+# setuptools build scratch from building the local stub packages.
+stubs/*/build/

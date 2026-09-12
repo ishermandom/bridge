@@ -15,10 +15,15 @@ dev = [
   # pillow and pypdfium2 rasterize PDFs for the golden tests.
   "pillow",
   "pypdfium2",
-  # The repo's own stub package (see `stubs/README.md`), installed from its
-  # local directory so mypy sees pypdfium2's types.
+  # The type stubs below install with the dev tools.
+  { include-group = "types" },
+]
+# Stubs for dependencies that ship no type information of their own. The
+# repo's own stub packages (stubs/*, see the README there) are named
+# `*-stubs`; typeshed's published ones are named `types-*`.
+types = [
+  "fonttools-stubs",
   "pypdfium2-stubs",
-  # reportlab ships no type annotations; typeshed's stubs fill them in.
   "types-reportlab",
 ]
 
@@ -26,4 +31,5 @@ dev = [
 package = false
 
 [tool.uv.sources]
-pypdfium2-stubs = { path = "../stubs" }
+fonttools-stubs = { path = "../stubs/fonttools" }
+pypdfium2-stubs = { path = "../stubs/pypdfium2" }

@@ -311,8 +311,14 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "fonttools" },
+    { name = "fonttools-stubs" },
     { name = "pillow" },
     { name = "pypdfium2" },
+    { name = "pypdfium2-stubs" },
+    { name = "types-reportlab" },
+]
+types = [
+    { name = "fonttools-stubs" },
     { name = "pypdfium2-stubs" },
     { name = "types-reportlab" },
 ]
@@ -328,9 +334,15 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "fonttools" },
+    { name = "fonttools-stubs", directory = "stubs/fonttools" },
     { name = "pillow" },
     { name = "pypdfium2" },
-    { name = "pypdfium2-stubs", directory = "stubs" },
+    { name = "pypdfium2-stubs", directory = "stubs/pypdfium2" },
+    { name = "types-reportlab" },
+]
+types = [
+    { name = "fonttools-stubs", directory = "stubs/fonttools" },
+    { name = "pypdfium2-stubs", directory = "stubs/pypdfium2" },
     { name = "types-reportlab" },
 ]
 
@@ -395,6 +407,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/1e/3ff1a9b523058c2eeb6a9d50f5574e2a738200d0d94107d5bc4105e8da3f/fonttools-4.63.0-cp314-cp314t-win_amd64.whl", hash = "sha256:6d4741eb179121cab9eea4cb2393d24492373a260d7945006358c08cfbf45419", size = 2425829, upload-time = "2026-05-14T12:04:26.829Z" },
     { url = "https://files.pythonhosted.org/packages/2c/47/c99d5268f354002ce80f8d029cd9d7d872969da1de8b93d32de4dc56d6f4/fonttools-4.63.0-py3-none-any.whl", hash = "sha256:445af2eab030a16b9171ea8bdda7ebf7d96bda2df88ee182a464252f6e05e20d", size = 1164562, upload-time = "2026-05-14T12:04:29.092Z" },
 ]
+
+[[package]]
+name = "fonttools-stubs"
+version = "0.1.0"
+source = { directory = "stubs/fonttools" }
 
 [[package]]
 name = "gitdb"
@@ -1234,7 +1251,7 @@ wheels = [
 [[package]]
 name = "pypdfium2-stubs"
 version = "0.1.0"
-source = { directory = "stubs" }
+source = { directory = "stubs/pypdfium2" }
 
 [[package]]
 name = "pytest"
