@@ -33,9 +33,17 @@ dev = [
 # a table ever be wanted, `extend = "~/.config/ruff/pyproject.toml"` pulls the
 # shared rules back in.
 #
-# No [tool.mypy] table either, for a different reason: there is no global mypy
-# config to preserve in the first place. The Stop-hook runner passes `--strict`
-# on the command line, so a table here would be the only settings mypy reads.
+# Mypy has no other config file: runs launch from the repo root, where mypy
+# discovers this table.
+
+[tool.mypy]
+# The whole repo is typed to mypy's strict bar; declaring it here makes every
+# run strict, whichever runner launches it.
+strict = true
+# uv builds the local stub package (stubs/) with setuptools, which drops its
+# build scratch at stubs/build/ — untracked copies that would otherwise collide
+# with the originals as duplicate modules.
+exclude = ['^stubs/build/']
 
 [tool.pytest.ini_options]
 # Tests are named <module>_test.py, beside the module they cover.

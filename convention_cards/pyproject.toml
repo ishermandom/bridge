@@ -4,14 +4,26 @@
 [project]
 name = "convention-cards"
 version = "0.0.0"
-description = "Merge a bridge convention card PDF with a fold-over reminder strip."
+description = "Tools for printing bridge convention cards."
 requires-python = ">=3.14"
-dependencies = ["pypdf", "reportlab", "streamlit"]
+dependencies = ["playwright", "pypdf", "reportlab", "streamlit"]
 
-# reportlab ships no type annotations, so mypy needs its stubs to check
-# make_card.py.
 [dependency-groups]
-dev = ["types-reportlab"]
+dev = [
+  # Reads glyph metrics for the palette specimen's symbol sizing.
+  "fonttools",
+  # pillow and pypdfium2 rasterize PDFs for the golden tests.
+  "pillow",
+  "pypdfium2",
+  # The repo's own stub package (see `stubs/README.md`), installed from its
+  # local directory so mypy sees pypdfium2's types.
+  "pypdfium2-stubs",
+  # reportlab ships no type annotations; typeshed's stubs fill them in.
+  "types-reportlab",
+]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+pypdfium2-stubs = { path = "../stubs" }
