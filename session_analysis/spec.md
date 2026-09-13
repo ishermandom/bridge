@@ -480,8 +480,8 @@ results** — and a full game database accumulates them across many sessions, mo
 sensitive than any single capture. They are kept out of this public repo
 entirely, consistent with the existing `club_sites/palo_alto/fixtures/raw/`
 gitignore. The `bridge-private` checkout holds them, in a `session_analysis`
-directory of this project's own — that checkout gives each project one, named
-for the public subproject it accompanies. `private_paths` locates it, and every
+directory: bridge-private gives each public subproject a directory of its own,
+named for that subproject. `private_paths` locates that directory, and every
 tree hangs off it: the scoresheet images under `scoresheets/`, split into the
 `inbox/` and `archive/` a scan moves between and the `samples/` the pipeline is
 never fed from; the traveller captures and their parsed records under
