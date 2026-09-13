@@ -6,15 +6,19 @@ name = "convention-cards"
 version = "0.0.0"
 description = "Tools for printing bridge convention cards."
 requires-python = ">=3.14"
-dependencies = ["playwright", "pypdf", "reportlab", "streamlit"]
+dependencies = [
+  "pillow",
+  "playwright",
+  "pypdf",
+  "pypdfium2",
+  "reportlab",
+  "streamlit",
+]
 
 [dependency-groups]
 dev = [
   # Reads glyph metrics for the palette specimen's symbol sizing.
   "fonttools",
-  # pillow and pypdfium2 rasterize PDFs for the golden tests.
-  "pillow",
-  "pypdfium2",
   # The type stubs below install with the dev tools.
   { include-group = "types" },
 ]

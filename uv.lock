@@ -302,8 +302,10 @@ name = "convention-cards"
 version = "0.0.0"
 source = { virtual = "convention_cards" }
 dependencies = [
+    { name = "pillow" },
     { name = "playwright" },
     { name = "pypdf" },
+    { name = "pypdfium2" },
     { name = "reportlab" },
     { name = "streamlit" },
 ]
@@ -312,8 +314,6 @@ dependencies = [
 dev = [
     { name = "fonttools" },
     { name = "fonttools-stubs" },
-    { name = "pillow" },
-    { name = "pypdfium2" },
     { name = "pypdfium2-stubs" },
     { name = "types-reportlab" },
 ]
@@ -325,8 +325,10 @@ types = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pillow" },
     { name = "playwright" },
     { name = "pypdf" },
+    { name = "pypdfium2" },
     { name = "reportlab" },
     { name = "streamlit" },
 ]
@@ -335,8 +337,6 @@ requires-dist = [
 dev = [
     { name = "fonttools" },
     { name = "fonttools-stubs", directory = "stubs/fonttools" },
-    { name = "pillow" },
-    { name = "pypdfium2" },
     { name = "pypdfium2-stubs", directory = "stubs/pypdfium2" },
     { name = "types-reportlab" },
 ]
