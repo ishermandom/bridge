@@ -22,49 +22,11 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 
 ## Landing
 
-- [~] **Review the branch commit by commit** {#branch-review}: production code
-  never lands unreviewed (#review-gate). The branch history is rebuilt as a
-  sequence of independent commits, each meant to stand on its own —
-  `git log --reverse main..worktree-card-renderer` is the queue.
-  - Reviewed: every commit but the last, the SWAN–Bridgodex converter
-    (2026-09-13). The user moved that commit to the back of the queue so the
-    rest can land first (#land-branch); #swan-review covers it.
-  - Note: the proofread pass over the series also flagged main's
-    `session_analysis/private_paths.py` "That checkout" ambiguity — a one-line
-    fix belonging to that subtree's thread.
-
-- [ ] **Land the reviewed commits** {#land-branch}: everything on
-      `worktree-card-renderer` before the SWAN–Bridgodex converter, which stays
-      on the branch for #swan-review. Needs the user's go-ahead. The main
-      checkout holds a stray untracked `convention_cards/data/acbl.pdf`; the
-      branch no longer has a `data/` directory, so delete the stray as cleanup
-      when landing. The branch expects `bridge-private` beside the checkout
-      (base PDF, fonts — discovered by `renderer/private_paths.py`).
-  - Note: more cleanup at landing — drop the three tagged stash snapshots
-    (`card-renderer-*-20260824`) and the `backup/card-renderer-file-history`
-    branch; each was verified byte-redundant with committed history when taken.
-  - The two-sided print flow must land before bridge-private's
-    `callahan/regenerate.sh` works — the wrapper points at the main checkout,
-    where `renderer/make_two_sided_card.py` doesn't exist until landing.
-  - At landing, bridge-private's `callahan/regenerate.sh` must switch from
-    launching `make_two_sided_card.py` by path to module form —
-    `python -m renderer.make_two_sided_card`, run from the checkout's
-    `convention_cards/` (spec.md #module-shape). Committing it needs the user's
-    go-ahead.
-  - The bridge-private side is otherwise fully committed (2026-09-12): the
-    proofed card state, the self-contained wrapper, and the Bridgodex captures.
-    The Callahan `print-ready.pdf` was then regenerated with per-field rule
-    placement (bridge-private `08e8007`), newer than the 2026-08-24 physical
-    proof.
-  - Note: layout per `renderer/make_two_sided_card.py`'s docstring; the HTML
-    card fits with ~17pt of height to spare — no warning.
-  - Note: the physical proof passed (2026-08-24) — duplex registration, the
-    book-page flip in hand, and the holder fit with the one cut.
-
-- [ ] **Split and review the SWAN–Bridgodex converter** {#swan-review}: once
-      #land-branch lands the rest, break "Convert cards between SWAN and
-      Bridgodex, both directions" into several smaller commits, and review
-      those. The user asked for the split (2026-09-13).
+- [ ] **Split, review, and land the SWAN–Bridgodex converter** {#swan-review}:
+      the rest of `worktree-card-renderer` landed 2026-09-13, leaving its last
+      commit, "Convert cards between SWAN and Bridgodex, both directions", on
+      the branch. The user asked for it to be broken into several smaller
+      commits and reviewed one by one before it lands.
   - Note: raise during that review — `swan/bw_lead_bolds.py` imports pypdfium2
     at run time, but `convention_cards/pyproject.toml` declares it only in the
     `dev` group.
