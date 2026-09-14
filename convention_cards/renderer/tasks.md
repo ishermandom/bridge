@@ -22,18 +22,72 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 
 ## Test speed
 
-- [ ] **Keep the default suite to fast unit tests** {#test-latency}: the user's
-      bar is that a unit test runs within ~10ms, and anything slower belongs in
-      a separate suite. Either make the rendering tests fast enough to meet it,
-      or move them to a suite that runs on demand rather than on every turn.
-  - Note: measured 2026-09-13 — the subproject's 81 tests took 4.3s, 3.55s of it
-    in `render_card_test.py`, whose 17 full-card renders cost 0.13–0.35s each.
-    Also over the bar: `rule_positions_test.py`'s fresh measurement (0.36s, a
-    1200-dpi render), three `geometry_test.py` tests (~30ms each), and two
-    `make_two_sided_card_test.py` tests (10–20ms). Rerun pytest over
-    `convention_cards` with `--durations=30` for the current list.
-  - Open question: if the slow tests move to an on-demand suite, what runs that
-    suite before landing, so a rendering regression can't reach `main` unseen.
+- [~] **Keep the default suite to fast unit tests** {#test-latency}: the user's
+  bar is that a unit test runs within ~10ms, and anything slower belongs in a
+  separate suite. Either make the rendering tests fast enough to meet it, or
+  move them to a suite that runs on demand rather than on every turn.
+  - Note: measured 2026-09-13 after the speedups — the suite went from 5.2s to
+    0.73s in pytest. About fifteen tests remain over the bar, ~0.5s together:
+    most rasterize the card (~18ms a page), the rule check spends 27ms of its
+    ~45ms loading field geometry, and the rest absorb one-time costs such as the
+    card's first parse. Rerun pytest over `convention_cards` with
+    `--durations=20` for the current list.
+  - Open question: whether to split the slow tests out, and how. A spike that
+    deselected fifteen of them measured the per-turn run at 0.34s. Claude's
+    recommended shape: mark them `slow`; a root `conftest.py` deselects `slow`
+    only when `PYTEST_FROM_HOOK` is set — the Stop hook sets it and nothing
+    reads it yet — so every other run stays complete; and `git land` runs the
+    full suite between its rebase and fast-forward, a dotfiles change. CI can't
+    take the slow suite: the base card and fonts are private assets. Running
+    tests in parallel (root `tasks.md` #parallel-pytest) would absorb most of
+    these into its floor, which may make the split unnecessary.
+- [ ] **Consider checking entry placement on the overlay alone**
+      {#overlay-only-checks}: seven tests — three that an entry changes nothing
+      outside its spot, four that look for underline extensions — each render
+      the full card, then rasterize all of it or a box of it: 11–32ms apiece,
+      ~140ms together. Rasterizing only the overlay, on a transparent
+      background, measured 5.8ms for a name entry, so the seven would take ~35ms
+      together, saving ~0.1s per run.
+  - Note: they would stop seeing anything that goes wrong in the merge itself.
+    Today's tests subtract the blank card, so they compare ink against field
+    coordinates, never against the artwork. The merge could fail in two ways: a
+    resource-name clash, which can't happen today because the card's page holds
+    no fonts and the overlay holds nothing else; or the overlay shifted relative
+    to the artwork, which today's tests catch only past their ~1pt slack. The
+    golden test sees both, down to a fraction of a 150-dpi pixel.
+  - Note: a ~10ms test that the overlay's resource names never overlap the card
+    page's would flag the first case the moment it became possible.
+
+---
+
+## Test robustness
+
+**Goal:** the pixel tests in `render_card_test.py` keep testing what they claim
+when the card's layout changes, rather than going stale or passing vacuously.
+
+- [ ] **Pair each absence check with a presence control** {#presence-controls}:
+      an assertion that nothing appears proves something only if the same probe
+      sees the thing when it's there.
+      `test_a_sibling_overflow_extends_a_blank_rows_rule` lacks a blank-card
+      control, and `test_a_fitting_entry_leaves_its_printed_rule_alone` needs a
+      twin showing that an overflowing entry in the same row does change its
+      gutter.
+- [ ] **Take layout facts from the card, not from literals**
+      {#derived-test-geometry}: the tests hard-code where fields and rules sit
+      on today's card. Derive those positions from `BaseCard.fields` and
+      `RULE_TOPS`, so a revised card moves the checks with it. Keep design
+      values literal — the 1NT family's shared right edge at x=443.2, for
+      example — since those are what the tests assert.
+  - Note: not circular. The field rectangles come straight from the card's form,
+    and `rule_positions_test.py` checks the rule table against the artwork.
+- [ ] **Check underline extensions by what's drawn, not by red pixels**
+      {#drawn-extension-checks}: read the page's drawing instructions, as
+      `measure_rule_positions.py` does, and assert a bar in the panel's red from
+      the printed end to the shared edge at the rule's height. Do it with
+      #print-color-mode, whose black-and-white option would break the red-ink
+      detection anyway.
+  - Note: keep pixel checks where pixels are the point — the blank-card identity
+    test and the golden.
 
 ---
 
