@@ -4,8 +4,11 @@
 """End-to-end tests: JSON in, ACBL card PDF out.
 
 The pixel tests rasterize through pypdfium2: the blank card must match the
-original exactly — the core pixel-perfection guarantee — and entries must change
-pixels without disturbing anything else.
+original exactly — the core pixel-perfection guarantee — and entries must land
+where they belong. The placement checks render onto a base card with the real
+card's fields but none of its artwork, so the card's printing can neither hide
+an entry nor pass for one; the golden test covers where entries land among the
+artwork.
 """
 
 import functools
@@ -13,6 +16,7 @@ import json
 from collections.abc import Mapping
 from io import BytesIO, StringIO
 from pathlib import Path
+from typing import NamedTuple
 
 import pypdfium2
 import pytest
@@ -47,33 +51,99 @@ _BASE_PDF_BYTES = DEFAULT_BASE_PDF_PATH.read_bytes()
 # times what a render does.
 _BASE_CARD = load_base_card(BytesIO(_BASE_PDF_BYTES))
 
+# The real card's fields over an empty page. A render onto it holds only what
+# the entries draw, with none of the card's printed artwork around them.
+_CARD_WITHOUT_ARTWORK = BaseCard(
+  page=PdfWriter().add_blank_page(CARD_WIDTH, CARD_HEIGHT),
+  fields=_BASE_CARD.fields,
+)
+
 _FONTS = register_entry_fonts()
 
 _RASTER_SCALE = 300 / 72  # 300 dpi
 
 
+class _Box(NamedTuple):
+  """A box on the card page, in points, with the origin at its bottom-left."""
+
+  left: float
+  bottom: float
+  right: float
+  top: float
+
+
+_WHOLE_PAGE = _Box(0, 0, CARD_WIDTH, CARD_HEIGHT)
+
+
 def _rasterize(pdf_bytes: bytes) -> Image.Image:
-  """Render a PDF's single card page to an image, ignoring form widgets."""
-  return _rasterize_box(pdf_bytes, 0, 0, CARD_WIDTH, CARD_HEIGHT)
+  """Render a PDF's single card page on white, ignoring form widgets.
+
+  White is the paper the card prints on, so the image shows the page as a reader
+  sees it. Use this to compare whole cards.
+  """
+  return _rasterize_box(pdf_bytes, _WHOLE_PAGE, fill_color=(255, 255, 255, 255))
+
+
+def _rasterize_ink(pdf_bytes: bytes, box: _Box = _WHOLE_PAGE) -> Image.Image:
+  """Render one box of a PDF's single page on a transparent background.
+
+  Only what the page draws is opaque, so a pixel's alpha says whether any ink
+  landed there, whatever its color; on white, white ink would vanish. Use this
+  on renders onto `_CARD_WITHOUT_ARTWORK`, to find what the entries drew: on the
+  real card, the printed artwork would count as ink too.
+  """
+  return _rasterize_box(pdf_bytes, box, fill_color=(255, 255, 255, 0))
 
 
 def _rasterize_box(
-  pdf_bytes: bytes, left: float, bottom: float, right: float, top: float
+  pdf_bytes: bytes, box: _Box, fill_color: tuple[int, int, int, int]
 ) -> Image.Image:
-  """Render one box of a PDF's single page, ignoring form widgets.
+  """Render one box of a PDF's single page over `fill_color`.
 
-  The box is in PDF points, origin bottom-left. A small box renders in a
-  fraction of the time the whole page takes.
+  Form widgets are left out. A small box renders in a fraction of the time the
+  whole page takes.
   """
   document = pypdfium2.PdfDocument(pdf_bytes)
   try:
     page = document[0]
     # PDFium crops by how far to cut in from each edge of the page.
-    crop = (left, bottom, page.get_width() - right, page.get_height() - top)
-    bitmap = page.render(scale=_RASTER_SCALE, crop=crop, may_draw_forms=False)
+    crop = (
+      box.left,
+      box.bottom,
+      page.get_width() - box.right,
+      page.get_height() - box.top,
+    )
+    bitmap = page.render(
+      scale=_RASTER_SCALE,
+      crop=crop,
+      may_draw_forms=False,
+      fill_color=fill_color,
+    )
     return bitmap.to_pil()
   finally:
     document.close()
+
+
+def _ink_bounds(pdf_bytes: bytes) -> _Box | None:
+  """The box around all the ink on a PDF's page, or None if there is none."""
+  pixels = _rasterize_ink(pdf_bytes).getchannel('A').getbbox()
+  if not pixels:
+    return None
+  # Pixel rows count down from the page's top edge, and points count up from its
+  # bottom edge.
+  left, top, right, bottom = pixels
+  return _Box(
+    left / _RASTER_SCALE,
+    CARD_HEIGHT - bottom / _RASTER_SCALE,
+    right / _RASTER_SCALE,
+    CARD_HEIGHT - top / _RASTER_SCALE,
+  )
+
+
+def _has_ink(pdf_bytes: bytes, box: _Box) -> bool:
+  """Whether a PDF's page draws anything inside `box`."""
+  alpha = _rasterize_ink(pdf_bytes, box).getchannel('A')
+  return alpha.getbbox() is not None
 
 
 def _page_text(pdf_bytes: bytes) -> str:
@@ -94,26 +164,16 @@ def _render(
   return render_card(card_json, _BASE_CARD, _FONTS)
 
 
+def _render_without_artwork(settings: Mapping[str, object]) -> bytes:
+  """Render the given settings onto `_CARD_WITHOUT_ARTWORK`."""
+  card_json = StringIO(json.dumps({'settings': settings}))
+  return render_card(card_json, _CARD_WITHOUT_ARTWORK, _FONTS).pdf
+
+
 @functools.cache
 def _blank_card_pdf() -> bytes:
-  """The rendered blank card, computed once and shared.
-
-  For a box comparison (`_rasterize_box`) or a check of the PDF itself, use this
-  rather than `_blank_card_image`. A box render doesn't line up with a slice of
-  a full-page raster, so both sides of a box comparison must render the box from
-  their own PDFs.
-  """
+  """The rendered blank card, computed once and shared."""
   return _render({}).pdf
-
-
-@functools.cache
-def _blank_card_image() -> Image.Image:
-  """The rendered blank card's full-page raster, computed once and shared.
-
-  Compare it only against another whole-page `_rasterize` result; for a box, use
-  `_blank_card_pdf`.
-  """
-  return _rasterize(_blank_card_pdf())
 
 
 # --- pixel fidelity ---
@@ -121,7 +181,7 @@ def _blank_card_image() -> Image.Image:
 
 def test_blank_card_matches_the_original_pixel_for_pixel() -> None:
   difference = ImageChops.difference(
-    _blank_card_image(), _rasterize(_BASE_PDF_BYTES)
+    _rasterize(_blank_card_pdf()), _rasterize(_BASE_PDF_BYTES)
   )
   assert difference.getbbox() is None
 
@@ -135,21 +195,15 @@ def test_the_base_card_stays_blank_across_renders() -> None:
   assert _render({}).pdf == before
 
 
-def test_an_entry_changes_pixels_only_inside_its_field() -> None:
-  blank = _blank_card_image()
-  named = _rasterize(_render({'names': {'names': 'First Last'}}).pdf)
+def test_an_entry_draws_only_inside_its_field() -> None:
+  ink = _ink_bounds(_render_without_artwork({'names': {'names': 'First Last'}}))
 
-  changed = ImageChops.difference(blank, named).getbbox()
-  assert changed is not None
-
-  # The Name field spans x in [332.6, 571.0], y in [594.3, 608.2] (PDF points,
-  # origin bottom-left). In image coordinates (origin top-left), that is y in
-  # [612 - 608.2, 612 - 594.3] scaled to pixels.
-  left, top, right, bottom = changed
-  assert left >= 332 * _RASTER_SCALE
-  assert right <= 572 * _RASTER_SCALE
-  assert top >= (612 - 609) * _RASTER_SCALE
-  assert bottom <= (612 - 594) * _RASTER_SCALE
+  # The Name field spans x in [332.6, 571.0], y in [594.3, 608.2].
+  assert ink is not None
+  assert ink.left >= 332
+  assert ink.right <= 572
+  assert ink.bottom >= 594
+  assert ink.top <= 609
 
 
 # --- form stripping ---
@@ -225,29 +279,26 @@ def test_an_overflowing_entry_wraps_onto_extra_lines() -> None:
 
 
 def test_wrapped_lines_stay_within_the_field_and_its_bleed() -> None:
-  blank = _blank_card_image()
   long_names = 'First Last, Second Partner, and their many conventions' * 2
-  wrapped = _rasterize(_render({'names': {'names': long_names}}).pdf)
-
-  changed = ImageChops.difference(blank, wrapped).getbbox()
-  assert changed is not None
+  ink = _ink_bounds(_render_without_artwork({'names': {'names': long_names}}))
 
   # The Name field spans y in [594.3, 608.2]pt plus a small upward bleed, so ink
   # may start no higher than ~611pt. Baselines sit on the field's rule, so
   # descenders dip a couple of points below it — but no line may stack far
   # outside the field in either direction.
-  _left, top, _right, bottom = changed
-  assert top >= (612 - 611) * _RASTER_SCALE
-  assert bottom <= (612 - 590) * _RASTER_SCALE
+  assert ink is not None
+  assert ink.top <= 611
+  assert ink.bottom >= 590
 
 
-def _has_red_bar_ink(card_pdf: bytes, bar_y: float) -> bool:
-  """Whether the far-end extension strip around one bar height holds red ink.
+def _has_red_bar_ink(pdf_bytes: bytes, bar_y: float) -> bool:
+  """Whether a render draws red in the far-end strip around one bar height.
 
-  The strip (x in [438, 443]) sits past any entry text's reach, so only an
-  underline extension can put ink there.
+  The strip (x in [438, 443]) lies just short of the 1NT panel's shared right
+  edge, where an underline extension ends. Entry text may reach it too, but
+  draws in the entry color, never red, as long as it holds no red suit symbol.
   """
-  strip = _rasterize_box(card_pdf, 438, bar_y - 0.6, 443, bar_y + 0.6)
+  strip = _rasterize_ink(pdf_bytes, _Box(438, bar_y - 0.6, 443, bar_y + 0.6))
   data = strip.convert('RGB').tobytes()
   return any(
     data[index] > 180 and data[index + 1] < 90 and data[index + 2] < 90
@@ -256,15 +307,14 @@ def _has_red_bar_ink(card_pdf: bytes, bar_y: float) -> bool:
 
 
 def test_an_entry_overflowing_its_rule_extends_the_underline() -> None:
-  blank = _blank_card_pdf()
-  long_entry = _render({'1_no_trump': {'2d_other': 'tfr, then asking'}}).pdf
+  long_entry = _render_without_artwork(
+    {'1_no_trump': {'2d_other': 'tfr, then asking'}}
+  )
 
   # The 1NT "Other" row's printed underline (bar y 274.6) ends at x=424.8; the
   # entry above overflows it, so the underline must continue toward the shared
-  # right edge at x=443.2 — red ink in the far-end strip only an extension
-  # reaches, absent from the blank card.
+  # right edge at x=443.2 — red ink in the far-end strip.
   assert _has_red_bar_ink(long_entry, bar_y=274.6)
-  assert not _has_red_bar_ink(blank, bar_y=274.6)
 
 
 # One overflowing entry must extend the underlines of the whole 1NT family — a
@@ -276,30 +326,25 @@ _ONE_OVERFLOWING_1NT_ENTRY = {
 
 
 def test_a_sibling_overflow_extends_a_fitting_rows_rule() -> None:
-  extended = _render(_ONE_OVERFLOWING_1NT_ENTRY).pdf
+  extended = _render_without_artwork(_ONE_OVERFLOWING_1NT_ENTRY)
 
   # The fitting 'short' entry's row: field 1NT.t.11, bar at y=274.4-274.7.
   assert _has_red_bar_ink(extended, bar_y=274.6)
 
 
 def test_a_sibling_overflow_extends_a_blank_rows_rule() -> None:
-  extended = _render(_ONE_OVERFLOWING_1NT_ENTRY).pdf
+  extended = _render_without_artwork(_ONE_OVERFLOWING_1NT_ENTRY)
 
   # A row with no entry at all: field 1NT.t.17, bar at y=252.3-252.7.
   assert _has_red_bar_ink(extended, bar_y=252.5)
 
 
 def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
-  blank = _blank_card_pdf()
-  short_entry = _render({'1_no_trump': {'2d_other': 'short'}}).pdf
+  short_entry = _render_without_artwork({'1_no_trump': {'2d_other': 'short'}})
 
-  # A fitting entry must not redraw anything in the gutter right of its field's
+  # A fitting entry must not draw anything in the gutter right of its field's
   # end (x=425.3): no extension, no stray ink.
-  gutter = (426, 272, 444, 277)  # left, bottom, right, top
-  difference = ImageChops.difference(
-    _rasterize_box(blank, *gutter), _rasterize_box(short_entry, *gutter)
-  )
-  assert difference.getbbox() is None
+  assert not _has_ink(short_entry, _Box(426, 272, 444, 277))
 
 
 def test_an_unfittable_entry_is_rejected_naming_the_field() -> None:
@@ -373,19 +418,17 @@ def test_a_checkbox_value_other_than_on_is_rejected() -> None:
 
 
 def test_a_lead_circle_rings_the_selected_card() -> None:
-  blank = _blank_card_image()
-  circled = _rasterize(_render({'leads_vs_suits': {'honor_leads_KQx': 2}}).pdf)
-
-  changed = ImageChops.difference(blank, circled).getbbox()
-  assert changed is not None
+  ink = _ink_bounds(
+    _render_without_artwork({'leads_vs_suits': {'honor_leads_KQx': 2}})
+  )
 
   # The Q of the printed KQx holding sits at x 29.4-33.8, y 34.3-41.0 (PDF
   # points); the ring hugs that box, so allow a few points of slack.
-  left, top, right, bottom = changed
-  assert left >= 26 * _RASTER_SCALE
-  assert right <= 37 * _RASTER_SCALE
-  assert top >= (612 - 44) * _RASTER_SCALE
-  assert bottom <= (612 - 31) * _RASTER_SCALE
+  assert ink is not None
+  assert ink.left >= 26
+  assert ink.right <= 37
+  assert ink.bottom >= 31
+  assert ink.top <= 44
 
 
 def test_an_out_of_range_circle_position_is_rejected() -> None:

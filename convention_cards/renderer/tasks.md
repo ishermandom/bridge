@@ -41,20 +41,6 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
     take the slow suite: the base card and fonts are private assets. Running
     tests in parallel (root `tasks.md` #parallel-pytest) would absorb most of
     these into its floor, which may make the split unnecessary.
-- [ ] **Consider checking entry placement on the overlay alone**
-      {#overlay-only-checks}: seven tests — three that an entry changes nothing
-      outside its spot, four that look for underline extensions — each render
-      the full card, then rasterize all of it or a box of it: 11–32ms apiece,
-      ~140ms together. Rasterizing only the overlay, on a transparent
-      background, measured 5.8ms for a name entry, so the seven would take ~35ms
-      together, saving ~0.1s per run.
-  - Note: they would stop seeing anything that goes wrong in the merge itself.
-    Today's tests subtract the blank card, so they compare ink against field
-    coordinates, never against the artwork. The one way left for the merge to
-    fail is the overlay shifted relative to the artwork — resource names can't
-    clash, since the overlay keeps its own inside a form XObject — and today's
-    tests catch a shift only past their ~1pt slack. The golden test sees one
-    down to a fraction of a 150-dpi pixel.
 
 ---
 
@@ -66,10 +52,8 @@ when the card's layout changes, rather than going stale or passing vacuously.
 - [ ] **Pair each absence check with a presence control** {#presence-controls}:
       an assertion that nothing appears proves something only if the same probe
       sees the thing when it's there.
-      `test_a_sibling_overflow_extends_a_blank_rows_rule` lacks a blank-card
-      control, and `test_a_fitting_entry_leaves_its_printed_rule_alone` needs a
-      twin showing that an overflowing entry in the same row does change its
-      gutter.
+      `test_a_fitting_entry_leaves_its_printed_rule_alone` needs a twin showing
+      that an overflowing entry in the same row does draw in its gutter.
 - [ ] **Take layout facts from the card, not from literals**
       {#derived-test-geometry}: the tests hard-code where fields and rules sit
       on today's card. Derive those positions from `BaseCard.fields` and

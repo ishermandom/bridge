@@ -46,6 +46,8 @@ class PdfPage:
     rotation: int = 0,
     crop: tuple[float, float, float, float] = (0, 0, 0, 0),
     may_draw_forms: bool = True,
+    *,
+    fill_color: tuple[int, int, int, int] = (255, 255, 255, 255),
   ) -> PdfBitmap: ...
   def get_textpage(self) -> PdfTextPage: ...
   def get_objects(
