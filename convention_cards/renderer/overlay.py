@@ -226,10 +226,9 @@ class Palette:
 # explored alternatives: `palette_specimen.py`. Entries default to black:
 # colored text halftones to a lighter gray and costs contrast.
 #
-# The hand-built Callahan HTML card (bridge-private
-# `convention_cards/callahan/custom.html`) mirrors these suit colors; when
-# changing the palette, update that card's `suit-symbol` rules in the same
-# breath.
+# A hand-built HTML card in bridge-private's `convention_cards/` directory
+# mirrors these suit colors; when changing the palette, update that card's
+# `suit-symbol` rules in the same breath.
 DEFAULT_PALETTE = Palette(
   entry=HexColor(0x000000),
   spades=HexColor(0x1F4AFF),
