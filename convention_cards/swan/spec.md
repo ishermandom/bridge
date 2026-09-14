@@ -84,8 +84,11 @@ it):
   is SWAN-only and written as `""`, and converting a Bridgodex card that ticks
   the box warns to tick it on BridgeWinners by hand.
 
-These compensations mirror BridgeWinners' exporter as observed; if that exporter
-is ever fixed, each compensation must be undone (`tasks.md #export-bugs`).
+BridgeWinners' importer reads the swapped fields the same crossed way: a
+generated file imports with the intended boxes checked and the free lines
+filled, so the compensations hold in both directions. They mirror BridgeWinners
+as observed; if it ever fixes its exporter or importer, each compensation must
+be revisited (`tasks.md #export-bugs`).
 
 ## Lead circles versus the bold defaults {#lead-circles}
 
