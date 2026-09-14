@@ -50,13 +50,11 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
       together, saving ~0.1s per run.
   - Note: they would stop seeing anything that goes wrong in the merge itself.
     Today's tests subtract the blank card, so they compare ink against field
-    coordinates, never against the artwork. The merge could fail in two ways: a
-    resource-name clash, which can't happen today because the card's page holds
-    no fonts and the overlay holds nothing else; or the overlay shifted relative
-    to the artwork, which today's tests catch only past their ~1pt slack. The
-    golden test sees both, down to a fraction of a 150-dpi pixel.
-  - Note: a ~10ms test that the overlay's resource names never overlap the card
-    page's would flag the first case the moment it became possible.
+    coordinates, never against the artwork. The one way left for the merge to
+    fail is the overlay shifted relative to the artwork — resource names can't
+    clash, since the overlay keeps its own inside a form XObject — and today's
+    tests catch a shift only past their ~1pt slack. The golden test sees one
+    down to a fraction of a 150-dpi pixel.
 
 ---
 

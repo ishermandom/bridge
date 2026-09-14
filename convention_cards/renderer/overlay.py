@@ -4,8 +4,8 @@
 """Draws entered content onto a transparent, card-sized overlay page.
 
 The overlay carries only the user's entries — text in the entry palette, X marks
-across checkboxes, rings around lead-chart cards — and is later merged on top of
-the untouched base card page.
+across checkboxes, rings around lead-chart cards — and is later drawn over the
+untouched base card page.
 
 Every length and font size here is in PDF points (1/72 inch), and positions use
 the card page's own coordinates (see `geometry.CardField`).
@@ -301,7 +301,7 @@ def build_overlay(
         )
 
   # End the page explicitly: `save` emits a page only if something was drawn on
-  # it, and a card with no entries still needs an overlay page to merge.
+  # it, and a card with no entries still needs an overlay page to draw.
   canvas.showPage()
   canvas.save()
   return OverlayResult(pdf=buffer.getvalue(), resized=tuple(resized))

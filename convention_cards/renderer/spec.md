@@ -47,8 +47,12 @@ diff. Reusing the page is pixel-perfect by construction and survives future ACBL
 revisions by swapping the base file.
 
 - **Overlay**: drawn with `reportlab` (which embeds the custom font and exposes
-  exact glyph widths), merged with `pypdf` — the same stack `make_card.py`
-  already uses.
+  exact glyph widths), placed with `pypdf` — the same stack `make_card.py`
+  already uses. The overlay joins the page as a form XObject
+  (`render_card._draw_overlay`) rather than through `pypdf`'s page merge. The
+  merge rewrites the overlay's drawing instructions into the page's own: it
+  parses them to clip them and to rename any resource names that clash with the
+  page's, then stores them uncompressed. A form XObject needs none of that.
 - **The form fields are a geometry database, not a filling mechanism.** Each
   field supplies its name, rectangle, and default font size (read from the
   field's default-appearance string, `/DA`). We never fill fields: how a filled

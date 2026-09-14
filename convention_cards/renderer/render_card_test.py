@@ -18,8 +18,8 @@ import pypdfium2
 import pytest
 from bridgodex_key import BridgodexKey
 from PIL import Image, ImageChops
-from pypdf import PdfReader
-from pypdf.generic import DictionaryObject
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import DictionaryObject, NameObject, NullObject
 
 from renderer.fonts import register_entry_fonts
 from renderer.geometry import CARD_HEIGHT, CARD_WIDTH
@@ -33,6 +33,7 @@ from renderer.regenerate_goldens import (
 )
 from renderer.render_card import (
   DEFAULT_BASE_PDF_PATH,
+  BaseCard,
   RenderResult,
   load_base_card,
   main,
@@ -161,6 +162,26 @@ def test_output_carries_no_form_machinery() -> None:
   assert isinstance(root, DictionaryObject)
   assert '/AcroForm' not in root
   assert '/Annots' not in reader.pages[0]
+
+
+# --- the overlay's form XObject ---
+
+
+def test_a_base_card_already_using_the_overlays_name_is_rejected() -> None:
+  # The overlay joins the card page's resources under the name /CardOverlay, so
+  # a page already using that name is refused rather than overwritten.
+  page = PdfWriter().add_blank_page(CARD_WIDTH, CARD_HEIGHT)
+  page[NameObject('/Resources')] = DictionaryObject(
+    {
+      NameObject('/XObject'): DictionaryObject(
+        {NameObject('/CardOverlay'): NullObject()}
+      )
+    }
+  )
+  base_card = BaseCard(page=page, fields=_BASE_CARD.fields)
+
+  with pytest.raises(ValueError, match='CardOverlay'):
+    render_card(StringIO('{"settings": {}}'), base_card, _FONTS)
 
 
 # --- text entries and resizing ---

@@ -4,7 +4,7 @@
 """Render a convention card JSON file onto the official ACBL card PDF.
 
 The base card page passes through untouched — pixel-perfect by construction —
-and the entered content merges on top as an overlay in a swappable font (see
+and the entered content goes on top as an overlay in a swappable font (see
 `spec.md`). The tool prints a report of every field whose entry had to shrink
 below the field's default size, so the user can see where content is pushing the
 limits.
@@ -23,7 +23,12 @@ from pathlib import Path
 from typing import BinaryIO, TextIO
 
 from pypdf import PageObject, PdfReader, PdfWriter
-from pypdf.generic import NameObject
+from pypdf.generic import (
+  ContentStream,
+  DictionaryObject,
+  NameObject,
+  StreamObject,
+)
 from reportlab.lib.colors import HexColor
 
 from renderer.fonts import (
@@ -44,6 +49,9 @@ from renderer.private_paths import discover_private_assets
 from renderer.vocabulary import resolve_settings
 
 DEFAULT_BASE_PDF_PATH = discover_private_assets().base_acbl_card_pdf
+
+# The name the output page's resources give the overlay's form XObject.
+_OVERLAY_FORM_NAME = NameObject('/CardOverlay')
 
 
 @dataclass(frozen=True)
@@ -93,7 +101,7 @@ def render_card(
   palette: Palette = DEFAULT_PALETTE,
   size_floor: float = DEFAULT_SIZE_FLOOR,
 ) -> RenderResult:
-  """Render the card JSON over the base card and return the merged PDF.
+  """Render the card JSON over the base card and return the finished PDF.
 
   Raises:
     ValueError: if the card JSON is malformed or asks for something the card
@@ -110,7 +118,7 @@ def render_card(
   # plain document.
   writer = PdfWriter()
   page = writer.add_page(base_card.page)
-  page.merge_page(PdfReader(BytesIO(overlay.pdf)).pages[0])
+  _draw_overlay(writer, page, PdfReader(BytesIO(overlay.pdf)).pages[0])
 
   output = BytesIO()
   writer.write(output)
@@ -147,6 +155,70 @@ def _validated_settings(card_json: TextIO) -> dict[str, object]:
   if not isinstance(settings, dict):
     raise ValueError(f'settings must be an object, got {settings!r:.120}')
   return settings
+
+
+def _draw_overlay(
+  writer: PdfWriter, page: PageObject, overlay_page: PageObject
+) -> None:
+  """Draw `overlay_page` over `page`, which belongs to `writer`.
+
+  The overlay goes in as a form XObject: a self-contained drawing that `page`
+  paints by name. The form keeps the overlay's drawing instructions as they are,
+  still compressed, and its own resources, so none of the overlay's resource
+  names can collide with the page's.
+
+  Raises:
+    ValueError: if the overlay's page holds anything but a single stream of
+      drawing instructions, or `page` already has a resource by the form's
+      name.
+  """
+  # Cloning the stream's reference copies the stream into `writer`, which gives
+  # the copy a reference of its own there.
+  form_reference = overlay_page.raw_get(NameObject('/Contents')).clone(writer)
+  form = form_reference.get_object()
+  if not isinstance(form, StreamObject):
+    raise ValueError(
+      f'overlay page must hold one content stream, got {type(form).__name__}'
+    )
+  form[NameObject('/Type')] = NameObject('/XObject')
+  form[NameObject('/Subtype')] = NameObject('/Form')
+  # A form draws only inside its box, so the overlay stays on its page.
+  form[NameObject('/BBox')] = overlay_page.mediabox
+  form[NameObject('/Resources')] = overlay_page.raw_get(
+    NameObject('/Resources')
+  ).clone(writer)
+
+  resources = _subdictionary(page, '/Resources')
+  xobjects = _subdictionary(resources, '/XObject')
+  if _OVERLAY_FORM_NAME in xobjects:
+    raise ValueError(
+      f'the card page already has a resource named {_OVERLAY_FORM_NAME}'
+    )
+  xobjects[_OVERLAY_FORM_NAME] = form_reference
+
+  # Draw the page's own content inside a saved graphics state, so no state it
+  # leaves behind reaches the overlay, and then paint the form over it.
+  content = page.get_contents()
+  if content is None:
+    content = ContentStream(None, writer)
+  content.isolate_graphics_state()
+  content.set_data(content.get_data() + f'{_OVERLAY_FORM_NAME} Do\n'.encode())
+  page.replace_contents(content)
+
+
+def _subdictionary(parent: DictionaryObject, key: str) -> DictionaryObject:
+  """The dictionary `parent` holds under `key`, added empty if absent.
+
+  Raises:
+    ValueError: if `key` holds something other than a dictionary.
+  """
+  name = NameObject(key)
+  if name not in parent:
+    parent[name] = DictionaryObject()
+  value = parent[name]
+  if not isinstance(value, DictionaryObject):
+    raise ValueError(f'{key} holds a {type(value).__name__}, not a dictionary')
+  return value
 
 
 def main(argv: Sequence[str] | None = None, stdin: TextIO = sys.stdin) -> int:
