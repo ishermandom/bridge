@@ -3,10 +3,21 @@
 
 """Behavior tests for the SWAN <-> Bridgodex converters."""
 
+import json
+from pathlib import Path
+
 import pytest
 from bridgodex_key import BridgodexKey
 
-from swan import swan_to_bridgodex
+from swan import bridgodex_to_swan, swan_to_bridgodex
+from swan.swan_mapping import BRIDGODEX_ONLY
+
+_FULL_EXPORT_PATH = (
+  Path(__file__).resolve().parent.parent
+  / 'renderer'
+  / 'testdata'
+  / 'full_export.json'
+)
 
 
 def _swan(card: dict[str, object]) -> dict[str, object]:
@@ -143,3 +154,96 @@ def test_without_a_bolds_map_nothing_is_synthesized() -> None:
 
   assert result.document['settings'] == {}
   assert result.synthesized == ()
+
+
+# --- Bridgodex -> SWAN ---
+
+
+def test_an_on_checkbox_becomes_true_in_the_swan_skeleton() -> None:
+  result = bridgodex_to_swan.convert(
+    {'settings': {'majors': {'drury_2c': 'on'}}, 'notes': ''}
+  )
+
+  card = result.document['Convention_Card']
+  assert isinstance(card, dict)
+  assert card['New_Format'] is True
+  drury = card['Majors']['drury']
+  # The skeleton carries the unset sibling checkbox as false.
+  assert drury['two_clubs'] is True
+  assert drury['two_diamonds'] is False
+
+
+def test_a_circle_number_sets_exactly_its_position() -> None:
+  result = bridgodex_to_swan.convert(
+    {'settings': {'leads_vs_suits': {'honor_leads_KQx': 2}}, 'notes': ''}
+  )
+
+  card = result.document['Convention_Card']
+  assert isinstance(card, dict)
+  king_queen = card['Leads_vs_suits']['honor_leads']['king_queen']
+  assert king_queen == {'king': False, 'queen': True, 'low': False}
+
+
+def test_an_uncircled_holding_is_marked_at_its_bold_default() -> None:
+  # The ACBL card prints KQx's K in bold, and players circle a lead there only
+  # when it departs from the bold card, so an uncircled KQx means the K.
+  result = bridgodex_to_swan.convert({'settings': {}, 'notes': ''})
+
+  card = result.document['Convention_Card']
+  assert isinstance(card, dict)
+  king_queen = card['Leads_vs_suits']['honor_leads']['king_queen']
+  assert king_queen == {'king': True, 'queen': False, 'low': False}
+
+
+def test_an_uncircled_holding_without_a_bold_default_stays_unmarked() -> None:
+  # The ACBL card prints no bold card in AKx, so there is no default to mark.
+  result = bridgodex_to_swan.convert({'settings': {}, 'notes': ''})
+
+  card = result.document['Convention_Card']
+  assert isinstance(card, dict)
+  ace_king = card['Leads_vs_suits']['honor_leads']['ace_king']
+  # The AKx node also holds the "Varies" checkbox and its description; compare
+  # only the three card positions.
+  assert (ace_king['ace'], ace_king['king'], ace_king['low']) == (
+    False,
+    False,
+    False,
+  )
+
+
+def test_an_unknown_bridgodex_key_is_a_hard_error() -> None:
+  with pytest.raises(ValueError, match='mystery'):
+    bridgodex_to_swan.convert(
+      {'settings': {'majors': {'mystery': 'on'}}, 'notes': ''}
+    )
+
+
+def test_a_bridgodex_only_key_with_content_warns() -> None:
+  result = bridgodex_to_swan.convert(
+    {'settings': {'two_level': {'2h_2_suits': 'on'}}, 'notes': ''}
+  )
+
+  assert len(result.warnings) == 1
+  assert '2h_2_suits' in result.warnings[0]
+
+
+def test_a_boolean_circle_value_is_rejected() -> None:
+  with pytest.raises(ValueError, match='honor_leads_KQx'):
+    bridgodex_to_swan.convert(
+      {'settings': {'leads_vs_suits': {'honor_leads_KQx': True}}, 'notes': ''}
+    )
+
+
+# --- round trip ---
+
+
+def test_the_full_export_round_trips_through_swan() -> None:
+  document = json.loads(_FULL_EXPORT_PATH.read_text(encoding='utf-8'))
+  for setting in BRIDGODEX_ONLY:
+    document['settings'][setting.section].pop(setting.key, None)
+
+  swan_result = bridgodex_to_swan.convert(document)
+  round_tripped = swan_to_bridgodex.convert(swan_result.document)
+
+  assert round_tripped.document['settings'] == document['settings']
+  assert round_tripped.warnings == ()
