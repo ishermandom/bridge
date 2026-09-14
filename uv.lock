@@ -336,13 +336,13 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "fonttools" },
-    { name = "fonttools-stubs", directory = "stubs/fonttools" },
-    { name = "pypdfium2-stubs", directory = "stubs/pypdfium2" },
+    { name = "fonttools-stubs", editable = "stubs/fonttools" },
+    { name = "pypdfium2-stubs", editable = "stubs/pypdfium2" },
     { name = "types-reportlab" },
 ]
 types = [
-    { name = "fonttools-stubs", directory = "stubs/fonttools" },
-    { name = "pypdfium2-stubs", directory = "stubs/pypdfium2" },
+    { name = "fonttools-stubs", editable = "stubs/fonttools" },
+    { name = "pypdfium2-stubs", editable = "stubs/pypdfium2" },
     { name = "types-reportlab" },
 ]
 
@@ -411,7 +411,7 @@ wheels = [
 [[package]]
 name = "fonttools-stubs"
 version = "0.1.0"
-source = { directory = "stubs/fonttools" }
+source = { editable = "stubs/fonttools" }
 
 [[package]]
 name = "gitdb"
@@ -1251,7 +1251,7 @@ wheels = [
 [[package]]
 name = "pypdfium2-stubs"
 version = "0.1.0"
-source = { directory = "stubs/pypdfium2" }
+source = { editable = "stubs/pypdfium2" }
 
 [[package]]
 name = "pytest"

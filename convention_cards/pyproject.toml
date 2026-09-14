@@ -35,5 +35,7 @@ types = [
 package = false
 
 [tool.uv.sources]
-fonttools-stubs = { path = "../stubs/fonttools" }
-pypdfium2-stubs = { path = "../stubs/pypdfium2" }
+# Editable, so an edited stub takes effect on the next check without a
+# reinstall — see ../stubs/README.md.
+fonttools-stubs = { path = "../stubs/fonttools", editable = true }
+pypdfium2-stubs = { path = "../stubs/pypdfium2", editable = true }

@@ -9,14 +9,14 @@ version = "0.1.0"
 description = "Minimal local type stubs for the fontTools API this repo uses."
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.12"]
+# Why uv_build: see ../README.md #build-backend.
+build-backend = "uv_build"
 
-[tool.setuptools]
+[tool.uv.build-backend]
 # The `<package>-stubs` spelling — matching the import name's case, so
 # `fontTools`, not the distribution's lowercase — is what lets type checkers
 # resolve the stubs.
-packages = ["fontTools-stubs"]
-
-[tool.setuptools.package-data]
-"fontTools-stubs" = ["*.pyi"]
+module-name = "fontTools-stubs"
+# The stub directory sits beside this file rather than under `src/`.
+module-root = ""

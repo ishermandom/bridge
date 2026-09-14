@@ -10,13 +10,13 @@ version = "0.1.0"
 description = "Minimal local type stubs for the pypdfium2 API this repo uses."
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.12"]
+# Why uv_build: see ../README.md #build-backend.
+build-backend = "uv_build"
 
-[tool.setuptools]
+[tool.uv.build-backend]
 # Type checkers resolve the stubs only under the exact `<package>-stubs`
 # spelling — the naming requirement in the same spec chapter.
-packages = ["pypdfium2-stubs"]
-
-[tool.setuptools.package-data]
-"pypdfium2-stubs" = ["*.pyi"]
+module-name = "pypdfium2-stubs"
+# The stub directory sits beside this file rather than under `src/`.
+module-root = ""

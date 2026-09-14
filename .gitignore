@@ -19,5 +19,8 @@ node_modules/
 club_sites/palo_alto/fixtures/raw/
 session_analysis/travellers/
 
-# setuptools build scratch from building the local stub packages.
+# Leftover setuptools build scratch in checkouts that built the local stub
+# packages before they moved to uv_build, which writes none.
+# TODO: drop once every checkout has cleared them — tasks.md
+# #stub-build-leftovers.
 stubs/*/build/
