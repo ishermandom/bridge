@@ -223,12 +223,14 @@ def test_an_entry_draws_only_inside_its_field() -> None:
 
 
 def test_output_carries_no_form_machinery() -> None:
-  reader = PdfReader(BytesIO(_blank_card_pdf()))
+  original = PdfReader(BytesIO(_BASE_PDF_BYTES))
+  output = PdfReader(BytesIO(_blank_card_pdf()))
 
-  root = reader.trailer['/Root'].get_object()
-  assert isinstance(root, DictionaryObject)
-  assert '/AcroForm' not in root
-  assert '/Annots' not in reader.pages[0]
+  # The original card carries both pieces, so the checks can see them.
+  assert '/AcroForm' in original.root_object
+  assert '/Annots' in original.pages[0]
+  assert '/AcroForm' not in output.root_object
+  assert '/Annots' not in output.pages[0]
 
 
 # --- the overlay's form XObject ---
@@ -358,13 +360,18 @@ def test_a_sibling_overflow_extends_a_blank_rows_rule() -> None:
 
 def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
   short_entry = _render_without_artwork({'1_no_trump': {'2d_other': 'short'}})
+  long_entry = _render_without_artwork(
+    {'1_no_trump': {'2d_other': 'tfr, then asking'}}
+  )
 
   # A fitting entry must not draw anything in the gutter around its row's rule,
   # from its field's right edge to just past the shared right edge at x=443.2:
-  # no extension, no stray ink.
+  # no extension, no stray ink. An overflowing entry in the same row does draw
+  # there, so the probe can see what it's looking for.
   rule_top = RULE_TOPS['1NT.t.11']
   field = _field_box('1NT.t.11')
   gutter = _Box(field.right, rule_top - 2.5, 444, rule_top + 2.5)
+  assert _has_ink(long_entry, gutter)
   assert not _has_ink(short_entry, gutter)
 
 

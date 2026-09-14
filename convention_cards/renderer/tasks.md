@@ -49,11 +49,6 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 **Goal:** the pixel tests in `render_card_test.py` keep testing what they claim
 when the card's layout changes, rather than going stale or passing vacuously.
 
-- [ ] **Pair each absence check with a presence control** {#presence-controls}:
-      an assertion that nothing appears proves something only if the same probe
-      sees the thing when it's there.
-      `test_a_fitting_entry_leaves_its_printed_rule_alone` needs a twin showing
-      that an overflowing entry in the same row does draw in its gutter.
 - [ ] **Check underline extensions by what's drawn, not by red pixels**
       {#drawn-extension-checks}: read the page's drawing instructions, as
       `measure_rule_positions.py` does, and assert a bar in the panel's red from
