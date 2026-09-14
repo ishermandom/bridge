@@ -88,7 +88,7 @@ BridgeWinners' importer reads the swapped fields the same crossed way: a
 generated file imports with the intended boxes checked and the free lines
 filled, so the compensations hold in both directions. They mirror BridgeWinners
 as observed; if it ever fixes its exporter or importer, each compensation must
-be revisited (`tasks.md #export-bugs`).
+be revisited.
 
 ## Lead circles versus the bold defaults {#lead-circles}
 
