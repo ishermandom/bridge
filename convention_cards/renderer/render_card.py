@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import BinaryIO, TextIO
 
 from pypdf import PageObject, PdfReader, PdfWriter
+from pypdf.generic import NameObject
 from reportlab.lib.colors import HexColor
 
 from renderer.fonts import (
@@ -49,10 +50,10 @@ DEFAULT_BASE_PDF_PATH = discover_private_assets().base_acbl_card_pdf
 class BaseCard:
   """The blank ACBL card, parsed once so that any number of renders share it.
 
-  `page` is the card's only page, and `fields` its form's widget geometry (see
-  `geometry.load_card_fields`). Rendering copies the page into its own output
-  rather than drawing on it, so the page stays blank from one render to the
-  next.
+  `page` is the card's only page, stripped of its form widgets, and `fields` the
+  widgets' geometry (see `geometry.load_card_fields`). Rendering copies the page
+  into its own output rather than drawing on it, so the page stays blank from
+  one render to the next.
   """
 
   page: PageObject
@@ -75,10 +76,14 @@ def load_base_card(base_pdf: BinaryIO) -> BaseCard:
       expects.
   """
   base_bytes = base_pdf.read()
-  return BaseCard(
-    page=PdfReader(BytesIO(base_bytes)).pages[0],
-    fields=load_card_fields(BytesIO(base_bytes)),
-  )
+  fields = load_card_fields(BytesIO(base_bytes))
+
+  # The output never carries the widgets, so drop them from the page up front:
+  # pypdf's page copy otherwise reads every one of them looking for links, which
+  # costs more than the rest of the first copy combined.
+  page = PdfReader(BytesIO(base_bytes)).pages[0]
+  del page[NameObject('/Annots')]
+  return BaseCard(page=page, fields=fields)
 
 
 def render_card(
@@ -100,11 +105,11 @@ def render_card(
     placements, base_card.fields, fonts, palette, size_floor
   )
 
-  # Copy the page without its form widgets, so the output prints as a plain
-  # document. The copy leaves out the form dictionary too, which lives on the
-  # document rather than on the page.
+  # The page carries no widgets, and the copy leaves out the form dictionary,
+  # which lives on the document rather than the page — so the output prints as a
+  # plain document.
   writer = PdfWriter()
-  page = writer.add_page(base_card.page, excluded_keys=('/Annots',))
+  page = writer.add_page(base_card.page)
   page.merge_page(PdfReader(BytesIO(overlay.pdf)).pages[0])
 
   output = BytesIO()
