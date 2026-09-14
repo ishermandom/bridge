@@ -20,19 +20,6 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 
 ---
 
-## Landing
-
-- [ ] **Split, review, and land the SWAN–Bridgodex converter** {#swan-review}:
-      the rest of `worktree-card-renderer` landed 2026-09-13, leaving its last
-      commit, "Convert cards between SWAN and Bridgodex, both directions", on
-      the branch. The user asked for it to be broken into several smaller
-      commits and reviewed one by one before it lands.
-  - Note: raise during that review — `swan/bw_lead_bolds.py` imports pypdfium2
-    at run time, but `convention_cards/pyproject.toml` declares it only in the
-    `dev` group.
-
----
-
 ## Test speed
 
 - [ ] **Keep the default suite to fast unit tests** {#test-latency}: the user's
