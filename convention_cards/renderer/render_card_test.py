@@ -22,6 +22,7 @@ from pypdf import PdfReader
 from pypdf.generic import DictionaryObject
 
 from renderer.fonts import register_entry_fonts
+from renderer.geometry import CARD_HEIGHT, CARD_WIDTH
 from renderer.overlay import DEFAULT_SIZE_FLOOR
 from renderer.regenerate_goldens import (
   FULL_EXPORT_GOLDEN_PATH,
@@ -51,11 +52,25 @@ _RASTER_SCALE = 300 / 72  # 300 dpi
 
 
 def _rasterize(pdf_bytes: bytes) -> Image.Image:
-  """Render a PDF's single page to an image, ignoring form widgets."""
+  """Render a PDF's single card page to an image, ignoring form widgets."""
+  return _rasterize_box(pdf_bytes, 0, 0, CARD_WIDTH, CARD_HEIGHT)
+
+
+def _rasterize_box(
+  pdf_bytes: bytes, left: float, bottom: float, right: float, top: float
+) -> Image.Image:
+  """Render one box of a PDF's single page, ignoring form widgets.
+
+  The box is in PDF points, origin bottom-left. A small box renders in a
+  fraction of the time the whole page takes.
+  """
   document = pypdfium2.PdfDocument(pdf_bytes)
   try:
     page = document[0]
-    return page.render(scale=_RASTER_SCALE, may_draw_forms=False).to_pil()
+    # PDFium crops by how far to cut in from each edge of the page.
+    crop = (left, bottom, page.get_width() - right, page.get_height() - top)
+    bitmap = page.render(scale=_RASTER_SCALE, crop=crop, may_draw_forms=False)
+    return bitmap.to_pil()
   finally:
     document.close()
 
@@ -79,9 +94,25 @@ def _render(
 
 
 @functools.cache
+def _blank_card_pdf() -> bytes:
+  """The rendered blank card, computed once and shared.
+
+  For a box comparison (`_rasterize_box`) or a check of the PDF itself, use this
+  rather than `_blank_card_image`. A box render doesn't line up with a slice of
+  a full-page raster, so both sides of a box comparison must render the box from
+  their own PDFs.
+  """
+  return _render({}).pdf
+
+
+@functools.cache
 def _blank_card_image() -> Image.Image:
-  """The rendered blank card's raster, computed once and shared."""
-  return _rasterize(_render({}).pdf)
+  """The rendered blank card's full-page raster, computed once and shared.
+
+  Compare it only against another whole-page `_rasterize` result; for a box, use
+  `_blank_card_pdf`.
+  """
+  return _rasterize(_blank_card_pdf())
 
 
 # --- pixel fidelity ---
@@ -124,7 +155,7 @@ def test_an_entry_changes_pixels_only_inside_its_field() -> None:
 
 
 def test_output_carries_no_form_machinery() -> None:
-  reader = PdfReader(BytesIO(_render({}).pdf))
+  reader = PdfReader(BytesIO(_blank_card_pdf()))
 
   root = reader.trailer['/Root'].get_object()
   assert isinstance(root, DictionaryObject)
@@ -189,21 +220,14 @@ def test_wrapped_lines_stay_within_the_field_and_its_bleed() -> None:
   assert bottom <= (612 - 590) * _RASTER_SCALE
 
 
-def _has_red_bar_ink(card: Image.Image, bar_y: float) -> bool:
+def _has_red_bar_ink(card_pdf: bytes, bar_y: float) -> bool:
   """Whether the far-end extension strip around one bar height holds red ink.
 
   The strip (x in [438, 443]) sits past any entry text's reach, so only an
   underline extension can put ink there.
   """
-  strip = card.convert('RGB').crop(
-    (
-      int(438 * _RASTER_SCALE),
-      int((612 - bar_y - 0.6) * _RASTER_SCALE),
-      int(443 * _RASTER_SCALE),
-      int((612 - bar_y + 0.6) * _RASTER_SCALE),
-    )
-  )
-  data = strip.tobytes()
+  strip = _rasterize_box(card_pdf, 438, bar_y - 0.6, 443, bar_y + 0.6)
+  data = strip.convert('RGB').tobytes()
   return any(
     data[index] > 180 and data[index + 1] < 90 and data[index + 2] < 90
     for index in range(0, len(data), 3)
@@ -211,10 +235,8 @@ def _has_red_bar_ink(card: Image.Image, bar_y: float) -> bool:
 
 
 def test_an_entry_overflowing_its_rule_extends_the_underline() -> None:
-  blank = _blank_card_image()
-  long_entry = _rasterize(
-    _render({'1_no_trump': {'2d_other': 'tfr, then asking'}}).pdf
-  )
+  blank = _blank_card_pdf()
+  long_entry = _render({'1_no_trump': {'2d_other': 'tfr, then asking'}}).pdf
 
   # The 1NT "Other" row's printed underline (bar y 274.6) ends at x=424.8; the
   # entry above overflows it, so the underline must continue toward the shared
@@ -233,32 +255,28 @@ _ONE_OVERFLOWING_1NT_ENTRY = {
 
 
 def test_a_sibling_overflow_extends_a_fitting_rows_rule() -> None:
-  extended = _rasterize(_render(_ONE_OVERFLOWING_1NT_ENTRY).pdf)
+  extended = _render(_ONE_OVERFLOWING_1NT_ENTRY).pdf
 
   # The fitting 'short' entry's row: field 1NT.t.11, bar at y=274.4-274.7.
   assert _has_red_bar_ink(extended, bar_y=274.6)
 
 
 def test_a_sibling_overflow_extends_a_blank_rows_rule() -> None:
-  extended = _rasterize(_render(_ONE_OVERFLOWING_1NT_ENTRY).pdf)
+  extended = _render(_ONE_OVERFLOWING_1NT_ENTRY).pdf
 
   # A row with no entry at all: field 1NT.t.17, bar at y=252.3-252.7.
   assert _has_red_bar_ink(extended, bar_y=252.5)
 
 
 def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
-  blank = _blank_card_image()
-  short_entry = _rasterize(_render({'1_no_trump': {'2d_other': 'short'}}).pdf)
+  blank = _blank_card_pdf()
+  short_entry = _render({'1_no_trump': {'2d_other': 'short'}}).pdf
 
   # A fitting entry must not redraw anything in the gutter right of its field's
   # end (x=425.3): no extension, no stray ink.
-  left = int(426 * _RASTER_SCALE)
-  right = int(444 * _RASTER_SCALE)
-  top = int((612 - 277) * _RASTER_SCALE)
-  bottom = int((612 - 272) * _RASTER_SCALE)
+  gutter = (426, 272, 444, 277)  # left, bottom, right, top
   difference = ImageChops.difference(
-    blank.crop((left, top, right, bottom)),
-    short_entry.crop((left, top, right, bottom)),
+    _rasterize_box(blank, *gutter), _rasterize_box(short_entry, *gutter)
   )
   assert difference.getbbox() is None
 
