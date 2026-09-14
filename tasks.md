@@ -97,14 +97,6 @@ production signatures for the tests' benefit.
 
 ## Backlog
 
-- [ ] **Clear the stub packages' leftover setuptools build folders**
-      {#stub-build-leftovers}: checkouts that built the local stub packages
-      before they moved to uv_build still hold `stubs/*/build/` and
-      `stubs/*/*.egg-info/`. Delete both from the main checkout and from every
-      worktree (`git worktree list` names them), then drop the root mypy
-      exclusion for `stubs/*/build/` and its `.gitignore` entry, which exist
-      only for these folders.
-
 - [ ] **Consider contributing the pypdfium2 stubs to typeshed**
       {#typeshed-pypdfium2}: the acceptance criteria fit — pypdfium2 is on PyPI
       and ships no types of its own — and per

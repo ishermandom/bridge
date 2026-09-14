@@ -18,9 +18,3 @@ node_modules/
 # Captured page HTML — may include other members' names; keep local.
 club_sites/palo_alto/fixtures/raw/
 session_analysis/travellers/
-
-# Leftover setuptools build scratch in checkouts that built the local stub
-# packages before they moved to uv_build, which writes none.
-# TODO: drop once every checkout has cleared them — tasks.md
-# #stub-build-leftovers.
-stubs/*/build/

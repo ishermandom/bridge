@@ -40,13 +40,6 @@ dev = [
 # The whole repo is typed to mypy's strict bar; declaring it here makes every
 # run strict, whichever runner launches it.
 strict = true
-# Checkouts that built the local stub packages (stubs/*/) before they moved to
-# uv_build still hold setuptools' build scratch at stubs/<library>/build/ —
-# untracked copies that would otherwise collide with the originals as duplicate
-# modules.
-# TODO: drop once every checkout has cleared them — tasks.md
-# #stub-build-leftovers.
-exclude = ['^stubs/[^/]+/build/']
 
 [tool.pytest.ini_options]
 # Tests are named <module>_test.py, beside the module they cover.
