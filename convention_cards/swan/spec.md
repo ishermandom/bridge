@@ -138,19 +138,20 @@ text blank on the other. Fields that exist on only one side are declared in
 
 - Bridgodex output: `{"settings": {...}, "notes": ""}`, sections and keys
   sorted, unset fields absent — matching how Bridgodex itself exports.
-- SWAN output: every SWAN field the table knows, with the input's content
-  applied and everything else unset (checkboxes `false`, text `""`), plus
-  `"New_Format": true` and the bold-card marks from #lead-circles. The result
-  structurally resembles a genuine BridgeWinners export. Whether BridgeWinners'
-  importer accepts a generated file is unverified
-  (`tasks.md #swan-import-check`).
+- SWAN output: every field a BridgeWinners export carries, the SWAN-only ones
+  included, since BridgeWinners' import fails on a file that lacks any of them.
+  The input's content is applied and everything else is unset (checkboxes
+  `false`, text `""`), plus `"New_Format": true` and the bold-card marks from
+  #lead-circles.
 
 ## Testing
 
 - **Drift guards**: the renderer's full-export fixture doubles as the
   authoritative Bridgodex key list; a test asserts that the mapping plus
   `BRIDGODEX_ONLY` covers that list exactly and that no key or SWAN path is
-  mapped twice.
+  mapped twice. A real BridgeWinners export of a test card
+  (`testdata/bridgewinners_export.json`) plays the same part for SWAN: the
+  Bridgodex-to-SWAN output must carry exactly its fields.
 - **Round trip**: the full export, minus its `BRIDGODEX_ONLY` keys, converts to
   SWAN and back unchanged.
 - **Behavior tests**: each link kind, each warning path, each hard error.

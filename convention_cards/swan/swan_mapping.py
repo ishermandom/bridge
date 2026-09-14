@@ -15,6 +15,7 @@ converters warn when such a field carries content, since the other format has
 nowhere to put it.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from bridgodex_key import BridgodexKey
@@ -60,6 +61,51 @@ class CircleLink:
 
 
 type FieldLink = CheckLink | TextLink | CircleLink
+
+
+@dataclass(frozen=True)
+class SwanOnlyCheck:
+  """A SWAN checkbox with no Bridgodex counterpart, and why."""
+
+  swan: tuple[str, ...]
+  reason: str
+
+
+@dataclass(frozen=True)
+class SwanOnlyText:
+  """A SWAN text blank with no Bridgodex counterpart, and why."""
+
+  swan: tuple[str, ...]
+  reason: str
+
+
+@dataclass(frozen=True)
+class SwanOnlyCircle:
+  """A SWAN lead holding with no Bridgodex counterpart, and why.
+
+  `positions` names the SWAN keys under `swan` in holding order, as in
+  `CircleLink`.
+  """
+
+  swan: tuple[str, ...]
+  positions: tuple[str, ...]
+  reason: str
+
+
+type SwanOnlyField = SwanOnlyCheck | SwanOnlyText | SwanOnlyCircle
+
+
+def unset_leaves(
+  field: FieldLink | SwanOnlyField,
+) -> Mapping[tuple[str, ...], bool | str]:
+  """The field's SWAN leaves, each at the value an unset field exports as."""
+  match field:
+    case CheckLink() | SwanOnlyCheck():
+      return {field.swan: False}
+    case TextLink() | SwanOnlyText():
+      return {field.swan: ''}
+    case CircleLink() | SwanOnlyCircle():
+      return {(*field.swan, position): False for position in field.positions}
 
 
 def _bridgodex_key(dotted: str) -> BridgodexKey:
@@ -872,37 +918,46 @@ MAPPINGS: tuple[FieldLink, ...] = (
   ),
 )
 
-# SWAN paths with no Bridgodex counterpart, and why. A path here covers every
-# leaf beneath it; conversion warns when such a leaf carries content.
-SWAN_ONLY: dict[tuple[str, ...], str] = {
-  _swan_path('Overview.forcing_openings.other'): (
+# SWAN fields with no Bridgodex counterpart, and why. Conversion warns when one
+# carries content, and Bridgodex-to-SWAN still writes each one unset, since
+# BridgeWinners' import fails on a file that lacks any of them.
+SWAN_ONLY: tuple[SwanOnlyField, ...] = (
+  SwanOnlyCheck(
+    _swan_path('Overview.forcing_openings.other'),
     'Bridgodex records the Forcing Openings "Other" field as text'
     ' (overview.forcing_other) and SWAN as a checkbox, so neither value fits'
-    ' the other format'
+    ' the other format',
   ),
-  _swan_path('Notrump.one_notrump_opening.two_clubs.other'): (
+  SwanOnlyCheck(
+    _swan_path('Notrump.one_notrump_opening.two_clubs.other'),
     'Bridgodex records the 1NT-2!c "Other" field as text'
-    ' (1_no_trump.2c_other) and SWAN as a checkbox'
+    ' (1_no_trump.2c_other) and SWAN as a checkbox',
   ),
-  _swan_path('Notrump.one_notrump_opening.range.same_response_no'): (
-    "Bridgodex has only the 'same responses: yes' checkbox"
+  SwanOnlyCheck(
+    _swan_path('Notrump.one_notrump_opening.range.same_response_no'),
+    "Bridgodex has only the 'same responses: yes' checkbox",
   ),
-  _swan_path('Carding.smith.smith_expl'): (
-    'Bridgodex has no Smith Echo description blank'
+  SwanOnlyText(
+    _swan_path('Carding.smith.smith_expl'),
+    'Bridgodex has no Smith Echo description blank',
   ),
-  _swan_path('Two_level.two_hearts.conventional'): (
+  SwanOnlyCheck(
+    _swan_path('Two_level.two_hearts.conventional'),
     "the ACBL card (and Bridgodex) give 2!h a '2 Suits' checkbox where"
-    " BridgeWinners has 'Conventional'"
+    " BridgeWinners has 'Conventional'",
   ),
-  _swan_path('Two_level.two_spades.conventional'): (
+  SwanOnlyCheck(
+    _swan_path('Two_level.two_spades.conventional'),
     "the ACBL card (and Bridgodex) give 2!s a '2 Suits' checkbox where"
-    " BridgeWinners has 'Conventional'"
+    " BridgeWinners has 'Conventional'",
   ),
-  _swan_path('Leads_vs_notrump.interior_seq.ace_ten_nine'): (
+  SwanOnlyCircle(
+    _swan_path('Leads_vs_notrump.interior_seq.ace_ten_nine'),
+    ('ace', 'ten', 'nine', 'low'),
     'BridgeWinners prints an AT9x interior sequence; the ACBL card (and'
-    ' Bridgodex) print KT9x instead'
+    ' Bridgodex) print KT9x instead',
   ),
-}
+)
 
 # Bridgodex keys with no SWAN counterpart, and why; conversion warns when one
 # carries content.

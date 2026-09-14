@@ -1,0 +1,581 @@
+{
+  "Convention_Card": {
+    "Majors": {
+      "drury": {
+        "in_comp": false,
+        "two_diamonds": false,
+        "two_clubs": false,
+        "in_comp_expl": ""
+      },
+      "first_second": { "four": true, "five": false },
+      "art_raises": {
+        "three_notrump": false,
+        "art_other": "",
+        "splinter": false,
+        "two_notrump": false
+      },
+      "jump": { "mixed": false, "invitational": false, "weak": false },
+      "major_other1": "",
+      "major_other2": "",
+      "third_fourth": { "four": false, "five": true },
+      "one_notrump": {
+        "forcing": false,
+        "bypass_spades": false,
+        "semi_forcing": false
+      },
+      "after_overcall": { "mixed": false, "invitational": false, "weak": false }
+    },
+    "Leads_vs_suits": {
+      "interior_seq": {
+        "king_jack_ten": {
+          "king": false,
+          "low": false,
+          "ten": false,
+          "jack": true
+        },
+        "king_ten_nine": {
+          "king": false,
+          "nine": false,
+          "low": false,
+          "ten": true
+        },
+        "queen_ten_nine": {
+          "queen": false,
+          "nine": false,
+          "low": false,
+          "ten": true
+        }
+      },
+      "exceptions": "",
+      "length_leads": {
+        "five_small": {
+          "fourth": false,
+          "second": false,
+          "third": false,
+          "fifth": false,
+          "first": false
+        },
+        "doubleton": { "second": false, "first": false },
+        "Hxxxx": {
+          "second": false,
+          "fifth": false,
+          "third": false,
+          "fourth": false,
+          "first": false
+        },
+        "tripleton": { "second": false, "third": false, "first": false },
+        "third_low": false,
+        "small_from_xx": false,
+        "Hxxx": {
+          "second": false,
+          "fourth": false,
+          "third": false,
+          "first": false
+        },
+        "third_fifth": false,
+        "fourth": false,
+        "four_small": {
+          "second": false,
+          "fourth": false,
+          "third": false,
+          "first": false
+        },
+        "Hxx": { "second": false, "third": false, "first": false },
+        "attitude": false
+      },
+      "after_first_trick": "",
+      "honor_leads": {
+        "jack_ten": { "nine": false, "jack": true, "ten": false },
+        "queen_jack": { "queen": true, "jack": false, "low": false },
+        "king_queen": { "king": true, "queen": false, "low": false },
+        "ace_king": {
+          "king": false,
+          "varies": false,
+          "varies_expl": "",
+          "low": false,
+          "ace": false
+        }
+      }
+    },
+    "Minors": {
+      "one_diamond": {
+        "length": {
+          "artf": false,
+          "three": false,
+          "four": false,
+          "five": false,
+          "nf2": false,
+          "nf1": false,
+          "nf0": false,
+          "unbalanced": false
+        },
+        "responses": {
+          "onent_range_min": "",
+          "response2": "",
+          "response1": "",
+          "twont_range_max": "",
+          "onent_range_max": "",
+          "twont_range_min": "",
+          "same_one_club": false
+        },
+        "raises": {
+          "jump": { "mixed": false, "invitational": false, "weak": false },
+          "single": {
+            "non_forcing": false,
+            "inv_plus": false,
+            "game_forcing": false
+          },
+          "after_overcall": {
+            "mixed": false,
+            "invitational": false,
+            "weak": false
+          }
+        }
+      },
+      "one_club": {
+        "length": {
+          "nf0": false,
+          "artf": false,
+          "three": false,
+          "four": false,
+          "five": false,
+          "nf2": false,
+          "nf1": false,
+          "only_4432": false
+        },
+        "raises": {
+          "jump": { "mixed": false, "invitational": false, "weak": false },
+          "single": {
+            "game_forcing": false,
+            "inv_plus": false,
+            "non_forcing": false
+          },
+          "after_overcall": {
+            "mixed": false,
+            "invitational": false,
+            "weak": false
+          }
+        },
+        "responses": {
+          "transfer_response": false,
+          "bypass_five_diamonds": false,
+          "onent_range_min": "",
+          "response2": "",
+          "response1": "",
+          "twont_range_max": "",
+          "onent_range_max": "",
+          "twont_range_min": "",
+          "one_diamond": ""
+        }
+      }
+    },
+    "Other_conventional_calls": {
+      "xyz": false,
+      "jump_shift_resp": "JUMP SHIFT RESP",
+      "vs_strong": "IMPORT TEST free line one",
+      "vs_strong2": "IMPORT TEST free line two",
+      "two_way": false,
+      "new_minor_forcing": false,
+      "fourth_suit_forcing": { "one_round": false, "to_game": false }
+    },
+    "Overview": {
+      "forcing_openings": {
+        "other": false,
+        "one_club": false,
+        "two_clubs": false
+      },
+      "general_approach": "IMPORT TEST general approach",
+      "bids_prep1": "",
+      "bids_prep2": "",
+      "opening_hcp": "",
+      "responding_hcp": "",
+      "names": "",
+      "one_notrump": { "variable": false, "strong": false, "weak": false }
+    },
+    "Leads_vs_notrump": {
+      "interior_seq": {
+        "ace_ten_nine": {
+          "nine": false,
+          "ace": false,
+          "ten": false,
+          "low": false
+        },
+        "ace_jack_ten": {
+          "ace": false,
+          "jack": true,
+          "ten": false,
+          "low": false
+        },
+        "ace_queen_jack": {
+          "queen": true,
+          "jack": false,
+          "ace": false,
+          "low": false
+        },
+        "queen_ten_nine": {
+          "queen": false,
+          "nine": false,
+          "low": false,
+          "ten": true
+        }
+      },
+      "exceptions": "",
+      "length_leads": {
+        "five_small": {
+          "fourth": false,
+          "second": false,
+          "fifth": false,
+          "third": false,
+          "first": false
+        },
+        "doubleton": { "second": false, "first": false },
+        "Hxxxx": {
+          "third": false,
+          "second": false,
+          "fifth": false,
+          "fourth": false,
+          "first": false
+        },
+        "tripleton": { "second": false, "third": false, "first": false },
+        "third_low": false,
+        "attitude": false,
+        "Hxxx": {
+          "second": false,
+          "third": false,
+          "fourth": false,
+          "first": false
+        },
+        "third_fifth": false,
+        "fourth": false,
+        "four_small": {
+          "second": false,
+          "fourth": false,
+          "third": false,
+          "first": false
+        },
+        "Hxx": { "second": false, "third": false, "first": false },
+        "second_from_xxxx": false
+      },
+      "after_first_trick": "",
+      "honor_leads": {
+        "jack_ten_nine": {
+          "nine": false,
+          "low": false,
+          "ten": false,
+          "jack": true
+        },
+        "queen_jack_ten": {
+          "queen": true,
+          "low": false,
+          "ten": false,
+          "jack": false
+        },
+        "king_queen_ten_nine": {
+          "king": false,
+          "queen": true,
+          "nine": false,
+          "ten": false
+        },
+        "ace_king": {
+          "king": false,
+          "ace": false,
+          "varies_expl": "",
+          "varies": false,
+          "low2": false,
+          "low1": false
+        },
+        "king_queen_jack": {
+          "king": true,
+          "queen": false,
+          "jack": false,
+          "low": false
+        }
+      }
+    },
+    "Two_level": {
+      "two_diamonds": {
+        "conventional": false,
+        "twoD_other": "",
+        "twoD_range_min": "",
+        "weak": false,
+        "new_suit_non_forcing": false,
+        "intermediate": false,
+        "twoD_range_max": "",
+        "strong": false,
+        "twoD_expl": "",
+        "rebid_over_2nt": ""
+      },
+      "two_hearts": {
+        "conventional": false,
+        "twoH_range_min": "",
+        "twoH_range_max": "",
+        "twoH_expl": "",
+        "weak": false,
+        "new_suit_non_forcing": false,
+        "intermediate": false,
+        "twoH_other": "",
+        "strong": false,
+        "rebid_over_2nt": ""
+      },
+      "two_spades": {
+        "twoS_other": "",
+        "conventional": false,
+        "twoS_range_max": "",
+        "weak": false,
+        "new_suit_non_forcing": false,
+        "intermediate": false,
+        "twoS_range_min": "",
+        "rebid_over_2nt": "",
+        "strong": false,
+        "twoS_expl": ""
+      },
+      "two_clubs": {
+        "conventional": false,
+        "twoC_range_min": "",
+        "steps_expl": "",
+        "two_diamonds": { "waiting": false, "negative": false },
+        "twoC_expl": "",
+        "twoC_other": "",
+        "twoH_neg": false,
+        "natural": false,
+        "steps": false,
+        "conv_explanation": "",
+        "very_strong": false,
+        "twoC_range_max": "",
+        "strong": false
+      }
+    },
+    "Slams": {
+      "slams_other": "",
+      "vs_interference": "",
+      "fourNT": {
+        "rkc_0314": false,
+        "fourNT_expl": "",
+        "rkc_1430": false,
+        "blackwood": false
+      },
+      "control_bids": "",
+      "gerber": {
+        "seq_NT": false,
+        "non_seq_NT": false,
+        "directlyNT": false,
+        "gerber_expl": ""
+      }
+    },
+    "Signals": {
+      "signals_other2": "",
+      "signals_other1": "",
+      "partner_lead": { "count": false, "attitude": false, "suit_pref": false },
+      "first_discard": {
+        "lavinthal": false,
+        "other": false,
+        "odd_even": false,
+        "upside_down": false,
+        "standard": false
+      },
+      "exceptions": "",
+      "declarer_lead": { "count": false, "attitude": false, "suit_pref": false }
+    },
+    "Preempts": {
+      "four_level_response": "",
+      "four_level_style": "",
+      "three_level_response": "",
+      "three_level_style1": "",
+      "fourCD_transfer": false,
+      "three_level_style2": "",
+      "preempts_other": ""
+    },
+    "Carding": {
+      "other_carding": "",
+      "smith": {
+        "smith_NT": false,
+        "reverse_smith": false,
+        "smith_expl": "",
+        "smith_suits": false
+      },
+      "suits": {
+        "standard_count": false,
+        "upside_down_count": false,
+        "standard_attitude": false,
+        "upside_down_attitude": false
+      },
+      "exceptions": "",
+      "notrump": {
+        "standard_count": false,
+        "upside_down_count": false,
+        "standard_attitude": false,
+        "upside_down_attitude": false
+      },
+      "trump_signals": ""
+    },
+    "Vs_preempts": {
+      "jump_overcalls": "",
+      "leb_2NT": false,
+      "takeout_through": "",
+      "twoNT_overcall": "",
+      "cuebid": "",
+      "penalty": false,
+      "leb_expl": "",
+      "vs_preempt_other": ""
+    },
+    "New_Format": true,
+    "Direct_cuebids": {
+      "cue_describe": "",
+      "vs_quasi_minors": {
+        "michaels": false,
+        "other": false,
+        "natural": false
+      },
+      "vs_nat_minors": { "michaels": false, "other": false, "natural": false },
+      "vs_art_minors": { "michaels": false, "other": false, "natural": false },
+      "vs_nat_majors": { "michaels": false, "other": false, "natural": false }
+    },
+    "Vs_takeout_double": {
+      "conventional": false,
+      "conv_expl": "",
+      "redouble_10": false,
+      "vs_takeout_other": "",
+      "two_notrump_over": {
+        "raise_majors": false,
+        "rmax_minors": "",
+        "nat_minors": false,
+        "raise_minors": false,
+        "rmax_majors": "",
+        "nat_majors": true,
+        "rmin_minors": "",
+        "rmin_majors": ""
+      },
+      "new_suit_forcing": {
+        "tfr_expl": "",
+        "transfer": false,
+        "two_level": false
+      },
+      "jump_shift": {
+        "invitational": false,
+        "forcing": false,
+        "weak": false,
+        "fit": false
+      }
+    },
+    "Overcalls": {
+      "oc_other": "",
+      "two_level_range_max": "",
+      "Jump_overcall": {
+        "conventional": "",
+        "intermediate": false,
+        "weak": false,
+        "strong": false,
+        "conv_expl": "IMPORT TEST jump overcall conventions"
+      },
+      "responses": {
+        "support": false,
+        "cuebids": "",
+        "new_suit": {
+          "non_forcing_constructive": false,
+          "transfer": false,
+          "forcing": false,
+          "non_forcing": false
+        },
+        "jump_raise": { "mixed": false, "invitational": false, "weak": false }
+      },
+      "two_level_range_min": "",
+      "often_four": false,
+      "one_level_range_min": "",
+      "one_level_range_max": ""
+    },
+    "Notrump_overcalls": {
+      "conv_expl": "",
+      "conventional": false,
+      "balance": { "systems_on": false, "bal_nt_rmax": "", "bal_nt_rmin": "" },
+      "direct": {
+        "systems_on": false,
+        "nt_overcall_rmax": "",
+        "nt_overcall_rmin": ""
+      },
+      "jump_two_notrump_overcalls": { "two_lowest": false, "other": "" }
+    },
+    "Notrump": {
+      "one_notrump_opening": {
+        "other_conventions": {
+          "fourH_transfer": false,
+          "fourC_transfer": false,
+          "smolen": false,
+          "neg_dbl_expl": "",
+          "fourD_transfer": false,
+          "negative_double": false,
+          "lebensohl": { "lebensohl": false, "leb_expl": "" },
+          "other_misc": "",
+          "penalty_double": false
+        },
+        "two_clubs": {
+          "other": false,
+          "puppet_stayman": false,
+          "stayman": false
+        },
+        "three_hearts": "",
+        "misc": { "systems_on": "", "five_card_major_common": false },
+        "two_hearts": { "transfer": false, "other": "", "natural": false },
+        "two_spades": { "transfer": false, "other": "", "natural": false },
+        "range": {
+          "nt_open_rmax1": "",
+          "same_response_yes": false,
+          "nt_open_rmax2": "",
+          "same_response_no": false,
+          "seat_vul": "",
+          "nt_open_rmin2": "",
+          "nt_open_rmin1": ""
+        },
+        "other": { "other1": "", "other2": "" },
+        "two_notrump": { "transfer": false, "other": "", "natural": false },
+        "three_diamonds": "",
+        "three_spades": "",
+        "two_diamonds": { "transfer": false, "other": "", "natural": false },
+        "three_clubs": ""
+      },
+      "two_notrump_opening": {
+        "conv_explanation": "",
+        "transfer": { "four_level": false, "three_level": false },
+        "twont_open_min": "",
+        "conventional": false,
+        "twont_open_max": "",
+        "other": "",
+        "puppet": false,
+        "negative_doubles": false,
+        "three_spades": false,
+        "three_spades_expl": ""
+      },
+      "three_notrump_opening": {
+        "threent_open_min": "",
+        "one_suit": false,
+        "one_suit_expl": "",
+        "threent_open_max": ""
+      }
+    },
+    "Vs_notrump": {
+      "versus": { "vs1": "", "vs2": "" },
+      "two_NT": { "twoNT2": "", "twoNT1": "" },
+      "two_diamonds": { "twoD2": "", "twoD1": "" },
+      "two_clubs": { "twoC2": "", "twoC1": "" },
+      "double": { "double2": "", "double1": "" },
+      "two_hearts": { "twoH2": "", "twoH1": "" },
+      "two_spades": { "twoS2": "", "twoS1": "" },
+      "nt_def_other": ""
+    },
+    "Doubles": {
+      "responsive_doubles": {
+        "responsive": false,
+        "through": "",
+        "maximal_doubles": false
+      },
+      "support_doubles": {
+        "support": false,
+        "through": "",
+        "support_redoubles": false
+      },
+      "dbl_exp": "",
+      "penalty": false,
+      "takeout_style": "",
+      "negative_doubles": { "through": "", "negative": false }
+    }
+  }
+}

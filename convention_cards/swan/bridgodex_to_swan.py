@@ -3,13 +3,13 @@
 
 """Convert a Bridgodex card to SWAN format (BridgeWinners import).
 
-The output carries the complete SWAN skeleton the mapping knows — checkboxes
-false, text blank — with the input's content applied, so it structurally
-resembles a genuine BridgeWinners export. Where a lead holding is uncircled and
-the ACBL card prints a bold default for it, the output marks that bold card: on
-the ACBL card, an uncircled holding means the bold card is led. An unrecognized
-Bridgodex key is a hard error; keys with no SWAN home are warned about when they
-carry content.
+The output carries every field a BridgeWinners export does, the SWAN-only ones
+included, since BridgeWinners' import fails on a file that lacks any of them.
+Each field starts unset — checkboxes false, text blank — and the input's content
+is applied over that. Where a lead holding is uncircled and the ACBL card prints
+a bold default for it, the output marks that bold card: on the ACBL card, an
+uncircled holding means the bold card is led. An unrecognized Bridgodex key is a
+hard error; keys with no SWAN home are warned about when they carry content.
 
 Usage, run from `convention_cards/`:
     python3 -m swan.bridgodex_to_swan INPUT.json OUTPUT.json
@@ -28,10 +28,12 @@ from bridgodex_key import BridgodexKey
 from swan.swan_mapping import (
   BRIDGODEX_ONLY,
   MAPPINGS,
+  SWAN_ONLY,
   CheckLink,
   CircleLink,
   FieldLink,
   TextLink,
+  unset_leaves,
 )
 
 
@@ -56,17 +58,11 @@ def _set_leaf(
 
 
 def _skeleton() -> dict[str, object]:
-  """The full SWAN tree the mapping knows, with everything unset."""
+  """Every field a BridgeWinners export carries, each at its unset value."""
   root: dict[str, object] = {'New_Format': True}
-  for link in MAPPINGS:
-    match link:
-      case CheckLink():
-        _set_leaf(root, link.swan, False)
-      case TextLink():
-        _set_leaf(root, link.swan, '')
-      case CircleLink():
-        for position in link.positions:
-          _set_leaf(root, (*link.swan, position), False)
+  for field in (*MAPPINGS, *SWAN_ONLY):
+    for path, value in unset_leaves(field).items():
+      _set_leaf(root, path, value)
   return root
 
 

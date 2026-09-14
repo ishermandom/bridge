@@ -36,6 +36,7 @@ from swan.swan_mapping import (
   CheckLink,
   CircleLink,
   TextLink,
+  unset_leaves,
 )
 
 
@@ -66,10 +67,10 @@ def _flatten(
 
 
 def _swan_only_reason(path: tuple[str, ...]) -> str | None:
-  """The `SWAN_ONLY` reason for this path or a prefix of it, else None."""
-  for prefix, reason in SWAN_ONLY.items():
-    if path[: len(prefix)] == prefix:
-      return reason
+  """The `SWAN_ONLY` reason for this leaf, or None if it isn't SWAN-only."""
+  for field in SWAN_ONLY:
+    if path in unset_leaves(field):
+      return field.reason
   return None
 
 

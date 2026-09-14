@@ -19,10 +19,29 @@ _FULL_EXPORT_PATH = (
   / 'full_export.json'
 )
 
+# A real BridgeWinners export of a card holding only test text, kept for its
+# shape: the fields BridgeWinners writes, all of which its import requires.
+_BRIDGEWINNERS_EXPORT_PATH = (
+  Path(__file__).resolve().parent / 'testdata' / 'bridgewinners_export.json'
+)
+
 
 def _swan(card: dict[str, object]) -> dict[str, object]:
   """Wrap section content in the SWAN envelope."""
   return {'Convention_Card': {'New_Format': True, **card}}
+
+
+def _leaf_paths(
+  node: object, path: tuple[str, ...] = ()
+) -> set[tuple[str, ...]]:
+  """Every leaf path in a nested JSON object."""
+  if not isinstance(node, dict):
+    return {path}
+  return {
+    leaf
+    for key, child in node.items()
+    for leaf in _leaf_paths(child, (*path, key))
+  }
 
 
 # --- SWAN -> Bridgodex ---
@@ -171,6 +190,16 @@ def test_an_on_checkbox_becomes_true_in_the_swan_skeleton() -> None:
   # The skeleton carries the unset sibling checkbox as false.
   assert drury['two_clubs'] is True
   assert drury['two_diamonds'] is False
+
+
+def test_the_output_has_exactly_the_fields_of_a_bridgewinners_export() -> None:
+  # BridgeWinners' import fails on a file missing any field its own export
+  # carries, so the output must match a real export field for field.
+  export = json.loads(_BRIDGEWINNERS_EXPORT_PATH.read_text(encoding='utf-8'))
+
+  result = bridgodex_to_swan.convert({'settings': {}, 'notes': ''})
+
+  assert _leaf_paths(result.document) == _leaf_paths(export)
 
 
 def test_a_circle_number_sets_exactly_its_position() -> None:

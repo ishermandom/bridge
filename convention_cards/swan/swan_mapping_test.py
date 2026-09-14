@@ -3,7 +3,7 @@
 
 """Consistency checks on the mapping table.
 
-The table must cover the Bridgodex key list exactly, map no key or SWAN path
+The table must cover the Bridgodex key list exactly, cover no key or SWAN leaf
 twice, and give each lead holding the right card positions.
 """
 
@@ -12,7 +12,13 @@ from pathlib import Path
 
 from bridgodex_key import BridgodexKey
 
-from swan.swan_mapping import BRIDGODEX_ONLY, MAPPINGS, CircleLink, FieldLink
+from swan.swan_mapping import (
+  BRIDGODEX_ONLY,
+  MAPPINGS,
+  SWAN_ONLY,
+  CircleLink,
+  unset_leaves,
+)
 
 # The renderer's full-export fixture sets every Bridgodex key, so it doubles as
 # the authoritative key list for the format.
@@ -51,15 +57,11 @@ def test_bridgodex_keys_are_mapped_at_most_once() -> None:
   assert len(seen) == len(set(seen))
 
 
-def _swan_leaf_paths(link: FieldLink) -> tuple[tuple[str, ...], ...]:
-  """Every SWAN leaf path a link occupies — one per position for circles."""
-  if isinstance(link, CircleLink):
-    return tuple((*link.swan, position) for position in link.positions)
-  return (link.swan,)
-
-
-def test_swan_paths_are_mapped_at_most_once() -> None:
-  seen = [path for link in MAPPINGS for path in _swan_leaf_paths(link)]
+def test_no_swan_leaf_is_covered_twice() -> None:
+  # Each leaf belongs to one table row or one SWAN-only entry, never to two.
+  seen = [
+    path for field in (*MAPPINGS, *SWAN_ONLY) for path in unset_leaves(field)
+  ]
 
   assert len(seen) == len(set(seen))
 
