@@ -31,16 +31,16 @@ def _swan(card: dict[str, object]) -> dict[str, object]:
   return {'Convention_Card': {'New_Format': True, **card}}
 
 
-def _leaf_paths(
+def _leaf_types(
   node: object, path: tuple[str, ...] = ()
-) -> set[tuple[str, ...]]:
-  """Every leaf path in a nested JSON object."""
+) -> dict[tuple[str, ...], type]:
+  """Every leaf path in a nested JSON object, with its value's type."""
   if not isinstance(node, dict):
-    return {path}
+    return {path: type(node)}
   return {
-    leaf
+    leaf: leaf_type
     for key, child in node.items()
-    for leaf in _leaf_paths(child, (*path, key))
+    for leaf, leaf_type in _leaf_types(child, (*path, key)).items()
   }
 
 
@@ -192,14 +192,15 @@ def test_an_on_checkbox_becomes_true_in_the_swan_skeleton() -> None:
   assert drury['two_diamonds'] is False
 
 
-def test_the_output_has_exactly_the_fields_of_a_bridgewinners_export() -> None:
+def test_the_output_matches_the_fields_and_types_of_a_real_export() -> None:
   # BridgeWinners' import fails on a file missing any field its own export
-  # carries, so the output must match a real export field for field.
+  # carries, so the output must match a real export field for field, down to
+  # which checkboxes BridgeWinners writes as strings.
   export = json.loads(_BRIDGEWINNERS_EXPORT_PATH.read_text(encoding='utf-8'))
 
   result = bridgodex_to_swan.convert({'settings': {}, 'notes': ''})
 
-  assert _leaf_paths(result.document) == _leaf_paths(export)
+  assert _leaf_types(result.document) == _leaf_types(export)
 
 
 def test_a_circle_number_sets_exactly_its_position() -> None:

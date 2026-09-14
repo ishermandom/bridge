@@ -47,10 +47,8 @@ Both converters derive from a single field-correspondence table
 one Bridgodex setting (`section.key`) to one SWAN path. Entries come in three
 kinds, by what the field holds:
 
-- **Check**: Bridgodex `"on"` <-> SWAN `true`. SWAN exports at least one
-  checkbox as a string rather than a boolean —
-  `Overcalls.Jump_overcall.conventional` arrived as `""` — so any truthy leaf
-  counts as checked.
+- **Check**: Bridgodex `"on"` <-> SWAN `true`. The one checkbox BridgeWinners
+  writes as a string can't be linked at all; see the export bugs below.
 - **Text**: the same string on both sides, including suit markup such as `!h`
   for ♥, which both formats write the same way.
 - **Circle**: the card circled in one lead holding, such as the K in KQx.
@@ -62,8 +60,9 @@ kinds, by what the field holds:
 ## BridgeWinners export-bug compensations
 
 Comparing captured cards' BridgeWinners PDFs against their SWAN exports exposed
-three bugs in the BridgeWinners exporter, which the table compensates for (each
-is marked with a comment at the affected links):
+four bugs in the BridgeWinners exporter, which the table compensates for or
+declares one-side-only (each is marked with a comment where the table handles
+it):
 
 - **Majors length 4/5 swap**: cards whose PDF shows "5" checked export
   `four: true`, so the table deliberately crosses them: Bridgodex's 5-card
@@ -78,6 +77,12 @@ is marked with a comment at the affected links):
   `other.vs_very_strong` is Bridgodex-only. Though named like that blank, SWAN's
   `vs_strong`/`vs_strong2` keys carry the Other Conventional Calls section's two
   free lines, and the table links them to `other.more1`/`other.more2`.
+- **Jump Overcalls "Conv" never exported**: the export writes
+  `Overcalls.Jump_overcall.conventional` as `""` whether or not the box is
+  ticked, and the import ignores the field — `true`, `"on"`, and `"true"` all
+  leave the box unticked. So `overcalls.conv` is Bridgodex-only, the SWAN field
+  is SWAN-only and written as `""`, and converting a Bridgodex card that ticks
+  the box warns to tick it on BridgeWinners by hand.
 
 These compensations mirror BridgeWinners' exporter as observed; if that exporter
 is ever fixed, each compensation must be undone (`tasks.md #export-bugs`).

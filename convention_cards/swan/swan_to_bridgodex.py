@@ -109,8 +109,7 @@ def convert(
   for link in MAPPINGS:
     match link:
       case CheckLink():
-        # SWAN checkboxes are booleans, except at least one exported as a
-        # string; any truthy leaf counts as checked.
+        # SWAN checkboxes are booleans; an absent leaf counts as unchecked.
         if leaves.pop(link.swan, None):
           place(link.bridgodex, 'on')
       case TextLink():

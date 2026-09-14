@@ -522,9 +522,6 @@ MAPPINGS: tuple[FieldLink, ...] = (
   _check('overcalls.jump_weak', 'Overcalls.Jump_overcall.weak'),
   _check('overcalls.jump_int', 'Overcalls.Jump_overcall.intermediate'),
   _check('overcalls.jump_strong', 'Overcalls.Jump_overcall.strong'),
-  # SWAN exports this checkbox as a string rather than a boolean (`""` on the
-  # captured card), so checkbox conversion counts any truthy leaf as checked.
-  _check('overcalls.conv', 'Overcalls.Jump_overcall.conventional'),
   _text('overcalls.conv_desc', 'Overcalls.Jump_overcall.conv_expl'),
   _check('overcalls.new_suit_forcing', 'Overcalls.responses.new_suit.forcing'),
   _check(
@@ -941,6 +938,14 @@ SWAN_ONLY: tuple[SwanOnlyField, ...] = (
     _swan_path('Notrump.one_notrump_opening.range.same_response_no'),
     "Bridgodex has only the 'same responses: yes' checkbox",
   ),
+  # BridgeWinners writes this checkbox as a string, so it enters the skeleton as
+  # one.
+  SwanOnlyText(
+    _swan_path('Overcalls.Jump_overcall.conventional'),
+    "BridgeWinners' export writes the Jump Overcalls 'Conv' checkbox as empty"
+    ' whether or not it is ticked, and its import ignores it, so content here'
+    ' means BridgeWinners changed its exporter',
+  ),
   SwanOnlyText(
     _swan_path('Carding.smith.smith_expl'),
     'Bridgodex has no Smith Echo description blank',
@@ -969,6 +974,10 @@ BRIDGODEX_ONLY: dict[BridgodexKey, str] = {
   _bridgodex_key('names.names'): (
     "BridgeWinners' import ignores player names; set them on BridgeWinners"
     ' after importing'
+  ),
+  _bridgodex_key('overcalls.conv'): (
+    "BridgeWinners' import ignores the Jump Overcalls 'Conv' checkbox; tick it"
+    ' on BridgeWinners after importing'
   ),
   _bridgodex_key('overview.forcing_other'): (
     'SWAN records the Forcing Openings "Other" field as a checkbox, with'
