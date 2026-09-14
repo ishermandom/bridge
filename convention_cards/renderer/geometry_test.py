@@ -3,6 +3,7 @@
 
 """Tests for field geometry read from the real ACBL card."""
 
+import functools
 from collections.abc import Mapping
 from io import BytesIO
 
@@ -15,7 +16,9 @@ from renderer.private_paths import discover_private_assets
 _BASE_PDF_PATH = discover_private_assets().base_acbl_card_pdf
 
 
+@functools.cache
 def _load_real_card() -> Mapping[str, CardField]:
+  """The real card's fields, loaded once and shared across these tests."""
   return load_card_fields(BytesIO(_BASE_PDF_PATH.read_bytes()))
 
 

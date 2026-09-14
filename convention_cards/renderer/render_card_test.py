@@ -8,6 +8,7 @@ original exactly — the core pixel-perfection guarantee — and entries must ch
 pixels without disturbing anything else.
 """
 
+import functools
 import json
 from collections.abc import Mapping
 from io import BytesIO, StringIO
@@ -68,14 +69,18 @@ def _render(
   return render_card(card_json, _BASE_CARD, _FONTS)
 
 
+@functools.cache
+def _blank_card_image() -> Image.Image:
+  """The rendered blank card's raster, computed once and shared."""
+  return _rasterize(_render({}).pdf)
+
+
 # --- pixel fidelity ---
 
 
 def test_blank_card_matches_the_original_pixel_for_pixel() -> None:
-  result = _render({})
-
   difference = ImageChops.difference(
-    _rasterize(result.pdf), _rasterize(_BASE_PDF_BYTES)
+    _blank_card_image(), _rasterize(_BASE_PDF_BYTES)
   )
   assert difference.getbbox() is None
 
@@ -90,7 +95,7 @@ def test_the_base_card_stays_blank_across_renders() -> None:
 
 
 def test_an_entry_changes_pixels_only_inside_its_field() -> None:
-  blank = _rasterize(_render({}).pdf)
+  blank = _blank_card_image()
   named = _rasterize(_render({'names': {'names': 'First Last'}}).pdf)
 
   changed = ImageChops.difference(blank, named).getbbox()
@@ -159,7 +164,7 @@ def test_an_overflowing_entry_wraps_onto_extra_lines() -> None:
 
 
 def test_wrapped_lines_stay_within_the_field_and_its_bleed() -> None:
-  blank = _rasterize(_render({}).pdf)
+  blank = _blank_card_image()
   long_names = 'First Last, Second Partner, and their many conventions' * 2
   wrapped = _rasterize(_render({'names': {'names': long_names}}).pdf)
 
@@ -197,7 +202,7 @@ def _has_red_bar_ink(card: Image.Image, bar_y: float) -> bool:
 
 
 def test_an_entry_overflowing_its_rule_extends_the_underline() -> None:
-  blank = _rasterize(_render({}).pdf)
+  blank = _blank_card_image()
   long_entry = _rasterize(
     _render({'1_no_trump': {'2d_other': 'tfr, then asking'}}).pdf
   )
@@ -233,7 +238,7 @@ def test_a_sibling_overflow_extends_a_blank_rows_rule() -> None:
 
 
 def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
-  blank = _rasterize(_render({}).pdf)
+  blank = _blank_card_image()
   short_entry = _rasterize(_render({'1_no_trump': {'2d_other': 'short'}}).pdf)
 
   # A fitting entry must not redraw anything in the gutter right of its field's
@@ -320,7 +325,7 @@ def test_a_checkbox_value_other_than_on_is_rejected() -> None:
 
 
 def test_a_lead_circle_rings_the_selected_card() -> None:
-  blank = _rasterize(_render({}).pdf)
+  blank = _blank_card_image()
   circled = _rasterize(_render({'leads_vs_suits': {'honor_leads_KQx': 2}}).pdf)
 
   changed = ImageChops.difference(blank, circled).getbbox()
