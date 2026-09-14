@@ -148,8 +148,7 @@ def _circle(
 
 # Each row gives a Bridgodex setting first, then the SWAN path it maps to.
 MAPPINGS: tuple[FieldLink, ...] = (
-  # --- names / overview ---
-  _text('names.names', 'Overview.names'),
+  # --- overview ---
   _text('overview.general_approach', 'Overview.general_approach'),
   _text('overview.min_exp_hcp_bal_opening', 'Overview.opening_hcp'),
   _text('overview.min_exp_hcp_bal_responding', 'Overview.responding_hcp'),
@@ -922,6 +921,11 @@ MAPPINGS: tuple[FieldLink, ...] = (
 # carries content, and Bridgodex-to-SWAN still writes each one unset, since
 # BridgeWinners' import fails on a file that lacks any of them.
 SWAN_ONLY: tuple[SwanOnlyField, ...] = (
+  SwanOnlyText(
+    _swan_path('Overview.names'),
+    'BridgeWinners keeps player names outside SWAN: its export leaves this'
+    ' field empty, and its import ignores it',
+  ),
   SwanOnlyCheck(
     _swan_path('Overview.forcing_openings.other'),
     'Bridgodex records the Forcing Openings "Other" field as text'
@@ -962,6 +966,10 @@ SWAN_ONLY: tuple[SwanOnlyField, ...] = (
 # Bridgodex keys with no SWAN counterpart, and why; conversion warns when one
 # carries content.
 BRIDGODEX_ONLY: dict[BridgodexKey, str] = {
+  _bridgodex_key('names.names'): (
+    "BridgeWinners' import ignores player names; set them on BridgeWinners"
+    ' after importing'
+  ),
   _bridgodex_key('overview.forcing_other'): (
     'SWAN records the Forcing Openings "Other" field as a checkbox, with'
     ' nowhere to put text'

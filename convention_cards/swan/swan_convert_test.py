@@ -270,6 +270,10 @@ def test_the_full_export_round_trips_through_swan() -> None:
   document = json.loads(_FULL_EXPORT_PATH.read_text(encoding='utf-8'))
   for setting in BRIDGODEX_ONLY:
     document['settings'][setting.section].pop(setting.key, None)
+  # Bridgodex output leaves out a section once nothing in it is set.
+  document['settings'] = {
+    name: section for name, section in document['settings'].items() if section
+  }
 
   swan_result = bridgodex_to_swan.convert(document)
   round_tripped = swan_to_bridgodex.convert(swan_result.document)

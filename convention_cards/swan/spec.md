@@ -126,6 +126,11 @@ the ACBL card prints KT9x), and a few fields are a checkbox on one card but a
 text blank on the other. Fields that exist on only one side are declared in
 `SWAN_ONLY` / `BRIDGODEX_ONLY`, each with its reason.
 
+Player names are one-side-only for a different reason: BridgeWinners keeps them
+outside SWAN. Its export leaves `Overview.names` empty even when the card lists
+players, and its import ignores the field, so converting a Bridgodex card with
+player names warns that they won't carry over.
+
 - **Unknown fields are a hard error** in both directions, same rationale as the
   renderer: content must never vanish silently. A fuller future export fails
   loudly and the table grows to meet it.
