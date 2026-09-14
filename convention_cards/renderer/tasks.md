@@ -54,14 +54,6 @@ when the card's layout changes, rather than going stale or passing vacuously.
       sees the thing when it's there.
       `test_a_fitting_entry_leaves_its_printed_rule_alone` needs a twin showing
       that an overflowing entry in the same row does draw in its gutter.
-- [ ] **Take layout facts from the card, not from literals**
-      {#derived-test-geometry}: the tests hard-code where fields and rules sit
-      on today's card. Derive those positions from `BaseCard.fields` and
-      `RULE_TOPS`, so a revised card moves the checks with it. Keep design
-      values literal — the 1NT family's shared right edge at x=443.2, for
-      example — since those are what the tests assert.
-  - Note: not circular. The field rectangles come straight from the card's form,
-    and `rule_positions_test.py` checks the rule table against the artwork.
 - [ ] **Check underline extensions by what's drawn, not by red pixels**
       {#drawn-extension-checks}: read the page's drawing instructions, as
       `measure_rule_positions.py` does, and assert a bar in the panel's red from

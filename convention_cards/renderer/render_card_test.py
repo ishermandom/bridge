@@ -43,6 +43,7 @@ from renderer.render_card import (
   main,
   render_card,
 )
+from renderer.rule_positions import RULE_TOPS
 from renderer.vocabulary import UNRENDERED_KEYS, VOCABULARY
 
 _BASE_PDF_BYTES = DEFAULT_BASE_PDF_PATH.read_bytes()
@@ -73,6 +74,17 @@ class _Box(NamedTuple):
 
 
 _WHOLE_PAGE = _Box(0, 0, CARD_WIDTH, CARD_HEIGHT)
+
+
+def _field_box(name: str) -> _Box:
+  """The rectangle of one of the card's form fields."""
+  field = _BASE_CARD.fields[name]
+  return _Box(
+    field.left,
+    field.bottom,
+    field.left + field.width,
+    field.bottom + field.height,
+  )
 
 
 def _rasterize(pdf_bytes: bytes) -> Image.Image:
@@ -198,12 +210,13 @@ def test_the_base_card_stays_blank_across_renders() -> None:
 def test_an_entry_draws_only_inside_its_field() -> None:
   ink = _ink_bounds(_render_without_artwork({'names': {'names': 'First Last'}}))
 
-  # The Name field spans x in [332.6, 571.0], y in [594.3, 608.2].
+  # A point of slack at each edge covers antialiasing and glyph overshoot.
+  field = _field_box('Name.t.1')
   assert ink is not None
-  assert ink.left >= 332
-  assert ink.right <= 572
-  assert ink.bottom >= 594
-  assert ink.top <= 609
+  assert ink.left >= field.left - 1
+  assert ink.right <= field.right + 1
+  assert ink.bottom >= field.bottom - 1
+  assert ink.top <= field.top + 1
 
 
 # --- form stripping ---
@@ -282,23 +295,28 @@ def test_wrapped_lines_stay_within_the_field_and_its_bleed() -> None:
   long_names = 'First Last, Second Partner, and their many conventions' * 2
   ink = _ink_bounds(_render_without_artwork({'names': {'names': long_names}}))
 
-  # The Name field spans y in [594.3, 608.2]pt plus a small upward bleed, so ink
-  # may start no higher than ~611pt. Baselines sit on the field's rule, so
-  # descenders dip a couple of points below it — but no line may stack far
-  # outside the field in either direction.
+  # Wrapped lines may rise into the field's 2.5pt upward bleed, plus half a
+  # point for antialiasing. Baselines sit on the field's rule, so descenders dip
+  # a few points below the field — but no line may stack far outside it in
+  # either direction.
+  field = _field_box('Name.t.1')
   assert ink is not None
-  assert ink.top <= 611
-  assert ink.bottom >= 590
+  assert ink.top <= field.top + 3
+  assert ink.bottom >= field.bottom - 4
 
 
-def _has_red_bar_ink(pdf_bytes: bytes, bar_y: float) -> bool:
-  """Whether a render draws red in the far-end strip around one bar height.
+def _has_rule_extension(pdf_bytes: bytes, field_name: str) -> bool:
+  """Whether a render carries a 1NT row's underline out to the shared edge.
 
-  The strip (x in [438, 443]) lies just short of the 1NT panel's shared right
-  edge, where an underline extension ends. Entry text may reach it too, but
-  draws in the entry color, never red, as long as it holds no red suit symbol.
+  Looks for red in a strip hanging from the row's rule top, just short of the
+  1NT panel's shared right edge at x=443.2, where an extension ends. Entry text
+  may reach the strip too, but draws in the entry color, never red, as long as
+  it holds no red suit symbol.
   """
-  strip = _rasterize_ink(pdf_bytes, _Box(438, bar_y - 0.6, 443, bar_y + 0.6))
+  rule_top = RULE_TOPS[field_name]
+  strip = _rasterize_ink(
+    pdf_bytes, _Box(438, rule_top - 1, 443, rule_top + 0.5)
+  )
   data = strip.convert('RGB').tobytes()
   return any(
     data[index] > 180 and data[index + 1] < 90 and data[index + 2] < 90
@@ -311,10 +329,9 @@ def test_an_entry_overflowing_its_rule_extends_the_underline() -> None:
     {'1_no_trump': {'2d_other': 'tfr, then asking'}}
   )
 
-  # The 1NT "Other" row's printed underline (bar y 274.6) ends at x=424.8; the
-  # entry above overflows it, so the underline must continue toward the shared
-  # right edge at x=443.2 — red ink in the far-end strip.
-  assert _has_red_bar_ink(long_entry, bar_y=274.6)
+  # The 1NT "Other" row's printed underline ends at x=424.8; the entry above
+  # overflows it, so the underline must continue to the shared right edge.
+  assert _has_rule_extension(long_entry, '1NT.t.11')
 
 
 # One overflowing entry must extend the underlines of the whole 1NT family — a
@@ -328,23 +345,27 @@ _ONE_OVERFLOWING_1NT_ENTRY = {
 def test_a_sibling_overflow_extends_a_fitting_rows_rule() -> None:
   extended = _render_without_artwork(_ONE_OVERFLOWING_1NT_ENTRY)
 
-  # The fitting 'short' entry's row: field 1NT.t.11, bar at y=274.4-274.7.
-  assert _has_red_bar_ink(extended, bar_y=274.6)
+  # The fitting 'short' entry's row.
+  assert _has_rule_extension(extended, '1NT.t.11')
 
 
 def test_a_sibling_overflow_extends_a_blank_rows_rule() -> None:
   extended = _render_without_artwork(_ONE_OVERFLOWING_1NT_ENTRY)
 
-  # A row with no entry at all: field 1NT.t.17, bar at y=252.3-252.7.
-  assert _has_red_bar_ink(extended, bar_y=252.5)
+  # A row with no entry at all.
+  assert _has_rule_extension(extended, '1NT.t.17')
 
 
 def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
   short_entry = _render_without_artwork({'1_no_trump': {'2d_other': 'short'}})
 
-  # A fitting entry must not draw anything in the gutter right of its field's
-  # end (x=425.3): no extension, no stray ink.
-  assert not _has_ink(short_entry, _Box(426, 272, 444, 277))
+  # A fitting entry must not draw anything in the gutter around its row's rule,
+  # from its field's right edge to just past the shared right edge at x=443.2:
+  # no extension, no stray ink.
+  rule_top = RULE_TOPS['1NT.t.11']
+  field = _field_box('1NT.t.11')
+  gutter = _Box(field.right, rule_top - 2.5, 444, rule_top + 2.5)
+  assert not _has_ink(short_entry, gutter)
 
 
 def test_an_unfittable_entry_is_rejected_naming_the_field() -> None:
