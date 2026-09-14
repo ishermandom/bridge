@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import BinaryIO, TextIO
 
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import NameObject
 from reportlab.lib.colors import HexColor
 
 from renderer.fonts import (
@@ -74,11 +73,13 @@ def render_card(
   fields = load_card_fields(BytesIO(base_bytes))
   overlay = build_overlay(placements, fields, fonts, palette, size_floor)
 
+  # Copy the page without its form widgets, so the output prints as a plain
+  # document. The copy leaves out the form dictionary too, which lives on the
+  # document rather than on the page.
   writer = PdfWriter()
-  writer.append(PdfReader(BytesIO(base_bytes)))
-  page = writer.pages[0]
+  base_page = PdfReader(BytesIO(base_bytes)).pages[0]
+  page = writer.add_page(base_page, excluded_keys=('/Annots',))
   page.merge_page(PdfReader(BytesIO(overlay.pdf)).pages[0])
-  _strip_form(writer)
 
   output = BytesIO()
   writer.write(output)
@@ -115,16 +116,6 @@ def _validated_settings(card_json: TextIO) -> dict[str, object]:
   if not isinstance(settings, dict):
     raise ValueError(f'settings must be an object, got {settings!r:.120}')
   return settings
-
-
-def _strip_form(writer: PdfWriter) -> None:
-  """Remove the form dictionary and widgets, leaving a plain document."""
-  page = writer.pages[0]
-  if '/Annots' in page:
-    del page[NameObject('/Annots')]
-  root = writer.root_object
-  if '/AcroForm' in root:
-    del root[NameObject('/AcroForm')]
 
 
 def main(argv: Sequence[str] | None = None, stdin: TextIO = sys.stdin) -> int:
