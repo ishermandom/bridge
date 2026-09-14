@@ -16,13 +16,13 @@ Usage, run from `convention_cards/`:
 import argparse
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, TextIO
 
-from pypdf import PdfReader, PdfWriter
+from pypdf import PageObject, PdfReader, PdfWriter
 from reportlab.lib.colors import HexColor
 
 from renderer.fonts import (
@@ -31,7 +31,7 @@ from renderer.fonts import (
   EntryFonts,
   register_entry_fonts,
 )
-from renderer.geometry import load_card_fields
+from renderer.geometry import CardField, load_card_fields
 from renderer.overlay import (
   DEFAULT_PALETTE,
   DEFAULT_SIZE_FLOOR,
@@ -46,6 +46,20 @@ DEFAULT_BASE_PDF_PATH = discover_private_assets().base_acbl_card_pdf
 
 
 @dataclass(frozen=True)
+class BaseCard:
+  """The blank ACBL card, parsed once so that any number of renders share it.
+
+  `page` is the card's only page, and `fields` its form's widget geometry (see
+  `geometry.load_card_fields`). Rendering copies the page into its own output
+  rather than drawing on it, so the page stays blank from one render to the
+  next.
+  """
+
+  page: PageObject
+  fields: Mapping[str, CardField]
+
+
+@dataclass(frozen=True)
 class RenderResult:
   """The finished card, plus every entry that had to shrink to fit its field."""
 
@@ -53,9 +67,23 @@ class RenderResult:
   resized: tuple[ResizedField, ...]
 
 
+def load_base_card(base_pdf: BinaryIO) -> BaseCard:
+  """Parse the blank card PDF for rendering.
+
+  Raises:
+    ValueError: if the PDF's page or form doesn't match the card the renderer
+      expects.
+  """
+  base_bytes = base_pdf.read()
+  return BaseCard(
+    page=PdfReader(BytesIO(base_bytes)).pages[0],
+    fields=load_card_fields(BytesIO(base_bytes)),
+  )
+
+
 def render_card(
   card_json: TextIO,
-  base_pdf: BinaryIO,
+  base_card: BaseCard,
   fonts: EntryFonts,
   palette: Palette = DEFAULT_PALETTE,
   size_floor: float = DEFAULT_SIZE_FLOOR,
@@ -64,21 +92,19 @@ def render_card(
 
   Raises:
     ValueError: if the card JSON is malformed or asks for something the card
-      can't show, or if `base_pdf` isn't the card the vocabulary describes.
+      can't show, or if `base_card` isn't the card the vocabulary describes.
   """
   settings = _validated_settings(card_json)
   placements = resolve_settings(settings)
-
-  base_bytes = base_pdf.read()
-  fields = load_card_fields(BytesIO(base_bytes))
-  overlay = build_overlay(placements, fields, fonts, palette, size_floor)
+  overlay = build_overlay(
+    placements, base_card.fields, fonts, palette, size_floor
+  )
 
   # Copy the page without its form widgets, so the output prints as a plain
   # document. The copy leaves out the form dictionary too, which lives on the
   # document rather than on the page.
   writer = PdfWriter()
-  base_page = PdfReader(BytesIO(base_bytes)).pages[0]
-  page = writer.add_page(base_page, excluded_keys=('/Annots',))
+  page = writer.add_page(base_card.page, excluded_keys=('/Annots',))
   page.merge_page(PdfReader(BytesIO(overlay.pdf)).pages[0])
 
   output = BytesIO()
@@ -166,10 +192,11 @@ def main(argv: Sequence[str] | None = None, stdin: TextIO = sys.stdin) -> int:
     palette = replace(palette, entry=HexColor(args.color))
 
   fonts = register_entry_fonts(font_path, subfont)
+  with args.base_pdf.open('rb') as base_pdf:
+    base_card = load_base_card(base_pdf)
 
   def _render(card_json: TextIO) -> RenderResult:
-    with args.base_pdf.open('rb') as base_pdf:
-      return render_card(card_json, base_pdf, fonts, palette, args.size_floor)
+    return render_card(card_json, base_card, fonts, palette, args.size_floor)
 
   if args.input == '-':
     result = _render(stdin)

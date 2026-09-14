@@ -14,14 +14,18 @@ Usage, run from `convention_cards/`:
 
 import json
 import sys
-from io import BytesIO, StringIO
+from io import StringIO
 from pathlib import Path
 
 import pypdfium2
 from PIL import Image
 
 from renderer.fonts import register_entry_fonts
-from renderer.render_card import DEFAULT_BASE_PDF_PATH, render_card
+from renderer.render_card import (
+  DEFAULT_BASE_PDF_PATH,
+  load_base_card,
+  render_card,
+)
 from renderer.vocabulary import UNRENDERED_KEYS
 
 _RENDERER_DIR = Path(__file__).resolve().parent
@@ -54,10 +58,10 @@ def rasterize(pdf_bytes: bytes) -> Image.Image:
 
 def main() -> int:
   """Render the fixture card and overwrite the committed golden raster."""
+  with DEFAULT_BASE_PDF_PATH.open('rb') as base_pdf:
+    base_card = load_base_card(base_pdf)
   result = render_card(
-    StringIO(renderable_full_export()),
-    BytesIO(DEFAULT_BASE_PDF_PATH.read_bytes()),
-    register_entry_fonts(),
+    StringIO(renderable_full_export()), base_card, register_entry_fonts()
   )
   FULL_EXPORT_GOLDEN_PATH.parent.mkdir(exist_ok=True)
   rasterize(result.pdf).save(FULL_EXPORT_GOLDEN_PATH)

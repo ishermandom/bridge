@@ -53,6 +53,7 @@ from renderer.private_paths import discover_private_assets
 from renderer.render_card import (
   DEFAULT_BASE_PDF_PATH,
   RenderResult,
+  load_base_card,
   print_resized_entries,
   render_card,
 )
@@ -212,7 +213,7 @@ def render_acbl_card(json_path: pathlib.Path) -> RenderResult:
     DEFAULT_BASE_PDF_PATH.open('rb') as base_pdf,
     json_path.open(encoding='utf-8') as card_json,
   ):
-    return render_card(card_json, base_pdf, fonts)
+    return render_card(card_json, load_base_card(base_pdf), fonts)
 
 
 # ---------------------------------------------------------------------------

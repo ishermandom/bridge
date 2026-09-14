@@ -32,12 +32,17 @@ from renderer.regenerate_goldens import (
 from renderer.render_card import (
   DEFAULT_BASE_PDF_PATH,
   RenderResult,
+  load_base_card,
   main,
   render_card,
 )
 from renderer.vocabulary import UNRENDERED_KEYS, VOCABULARY
 
 _BASE_PDF_BYTES = DEFAULT_BASE_PDF_PATH.read_bytes()
+
+# Parsed once and shared, as `BaseCard` allows: parsing the card costs several
+# times what a render does.
+_BASE_CARD = load_base_card(BytesIO(_BASE_PDF_BYTES))
 
 _FONTS = register_entry_fonts()
 
@@ -60,7 +65,7 @@ def _render(
 ) -> RenderResult:
   """Run the renderer over the real base card with the given settings."""
   card_json = StringIO(json.dumps({'settings': settings, 'notes': notes}))
-  return render_card(card_json, BytesIO(_BASE_PDF_BYTES), _FONTS)
+  return render_card(card_json, _BASE_CARD, _FONTS)
 
 
 # --- pixel fidelity ---
@@ -73,6 +78,15 @@ def test_blank_card_matches_the_original_pixel_for_pixel() -> None:
     _rasterize(result.pdf), _rasterize(_BASE_PDF_BYTES)
   )
   assert difference.getbbox() is None
+
+
+def test_the_base_card_stays_blank_across_renders() -> None:
+  # Every render shares one parsed base card, so a render that drew on it would
+  # leak into every later one.
+  before = _render({}).pdf
+  _render({'names': {'names': 'First Last'}})
+
+  assert _render({}).pdf == before
 
 
 def test_an_entry_changes_pixels_only_inside_its_field() -> None:
@@ -254,9 +268,7 @@ def test_the_size_floor_argument_reaches_the_fitting_engine() -> None:
     json.dumps({'settings': overflowing_settings, 'notes': ''})
   )
 
-  result = render_card(
-    card_json, BytesIO(_BASE_PDF_BYTES), _FONTS, size_floor=0.2
-  )
+  result = render_card(card_json, _BASE_CARD, _FONTS, size_floor=0.2)
 
   assert result.resized[0].field_name == 'Name.t.1'
 
@@ -283,7 +295,7 @@ def test_unknown_top_level_keys_are_rejected() -> None:
   card_json = StringIO(json.dumps({'settings': {}, 'surprise': 1}))
 
   with pytest.raises(ValueError, match='surprise'):
-    render_card(card_json, BytesIO(_BASE_PDF_BYTES), _FONTS)
+    render_card(card_json, _BASE_CARD, _FONTS)
 
 
 def test_an_unrendered_key_with_content_is_rejected() -> None:
@@ -377,9 +389,7 @@ def test_the_full_export_renders_once_unrendered_keys_are_removed() -> None:
 def test_the_full_export_matches_its_committed_golden() -> None:
   # Pixel-level regression net over the whole card; regenerate with
   # `renderer.regenerate_goldens` after intentional rendering changes.
-  result = render_card(
-    StringIO(renderable_full_export()), BytesIO(_BASE_PDF_BYTES), _FONTS
-  )
+  result = render_card(StringIO(renderable_full_export()), _BASE_CARD, _FONTS)
 
   fresh = rasterize_at_golden_scale(result.pdf)
   golden = Image.open(FULL_EXPORT_GOLDEN_PATH).convert(fresh.mode)
