@@ -60,6 +60,15 @@ def _rasterize(pdf_bytes: bytes) -> Image.Image:
     document.close()
 
 
+def _page_text(pdf_bytes: bytes) -> str:
+  """Extract the text of a PDF's single page."""
+  document = pypdfium2.PdfDocument(pdf_bytes)
+  try:
+    return document[0].get_textpage().get_text_range()
+  finally:
+    document.close()
+
+
 def _render(
   settings: Mapping[str, object],
   notes: str = '',
@@ -130,7 +139,7 @@ def test_a_fitting_entry_keeps_its_default_size() -> None:
   result = _render({'names': {'names': 'First Last'}})
 
   assert result.resized == ()
-  assert 'First Last' in PdfReader(BytesIO(result.pdf)).pages[0].extract_text()
+  assert 'First Last' in _page_text(result.pdf)
 
 
 def test_an_oversized_entry_shrinks_and_is_listed_as_resized() -> None:
@@ -387,7 +396,7 @@ def test_the_full_export_renders_once_unrendered_keys_are_removed() -> None:
 
   # Spot check that entries actually landed on the card, using the fixture's
   # general-approach entry.
-  text = PdfReader(BytesIO(result.pdf)).pages[0].extract_text()
+  text = _page_text(result.pdf)
   assert '2/1 game forcing, five-card majors' in text
 
 
