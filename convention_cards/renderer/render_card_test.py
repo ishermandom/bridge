@@ -391,6 +391,18 @@ def test_the_majors_rule_extends_to_its_own_edge() -> None:
   assert not _has_ink(long_entry, past_the_edge)
 
 
+def test_a_majors_overflow_leaves_the_1nt_rules_alone() -> None:
+  long_entry = _render_without_artwork(
+    {'majors': {'other': 'Jacoby 2NT, splinters, Bergen raises'}}
+  )
+
+  # The majors row and the 1NT rows extend separately. The overflowing majors
+  # entry extends its own row's underline, so the overflow did happen, but the
+  # 1NT underlines must stay at their printed ends.
+  assert _has_rule_extension(long_entry, '1H1S.t.16', extended_end_x=438.1)
+  assert not _has_rule_extension(long_entry, '1NT.t.11', extended_end_x=443.2)
+
+
 def test_an_unfittable_entry_is_rejected_naming_the_field() -> None:
   with pytest.raises(ValueError, match=r'Name\.t\.1'):
     _render({'names': {'names': 'too long ' * 60}})
