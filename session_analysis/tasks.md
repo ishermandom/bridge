@@ -283,6 +283,9 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
+- [ ] Ingest the scan delivered on 2026-09-14, `Scanned_20260914-1957.pdf`,
+      through to a transcript of every board.
+  - Worktree: ingest-scan-2026-09-14
 - [ ] Give the dewarp the row count too, rather than voting for it.
       {#dewarp-needs-the-reading}
   - Rationale: `dewarp_sheet` still calls `resolve_grid_consensus`, which is the
