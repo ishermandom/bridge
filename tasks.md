@@ -144,5 +144,5 @@ production signatures for the tests' benefit.
       {#parallel-suites}: a maybe, not yet settled. `run_tests.sh` runs the
       `club_sites/palo_alto` type check and vitest suite before pytest; running
       the two concurrently would hide most of the shorter one.
-  - Note: unmeasured directly. By subtraction from one full run (11.7s wall
-    against 8.4s in pytest), the JavaScript side and startup take about 3s.
+  - Note: measured 2026-09-14, the type check takes ~0.3s and vitest ~0.8s, so
+    running them alongside pytest would save about a second of an ~8s run.
