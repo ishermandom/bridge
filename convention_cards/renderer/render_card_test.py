@@ -401,7 +401,7 @@ def test_the_size_floor_argument_reaches_the_fitting_engine() -> None:
     json.dumps({'settings': overflowing_settings, 'notes': ''})
   )
 
-  result = render_card(card_json, _BASE_CARD, _FONTS, size_floor=0.2)
+  result = render_card(card_json, _CARD_WITHOUT_ARTWORK, _FONTS, size_floor=0.2)
 
   assert result.resized[0].field_name == 'Name.t.1'
 
