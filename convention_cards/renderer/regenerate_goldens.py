@@ -35,7 +35,7 @@ FULL_EXPORT_GOLDEN_PATH = (
   _RENDERER_DIR / 'testdata' / 'goldens' / 'full_export.png'
 )
 
-# 150 dpi: fine enough to catch a one-point drift, small enough to commit.
+# 150 dpi, per spec.md #golden-resolution.
 GOLDEN_SCALE = 150 / 72
 
 

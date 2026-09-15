@@ -61,7 +61,8 @@ _CARD_WITHOUT_ARTWORK = BaseCard(
 
 _FONTS = register_entry_fonts()
 
-_RASTER_SCALE = 300 / 72  # 300 dpi
+# 300 dpi, per spec.md #ink-resolution.
+_RASTER_SCALE = 300 / 72
 
 
 class _Box(NamedTuple):
@@ -87,15 +88,6 @@ def _field_box(name: str) -> _Box:
   )
 
 
-def _rasterize(pdf_bytes: bytes) -> Image.Image:
-  """Render a PDF's single card page on white, ignoring form widgets.
-
-  White is the paper the card prints on, so the image shows the page as a reader
-  sees it. Use this to compare whole cards.
-  """
-  return _rasterize_box(pdf_bytes, _WHOLE_PAGE, fill_color=(255, 255, 255, 255))
-
-
 def _rasterize_ink(pdf_bytes: bytes, box: _Box = _WHOLE_PAGE) -> Image.Image:
   """Render one box of a PDF's single page on a transparent background.
 
@@ -103,17 +95,13 @@ def _rasterize_ink(pdf_bytes: bytes, box: _Box = _WHOLE_PAGE) -> Image.Image:
   landed there, whatever its color; on white, white ink would vanish. Use this
   on renders onto `_CARD_WITHOUT_ARTWORK`, to find what the entries drew: on the
   real card, the printed artwork would count as ink too.
-  """
-  return _rasterize_box(pdf_bytes, box, fill_color=(255, 255, 255, 0))
-
-
-def _rasterize_box(
-  pdf_bytes: bytes, box: _Box, fill_color: tuple[int, int, int, int]
-) -> Image.Image:
-  """Render one box of a PDF's single page over `fill_color`.
 
   Form widgets are left out. A small box renders in a fraction of the time the
   whole page takes.
+
+  To compare whole cards, use `rasterize_at_golden_scale` instead: it renders on
+  white, the paper the card prints on, so the image shows the page as a reader
+  sees it.
   """
   document = pypdfium2.PdfDocument(pdf_bytes)
   try:
@@ -129,7 +117,7 @@ def _rasterize_box(
       scale=_RASTER_SCALE,
       crop=crop,
       may_draw_forms=False,
-      fill_color=fill_color,
+      fill_color=(255, 255, 255, 0),
     )
     return bitmap.to_pil()
   finally:
@@ -198,7 +186,8 @@ def _blank_card_pdf() -> bytes:
 
 def test_blank_card_matches_the_original_pixel_for_pixel() -> None:
   difference = ImageChops.difference(
-    _rasterize(_blank_card_pdf()), _rasterize(_BASE_PDF_BYTES)
+    rasterize_at_golden_scale(_blank_card_pdf()),
+    rasterize_at_golden_scale(_BASE_PDF_BYTES),
   )
   assert difference.getbbox() is None
 

@@ -151,11 +151,11 @@ function of (text, font, rectangle) — unit-testable with no rendering involved
   - Location: fonts are not committed to this repo. The default lives in
     bridge-private and is found at run time, like the base artwork, so a missing
     font is a hard error naming the path that was tried.
-- **Vertical placement**: an entry's baseline sits just above its printed rule —
-  about 1pt of daylight — the way a hand writes on a line, with descenders
-  crossing the rule. Two alternatives were rejected: centering the glyph box in
-  the field's rectangle floats entries awkwardly far above the line, and a
-  baseline directly on the rule reads as merged with it.
+- **Vertical placement** {#vertical-placement}: an entry's baseline sits just
+  above its printed rule — about 1pt of daylight — the way a hand writes on a
+  line, with descenders crossing the rule. Two alternatives were rejected:
+  centering the glyph box in the field's rectangle floats entries awkwardly far
+  above the line, and a baseline directly on the rule reads as merged with it.
 - **Checkboxes**: an X drawn across the field's rectangle in the entry color.
 - **Suit symbols**: four-color — ♠ blue, ♡ red, ♢ amber, ♣ green — configurable
   through `render_card`'s `palette` argument; only the entry color has a
@@ -222,15 +222,52 @@ content is pushing the limits.
 
 ## Testing {#testing}
 
-- **Blank-card golden**: rasterize two PDFs at a fixed DPI — the original
-  `acbl.pdf` and the renderer's output for an empty input — and require a zero
-  pixel diff. The rasterizer draws with form widgets off, so the original's
-  fillable fields stay hidden and both images show only the printed artwork,
-  which is what the renderer must reproduce.
+- **Blank-card golden**: rasterize two PDFs — the original `acbl.pdf` and the
+  renderer's output for an empty input — and require a zero pixel diff. The
+  rasterizer draws with form widgets off, so the original's fillable fields stay
+  hidden and both images show only the printed artwork, which is what the
+  renderer must reproduce.
 - **Filled-card goldens**: committed rasters of representative placeholder
   cards, regenerated when the vocabulary or font changes (churn accepted for the
   regression coverage). Because fonts live outside the repo, these goldens
   reproduce only on a machine with the same font files installed.
+- **Golden resolution** {#golden-resolution}: both whole-card comparisons
+  rasterize at the filled goldens' scale, `GOLDEN_SCALE` in
+  `regenerate_goldens.py`. Resolution matters for one kind of change: text
+  moving straight up or down. An exact pixel comparison notices other changes
+  far smaller than a pixel at any resolution — anti-aliasing turns a drawn
+  shape's slightest shift into changed edge pixels, so shifting the card's
+  artwork by 0.001pt shows even at 72 dpi, and text moving sideways shows within
+  a twentieth of a point. But PDFium appears to set glyphs on whole pixel rows,
+  so a line of text can move vertically by nearly a pixel unnoticed, depending
+  on where its baseline falls within a row. The figures below come from moving
+  one line of text in 0.025pt steps from ten starting positions.
+  - **Precision needed**: about half a point. The finest vertical detail the
+    design depends on is the 1pt of daylight between an entry's baseline and its
+    rule (see #vertical-placement). A drift of half a point eats half that gap
+    and starts to undo the placement; a quarter point, under a tenth of a
+    millimeter, is finer than a reader can see on paper.
+  - **150 dpi** can miss a move of up to 0.45pt, just inside that bound.
+  - **Lower resolutions** save little. 72 dpi would cut the two comparisons'
+    combined time by ~18ms and the committed PNG by about half a megabyte, but
+    could miss a move of nearly a full point — enough to set text on its rule.
+    Around 135 dpi is the lowest that stays within half a point, and it saves
+    only ~4ms.
+  - **300 dpi** would catch drift no reader could see, for two to three times
+    the test time and a committed PNG more than twice the size.
+- **Ink-check resolution** {#ink-resolution}: the tests that ask where an
+  entry's ink landed render onto the card without its artwork and rasterize at
+  300 dpi, `_RASTER_SCALE` in `render_card_test.py`. Their finest margins are
+  half a point — the allowance for anti-aliasing above wrapped lines, and the
+  gap between a row's edge and the region its underline must not reach — and
+  whether an edge's last few tenths of a point show up depends on where they
+  fall against the pixel grid. 300 dpi is the smallest round figure that meets
+  two requirements:
+  - **A pixel at most half the finest margin**: about 290 dpi or finer, so that
+    an edge landing a pixel off still leaves half the margin. Coarser grids can
+    miss real faults.
+  - **Whole-page checks within the budget of ~10ms per test**: the checks that
+    rasterize the whole page take ~8ms each at 300 dpi.
 - **Unit tests**: the fitting engine, suit markup parsing, and vocabulary
   validation.
 - **Rasterizer**: `pypdfium2`, pinned. A new dependency — nothing in the repo
