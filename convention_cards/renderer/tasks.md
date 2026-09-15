@@ -73,14 +73,6 @@ when the card's layout changes, rather than going stale or passing vacuously.
       "Other" entry fits, so nothing renders the majors row's extension, which
       ends at x=438.1 in the darker ED1C24 red. One test rendering without the
       card's artwork, a few milliseconds, would cover it.
-- [ ] **Check underline extensions by what's drawn, not by red pixels**
-      {#drawn-extension-checks}: read the page's drawing instructions, as
-      `measure_rule_positions.py` does, and assert a bar in the panel's red from
-      the printed end to the shared edge at the rule's height. Do it with
-      #print-color-mode, whose black-and-white option would break the red-ink
-      detection anyway.
-  - Note: keep pixel checks where pixels are the point — the blank-card identity
-    test and the golden.
 
 ---
 
