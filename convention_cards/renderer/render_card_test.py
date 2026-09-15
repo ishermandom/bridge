@@ -170,16 +170,21 @@ def _page_text(pdf_bytes: bytes) -> str:
 def _render(
   settings: Mapping[str, object],
   notes: str = '',
+  base_card: BaseCard = _BASE_CARD,
 ) -> RenderResult:
-  """Run the renderer over the real base card with the given settings."""
+  """Run the renderer over `base_card`, by default the real card."""
   card_json = StringIO(json.dumps({'settings': settings, 'notes': notes}))
-  return render_card(card_json, _BASE_CARD, _FONTS)
+  return render_card(card_json, base_card, _FONTS)
 
 
 def _render_without_artwork(settings: Mapping[str, object]) -> bytes:
-  """Render the given settings onto `_CARD_WITHOUT_ARTWORK`."""
-  card_json = StringIO(json.dumps({'settings': settings}))
-  return render_card(card_json, _CARD_WITHOUT_ARTWORK, _FONTS).pdf
+  """Render the given settings onto `_CARD_WITHOUT_ARTWORK`, returning the PDF.
+
+  Most callers, such as ink checks, just need the PDF bytes. Any test that also
+  needs the render result, such as which entries were resized, should call
+  `_render` directly.
+  """
+  return _render(settings, base_card=_CARD_WITHOUT_ARTWORK).pdf
 
 
 @functools.cache
@@ -257,7 +262,9 @@ def test_a_base_card_already_using_the_overlays_name_is_rejected() -> None:
 
 
 def test_a_fitting_entry_keeps_its_default_size() -> None:
-  result = _render({'names': {'names': 'First Last'}})
+  result = _render(
+    {'names': {'names': 'First Last'}}, base_card=_CARD_WITHOUT_ARTWORK
+  )
 
   assert result.resized == ()
   assert 'First Last' in _page_text(result.pdf)
