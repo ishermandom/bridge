@@ -305,17 +305,20 @@ def test_wrapped_lines_stay_within_the_field_and_its_bleed() -> None:
   assert ink.bottom >= field.bottom - 4
 
 
-def _has_rule_extension(pdf_bytes: bytes, field_name: str) -> bool:
-  """Whether a render carries a 1NT row's underline out to the shared edge.
+def _has_rule_extension(
+  pdf_bytes: bytes, field_name: str, extended_end_x: float
+) -> bool:
+  """Whether a render carries a row's underline out to `extended_end_x`.
 
-  Looks for red in a strip hanging from the row's rule top, just short of the
-  1NT panel's shared right edge at x=443.2, where an extension ends. Entry text
-  may reach the strip too, but draws in the entry color, never red, as long as
-  it holds no red suit symbol.
+  Looks for red in a strip hanging from the row's rule top, just short of that
+  edge, where the row's extension should end. Entry text may reach the strip
+  too, but draws in the entry color, never red, as long as it holds no red suit
+  symbol.
   """
   rule_top = RULE_TOPS[field_name]
+  strip_right = extended_end_x - 0.2
   strip = _rasterize_ink(
-    pdf_bytes, _Box(438, rule_top - 1, 443, rule_top + 0.5)
+    pdf_bytes, _Box(strip_right - 5, rule_top - 1, strip_right, rule_top + 0.5)
   )
   data = strip.convert('RGB').tobytes()
   return any(
@@ -330,8 +333,9 @@ def test_an_entry_overflowing_its_rule_extends_the_underline() -> None:
   )
 
   # The 1NT "Other" row's printed underline ends at x=424.8; the entry above
-  # overflows it, so the underline must continue to the shared right edge.
-  assert _has_rule_extension(long_entry, '1NT.t.11')
+  # overflows it, so the underline must continue to the 1NT rows' shared right
+  # edge.
+  assert _has_rule_extension(long_entry, '1NT.t.11', extended_end_x=443.2)
 
 
 # One overflowing entry must extend the underlines of the whole 1NT family — a
@@ -346,14 +350,14 @@ def test_a_sibling_overflow_extends_a_fitting_rows_rule() -> None:
   extended = _render_without_artwork(_ONE_OVERFLOWING_1NT_ENTRY)
 
   # The fitting 'short' entry's row.
-  assert _has_rule_extension(extended, '1NT.t.11')
+  assert _has_rule_extension(extended, '1NT.t.11', extended_end_x=443.2)
 
 
 def test_a_sibling_overflow_extends_a_blank_rows_rule() -> None:
   extended = _render_without_artwork(_ONE_OVERFLOWING_1NT_ENTRY)
 
   # A row with no entry at all.
-  assert _has_rule_extension(extended, '1NT.t.17')
+  assert _has_rule_extension(extended, '1NT.t.17', extended_end_x=443.2)
 
 
 def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
@@ -371,6 +375,20 @@ def test_a_fitting_entry_leaves_its_printed_rule_alone() -> None:
   gutter = _Box(field.right, rule_top - 2.5, 444, rule_top + 2.5)
   assert _has_ink(long_entry, gutter)
   assert not _has_ink(short_entry, gutter)
+
+
+def test_the_majors_rule_extends_to_its_own_edge() -> None:
+  long_entry = _render_without_artwork(
+    {'majors': {'other': 'Jacoby 2NT, splinters, Bergen raises'}}
+  )
+
+  # The majors "Other" row's printed underline ends at x=420.3, and the entry
+  # above overflows it, so the underline must continue to the row's own edge at
+  # x=438.1 — and stop there, short of the raise labels printed from x=440.1.
+  rule_top = RULE_TOPS['1H1S.t.16']
+  past_the_edge = _Box(438.6, rule_top - 1, 440, rule_top + 0.5)
+  assert _has_rule_extension(long_entry, '1H1S.t.16', extended_end_x=438.1)
+  assert not _has_ink(long_entry, past_the_edge)
 
 
 def test_an_unfittable_entry_is_rejected_naming_the_field() -> None:

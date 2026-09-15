@@ -20,19 +20,6 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 
 ---
 
-## Test robustness
-
-**Goal:** the pixel tests in `render_card_test.py` keep testing what they claim
-when the card's layout changes, rather than going stale or passing vacuously.
-
-- [ ] **Cover the majors row's underline extension** {#majors-extension-test}:
-      every extension test exercises the 1NT family, and the golden's majors
-      "Other" entry fits, so nothing renders the majors row's extension, which
-      ends at x=438.1 in the darker ED1C24 red. One test rendering without the
-      card's artwork, a few milliseconds, would cover it.
-
----
-
 ## Specimen scripts
 
 - [ ] **Let the palette specimen reuse the renderer beside it**
