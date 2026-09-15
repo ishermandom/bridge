@@ -276,6 +276,13 @@ content is pushing the limits.
   identical rasters on every machine — unlike `pdf2image`, which shells out to
   whatever poppler the system has — and its license is permissive, unlike AGPL
   `PyMuPDF`.
+- **Test speed**: the rendering tests run as part of the default suite. A unit
+  test should ideally finish within 10ms, and a handful of rendering tests
+  exceed that budget: whole-card rasters, full-card renders, and the rule-table
+  measurement. But none takes more than a few tens of milliseconds, and the mean
+  test latency across the whole suite is a few milliseconds, well within the
+  budget. For now, a separate on-demand suite for the slower tests wouldn't earn
+  its upkeep.
 
 ## Module shape {#module-shape}
 

@@ -137,8 +137,6 @@ production signatures for the tests' benefit.
   - Note: the floor is the slowest single test, a squeeze-generation case at
     1.3–2.3s, plus worker startup. Module-level caches such as the renderer's
     shared base card build once per worker. Breakpoints need `-n 0`.
-  - Note: bears on `convention_cards/renderer/tasks.md` #test-latency, whose
-    slow tests would mostly disappear into that floor.
 
 - [ ] **Consider running the JavaScript and Python suites side by side**
       {#parallel-suites}: a maybe, not yet settled. `run_tests.sh` runs the

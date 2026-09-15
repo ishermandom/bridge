@@ -53,7 +53,9 @@ _BASE_PDF_BYTES = DEFAULT_BASE_PDF_PATH.read_bytes()
 _BASE_CARD = load_base_card(BytesIO(_BASE_PDF_BYTES))
 
 # The real card's fields over an empty page. A render onto it holds only what
-# the entries draw, with none of the card's printed artwork around them.
+# the entries draw, with none of the card's printed artwork around them. It also
+# runs several times faster than a render onto the real card, so tests that need
+# nothing from the artwork render here.
 _CARD_WITHOUT_ARTWORK = BaseCard(
   page=PdfWriter().add_blank_page(CARD_WIDTH, CARD_HEIGHT),
   fields=_BASE_CARD.fields,
