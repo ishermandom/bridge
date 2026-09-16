@@ -167,8 +167,8 @@ def _make_board(
   """A board carrying only the cells a test is asserting on.
 
   `our_side` fills the pair reconciliation would have placed us as, which the
-  double-dummy column needs to tell a board we declared from one we defended.
-  It stays absent for the tests about the rest of the line.
+  double-dummy column needs to tell a board we declared from one we defended. It
+  stays absent for the tests about the rest of the line.
   """
   return Board(
     number=_make_number(number),
@@ -375,8 +375,8 @@ def test_a_notrump_contract_writes_its_strain_as_one_letter() -> None:
     )
   )
 
-  # One character wide is what keeps the declarer legible after the strain,
-  # and nine tricks is book plus three, which is 3NT making exactly.
+  # One character wide is what keeps the declarer legible after the strain, and
+  # nine tricks is book plus three, which is 3NT making exactly.
   assert '3NS+3' in _board_line(board)
 
 

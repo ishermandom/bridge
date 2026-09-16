@@ -27,12 +27,11 @@ whether a call was ours or theirs, and that is as fine a distinction as the
 record supports.
 
 Each value is rendered from its parse rather than from the envelope's `raw`, so
-one spelling reaches the reader however the sheet happened to write it — `p`
-and `P` both arrive here as `PASS`, `x` and `*` as `DBL`, `1N` and `1NT` alike
-as `1N`. Where a parse failed there is nothing to spell, and the raw
-transcription stands in its place, wrapped in `?…?`: a call dropped for being
-unreadable would leave a line reading as though the sheet had said nothing
-there.
+one spelling reaches the reader however the sheet happened to write it — `p` and
+`P` both arrive here as `PASS`, `x` and `*` as `DBL`, `1N` and `1NT` alike as
+`1N`. Where a parse failed there is nothing to spell, and the raw transcription
+stands in its place, wrapped in `?…?`: a call dropped for being unreadable would
+leave a line reading as though the sheet had said nothing there.
 
 Two last columns set each result beside what the deal allowed, from our own
 side's point of view: `DD+1` says the board went a trick our way against what
@@ -40,9 +39,9 @@ best play by both sides yields, `DD-2` two tricks against us. Defending counts
 the same way as declaring — the opponents held to a trick short of the count is
 `DD+1`, exactly as our own declarer taking a trick more than the count is.
 
-`PLAY` counts the same way but from the position the opening lead left, so it
-is the play with the lead taken out of the reckoning, and the gap between the
-two columns is what the lead itself was worth.
+`PLAY` counts the same way but from the position the opening lead left, so it is
+the play with the lead taken out of the reckoning, and the gap between the two
+columns is what the lead itself was worth.
 
 Which way that gap can run is fixed rather than free, for the reason
 `double_dummy_comparison` argues. Declaring, `PLAY` never exceeds `DD`, and the
@@ -132,8 +131,8 @@ def _header_lines(
   session: Session, *, has_recorded_boards: bool
 ) -> Iterator[str]:
   """The session's name and date, its key, any caveat, then a blank."""
-  # A date left unread is named rather than left blank, for the reason the
-  # `?…?` marks exist: it should not read as a session that was never dated.
+  # A date left unread is named rather than left blank, for the reason the `?…?`
+  # marks exist: it should not read as a session that was never dated.
   date = session.date.isoformat() if session.date else 'date not read'
   yield f'{session.event} — {date}'
 
@@ -145,9 +144,9 @@ def _header_lines(
   # Only a pairs game publishes a traveller, so a teams session has no
   # double-dummy analysis to set against, and never will; a session that
   # reconciliation has not yet reached has none for now. The record cannot tell
-  # the two apart, so the line states what they share rather than guessing.
-  # Left unsaid, an absent column would read as a session whose every board
-  # came out even.
+  # the two apart, so the line states what they share rather than guessing. Left
+  # unsaid, an absent column would read as a session whose every board came out
+  # even.
   if has_recorded_boards and not session.source.travellers:
     yield 'No traveller has reached this session; nothing to compare against.'
 
