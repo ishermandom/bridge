@@ -659,13 +659,29 @@ their silences mean, are argued in `unreviewed.double_dummy_comparison`.
     it sat East-West or North-South on 2026-08-31.
   - Note: guessing the mapping is worse than leaving it. A wrong guess swaps two
     partners' declaring records silently, and the result looks authoritative.
+  - Note: the Bridgemate scoring file that ACBL's page links (#swiss-travellers)
+    records seats, and the user judges it worth reading to label rows by player,
+    though nothing fetches it yet. At every table it keys each seat (`N`, `E`,
+    `S`, `W`) to an ACBL player number. It records the seating as first taken
+    and nothing after: the 2026-09-14 file marks every row as round 0, one
+    seating per table for the whole session, and its player-number settings
+    (`MemberNumbers`, `MemberNumbersNoBlankEntry`) are plain yes-or-no switches
+    with no option to ask again each round.
+  - Note: the opening seating settles who sat where more often than it sounds.
+    For a session where we keep our starting direction, the common case, it
+    settles every board; for a session where we switch, it settles every board
+    before the switch, and every other pair that kept its direction. Only which
+    partner took which seat after a switch stays unknown, and a guess there
+    risks the silent swap of declaring records described above.
   - Open question: which route to take. Seating could be configured beside
     `player_name` — but a pair changes direction mid-session, as the 2026-08-31
     session does over boards 13 to 15, so the setting would have to say which
     seat each player takes in each direction, and it would break unnoticed the
     first time they swapped. Recording the seat on the sheet would be real data
     rather than an assumption, at the cost of a change to what gets written
-    down.
+    down. Reading the scoring file is real data too and changes nothing on the
+    sheet, but it settles seats only up to a switch, and it needs a fetch for
+    the file plus a dependency that reads Access databases.
 - [ ] Leave a printed row the sheet never filled out of the transcript.
       {#blank-printed-rows}
   - Rationale: a form prints more rows than a session fills, and every real
