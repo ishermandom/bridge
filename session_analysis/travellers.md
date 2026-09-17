@@ -63,11 +63,25 @@ Two sources cover a typical club session; tournaments have only ACBL Live.
     a page is reported as holding no traveller rather than passed off as an
     empty one. The club site can still publish that game's per-board rows, as it
     did for the 2026-09-14 Swiss.
+  - **The Bridgemate scoring file** {#scoring-file} — every club page captured
+    links it, beside a hand-record PDF and PBN, while the captured tournament
+    pages link none. It is a `.BWS` Access database written by the table
+    devices. It holds every table's result, under the pair numbers the tables
+    used, and the seat each player took, keyed by ACBL player number. It records
+    only the seating as first taken: the 2026-09-14 file marks every seating row
+    round 0, and its player-number settings (`MemberNumbers`,
+    `MemberNumbersNoBlankEntry`) are plain yes-or-no switches with no per-round
+    choice. It holds no deals and no scores, so travellers are not read from it,
+    and reading it at all would need a dependency for Access databases. Its
+    seating is what no other source records.
 - **Club site** (`paloaltobridge.org`) — each game published by BridgeComposer,
   as a PBN and as HTML. Carries the deal and par. Names a row by its pair of
   surnames (`Alfa-Bravo`); full names appear only in the standings recap that
   both formats embed, reachable from a row by its section and pair number.
   Secondary corroboration.
+  - One file can hold two games. The 2026-09-14 files carry the Swiss as section
+    `B`, scored as a Butler, beside a matchpointed pairs game as section `C`,
+    and the Swiss rows number each pair by its team's number.
 - **Pianola** — some club games post only here. Deferred: the sessions currently
   played do not use it.
 
@@ -167,6 +181,13 @@ Whichever fetch is used:
   "reconcile" command. The escape hatch — finalizing a session that no traveller
   ever arrives for — is the one explicit action (see
   [Reconciliation](#reconciliation)).
+- **Re-fetch before diagnosing a disagreement.** The club site has revised a
+  file after publishing it, so a capture is a snapshot and an old one can be
+  wrong. The HTML first fetched for the 2026-09-14 Swiss attached the East-West
+  pairs' names to the wrong pair numbers, putting our names on another pair's
+  rows, and the club republished it corrected the same day at the same byte
+  count. The store re-parses a capture newer than its record, and the join
+  re-runs on every ingest pass, so a re-fetch is the whole fix.
 
 ### Matching a capture to its session {#matching}
 
@@ -542,7 +563,7 @@ the public repo.
   to the widths its `ScoreTable` header declares, so a placeholder there cannot
   change length without being repadded to match.
 - **Which real capture is which** {#which-real-capture} — worth knowing before
-  reaching for "an ACBL club capture" to check something against.
+  reaching for a real capture to check something against.
   - `1472071.html` — a pairs game with a one-winner movement.
   - `1441256.html` — a pairs game with a two-winner movement, so the only one
     that names a direction on its pair summaries. It is also the only capture
@@ -556,6 +577,11 @@ the public repo.
     with, kept as the example of what a gated game saves as.
   - The two tournament captures — the two sessions of one event, 26 boards and a
     single section apiece. Both parse clean.
+  - `D260914M.pbn` and `R260914M.htm` — the club's files for the 2026-09-14
+    Swiss and a pairs game. The PBN, from game day, lacks round 4 and the end of
+    round 3; its boards 19 to 22 hold one row each and declare their name
+    columns with no width. The HTML is the club's corrected republication and
+    carries every round.
 - **Showing a parser change alters nothing** — run `traveller_store` with
   `refresh` before and after and diff the records it writes, which is what
   `refresh` is for: an ordinary run skips a capture whose record already

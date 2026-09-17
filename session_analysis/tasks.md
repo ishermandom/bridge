@@ -185,44 +185,6 @@ older one does not. The club capture route needs no browser at all, so a run
 that returns club captures and no ACBL ones may be reporting the environment
 rather than a fault.
 
-- [ ] Fetch the travellers for PABC Swiss games. {#swiss-travellers}
-  - Worktree: swiss-travellers
-  - Note: what remains is an ingest pass, which joins
-    `pabc-sept-swiss-2026-09-14` to the captures and records already committed
-    in `bridge-private`. Run it once this branch is reviewed and landed.
-  - Note: the 2026-09-14 Swiss has per-board rows, but only on the club site.
-    The club's PBN and HTML both carry them, while ACBL's page carries each
-    match's victory points and nothing per board — the case `acbl_club_parsing`
-    reports as `no_per_board_results`. The club files hold two games at once:
-    the Swiss as section `B`, scored as a Butler, beside a pairs game as section
-    `C`. The Swiss rows number each pair by its team's number and carry no
-    matchpoints.
-  - Note: the club revises what it publishes, so a capture is a snapshot and an
-    old one can be wrong. The HTML fetched at 07:28 GMT on 2026-09-15 attached
-    the East-West pairs' names to the wrong pair numbers, which put our names on
-    another pair's rows for 18 of our 24 boards. The club republished at 21:49
-    GMT the same day with the names right, and the corrected file has the same
-    byte count, so its size gives no sign it changed. Treat a disagreement
-    between sources as a fetch to redo before it is a fault to diagnose — the
-    store re-parses a capture whose record predates it, so a re-fetch is the
-    whole fix.
-  - Note: the two club files now agree wherever they overlap. The PBN still
-    dates from game day and lacks round 4 and the end of round 3, carrying our
-    table on 16 of our 24 boards; the corrected HTML carries all 24 and names us
-    on every one. Joining both to the session raises four low-severity issues,
-    all on boards 25 to 28, which the sheet printed and nobody played
-    (#blank-printed-rows).
-  - Note: for every club game captured, ACBL's page also links the Bridgemate
-    scoring file, a `.BWS` Access database. The Swiss's file holds every table's
-    result for all four rounds, under pair numbers matching our scoresheet, but
-    no deals and no scores of any kind. The captured tournament pages link no
-    such file. Settled with the user: the file is not worth reading for
-    travellers, but is worth reading for the seats it records, as
-    #recap-by-player describes.
-  - Note: `pabc-sept-swiss-2026-09-14` is the first Swiss session digitized, so
-    it will be the first to reconcile against a fetched traveller. It will still
-    get no score: the Swiss was scored in IMPs, and only matchpoints are
-    recorded so far (#score-in-game-units).
 - [ ] Fetch a real tournament traveller through the reworked ACBL fetch.
       Trigger: the next tournament played.
   - Rationale: the rework is proven end to end on the club surface — index, game
@@ -264,10 +226,11 @@ rather than a fault.
     (#score-in-game-units).
   - Note: a team page without sections still links onward. `1515800`, the
     2026-09-14 Swiss's page, lists the same three files a pairs page does: a
-    hand-record PDF, a hand-record PBN, and the Bridgemate scoring file. It also
-    names its hand record by `hand_record_id`. Its PBN is byte-identical to the
-    club's own, score tables included, so ACBL does lead to the game's per-board
-    rows, through a file rather than the page.
+    hand-record PDF, a hand-record PBN, and the Bridgemate scoring file
+    (travellers.md `#scoring-file`). It also names its hand record by
+    `hand_record_id`. Its PBN is byte-identical to the club's own, score tables
+    included, so ACBL does lead to the game's per-board rows, through a file
+    rather than the page.
   - Open question: which route to take — the linked PBN, the scoring file, which
     needs a dependency that reads Access databases, or a per-board view ACBL may
     render from the hand record. No capture so far shows such a view.
@@ -674,14 +637,9 @@ their silences mean, are argued in `unreviewed.double_dummy_comparison`.
     it sat East-West or North-South on 2026-08-31.
   - Note: guessing the mapping is worse than leaving it. A wrong guess swaps two
     partners' declaring records silently, and the result looks authoritative.
-  - Note: the Bridgemate scoring file that ACBL's page links (#swiss-travellers)
-    records seats, and the user judges it worth reading to label rows by player,
-    though nothing fetches it yet. At every table it keys each seat (`N`, `E`,
-    `S`, `W`) to an ACBL player number. It records the seating as first taken
-    and nothing after: the 2026-09-14 file marks every row as round 0, one
-    seating per table for the whole session, and its player-number settings
-    (`MemberNumbers`, `MemberNumbersNoBlankEntry`) are plain yes-or-no switches
-    with no option to ask again each round.
+  - Note: the Bridgemate scoring file records who first sat in each seat, by
+    ACBL player number (travellers.md `#scoring-file`), and the user judges it
+    worth reading to label rows by player, though nothing fetches it yet.
   - Note: the opening seating settles who sat where more often than it sounds.
     For a session where we keep our starting direction, the common case, it
     settles every board; for a session where we switch, it settles every board
