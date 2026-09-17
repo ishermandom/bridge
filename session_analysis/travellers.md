@@ -550,6 +550,8 @@ the public repo.
     repeating the strain where the declarer belongs, which the parser reports
     and the board survives.
   - `1484015.html` — a team game whose page has no per-board rows at all.
+  - `1515800.html` — the 2026-09-14 Swiss, a team game whose page has no
+    per-board rows; the club's own files carry them.
   - `1430431.html` — not a game page: the ACBL login page the fetch came back
     with, kept as the example of what a gated game saves as.
   - The two tournament captures — the two sessions of one event, 26 boards and a

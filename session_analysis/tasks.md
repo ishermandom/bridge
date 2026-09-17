@@ -230,16 +230,22 @@ rather than a fault.
     far as its index, because no tournament fell on the date used to validate
     it. The two surfaces share their machinery, so this is confirmation rather
     than suspicion.
-- [ ] Stop the two unstorable ACBL captures reporting themselves every run.
-  - Rationale: `1430431` is a saved login page and `1484015` a team game, so
-    neither ever parses to boards and neither ever gets a record. Every run
-    therefore ends with the same two `capture_held_no_boards` issues, and always
-    will. It is why `has_fetch_failures` ignores issues, which is a workaround
-    for the noise rather than an answer to it.
-  - Open question: whether to file such captures somewhere the store does not
-    walk, record that they are known, or teach the store to say "known, still
-    nothing" more quietly. Deleting them would lose the two examples the
-    parsers' tests describe.
+- [ ] Stop every run from reporting the captures known to hold no boards.
+      {#capture-diagnosis}
+  - Rationale: `traveller_store` reports `capture_held_no_boards` for every
+    capture that stores nothing, and several captures on disk are kept precisely
+    because they hold none — travellers.md `#which-real-capture` names them and
+    why. `1430431` is a saved login page, and `1484015` and `1515800` are team
+    games whose pages carry no per-board rows. So every fetch and ingest run
+    ends with one complaint per such capture, none of them ever actionable,
+    which is how a summary teaches its reader to skim. The noise is also why
+    `has_fetch_failures` ignores issues — a workaround rather than an answer.
+  - Open question: whether to suppress a known-barren capture, file it somewhere
+    the store does not walk, or have the store say quietly why it is barren. The
+    parse already distinguishes the causes — a gated page wants re-fetching,
+    where a team game's page simply has no rows — and the store drops that
+    distinction, so any fix needs it carried outward. Deleting the captures
+    would lose examples the parsers' tests describe.
 - [ ] Share one browser across a run's two ACBL surfaces.
       {#share-one-acbl-browser}
   - Rationale: `fetch_club_travellers` and `fetch_tournament_travellers` each
@@ -387,17 +393,6 @@ record waits for review, and what becomes of a scan that raises.
     is the cumulative sum of the per-board IMP swings, those live in the `MPs`
     column nothing transcribes, and a teams game frequently publishes no
     traveller to supply them either (#capture-diagnosis).
-- [ ] Stop reporting the two captures kept for having no boards.
-      {#capture-diagnosis}
-  - Rationale: `traveller_store` reports `capture_held_no_boards` for every
-    capture that stores nothing, and two of the captures on disk are kept
-    precisely because they hold none — travellers.md `#which-real-capture` names
-    both and why. So every ingest run ends with two complaints that will never
-    be actionable, which is how a summary teaches its reader to skim.
-  - Open question: whether to suppress a known-barren capture, or to say why it
-    is barren. The parse already distinguishes the causes — a gated page wants
-    re-fetching where a teams game is permanent — and the store drops that
-    distinction, so either fix needs it carried outward.
 - [ ] Keep what the model said, so a parser fix need not re-buy it.
       {#keep-raw-transcriptions}
   - Rationale: `parse_and_assemble_voted_session` consumes both raw model
