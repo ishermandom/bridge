@@ -162,14 +162,35 @@ _RECAP_DATE_PATTERN = re.compile(
 )
 _RECAP_DATE_FORMAT = '%B %d %Y'
 
-# Columns in the recap are separated by two or more spaces. Demanding two is
-# what keeps a two-word name from splitting and a one-space gap from joining two
-# columns.
+# Columns in the recap are separated by two or more spaces, so that a two-word
+# name like `Ann Alfa` stays in one column. The cost is that a value leaving
+# only one space before the next column is read as part of that column;
+# `_RECAP_AWARD_PATTERN` below handles the one column where this happens.
 _RECAP_COLUMN_SEPARATOR = re.compile(r'\s{2,}')
 
 # The separator between the two players of a recap pair. Spaces on both sides
 # are what distinguish it from the hyphen inside a surname.
 _RECAP_NAME_SEPARATOR = ' - '
+
+# The masterpoint award printed just before a placing pair's names: an amount,
+# then one or two capital letters in parentheses. The award's column is nine
+# characters wide, trailing spaces included. With one letter, as in `0.30(A)`,
+# the award leaves two spaces and splits off into a column of its own. With two,
+# as in `0.84(SA)`, it leaves one, which the column separator above does not
+# treat as a break, so the award column is glued to the names column. This
+# pattern strips the award from the front of the glued column by its shape, so
+# both spacings read the same.
+_RECAP_AWARD_PATTERN = re.compile(
+  r"""
+  ^
+  \d+\.\d+    # the amount, e.g. `0.84`
+  \(
+  [A-Z]+      # the letters, e.g. `SA`
+  \)
+  \s*         # whatever spaces the column left over, possibly none
+  """,
+  re.VERBOSE,
+)
 
 # What a score table writes in the contract and score columns of a board that
 # was passed out.
@@ -356,16 +377,21 @@ def _recap_pair(line: str) -> tuple[str, tuple[str, ...]] | None:
   standings row is the one shape that opens with a pair number and closes with
   two names joined by a spaced hyphen — the spaces being what tells that
   separator apart from the hyphen inside a surname.
+
+  The masterpoint award column can be glued to the names column (see
+  `_RECAP_AWARD_PATTERN`), so the award is stripped before the names are read.
   """
   columns = [
     column for column in _RECAP_COLUMN_SEPARATOR.split(line.strip()) if column
   ]
   if len(columns) < 2 or not columns[0].isdigit():
     return None
-  if _RECAP_NAME_SEPARATOR not in columns[-1]:
+  # Does nothing where the award split off on its own or no award was printed.
+  names_column = _RECAP_AWARD_PATTERN.sub('', columns[-1])
+  if _RECAP_NAME_SEPARATOR not in names_column:
     return None
   players = tuple(
-    name.strip() for name in columns[-1].split(_RECAP_NAME_SEPARATOR)
+    name.strip() for name in names_column.split(_RECAP_NAME_SEPARATOR)
   )
   return columns[0], players
 

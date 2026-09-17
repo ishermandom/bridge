@@ -17,6 +17,8 @@ import datetime
 import pathlib
 from collections.abc import Mapping
 
+import pytest
+
 from session_analysis.club_html_parsing import parse_club_html
 from session_analysis.enums import (
   Direction,
@@ -649,6 +651,41 @@ def test_surnames_stand_in_where_the_recap_has_no_entry() -> None:
   assert traveller.boards[0].results[0].north_south.names == (
     'Mike',
     'November',
+  )
+
+
+@pytest.mark.parametrize(
+  'standings_row',
+  [
+    # No award: the names column stands on its own.
+    '  1   75.00    3.00  A   1            Ann Alfa - Bob Bravo',
+    # One letter in parentheses leaves two spaces, so the award splits off.
+    '  1   75.00    3.00  A   1   0.30(A)  Ann Alfa - Bob Bravo',
+    # Two letters leave one space, gluing the award column to the names column.
+    '  1   75.00    3.00  A   1   0.84(SA) Ann Alfa - Bob Bravo',
+  ],
+)
+def test_a_masterpoint_award_does_not_reach_the_names(
+  standings_row: str,
+) -> None:
+  # However many spaces the award leaves before the names, the pair comes out
+  # with the same full names.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A North-South',
+      standings_row,
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == (
+    'Ann Alfa',
+    'Bob Bravo',
   )
 
 
