@@ -256,6 +256,21 @@ rather than a fault.
     tidiness rather than a problem. Fixing it means making `_BrowserFetcher`
     public so the command can open one and hand it to both surfaces; weigh that
     widening against what it saves.
+- [ ] Reach an ACBL team game's per-board results. {#acbl-team-boards}
+  - Note: a team game's page can list its session with no sections, and
+    `acbl_club_parsing` then reports `no_per_board_results`. A team page that
+    does carry sections would be read exactly as a pairs page is. No capture has
+    exercised that path, and such a page's scores would presumably be IMPs
+    (#score-in-game-units).
+  - Note: a team page without sections still links onward. `1515800`, the
+    2026-09-14 Swiss's page, lists the same three files a pairs page does: a
+    hand-record PDF, a hand-record PBN, and the Bridgemate scoring file. It also
+    names its hand record by `hand_record_id`. Its PBN is byte-identical to the
+    club's own, score tables included, so ACBL does lead to the game's per-board
+    rows, through a file rather than the page.
+  - Open question: which route to take — the linked PBN, the scoring file, which
+    needs a dependency that reads Access databases, or a per-board view ACBL may
+    render from the hand record. No capture so far shows such a view.
 - [ ] Disambiguate a capture matching two sessions. {#multi-session-days}
   - Rationale: a two-game day leaves a club capture matching both sessions.
     `match_travellers` reports the ambiguity and matches neither rather than
