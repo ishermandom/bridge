@@ -753,18 +753,6 @@ rationale lives in the design docs' open-question sections —
   - Note: what to watch is false suggestions rather than missed ones. A
     suggestion a person has to think about and reject costs more than a swap the
     cross-checks would have surfaced anyway.
-- [ ] Strip the masterpoint award a club recap prefixes to some player names.
-  - Note: `club/gameresults2/tgif/R260717M.htm` parses pairs named names of the
-    form `0.32(SB) First Last`, so the standings recap's award column is being
-    read into the name beside it. Every pair in that capture is affected; the
-    other club captures are clean, so it is that recap's layout rather than the
-    parser's whole approach.
-  - Note: it would defeat our-row matching for a session we played at that club,
-    since the configured name would no longer match the printed one.
-  - Note: the 2026-09-15 session waits on this. Its club recap writes the prefix
-    where the ACBL page and the club PBN write plain names, so the three sources
-    disagree and 10 of its 24 boards have no opponents. The record is left
-    pending so that the join fills them once this lands.
 - [ ] Read the ACBL player number from the configuration rather than from a
       flag.
   - Note: the home exists — `unreviewed.configuration`, built where
