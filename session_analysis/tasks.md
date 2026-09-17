@@ -761,6 +761,10 @@ rationale lives in the design docs' open-question sections —
     parser's whole approach.
   - Note: it would defeat our-row matching for a session we played at that club,
     since the configured name would no longer match the printed one.
+  - Note: the 2026-09-15 session waits on this. Its club recap writes the prefix
+    where the ACBL page and the club PBN write plain names, so the three sources
+    disagree and 10 of its 24 boards have no opponents. The record is left
+    pending so that the join fills them once this lands.
 - [ ] Read the ACBL player number from the configuration rather than from a
       flag.
   - Note: the home exists — `unreviewed.configuration`, built where
