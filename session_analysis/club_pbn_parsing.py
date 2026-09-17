@@ -437,7 +437,10 @@ def _read_row(table: _Table, row: str) -> Mapping[str, str]:
   read = dict(zip(table.columns[:leading], parts[:leading], strict=True))
   remainder = parts[leading]
   for column in name_columns[:-1]:
-    end = _name_column_end(remainder, table.widths.get(column, len(remainder)))
+    # A column declared with no width is printed unpadded, so it ends at its
+    # first space. A width of zero does that: every value overruns it, and an
+    # overrunning value ends at its next space.
+    end = _name_column_end(remainder, table.widths.get(column, 0))
     read[column] = remainder[:end].strip()
     remainder = remainder[end:].lstrip()
   read[name_columns[-1]] = remainder.strip()

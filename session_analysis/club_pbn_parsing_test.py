@@ -391,6 +391,21 @@ def test_a_name_longer_than_its_declared_width_stays_whole() -> None:
   assert row.east_west.names == ('Charlie', 'Delta')
 
 
+def test_a_name_column_declared_with_no_width_ends_at_its_first_space() -> None:
+  # A board with a single row can declare its name columns with no width,
+  # printing the two pairs' names one space apart with no padding.
+  traveller = parse_lines(
+    '[Board "1"]',
+    '[ScoreTable "PairId_NS;PairId_EW;Contract;Declarer;Result;Score_NS;'
+    'Score_EW;Names_NS;Names_EW"]',
+    '1 2 4S N 10 420 - Alfa-Bravo Charlie-Delta',
+  )
+
+  row = traveller.boards[0].results[0]
+  assert row.north_south.names == ('Alfa', 'Bravo')
+  assert row.east_west.names == ('Charlie', 'Delta')
+
+
 # --- what could not be read ---
 
 
