@@ -310,15 +310,20 @@ def _has_rule_extension(
 ) -> bool:
   """Whether a render carries a row's underline out to `extended_end_x`.
 
-  Looks for red in a strip hanging from the row's rule top, just short of that
-  edge, where the row's extension should end. Entry text may reach the strip
-  too, but draws in the entry color, never red, as long as it holds no red suit
-  symbol.
+  Looks for red in a narrow strip hanging from the row's rule top, just short of
+  that edge, where the row's extension should end.
+
+  Entry text draws over the extension, so a descender reaching the strip could
+  hide its red. Callers must choose entries whose text ends at least a point
+  short of the edge, clear of the strip.
   """
   rule_top = RULE_TOPS[field_name]
+  # Half a point wide, ending a fifth of a point inside the edge: an extension
+  # stopping a point short leaves the strip without red.
   strip_right = extended_end_x - 0.2
   strip = _rasterize_ink(
-    pdf_bytes, _Box(strip_right - 5, rule_top - 1, strip_right, rule_top + 0.5)
+    pdf_bytes,
+    _Box(strip_right - 0.5, rule_top - 1, strip_right, rule_top + 0.5),
   )
   data = strip.convert('RGB').tobytes()
   return any(
