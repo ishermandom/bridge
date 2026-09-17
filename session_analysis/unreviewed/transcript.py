@@ -22,7 +22,7 @@ together; the result counts tricks beyond book, the convention spec.md
 The transcript deliberately leaves out two kinds of annotation that the record
 keeps. One is for coming back to a board later: a circled board number, the
 notes column, and a box around a call, the lead or the contract. The other
-explains a call's meaning: a written announcement.
+explains a call's meaning: an alert mark and a written announcement.
 
 What no transcript can show is who sat where. Passes usually go unwritten, so
 the seat rotation cannot be replayed from the tokens and even the opening side
@@ -325,20 +325,17 @@ def _spell_number(number: BoardNumber) -> str:
 
 
 def _spell_auction(entries: Sequence[AuctionEntry]) -> str:
-  """The auction as one space-separated run of calls, in the sheet's marks."""
+  """The auction as one space-separated run of calls."""
   return ' '.join(_spell_entry(entry) for entry in entries)
 
 
 def _spell_entry(entry: AuctionEntry) -> str:
-  """One written call: its own spelling, plus the marks the sheet put on it."""
+  """One written call, in parentheses when it was the opponents'."""
   call = _spell_call(entry.call) if entry.call else None
-  if not call:
-    # An unparsed token's `raw` carries any alert mark already, since the parser
-    # strips only the circle and box from it.
-    return _circled(_unreadable(entry.raw), entry.by_opponents)
-
-  alerted = f'{call}!' if entry.alerted else call
-  return _circled(alerted, entry.by_opponents)
+  # An unparsed token has no parse to spell from, so its raw transcription
+  # stands as written, alert mark included.
+  spelled = call or _unreadable(entry.raw)
+  return _circled(spelled, entry.by_opponents)
 
 
 def _circled(call: str, by_opponents: bool) -> str:

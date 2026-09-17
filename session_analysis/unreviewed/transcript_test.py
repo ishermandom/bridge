@@ -290,19 +290,16 @@ def test_a_pass_double_and_redouble_are_spelled_out() -> None:
   assert 'PASS DBL RDBL' in _board_line(board)
 
 
-def test_an_alerted_call_keeps_its_alert_mark() -> None:
-  board = _make_board(auction=[_make_bid(2, Strain.HEARTS, alerted=True)])
-
-  assert '2H!' in _board_line(board)
-
-
-def test_an_alert_mark_sits_inside_the_circle() -> None:
+def test_an_alerted_call_is_written_without_its_alert_mark() -> None:
   board = _make_board(
-    auction=[_make_bid(2, Strain.CLUBS, by_opponents=True, alerted=True)]
+    auction=[
+      _make_bid(1, Strain.CLUBS),
+      _make_bid(2, Strain.HEARTS, alerted=True),
+      _make_bid(3, Strain.CLUBS),
+    ]
   )
 
-  # The mark belongs to the call, and the circle to whose call it was.
-  assert '(2C!)' in _board_line(board)
+  assert '1C 2H 3C' in _board_line(board)
 
 
 def test_a_call_that_did_not_parse_shows_its_transcription() -> None:
