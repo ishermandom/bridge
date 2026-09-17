@@ -587,6 +587,35 @@ under them; `python -m session_analysis.unreviewed.transcript` prints the
 records it is given, or every stored one. The comparisons themselves, and what
 their silences mean, are argued in `unreviewed.double_dummy_comparison`.
 
+- [ ] Score each board in its game's own unit — matchpoints or IMPs — with a
+      single unit shared by every board in a session. {#score-in-game-units}
+  - Note: only matchpoints exist today, so a board from an IMP game scores
+    nothing. They live in `Board.matchpoints`, a traveller row's
+    `north_south_matchpoints` and `east_west_matchpoints`, and the transcript's
+    `MP=` cell.
+  - Note: the unit belongs to a section, not to a capture. The club's 2026-09-14
+    files hold the IMP-scored Swiss beside a matchpointed pairs game and label
+    both alike: the PBN's `[Scoring]` tag reads `MatchPoints` for the whole
+    file, and the HTML heads one score column "IMPs" over both sections. Only
+    the HTML recap tells them apart, heading the Swiss's standings "Butler".
+    ACBL's page states the unit outright, as `board_scoring_method`.
+  - Note: `club_html_parsing` reads matchpoints from the `bcstmp` cells, but the
+    2026-09-14 HTML prints its scores — the Swiss's IMPs and the pairs game's
+    matchpoints alike — in `bcstimp` cells, so none of them reach the record.
+  - Note: a Swiss board has two IMP figures, and the user wants both. The team
+    swing against our teammates' table is what the match turned on, and no
+    source prints it — it is computed from the two tables. The field swing, our
+    pair's result against the field, is what a pair can act on, and the club's
+    HTML prints it as Butler IMPs. On board 2 the HTML gives one table's
+    North-South pair 12.57 Butler IMPs, where that team's swing is 12, from +730
+    at one table and -50 at the other.
+  - Note: settled with the user — store both, as two named figures under the
+    session's one unit, each able to be absent. A Butler-scored pairs game has
+    only the field swing; a teams game whose club prints no Butler column has
+    only the team swing. Their provenance differs and is worth keeping visible:
+    the field swing is published, while the team swing is computed from the
+    match's two tables. The row numbering identifies those tables even where the
+    names are wrong.
 - [ ] Label the recap's rows by player rather than by seat, if a seat can be
       tied to a player at all. {#recap-by-player}
   - Note: the recap groups by seat because no source on hand says who sat where.
