@@ -687,6 +687,9 @@ def test_a_masterpoint_award_does_not_reach_the_names(
     'Ann Alfa',
     'Bob Bravo',
   )
+  # A stripped award leaves the names starting with a letter, so the check for
+  # names that do not has nothing to report.
+  assert not traveller.issues
 
 
 def test_a_made_contract() -> None:
@@ -851,6 +854,30 @@ def test_a_pair_cell_stating_its_own_section_is_taken_at_its_word() -> None:
 
 
 # --- what could not be read ---
+
+
+def test_recap_names_not_starting_with_a_letter_fall_back_to_surnames() -> None:
+  # Square brackets are an award shape the parser does not strip, so `0.84[SA]`
+  # stays on the first player's name. The recap entry is dropped and reported,
+  # and the row's own surnames stand in, as they do for a pair the recap never
+  # names.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A North-South',
+      '  1   75.00    3.00  A   1   0.84[SA] Ann Alfa - Bob Bravo',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == ('Alfa', 'Bravo')
+  assert [issue.code for issue in traveller.issues] == [
+    'unreadable_recap_names'
+  ]
 
 
 def test_a_capture_holding_no_game_reports_an_issue() -> None:

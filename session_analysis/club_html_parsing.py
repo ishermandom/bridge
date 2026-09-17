@@ -223,6 +223,11 @@ _UNREADABLE_CONTRACT = issue_reporting.Failure(
 _UNREADABLE_PAR_CONTRACT = issue_reporting.Failure(
   'unreadable_par_contract', IssueSeverity.LOW, 'par'
 )
+# Reported on the traveller, since one standings line serves every row its pair
+# sat in; `names` points at the field that falls back to surnames in those rows.
+_UNREADABLE_RECAP_NAMES = issue_reporting.Failure(
+  'unreadable_recap_names', IssueSeverity.MEDIUM, 'names'
+)
 
 # The pair cells are the one failure whose field depends on which side it was
 # read for, so the failure is spelled once per side rather than once for both.
@@ -253,16 +258,20 @@ def parse_club_html(text: str, reference: CaptureReference) -> Traveller:
   standings = _Standings.read(soup)
 
   boards = tuple(
-    _board(markup, standings=standings) for markup in _board_markup(soup)
+    _board(markup, standings=standings.value) for markup in _board_markup(soup)
   )
+  issues = list(standings.issues)
+  if not boards:
+    issues.append(_NO_BOARDS.issue('the capture holds no boards'))
+
   title = soup.find('title')
   return Traveller(
     source=TravellerSource.CLUB_HTML,
     reference=reference,
     event=title.get_text(strip=True) if title else '',
-    date=standings.date,
+    date=standings.value.date,
     boards=boards,
-    issues=() if boards else (_NO_BOARDS.issue('the capture holds no boards'),),
+    issues=tuple(issues),
   )
 
 
@@ -298,18 +307,20 @@ class _Standings:
     self.date = date
 
   @classmethod
-  def read(cls, soup: bs4.BeautifulSoup) -> '_Standings':
+  def read(cls, soup: bs4.BeautifulSoup) -> issue_reporting.Read['_Standings']:
     """Read the standings out of the capture's recap block.
 
     A capture with no recap yields empty standings rather than an error: the
     per-board rows stand on their own, only with surnames in place of full
-    names.
+    names. A standings line with a name that does not start with a letter is
+    reported and skipped, leaving that one pair on surnames too.
     """
     recap = soup.find(id='bcrecap')
     if not recap:
-      return cls(names={}, date=None)
+      return issue_reporting.Read(cls(names={}, date=None))
 
     names: dict[_PairKey, tuple[str, ...]] = {}
+    issues: list[Issue] = []
     date: datetime.date | None = None
     section: str | None = None
     side: Side | None = None
@@ -327,11 +338,24 @@ class _Standings:
       if not side:
         continue
       entry = _recap_pair(line)
-      if entry:
-        number, players = entry
-        names[_PairKey(section=section, side=side, number=number)] = players
+      if not entry:
+        continue
+      number, players = entry
+      # A real name starts with a letter, so anything else at the front is text
+      # from a neighboring column that the split left attached. A name carrying
+      # that text would disagree with how the other sources spell the pair, so
+      # the pair is left out and its rows keep the surnames they print.
+      if not all(player[:1].isalpha() for player in players):
+        issues.append(
+          _UNREADABLE_RECAP_NAMES.issue(
+            f'standings line {line.strip()!r} has a name not starting with a '
+            f'letter — pair {number} keeps the surnames from the score table'
+          )
+        )
+        continue
+      names[_PairKey(section=section, side=side, number=number)] = players
 
-    return cls(names=names, date=date)
+    return issue_reporting.Read(cls(names=names, date=date), tuple(issues))
 
   def players(
     self, *, section: str | None, side: Side, number: str
