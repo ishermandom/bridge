@@ -78,18 +78,19 @@ _UNREADABLE_TRAVELLER = issue_reporting.Failure(
 class BoardComparison:
   """What the two comparisons made of one board, in tricks our side gained.
 
-  Either count is None where that comparison could not be made, and the two
-  fail independently: a source listing only its makeable contracts states no
-  cell for a declarer held under seven tricks and yet gives the deal, so
-  `after_lead` can answer where `whole_deal` cannot. A board neither reached is
-  not represented at all.
+  Either count is None where that comparison could not be made, and the two fail
+  independently: a source listing only its makeable contracts states no cell for
+  a declarer held under seven tricks and yet gives the deal, so `after_lead` can
+  answer where `whole_deal` cannot. A board neither reached is not represented
+  at all.
   """
 
   declared_by_us: bool
   # The seat of ours the board turned on: the one that declared where we
-  # declared, the one that led where we defended. Either way it is one of the two
-  # seats our pair sat in on that board, since the lead comes from declarer's
-  # left — so a recap split by it is always a split across our own partnership.
+  # declared, the one that led where we defended. Either way it is one of the
+  # two seats our pair sat in on that board, since the lead comes from
+  # declarer's left — so a recap split by it is always a split across our own
+  # partnership.
   our_seat: Direction
   whole_deal: int | None
   after_lead: int | None
@@ -105,9 +106,9 @@ def compare_boards(
   either case, and the difference between the two reasons is not something a
   transcript's reader acts on.
 
-  Both are gathered in one pass because they answer about the same board and
-  are read side by side: the whole deal, and the play within it once the
-  opening lead is taken out of the reckoning.
+  Both are gathered in one pass because they answer about the same board and are
+  read side by side: the whole deal, and the play within it once the opening
+  lead is taken out of the reckoning.
   """
   comparisons: dict[int, BoardComparison] = {}
   for board in session.boards:
@@ -177,17 +178,17 @@ class RecapHalf:
 class SessionRecap:
   """The session's comparisons totalled, always split across our own seats.
 
-  Both halves are organized by our position rather than by the table's. Where
-  we declared, the boards are grouped by which of us declared; where we
-  defended, by which of us led. The opponents' seats never appear, and they do
-  not need to: the lead comes from declarer's left, so a board they declared is
-  one we led, and every board therefore lands under one of our own two seats.
+  Both halves are organized by our position rather than by the table's. Where we
+  declared, the boards are grouped by which of us declared; where we defended,
+  by which of us led. The opponents' seats never appear, and they do not need
+  to: the lead comes from declarer's left, so a board they declared is one we
+  led, and every board therefore lands under one of our own two seats.
 
   Read across a row, the gap between the two totals is what the opening leads
   were worth. Defending, `whole_deal` below `after_lead` is the cost of that
   seat's leads; declaring, `whole_deal` above `after_lead` is what the
-  opponents' leads handed that declarer. Either way the difference runs the
-  same way round as the totals do — our side's gain.
+  opponents' leads handed that declarer. Either way the difference runs the same
+  way round as the totals do — our side's gain.
   """
 
   # Split by the seat of ours that declared, and that led, respectively.
