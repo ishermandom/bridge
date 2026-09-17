@@ -617,6 +617,14 @@ their silences mean, are argued in `unreviewed.double_dummy_comparison`.
   - Note: the number alone cannot settle it. A board played and left otherwise
     unrecorded looks identical to a row nobody reached, so this wants a rule
     about what else the row holds rather than a tighter reading of the number.
+- [ ] Decide whether the transcript should be able to show the sheet's marks on
+      demand.
+  - Open question: that the transcript leaves out boxes, alert marks, circled
+    board numbers, the notes column and announcements is settled, and the
+    `unreviewed.transcript` module docstring says so. What is open is whether a
+    reader who wants the sheet exactly as written should be able to ask for them
+    back, since the preference was given as "no boxes by default". Nothing wants
+    them today, so a flag would be built ahead of its use.
 - [ ] Refine the `PLAY` column's label. {#play-label}
   - Note: `DD` was settled with the user; `PLAY` was not, and stands as a first
     cut. It names the count taken from the position the opening lead left, so
