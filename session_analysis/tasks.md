@@ -932,6 +932,7 @@ rationale lives in the design docs' open-question sections —
 - [ ] Mine the parked `traveller-model` worktree for anything still worth
       keeping, then delete the branch and its worktree. Sequenced last: it only
       makes sense once the traveller work it overlaps has all landed.
+  - Worktree: mine-traveller-model
   - Note: it holds a second, earlier traveller data model, superseded by the one
     real captures drove. Its documentation fixes were already folded in; what
     may remain is the `TravellerIdentity` shape (now comparable against the
