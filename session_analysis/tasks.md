@@ -235,30 +235,15 @@ rather than a fault.
   - Open question: which route to take — the linked PBN, the scoring file, which
     needs a dependency that reads Access databases, or a per-board view ACBL may
     render from the hand record. No capture so far shows such a view.
-- [ ] Keep the other games played on a date from attaching their travellers to
-      our session. {#multi-game-dates}
-  - Worktree: multi-game-dates
-  - Rationale: the club site publishes every game to everyone alike, so the club
-    fetch asks for a date rather than a player, and a date with two club games
-    stores captures of both. Matching on the date alone attached both games'
-    captures to our one session. `reconciliation._merge_board` merges deals from
-    every capture, so the other game contradicted ours on every board and left
-    each deal unfilled. Reporting `traveller_never_names_us` did not help: the
-    capture was merged anyway, and most club PBNs carry no rows to name us in.
-  - Note: seen on 2026-09-15, where the club published a morning game we played
-    and an afternoon game we did not. That run stayed clean only because the
-    afternoon captures were moved out of the store by hand before reconciling.
-  - Note: settled — matching narrows a date's sessions by their opening leads;
-    see travellers.md `#matching`. Ingest treats a ruled-out capture as a
-    verdict rather than a fault, so a record citing one is reconciled again
-    without it rather than held.
-  - Note: once this lands, confirm it live: put the 2026-09-15 afternoon
-    captures back in the store and check that matching rules them out. The same
-    run should also rejoin `santa-clara-fri-morn-pairs-2026-09-04`, held until
-    now: its tournament capture now matches the morning session alone.
-  - Note: the diff awaits the user's review of the changes outside `unreviewed/`
-    — `issue_reporting.py`, this file, and travellers.md. The rest joins the
-    unreviewed queue.
+- [ ] Confirm against the real store that a date's other game is ruled out.
+  - Note: matching now narrows a date's sessions by their opening leads
+    (travellers.md `#matching`), but only fixtures and a throwaway tree have
+    exercised it. Put the 2026-09-15 afternoon captures back in the store —
+    moved out by hand while matching went by date alone — and check that the run
+    rules them out rather than merging them into the morning session.
+  - Note: the same run should rejoin `santa-clara-fri-morn-pairs-2026-09-04`,
+    held until now because its tournament capture matched two sessions of
+    2026-09-04. It now matches the morning session alone.
 - [ ] Disambiguate a capture that fits two sessions of one date equally well.
       {#multi-session-days}
   - Rationale: matching narrows a date's sessions by their opening leads
