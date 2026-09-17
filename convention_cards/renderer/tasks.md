@@ -43,3 +43,18 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
       proposal (2026-08-24): let the render script take the target print mode
       and color entry text and suit symbols to match — the full palette for a
       color print, black or darkened tones for black and white.
+
+---
+
+## Test robustness
+
+- [ ] **Catch an underline extension that stops short** {#extension-short-side}:
+      `_has_rule_extension` looks for red anywhere in a 5pt strip ending just
+      before the expected edge, so a bar stopping up to ~5pt early still passes
+      — the majors test would accept an extension ending at 435 instead of
+      438.1. The overrun side is already pinned to half a point, and the
+      full-export golden doesn't cover the majors row: its entry is too short to
+      extend.
+  - Open question: how narrow the strip can get. The strip was presumably kept
+    wide so an entry's descenders crossing the bar near its end can't hide all
+    the red; measure how far the last glyphs reach before choosing a width.
