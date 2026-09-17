@@ -146,12 +146,11 @@ def _header_lines(
   if session.session_key:
     yield session.session_key
 
-  # Only a pairs game publishes a traveller, so a teams session has no
-  # double-dummy analysis to set against, and never will; a session that
-  # reconciliation has not yet reached has none for now. The record cannot tell
-  # the two apart, so the line states what they share rather than guessing. Left
-  # unsaid, an absent column would read as a session whose every board came out
-  # even.
+  # A session no traveller has reached has no double-dummy analysis to compare
+  # its results against — whether its game published no traveller, or
+  # reconciliation has not yet run on it. The record cannot tell the two apart,
+  # so the line states what they share rather than guessing. Left unsaid, an
+  # absent column would read as a session whose every board came out even.
   if has_recorded_boards and not session.source.travellers:
     yield 'No traveller has reached this session; nothing to compare against.'
 

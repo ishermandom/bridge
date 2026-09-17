@@ -827,10 +827,11 @@ def test_a_page_describing_no_session_reports_an_issue() -> None:
   assert [issue.code for issue in traveller.issues] == ['no_session']
 
 
-def test_a_team_game_reports_that_it_carries_no_traveller() -> None:
-  # A team game's page publishes match scores and no per-board rows, so there is
-  # no traveller in it. Recording that beats handing back a silent empty one.
-  traveller = parse_page(type='TEAMS')
+def test_a_team_page_with_no_per_board_rows_reports_an_issue() -> None:
+  # A team game's page can publish match scores and no per-board rows, which
+  # leaves no results to put in a traveller. An issue saying so beats handing
+  # back a silently empty traveller.
+  traveller = parse_page(type='TEAMS', sections=())
 
   assert traveller.boards == ()
   assert [issue.code for issue in traveller.issues] == ['no_per_board_results']

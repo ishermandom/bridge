@@ -59,9 +59,10 @@ Two sources cover a typical club session; tournaments have only ACBL Live.
   publisher: a club page carries a JSON blob and is read from that blob, while a
   tournament page carries none and is read from the markup, which arrives
   already built in the server's response.
-  - Only a **pairs** game publishes a traveller. A team game's page carries
-    match scores and no per-board rows at all, so there is nothing in it to
-    parse — reported as such rather than passed off as an empty traveller.
+  - A team game's page can carry match scores and no per-board rows at all. Such
+    a page is reported as holding no traveller rather than passed off as an
+    empty one. The club site can still publish that game's per-board rows, as it
+    did for the 2026-09-14 Swiss.
 - **Club site** (`paloaltobridge.org`) — each game published by BridgeComposer,
   as a PBN and as HTML. Carries the deal and par. Names a row by its pair of
   surnames (`Alfa-Bravo`); full names appear only in the standings recap that
@@ -541,8 +542,8 @@ the public repo.
   to the widths its `ScoreTable` header declares, so a placeholder there cannot
   change length without being repadded to match.
 - **Which real capture is which** {#which-real-capture} — worth knowing before
-  reaching for "an ACBL club capture" to check something against. Only a pairs
-  game carries a traveller: `1484015.html` is a team game, whose page has no
+  reaching for "an ACBL club capture" to check something against. Not every game
+  page carries a traveller: `1484015.html` is a team game whose page has no
   per-board rows at all. Of the two pairs games, `1472071.html` ran a one-winner
   movement and `1441256.html` a two-winner one, so only the second names a
   direction on its pair summaries. `1441256.html` is also the only capture that

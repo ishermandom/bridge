@@ -148,5 +148,5 @@ class Traveller(FrozenModel):
   date: datetime.date | None = None
   boards: tuple[TravellerBoard, ...] = ()
   # Findings about the capture as a whole rather than any one board — a page
-  # holding no boards, or one whose event is not a pairs game at all.
+  # with no readable data, or one listing a session but no per-board results.
   issues: tuple[Issue, ...] = ()

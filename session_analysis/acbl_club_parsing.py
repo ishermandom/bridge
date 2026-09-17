@@ -10,9 +10,11 @@ and scatters a board across nested elements, where the blob holds the same facts
 in plain text. The blob also survives a browser's own "save page", so a capture
 saved by hand reads the same as one the fetcher retrieves.
 
-Not every club game publishes a traveller. A team game's page carries match
-results and no per-board rows at all, so it has nothing this parser can return —
-an absence reported as an issue rather than passed off as an empty traveller.
+Not every club game's page carries a traveller. A team game's page can carry
+match scores and no per-board rows at all. Such a page yields a traveller with
+no boards and an issue saying why, rather than a silently empty one. The club
+site can still publish that game's per-board rows in its own files, which
+`club_fetching` downloads.
 """
 
 import dataclasses
@@ -117,10 +119,10 @@ _UNREADABLE_PAR = issue_reporting.Failure(
 def parse_acbl_club_html(text: str, reference: CaptureReference) -> Traveller:
   """Return the traveller an ACBL club-game page describes.
 
-  Nothing is refused. A page carrying no readable data, and one describing an
-  event that publishes no per-board results at all — a team game, whose page
-  gives match scores instead — both come back as a traveller carrying an issue.
-  A capture that yielded nothing is itself worth recording.
+  Nothing is refused. A page carrying no readable data comes back as a traveller
+  carrying an issue, and so does a page with no per-board results, such as a
+  team game's page that gives only match scores. A capture that yielded nothing
+  is itself worth recording.
 
   Args:
     text: the page's whole contents, fetched or browser-saved.
@@ -151,8 +153,8 @@ def parse_acbl_club_html(text: str, reference: CaptureReference) -> Traveller:
   if sessions and not sections:
     issues.append(
       _NO_PER_BOARD_RESULTS.issue(
-        f'this {_text(data.get("type")) or "event"} publishes no per-board '
-        f'results — only a pairs game carries a traveller'
+        f'this {_text(data.get("type")) or "event"} page publishes no '
+        f'per-board results'
       )
     )
 

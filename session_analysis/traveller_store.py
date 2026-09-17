@@ -61,7 +61,7 @@ from session_analysis.travellers import Traveller
 # A capture that yielded no record. Both are worth a person's attention rather
 # than a log line nothing reads: the first says a file is filed where no parser
 # expects it, and the second that a page held nothing to store — a saved login
-# page, or a team game, which has no per-board rows at all.
+# page, or a team game's ACBL page that carries no per-board rows.
 _UNRECOGNIZED_CAPTURE = issue_reporting.Failure(
   'unrecognized_capture', IssueSeverity.MEDIUM, 'capture'
 )

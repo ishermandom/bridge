@@ -45,9 +45,9 @@ Standing caveat on both: double-dummy play sees all four hands and nobody at the
 table did, so a trick lost against a count has usually gone to a guess no one
 could have avoided. The numbers measure what was there, not anyone's play.
 
-Only a pairs game publishes a traveller, so a teams session has neither table
-nor deal and nothing here has anything to say about it. The transcript reports
-that silence rather than leaving it to read as a board that came out even.
+A session no traveller has reached has neither table nor deal, and nothing here
+has anything to say about it. The transcript reports that silence rather than
+leaving it to read as a session whose every board came out even.
 """
 
 import dataclasses
