@@ -267,6 +267,9 @@ rather than a fault.
     published it is the first thing to look at.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
       session no traveller arrives for.
+  - Note: `pabc-sept-swiss-2026-09-14` is waiting on it. Its readings have been
+    settled with the player and its boards carry notes saying so, but it is a
+    teams session, so the traveller that would graduate it is never coming.
 
 ---
 
@@ -283,9 +286,6 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
-- [ ] Ingest the scan delivered on 2026-09-14, `Scanned_20260914-1957.pdf`,
-      through to a transcript of every board.
-  - Worktree: ingest-scan-2026-09-14
 - [ ] Give the dewarp the row count too, rather than voting for it.
       {#dewarp-needs-the-reading}
   - Rationale: `dewarp_sheet` still calls `resolve_grid_consensus`, which is the
