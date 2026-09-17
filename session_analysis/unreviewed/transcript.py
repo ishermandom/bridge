@@ -19,6 +19,11 @@ around them; the contract cell keeps the level, strain, declarer and result run
 together; the result counts tricks beyond book, the convention spec.md
 `#notation` settles.
 
+The transcript deliberately leaves out two kinds of annotation that the record
+keeps. One is for coming back to a board later: a circled board number, the
+notes column, and a box around a call, the lead or the contract. The other
+explains a call's meaning: a written announcement.
+
 What no transcript can show is who sat where. Passes usually go unwritten, so
 the seat rotation cannot be replayed from the tokens and even the opening side
 is ambiguous — which is why the declarer is not derived anywhere in this project
@@ -320,32 +325,8 @@ def _spell_number(number: BoardNumber) -> str:
 
 
 def _spell_auction(entries: Sequence[AuctionEntry]) -> str:
-  """The auction as one space-separated run of calls, in the sheet's marks.
-
-  A box the sheet drew around a run of calls to revisit with partner is
-  reassembled here from the per-call flag the parser split it into, so a span
-  comes back as the one `[…]` it was drawn as rather than as a bracket around
-  each of its calls.
-  """
-  tokens: list[str] = []
-  is_in_box = False
-  for entry in entries:
-    token = _spell_entry(entry)
-    if entry.flagged_for_discussion and not is_in_box:
-      token = f'[{token}'
-      is_in_box = True
-    elif is_in_box and not entry.flagged_for_discussion:
-      # The span ended at the call before this one, so it is that call the
-      # closing bracket belongs to.
-      tokens[-1] += ']'
-      is_in_box = False
-    tokens.append(token)
-
-  # A span running to the end of the auction has no following call to close it.
-  if is_in_box and tokens:
-    tokens[-1] += ']'
-
-  return ' '.join(tokens)
+  """The auction as one space-separated run of calls, in the sheet's marks."""
+  return ' '.join(_spell_entry(entry) for entry in entries)
 
 
 def _spell_entry(entry: AuctionEntry) -> str:

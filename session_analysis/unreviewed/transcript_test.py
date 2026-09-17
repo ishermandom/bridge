@@ -122,6 +122,7 @@ def _make_outcome(
   declarer: Direction,
   tricks_taken: int,
   penalty: Penalty = Penalty.NONE,
+  flagged_for_discussion: bool = False,
 ) -> Outcome:
   """A contract cell that parsed into a contract and its result."""
   return Outcome(
@@ -132,6 +133,7 @@ def _make_outcome(
       ),
       result=Result(tricks_taken=tricks_taken),
     ),
+    flagged_for_discussion=flagged_for_discussion,
   )
 
 
@@ -318,30 +320,16 @@ def test_a_circled_call_that_did_not_parse_keeps_both_marks() -> None:
   assert '(?2Q?)' in _board_line(board)
 
 
-def test_a_boxed_span_is_written_as_one_pair_of_brackets() -> None:
+def test_a_boxed_call_is_written_without_its_box() -> None:
   board = _make_board(
     auction=[
       _make_bid(1, Strain.CLUBS),
       _make_bid(2, Strain.NOTRUMP, flagged_for_discussion=True),
-      _make_bid(3, Strain.CLUBS, flagged_for_discussion=True),
-      _make_bid(3, Strain.NOTRUMP),
+      _make_bid(3, Strain.CLUBS),
     ]
   )
 
-  # The parser splits one drawn box into a flag per call; the span is put back
-  # together here rather than bracketing each call of it.
-  assert '1C [2N 3C] 3N' in _board_line(board)
-
-
-def test_a_box_running_to_the_end_of_the_auction_is_closed() -> None:
-  board = _make_board(
-    auction=[
-      _make_bid(1, Strain.CLUBS),
-      _make_bid(2, Strain.CLUBS, flagged_for_discussion=True),
-    ]
-  )
-
-  assert '1C [2C]' in _board_line(board)
+  assert '1C 2N 3C' in _board_line(board)
 
 
 # --- the contract cell ---
@@ -418,6 +406,21 @@ def test_a_redoubled_contract_trails_two_marks() -> None:
   assert '2S**S+2' in _board_line(board)
 
 
+def test_a_boxed_contract_is_written_without_its_box() -> None:
+  board = _make_board(
+    outcome=_make_outcome(
+      level=4,
+      strain=Strain.HEARTS,
+      declarer=Direction.WEST,
+      tricks_taken=10,
+      flagged_for_discussion=True,
+    )
+  )
+
+  # Matched as a whole cell, since a bracketed [4HW+4] would contain it too.
+  assert '4HW+4' in _board_line(board).split()
+
+
 def test_a_passed_out_board_says_so() -> None:
   board = _make_board(outcome=Outcome(raw='---', resolution=Passout()))
 
@@ -444,6 +447,17 @@ def test_a_led_ten_is_written_with_both_its_digits() -> None:
   board = _make_board(opening_lead=_make_lead(Rank.TEN, Suit.SPADES))
 
   assert 'lead=10oS' in _board_line(board)
+
+
+def test_a_boxed_lead_is_written_without_its_box() -> None:
+  lead = Lead(
+    raw='[KoH]',
+    card=Card(rank=Rank.KING, suit=Suit.HEARTS),
+    flagged_for_discussion=True,
+  )
+  board = _make_board(opening_lead=lead)
+
+  assert 'lead=KoH' in _board_line(board)
 
 
 def test_a_lead_that_did_not_parse_shows_its_transcription() -> None:
