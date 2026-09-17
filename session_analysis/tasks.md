@@ -929,13 +929,3 @@ rationale lives in the design docs' open-question sections —
     to move with it, which moving a whole directory does for free — but a
     migration that renames files one at a time has to carry the sidecar along,
     since the URL is the one piece of provenance nothing can recover afterwards.
-- [ ] Mine the parked `traveller-model` worktree for anything still worth
-      keeping, then delete the branch and its worktree. Sequenced last: it only
-      makes sense once the traveller work it overlaps has all landed.
-  - Worktree: mine-traveller-model
-  - Note: it holds a second, earlier traveller data model, superseded by the one
-    real captures drove. Its documentation fixes were already folded in; what
-    may remain is the `TravellerIdentity` shape (now comparable against the
-    `CaptureReference` the storage work settled on) and the `Board` enrichment
-    fields `deal`/`our_pair`/`opponents`, which models.md documents and the
-    reconciliation phase will need.
