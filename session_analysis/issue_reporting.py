@@ -7,14 +7,29 @@ and not the four hundred rows around it (see travellers.md `#issue-reporting`).
 Holding to it takes the same two pieces in every parser, so both live here
 rather than four times over.
 
-`Failure` states once how a kind of trouble is reported; `Read` pairs a value
-with whatever went wrong producing it.
+`Failure` states once how a kind of trouble is reported, and `Read` pairs a
+value with whatever went wrong producing it.
+
+`console_line` serves the other end: it is how every command prints one of these
+issues for a person to read.
 """
 
 import dataclasses
+from collections.abc import Mapping
 
 from session_analysis.enums import IssueSeverity
 from session_analysis.models import Issue
+
+# The word a command prints before each issue, mapping issue severity onto
+# the common logging severity labels.
+#
+# There is no default label, so printing an issue of a newly added severity
+# raises a `KeyError` rather than printing under a guessed label.
+_CONSOLE_LABELS: Mapping[IssueSeverity, str] = {
+  IssueSeverity.HIGH: 'error',
+  IssueSeverity.MEDIUM: 'warning',
+  IssueSeverity.LOW: 'warning',
+}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -54,3 +69,15 @@ class Failure:
       message=message,
       location=self.location,
     )
+
+
+def console_line(issue: Issue) -> str:
+  """An issue as a command prints it: `[error]` or `[warning]`, code, message.
+
+  The brackets visually distinguish the label even when it is next to a long
+  message. Every label is padded to the width of the longest, so the codes start
+  in one column down a run of issues, and a reader can scan the labels alone.
+  """
+  width = max(len(f'[{label}]') for label in _CONSOLE_LABELS.values())
+  bracketed_label = f'[{_CONSOLE_LABELS[issue.severity]}]'
+  return f'{bracketed_label:<{width}}  {issue.code}: {issue.message}'

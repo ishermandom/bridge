@@ -693,11 +693,11 @@ class PendingSession:
   stem: str
   session: Session
   travellers: tuple[Traveller, ...] = ()
-  # Captures the record cites that are still stored yet that this run placed on
-  # no session — an ambiguous date, or a stored record that no longer parses.
-  # They tell a capture that could not be placed from one that was withdrawn,
-  # which is what decides whether the enrichment stands, and they are what the
-  # run names when it says why a session was held.
+  # Captures the record cites that are still stored but that this run reached no
+  # verdict on — one that fits several sessions equally well, or one whose
+  # stored record no longer parses. They tell a capture that could not be placed
+  # from one that was withdrawn, which is what decides whether the enrichment
+  # stands, and they are what the run names when it says why a session was held.
   unplaced_captures: tuple[str, ...] = ()
   # Captures the record cites whose files are gone. Withdrawing a capture is
   # deleting it, so these are what a record loses its enrichment over — and
@@ -782,19 +782,20 @@ def match_pending_sessions(
   # around here, once, rather than by each reader of it.
   covering: dict[str, list[Traveller]] = {}
   for traveller in travellers:
-    stem = matched.value.get(traveller.reference.path)
+    stem = matched.value.sessions.get(traveller.reference.path)
     if stem:
       covering.setdefault(stem, []).append(traveller)
 
   sessions_by_stem = {
     session_matching.stem_of(session): session for session in sessions.value
   }
+  settled_captures = matched.value.sessions.keys() | matched.value.ruled_out
   pending = tuple(
     _pending_session(
       stem,
       sessions_by_stem[stem],
       covering.get(stem, ()),
-      matched.value.keys(),
+      settled_captures,
       tree.traveller_captures,
     )
     for stem in sorted(sessions_by_stem)
@@ -806,7 +807,7 @@ def _pending_session(
   stem: str,
   session: Session,
   covering: Sequence[Traveller],
-  placed: Set[str],
+  settled_captures: Set[str],
   captures: Path,
 ) -> PendingSession:
   """One pending session, as a run's matching left it.
@@ -815,7 +816,10 @@ def _pending_session(
     stem: what the record is called in `pending/`.
     session: the record as it stands, before any join this run makes.
     covering: the travellers this run placed on it, in any order.
-    placed: every capture path this run placed on some session.
+    settled_captures: every capture path this run reached a verdict on — placed
+      on some session, or ruled out by every session of its date. A ruled-out
+      capture counts as settled rather than unplaced: dropping it from the
+      record is the verdict itself, not a fault that should hold the record.
     captures: the capture root, which tells a capture still on disk from one
       that has been withdrawn.
   """
@@ -828,7 +832,7 @@ def _pending_session(
   for reference in session.source.travellers:
     if not (captures / reference.path).is_file():
       withdrawn.append(reference.path)
-    elif reference.path not in placed:
+    elif reference.path not in settled_captures:
       unplaced.append(reference.path)
 
   return PendingSession(
@@ -945,8 +949,9 @@ def _reconciled_detail(pending: PendingSession, joined: Session) -> str:
   if not pending.travellers:
     gone = pending.withdrawn_captures
     if not gone:
-      # Nothing vanished, so a capture the record cited was placed on some other
-      # session this run — the match moved rather than the file.
+      # Nothing vanished, so a capture the record cited was placed on another
+      # session this run, or its deals failed this session's leads — the match
+      # changed, not the file.
       return 'no traveller covers it now, so its enrichment was taken back off'
 
     # Named rather than counted: on a whole capture root gone missing this is
@@ -983,7 +988,10 @@ def summarize_reconciliation(
   from one enriched from the right one.
   """
   if not reports:
-    yield 'Every pending session is up to date.'
+    # Says what the join did, not that all is well: a session no capture covers
+    # is already reported above, among the matching issues, and an all-clear
+    # here would seem to dismiss that report.
+    yield 'No pending session was updated.'
     return
 
   width = max(len(report.outcome) for report in reports)
@@ -991,7 +999,7 @@ def summarize_reconciliation(
   for report in reports:
     yield f'  {report.outcome:<{width}}  {report.session} — {report.detail}'
     for issue in report.issues:
-      yield f'    {issue.code}: {issue.message}'
+      yield f'    {issue_reporting.console_line(issue)}'
 
 
 def main() -> None:
@@ -1034,7 +1042,7 @@ def main() -> None:
 def _print_issues(issues: Sequence[Issue]) -> None:
   """Print whatever a run could not do, indented under what it did."""
   for issue in issues:
-    print(f'  {issue.code}: {issue.message}')
+    print(f'  {issue_reporting.console_line(issue)}')
 
 
 def _parse_args() -> argparse.Namespace:

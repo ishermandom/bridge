@@ -38,7 +38,12 @@ from typing import Protocol
 
 from playwright.sync_api import Error as PlaywrightError
 
-from session_analysis import acbl_fetching, club_fetching, traveller_store
+from session_analysis import (
+  acbl_fetching,
+  club_fetching,
+  issue_reporting,
+  traveller_store,
+)
 from session_analysis.models import Issue
 from session_analysis.private_paths import (
   ACBL_CLUB_CAPTURE_DIRECTORY,
@@ -237,8 +242,7 @@ def summarize(outcome: RunOutcome) -> str:
   lines.append('')
   lines.append(f'issues: {len(outcome.issues)}')
   lines.extend(
-    f'  {issue.severity} {issue.code}: {issue.message}'
-    for issue in outcome.issues
+    f'  {issue_reporting.console_line(issue)}' for issue in outcome.issues
   )
   return '\n'.join(lines)
 

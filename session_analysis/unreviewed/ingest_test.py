@@ -22,7 +22,18 @@ import pytest
 from PIL import Image
 
 from session_analysis import board_rotation
-from session_analysis.models import Board, BoardNumber, Schedule, Session
+from session_analysis.enums import Direction, Penalty, Strain
+from session_analysis.models import (
+  Board,
+  BoardNumber,
+  Contract,
+  Lead,
+  Outcome,
+  PlayedContract,
+  Result,
+  Schedule,
+  Session,
+)
 from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
@@ -957,7 +968,11 @@ def test_a_tree_holding_no_captures_yet_is_not_an_error(
   (one,) = matched.value
   assert one.stem == 'pabc-morn-2026-06-29'
   assert one.travellers == ()
-  assert not matched.issues
+  # The missing capture root adds no issue. The one issue is the session's own
+  # low-severity notice that no capture of its date is stored yet.
+  assert [issue.code for issue in matched.issues] == [
+    'no_capture_of_date_stored'
+  ]
 
 
 # --- a traveller reconciles the session it covers ---
@@ -1052,6 +1067,65 @@ def test_a_capture_that_cannot_be_placed_leaves_the_enrichment_alone(
   )
 
 
+def _led_with_a_card_north_held(board: Board) -> Board:
+  """A joined sheet row, rewritten as if the sheet were re-read.
+
+  South now declares, and the lead is a card from the joined deal's own North
+  hand, so West, on lead against South, could not have held it.
+  """
+  assert board.deal
+  card = board.deal.hands[Direction.NORTH].cards[0]
+  return board.model_copy(
+    update={
+      'outcome': Outcome(
+        raw='3NS=',
+        resolution=PlayedContract(
+          contract=Contract(
+            level=3,
+            strain=Strain.NOTRUMP,
+            declarer=Direction.SOUTH,
+            penalty=Penalty.NONE,
+          ),
+          result=Result(tricks_taken=9),
+        ),
+      ),
+      'opening_lead': Lead(raw=f'{card.rank}{card.suit}', card=card),
+    }
+  )
+
+
+def test_a_capture_the_leads_rule_out_takes_its_enrichment_back_off(
+  tmp_path: Path,
+) -> None:
+  # Joined while the sheet recorded no leads, then re-read with leads the
+  # capture's deals cannot support. A capture ruled out is a verdict rather than
+  # a fault, so the record is rejoined without it instead of held with it.
+  tree = PrivateTree(tmp_path)
+  _drop_capture(tree)
+  _write_pending_session(
+    tree, 'pabc-morn-2026-03-09', datetime.date(2026, 3, 9), (1, 2)
+  )
+  _reconcile(tree)
+
+  joined = _stored_session(tree, 'pabc-morn-2026-03-09')
+  reread = joined.model_copy(
+    update={
+      'boards': tuple(
+        _led_with_a_card_north_held(board) for board in joined.boards
+      )
+    }
+  )
+  record = tree.pending_session_records / 'pabc-morn-2026-03-09.json'
+  record.write_text(reread.model_dump_json())
+
+  (report,) = _reconcile(tree)
+  assert report.outcome == SessionOutcome.RECONCILED
+  assert 'taken back off' in report.detail
+  cleared = _stored_session(tree, 'pabc-morn-2026-03-09')
+  assert not cleared.source.travellers
+  assert not any(board.deal for board in cleared.boards)
+
+
 def test_a_rerun_over_unmoved_travellers_changes_nothing(
   tmp_path: Path,
 ) -> None:
@@ -1131,9 +1205,11 @@ def test_a_capture_that_broke_keeps_its_place_beside_one_that_did_not(
 # --- reporting what the join did ---
 
 
-def test_a_run_with_nothing_to_report_says_every_session_is_current() -> None:
+def test_a_run_with_nothing_to_report_says_no_session_was_updated() -> None:
+  # Not an all-clear: a session no capture covers is reported under matching,
+  # and this line prints right below that report.
   assert list(summarize_reconciliation([])) == [
-    'Every pending session is up to date.'
+    'No pending session was updated.'
   ]
 
 

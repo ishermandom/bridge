@@ -170,14 +170,15 @@ Deciding which travellers cover a session belongs to acquisition, below.
 save otherwise — and auto-reconcile when one lands. Design in
 [travellers.md](travellers.md#acquisition).
 
-`fetch_travellers` drives a date's fetch and the store pass that follows it, and
-`unreviewed.session_matching.match_travellers` places each stored capture
-against the sessions on hand, reading the capture's date alone — travellers.md
-`#matching` covers why an event name cannot be compared across sources. The
-ingest command runs both on its way past and then joins each pending session to
-the travellers now covering it, as
-`unreviewed.ingest.reconcile_pending_sessions`. So neither a capture saved by
-hand nor the reconciliation a match sets off needs a command of its own.
+`fetch_travellers` drives a date's fetch and the store pass that follows it.
+`unreviewed.session_matching.match_travellers` then places each stored capture
+against the sessions on hand: it narrows them by the capture's date, then checks
+the sheets' opening leads against the capture's deals. travellers.md `#matching`
+covers why it reads those and not the event name. The ingest command runs both
+on its way past and then joins each pending session to the travellers now
+covering it, as `unreviewed.ingest.reconcile_pending_sessions`. So neither a
+capture saved by hand nor the reconciliation a match sets off needs a command of
+its own.
 
 Every ACBL fetch needs a desktop session of this account's own to launch its
 browser into, which a session started through the ssh `claudify` has and an
@@ -234,29 +235,47 @@ rather than a fault.
   - Open question: which route to take — the linked PBN, the scoring file, which
     needs a dependency that reads Access databases, or a per-board view ACBL may
     render from the hand record. No capture so far shows such a view.
-- [ ] Disambiguate a capture matching two sessions. {#multi-session-days}
-  - Rationale: a two-game day leaves a club capture matching both sessions.
-    `match_travellers` reports the ambiguity and matches neither rather than
-    guessing, so nothing goes silently wrong — but it does leave a manual step.
+- [ ] Keep the other games played on a date from attaching their travellers to
+      our session. {#multi-game-dates}
+  - Worktree: multi-game-dates
+  - Rationale: the club site publishes every game to everyone alike, so the club
+    fetch asks for a date rather than a player, and a date with two club games
+    stores captures of both. Matching on the date alone attached both games'
+    captures to our one session. `reconciliation._merge_board` merges deals from
+    every capture, so the other game contradicted ours on every board and left
+    each deal unfilled. Reporting `traveller_never_names_us` did not help: the
+    capture was merged anyway, and most club PBNs carry no rows to name us in.
+  - Note: seen on 2026-09-15, where the club published a morning game we played
+    and an afternoon game we did not. That run stayed clean only because the
+    afternoon captures were moved out of the store by hand before reconciling.
+  - Note: settled — matching narrows a date's sessions by their opening leads;
+    see travellers.md `#matching`. Ingest treats a ruled-out capture as a
+    verdict rather than a fault, so a record citing one is reconciled again
+    without it rather than held.
+  - Note: once this lands, confirm it live: put the 2026-09-15 afternoon
+    captures back in the store and check that matching rules them out. The same
+    run should also rejoin `santa-clara-fri-morn-pairs-2026-09-04`, held until
+    now: its tournament capture now matches the morning session alone.
+  - Note: the diff awaits the user's review of the changes outside `unreviewed/`
+    — `issue_reporting.py`, this file, and travellers.md. The rest joins the
+    unreviewed queue.
+- [ ] Disambiguate a capture that fits two sessions of one date equally well.
+      {#multi-session-days}
+  - Rationale: matching narrows a date's sessions by their opening leads
+    (travellers.md `#matching`), and that narrowing separates any two games with
+    different deals. It cannot separate two sessions a capture fits equally
+    well, which happens when the capture carries no deals or when both games
+    were dealt from one hand record. Such a capture is reported and matched to
+    neither, which leaves a manual step.
+  - Note: not yet seen. Every stored record carries a deal for every board, and
+    no stored capture fits the leads of a sheet from another game. The captures
+    on disk that carry no deals carry no boards either, so `traveller_store`
+    writes no record for them and matching never sees them (#capture-diagnosis).
   - Note: only the ACBL club surface publishes anything time-like today, as a
     coarse `club_session` label (`Monday Morning`); the club's own PBN and HTML
     and the ACBL tournament pages carry a date and nothing finer. Tournament
     captures are expected to state a session time, which is the first thing to
     check.
-  - Note: the strongest signal available may be our-row name matching — we
-    appear in the traveller for the session we actually played — and the
-    configured name that needs is now on hand, in `unreviewed.configuration`.
-  - Note: this is live, not hypothetical. Naming both Friday sessions of the
-    Santa Clara tournament put two on 2026-09-04, and the tournament capture
-    that had reconciled to the morning one now matches neither. Its enrichment
-    survives — the join holds a session whose capture a run could not place
-    rather than rejoining without it — but the record is frozen there, and every
-    run reports the same ambiguity until this lands.
-  - Note: it bites every multi-sheet feed, not an unusual one. A scanner feed is
-    by nature a set of sheets from one day, so once those sheets are dated each
-    lands in the ambiguous branch and no traveller matches any of them — the
-    auto-reconcile join does nothing for exactly the containers multi-page
-    scanning introduces.
   - Open question: the event text is the obvious tiebreak, and `session_keys`
     explains why matching on it was rejected — the sources spell one event four
     different ways. A fuzzy tiebreak used only when the date is ambiguous is a
@@ -289,6 +308,12 @@ rather than a fault.
     published it is the first thing to look at.
 - [ ] Escape hatch: an explicit "finalize without traveller" action for a
       session no traveller arrives for.
+  - Note: `santa-clara-fri-aft-pairs-2026-09-04` may need it. ACBL's uploads
+    broke that day, as a director mentioned, and it is not known whether that
+    day's results were ever republished. The only stored capture of that date is
+    the morning session's, and it fits only the morning sheet. Until the
+    afternoon capture is fetched or this escape hatch lands, every ingest run
+    reports `no_capture_of_date_fits` for the afternoon session.
 
 ---
 

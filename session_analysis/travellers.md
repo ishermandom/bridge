@@ -209,15 +209,55 @@ One session's event name, as each source spells it:
 
 No normalization rule takes all of those to one slug, and any event comparison
 between a capture and a sheet rejects true matches far more often than it
-catches false ones. **So the match reads the date alone**, which every source
-states and states alike; `unreviewed.session_matching` holds it.
+catches false ones. **So the match starts from the date**, which every source
+states and states alike; `unreviewed.session_matching` does the matching.
 
-Date alone is ambiguous only on a day two sessions were played. A capture
-matching more than one is reported and matched to neither, rather than guessed
-at — only the ACBL club surface publishes anything time-like today, as the
-coarse `club_session` label (`Monday Morning`), and the club's own files carry a
-date and nothing finer. tasks.md `#multi-session-days` carries the work to
-resolve it.
+A date is not a game, though. The club publishes every game it runs and its
+calendar is read by date, so a day with a morning and an afternoon game stores
+captures of both. A day we played twice also puts two of our sheets on one date.
+Matched on the date alone, the other game's captures join our session,
+contradict its deals on every board, and leave every deal unfilled. Nothing
+time-like tells the games apart: only the ACBL club surface publishes anything
+of the kind, as the coarse `club_session` label (`Monday Morning`), and the
+club's own files carry a date and nothing finer.
+
+**What tells the games apart is the sheet's opening leads.** A lead has to be a
+card the hand on lead held. So each session sharing a capture's date has its
+leads checked, one by one, against the capture's deals, and a session whose
+leads mostly fail that check played some other game. The threshold for "mostly"
+is `_TOLERATED_IMPOSSIBLE_LEAD_SHARE` in `unreviewed.session_matching`, and the
+evidence falls far to either side of it: across the sheets and captures on hand
+in September 2026, a sheet's own game failed at most 1 lead in 24, and every
+other game failed at least 6 in 13. The check compares the sheet with the
+capture's deals and ignores the capture's rows, so it can judge a PBN that
+carries no rows at all.
+
+Two other signals were weighed and set aside:
+
+- **Our name in the rows.** A capture that never names us is most likely another
+  game's, and reconciliation already reports one (`traveller_never_names_us`).
+  But most club PBNs carry no rows and so name nobody, and on a day we played
+  twice, both games name us.
+- **The calendar's grouping of files by game.** It says which files belong
+  together, not which game is ours, and it exists only for a club capture
+  fetched rather than saved by hand.
+
+A capture that fits no session of its date is ruled out: it belongs to some
+other game played that day. A capture that fits several sessions equally well is
+reported and matched to neither rather than guessed at; that happens when the
+capture carries no deals, or when two games were dealt from one hand record.
+tasks.md `#multi-session-days` carries what is left of that case.
+
+A ruled-out capture is not itself reported: the other game's captures stay in
+the store for good, and a report on each would repeat every run. The risk is a
+sheet misread badly enough to rule out its own game's capture, which would leave
+the session unenriched with nothing said. So every dated session that no capture
+covers is reported instead, at one of two severities:
+
+- **High**, when captures of its date are stored but none fits. That is the
+  shape a badly misread sheet leaves.
+- **Low**, when no capture of its date is stored yet. That is the ordinary state
+  of a sheet scanned before its results are fetched.
 
 ## Traveller data model {#traveller-model}
 
