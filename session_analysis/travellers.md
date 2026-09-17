@@ -542,17 +542,18 @@ the public repo.
   to the widths its `ScoreTable` header declares, so a placeholder there cannot
   change length without being repadded to match.
 - **Which real capture is which** {#which-real-capture} — worth knowing before
-  reaching for "an ACBL club capture" to check something against. Not every game
-  page carries a traveller: `1484015.html` is a team game whose page has no
-  per-board rows at all. Of the two pairs games, `1472071.html` ran a one-winner
-  movement and `1441256.html` a two-winner one, so only the second names a
-  direction on its pair summaries. `1441256.html` is also the only capture that
-  does not parse clean: ACBL wrote board 18's par as `Par: 660 4NT-NT+1`,
-  repeating the strain where the declarer belongs, which the parser reports and
-  the board survives. `1430431.html` is not a game page at all — it is the ACBL
-  login page the fetch came back with, kept as the example of what a gated game
-  saves as. The two tournament captures are the two sessions of one event, 26
-  boards and a single section apiece, and both parse clean.
+  reaching for "an ACBL club capture" to check something against.
+  - `1472071.html` — a pairs game with a one-winner movement.
+  - `1441256.html` — a pairs game with a two-winner movement, so the only one
+    that names a direction on its pair summaries. It is also the only capture
+    that does not parse clean: ACBL wrote board 18's par as `Par: 660 4NT-NT+1`,
+    repeating the strain where the declarer belongs, which the parser reports
+    and the board survives.
+  - `1484015.html` — a team game whose page has no per-board rows at all.
+  - `1430431.html` — not a game page: the ACBL login page the fetch came back
+    with, kept as the example of what a gated game saves as.
+  - The two tournament captures — the two sessions of one event, 26 boards and a
+    single section apiece. Both parse clean.
 - **Showing a parser change alters nothing** — run `traveller_store` with
   `refresh` before and after and diff the records it writes, which is what
   `refresh` is for: an ordinary run skips a capture whose record already
