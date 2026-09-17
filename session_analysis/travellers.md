@@ -401,6 +401,17 @@ names. The sources whose names are weak are the club's, and they do not publish
 it at all. So carrying it would touch every parser and `PairIdentity` without
 improving the case that actually needs help.
 
+**Finding our row by the results we played was considered and set aside with the
+user.** A capture that attaches names to the wrong pair numbers puts our name on
+another pair's rows, and matching on the name cannot tell. The first HTML
+fetched for the 2026-09-14 Swiss did exactly that, while the rows whose results
+matched our sheet on every board would have found us regardless. It stays
+unbuilt because the join already reports such a row loudly: joined alone, that
+HTML disagreed with our contract, declarer or result on most boards, and joined
+beside the club's PBN it raised a source disagreement over which pair was us and
+withheld the enrichment. The fault itself was a stale capture, which a re-fetch
+fixed (see [Acquisition](#acquisition)).
+
 ### Cross-checks and enrichment
 
 - **Recoverable fields** (contract, declarer, result) are compared between our
@@ -560,8 +571,9 @@ the public repo.
   and the real captures run past two thousand. Wrapping them for readability
   would make a fixture less like its input, and the standings recap is a `<pre>`
   block whose line breaks the parser splits on. A PBN's name columns are padded
-  to the widths its `ScoreTable` header declares, so a placeholder there cannot
-  change length without being repadded to match.
+  to the widths its `ScoreTable` header declares, so a placeholder in a column
+  with a declared width cannot change length without being repadded to match; a
+  column declared with no width is printed unpadded.
 - **Which real capture is which** {#which-real-capture} — worth knowing before
   reaching for a real capture to check something against.
   - `1472071.html` — a pairs game with a one-winner movement.
