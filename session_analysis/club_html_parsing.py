@@ -146,10 +146,20 @@ _SECTION_ROW_PATTERN = re.compile(r'Section\s+(?P<name>\S+)')
 # rather than newline characters.
 _LINE_BREAK_PATTERN = re.compile(r'<br\s*/?>')
 
-# The standings recap's own section heading, e.g. `Section  P North-South`, and
-# the side it introduces.
+# The standings recap's own section heading, and the side it introduces. A
+# two-winner movement ranks each side in a list of its own, under
+# `Section  P  North-South` and `Section  P  East-West`. A one-winner movement
+# ranks all its pairs in a single list, under `Section  P` alone.
 _RECAP_SECTION_PATTERN = re.compile(
-  r'Section\s+(?P<name>\S+)\s+(?P<side>North-South|East-West)'
+  r"""
+  Section\s+(?P<name>\S+)
+  (?:\s+(?P<side>North-South|East-West))?  # absent in a one-winner movement
+  # Nothing may follow the heading on its line. The side being optional, the
+  # column header beneath it, `Section Rank  Overall Rank  MPs`, would otherwise
+  # read as a heading for a section named `Rank`.
+  \s*$
+  """,
+  re.VERBOSE,
 )
 _RECAP_SIDES: Mapping[str, Side] = {
   'North-South': Side.NORTH_SOUTH,
@@ -279,13 +289,15 @@ def parse_club_html(text: str, reference: CaptureReference) -> Traveller:
 class _PairKey:
   """What it takes to name one pair: its section, its side, and its number.
 
-  A pair number is unique only within its section and side — the same number
-  names a different pair on the movement's other side, and again in the next
-  section.
+  In a two-winner movement a pair number is unique only within its section and
+  side — the same number names a different pair on the movement's other side,
+  and again in the next section. The side is None where the recap ranks a
+  section as a single list, which marks a one-winner movement. That movement
+  numbers every pair once, so within a section the number alone names the pair.
   """
 
   section: str | None
-  side: Side
+  side: Side | None
   number: str
 
 
@@ -332,10 +344,14 @@ class _Standings:
       heading = _RECAP_SECTION_PATTERN.search(line)
       if heading:
         section = heading.group('name')
-        side = _RECAP_SIDES[heading.group('side')]
+        # A one-winner heading names no side, so its pairs are filed under no
+        # side.
+        side_name = heading.group('side')
+        side = _RECAP_SIDES[side_name] if side_name else None
         continue
 
-      if not side:
+      # The lines above the first heading, the title among them, name no pair.
+      if not section:
         continue
       entry = _recap_pair(line)
       if not entry:
@@ -362,11 +378,19 @@ class _Standings:
   ) -> tuple[str, ...] | None:
     """The pair's full names, or None when the recap does not name them.
 
+    Each row states which side its pair sat on, but a one-winner section's recap
+    names no side. A pair the recap filed under no side therefore matches a row
+    from either side.
+
     A single-section game prints no section letter on its rows but still names
     one in the recap, so a row that carries none falls back to whichever section
     the recap recorded that pair number under.
     """
-    found = self._names.get(_PairKey(section=section, side=side, number=number))
+    # Look under the row's own side first, then under no side, where a
+    # one-winner section's pairs are filed.
+    found = self._names.get(
+      _PairKey(section=section, side=side, number=number)
+    ) or self._names.get(_PairKey(section=section, side=None, number=number))
     if found or section:
       return found
     # TODO: a multi-section game whose rows printed no section letter would take
@@ -376,7 +400,7 @@ class _Standings:
       (
         players
         for key, players in self._names.items()
-        if key.side == side and key.number == number
+        if key.side in (side, None) and key.number == number
       ),
       None,
     )

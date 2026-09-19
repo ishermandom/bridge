@@ -780,23 +780,6 @@ rationale lives in the design docs' open-question sections —
     `recordedContract=+&score=NS` where a played row carries a number. The code
     describes what the page does and expands nothing, which is settled; the
     reading itself stays open, and a capture carrying `EW` would answer it.
-- [ ] Recover full names from a one-winner club recap. No longer blocked — the
-      capture that answers it is already on hand. {#one-winner-recap}
-  - Note: `club_html_parsing` reads the standings recap only after a heading
-    naming a direction (`Section A North-South`). A one-winner movement ranks
-    its pairs as a single list, so its recap heads the standings with the
-    section alone — and that parser then collects no standings at all, leaving
-    every pair with the surnames its board row prints.
-  - Note: `club/R260629M.html` carries both forms and so is the fixture this
-    needs. Its section A is one-winner and heads the standings
-    `Scores after 8 rounds  Average: 48.0      Section  A`; its section B is a
-    two-winner Mitchell heading `Section  B  North-South` and
-    `Section  B  East-West`. The direction is simply absent — the layout is
-    otherwise identical — and section A's pairs are exactly the ones that come
-    out surname-only today.
-  - Note: reconciliation matches our row on the surname alone as well as the
-    full name, so this costs full names for the pairs in a one-winner section
-    rather than the join itself (travellers.md #finding-our-row).
 - [ ] Judge whether an unfilled field plus a prose issue is enough when two
       sources disagree. Trigger: enough reconciled sessions that disagreements
       have actually happened. {#disagreement-in-practice}

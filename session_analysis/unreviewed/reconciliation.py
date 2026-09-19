@@ -130,9 +130,9 @@ def _name_forms(configured_name: str) -> frozenset[str]:
   """The spellings of the configured name a capture may print.
 
   Sources differ in how much of a name they give. Both ACBL surfaces print full
-  names, and so does a club recap whose standings could be read; a club recap
-  whose standings could not be read leaves the surnames its board rows print
-  standing instead (tasks.md `#one-winner-recap`).
+  names, and so does a club HTML page, whose standings recap names each pair in
+  full. Where the recap has no readable line for a pair, or the page has no
+  recap at all, that pair keeps the surnames its board rows print.
 
   Both forms match and nothing else does. Matching a bare surname against every
   printed full name would claim every namesake in the field, which on a club
@@ -397,10 +397,10 @@ def _agreed_pair(
   """The pair every source that named one agreed on, at the fullest detail.
 
   Sources name one pair at different levels of detail: both ACBL surfaces print
-  full names, a club PBN prints surnames or nothing at all, and a club recap
-  whose standings could not be read prints the surnames its board rows carry
-  (tasks.md `#one-winner-recap`). `Last & Person` and `First Last & Second
-  Person` are one pair written twice, not two sources contradicting each other.
+  full names, a club PBN prints surnames or nothing at all, and a club HTML page
+  prints full names for the pairs its standings recap names and surnames for the
+  rest. `Last & Person` and `First Last & Second Person` are one pair written
+  twice, not two sources contradicting each other.
 
   Taking the fuller spelling is not the silent tiebreak this phase exists to
   avoid: nothing is dropped, because the sparser spelling is contained in the

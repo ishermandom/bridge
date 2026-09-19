@@ -427,13 +427,13 @@ content" problem: we know who we are, so reconciliation recovers only the
 _opponents'_ identity (the other pair in our row) and the matchpoints.
 
 **Two spellings match: the configured full name, and its surname alone.** Both
-ACBL surfaces print full names, and so does a club recap whose standings could
-be read; a club recap whose standings could not be read leaves the surnames its
-board rows print (see tasks.md `#one-winner-recap`), and a club PBN prints
-surnames or no names at all. Nothing else matches — testing a bare surname
-against every printed full name would claim every namesake in the field, which
-at a club is a real risk rather than a theoretical one. A board naming us twice
-is reported rather than guessed at.
+ACBL surfaces print full names, and so does a club HTML page, whose standings
+recap names each pair in full. Where the recap has no readable line for a pair,
+or the page has no recap at all, that pair keeps the surnames its board rows
+print. A club PBN prints surnames or no names at all. Nothing else matches —
+testing a bare surname against every printed full name would claim every
+namesake in the field, which at a club is a real risk rather than a theoretical
+one. A board naming us twice is reported rather than guessed at.
 
 **The ACBL player number is deliberately not carried.** It would be an exact
 key, but it exists only on the two ACBL surfaces — which already print full

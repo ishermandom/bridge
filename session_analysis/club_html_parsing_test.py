@@ -853,6 +853,120 @@ def test_a_pair_cell_stating_its_own_section_is_taken_at_its_word() -> None:
   assert (north_south.section, north_south.number) == ('B', '9')
 
 
+def test_a_one_winner_heading_starts_its_own_section() -> None:
+  # A one-winner section heads its standings with no side. Were that heading
+  # missed, section B's pairs would be filed under the heading before it,
+  # section A East-West, and B's pair 2 would overwrite A's pair 2.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A  East-West',
+      '  2   75.00    3.00  A   1     Ann Alfa - Bob Bravo',
+      'Scores after  1 round   Average:    2.0      Section  B',
+      '  2   75.00    3.00  B   1     Gus Charlie - Hal Delta',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_section_row('A'),
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_east_west='A2-Alfa-Bravo'
+      ),
+      _make_section_row('B'),
+      _make_score_row(
+        contract='3NT',
+        declarer='S',
+        made='3',
+        pair_east_west='B2-Charlie-Delta',
+      ),
+    ),
+  )
+
+  rows = traveller.boards[0].results
+  assert rows[0].east_west.names == ('Ann Alfa', 'Bob Bravo')
+  assert rows[1].east_west.names == ('Gus Charlie', 'Hal Delta')
+
+
+def test_a_one_winner_pair_is_named_in_full_sitting_either_way() -> None:
+  # A one-winner movement sits a pair both ways over a session, but its recap
+  # names the pair only once, with no side. Rows from either side take that one
+  # entry's names.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  2 rounds  Average:    2.0      Section  B',
+      '  6   75.00    3.00  B   1     Ann Alfa - Bob Bravo',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_section_row('B'),
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='B6-Alfa-Bravo'
+      ),
+    ),
+    '<div id=Board2></div>',
+    _make_score_table(
+      _make_section_row('B'),
+      _make_score_row(
+        contract='4S', declarer='E', made='4', pair_east_west='B6-Alfa-Bravo'
+      ),
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+  assert traveller.boards[1].results[0].east_west.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+
+
+def test_a_single_section_one_winner_game_is_named_in_full() -> None:
+  # The rows of a single-section game print no section letter, so the lookup
+  # falls back to matching the pair number in any section. A one-winner recap
+  # files its pairs under no side, so that fallback has to accept them too.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A',
+      '  1   75.00    3.00  A   1     Ann Alfa - Bob Bravo',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='E', made='4', pair_east_west='1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].east_west.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+
+
+def test_the_standings_column_header_is_not_read_as_a_section() -> None:
+  # The column header beneath each heading names a `Section Rank` column. Were
+  # that header read as a heading, pair 1 would be filed under a section named
+  # `Rank`, where the lookup for the row's pair `A1` never looks.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A  North-South',
+      'Pair    Pct   Score      Section Rank      Overall Rank      MPs',
+      '  1   75.00    3.00  A   1     Ann Alfa - Bob Bravo',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='A1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+
+
 # --- what could not be read ---
 
 
