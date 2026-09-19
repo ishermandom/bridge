@@ -472,6 +472,12 @@ record waits for review, and what becomes of a scan that raises.
     and lists `!` only as a mark on a call. That silence is the safer failure —
     the model transcribed what it saw instead of inventing a rank — but it is
     worth saying outright, so a later read is not tempted to fill the gap.
+  - Note: a third form turned up on 2026-09-18, board 4: `9?oH`, a rank marked
+    with a question mark because the player was sure of the suit but not the
+    rank. The two extraction runs split over the `?` and the vote dropped it,
+    and the player chose to keep `9oH` with no note. Whatever holds a rankless
+    lead may want to hold an uncertain rank too, or settle that the mark is not
+    worth keeping.
   - Open question: a rankless lead wants either an optional rank on `Card` or a
     partial-card type beside it, and the choice ripples — anything reading a
     lead as a full card has to say what it does with half of one.
@@ -782,6 +788,19 @@ rationale lives in the design docs' open-question sections —
   - Note: the fix, if one is wanted, is an envelope per enriched field — the
     shape the sheet models already use for transcription. Worth doing when
     something consumes the candidates, not before.
+- [ ] Let the opening lead weigh in when the sheet and the travellers disagree
+      on the declarer. {#lead-weighs-in-on-declarer}
+  - Rationale: a disputed declarer raises two issues for one fact. On
+    2026-09-18, boards 9, 17 and 22 each raised `sheet_declarer_disagreement`,
+    which calls neither source authoritative, and a high-severity
+    `lead_not_in_leader_hand`, because the lead was checked against the sheet's
+    declarer. On all three, the card led sat in the hand at the travellers'
+    declarer's left, which is what review then settled on. The deal already held
+    the answer the two issues asked a person for.
+  - Note: the lead cannot simply decide it. On 2026-09-15 the sheet was right
+    against the travellers twice, one of those boards after a lead out of turn,
+    as that record's board notes say. What the lead can do is say which
+    candidate it fits, in one issue rather than two.
 - [ ] Judge whether swap detection earns its keep, and whether transpositions
       are the right search. Trigger: several digitized sheets reconciled.
       {#swap-detection-in-practice}
@@ -916,6 +935,13 @@ rationale lives in the design docs' open-question sections —
     takes arguments and the other none, one reports per source and the other per
     scan — so the answer may well be that they have only the tree lookup in
     common, which is already `private_paths`.
+- [ ] Say in one place which sources print full names. {#name-detail-by-source}
+  - Rationale: travellers.md's "Two spellings match" passage,
+    `reconciliation._name_forms` and `reconciliation._agreed_pair` each list
+    which sources print full names and which print surnames, and all three had
+    to be edited together when the club HTML's account changed on 2026-09-18.
+  - Note: `reconciliation` is still under `unreviewed/`, so its review is a
+    natural time to pick one home and point the other two at it.
 - [ ] Investigate whether `models` should stop importing the image pipeline.
       {#models-import-direction}
   - Rationale: `SheetFrame` holds a `SheetGeometry` and a `Quad`, which live in
