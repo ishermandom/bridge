@@ -76,9 +76,9 @@ Two sources cover a typical club session; tournaments have only ACBL Live.
     seating is what no other source records.
 - **Club site** (`paloaltobridge.org`) — each game published by BridgeComposer,
   as a PBN and as HTML. Carries the deal and par. Names a row by its pair of
-  surnames (`Alfa-Bravo`); full names appear only in the standings recap that
-  both formats embed, reachable from a row by its section and pair number.
-  Secondary corroboration.
+  surnames (`Alfa-Bravo`); full names appear only in the standings recap the
+  HTML embeds, reachable from a row by its section and pair number. Secondary
+  corroboration.
   - One file can hold two games. The 2026-09-14 files carry the Swiss as section
     `B`, scored as a Butler, beside a matchpointed pairs game as section `C`,
     and the Swiss rows number each pair by its team's number.
