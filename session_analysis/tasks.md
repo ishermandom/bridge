@@ -519,18 +519,6 @@ record waits for review, and what becomes of a scan that raises.
     between `Santa Clara Wed. aft teams` and `Santa Clara wed. aft. teams`,
     which differ only in case and a period — and already slug identically, so
     the flag asks a person to resolve a difference that changes nothing.
-- [ ] Ingest the pending scoresheet, and settle it with the user in chat.
-      {#ingest-pending-sheet}
-  - Worktree: ingest-pending-sheet
-  - Rationale: a scan is waiting to go through the spine, and the review UI
-    (`#review-ui`) has not landed, so the review it would host happens in the
-    conversation instead.
-  - Note: run the whole path first — ingest, the traveller fetch, and
-    reconciliation.
-  - Note: raise any detail that needs clarifying or review in chat, and apply
-    the user's fixes there.
-  - Note: hold the sheet's transcript until every detail is settled, then give
-    it to the user inline in the chat.
 
 ---
 
