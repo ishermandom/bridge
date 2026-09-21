@@ -525,6 +525,18 @@ record waits for review, and what becomes of a scan that raises.
     between `Santa Clara Wed. aft teams` and `Santa Clara wed. aft. teams`,
     which differ only in case and a period — and already slug identically, so
     the flag asks a person to resolve a difference that changes nothing.
+- [ ] Ingest the scoresheet now waiting in the inbox, settling it with the user
+      in chat. {#ingest-sheet-sept-21}
+  - Worktree: ingest-sheet-sept-21
+  - Rationale: another scan is waiting, and the review UI (`#review-ui`) still
+    has not landed, so the review it would host happens in the conversation
+    instead — as the September 18 sheet's did.
+  - Note: run the whole path first — ingest, the traveller fetch, and
+    reconciliation.
+  - Note: raise any detail that needs clarifying or review in chat, and apply
+    the user's fixes there.
+  - Note: hold the sheet's transcript until every detail is settled, then give
+    it to the user inline in the chat.
 
 ---
 
