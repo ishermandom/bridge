@@ -123,7 +123,8 @@ companion repository; only the renderer and an AI-drafted sample document
 (`system_notes/fixture/notes.md`, unreviewed and not a workable system) live
 here.
 
-Prerequisites beyond `uv`: `pandoc`. Render, from the repo root, with
+Prerequisites beyond `uv`: `pandoc`, and the fonts, installed for your user:
+`brew install --cask font-ibm-plex-serif`. Render, from the repo root, with
 
     uv run --project . python -m system_notes.render_notes path/to/notes.md
 

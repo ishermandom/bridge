@@ -1,8 +1,8 @@
 /* Copyright 2026 Ilya Sherman (ishermandom@) */
 /* SPDX-License-Identifier: MIT */
 
-/* A single readable column that adapts to the viewport. Layout decisions are
-   recorded in spec.md #appearance. */
+/* A single readable column that adapts to the viewport. Typeface and layout
+   decisions are recorded in spec.md #appearance. */
 
 /* Units: em for spacing next to text, so it scales with that text; rem for the
    screen page box, tied to the reader's default text size; px for borders and
@@ -14,6 +14,7 @@
 }
 
 body {
+  font-family: "IBM Plex Serif", serif;
   color: var(--ink);
   line-height: 1.35;
 }

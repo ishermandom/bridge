@@ -80,6 +80,20 @@ One stylesheet, shipped with the tool, holding `@media screen` and
 colors are the tool's, and flexibility is added only when a second partnership
 wants something different.
 
+- **Typeface**: IBM Plex Serif for body and headings. Chosen from full-document
+  renders of the fixture across open-licensed candidates: the serif scanned best
+  when skimming list-heavy pages, and Plex Serif meets the letterform
+  preferences the search settled on — a straight-tailed Q with no flourish, a
+  simple `g`, a conventional ampersand, an undecorated zero, true italics, and a
+  distinguishable `I l 1`. Inter and Open Sans are the recorded sans-serif
+  fallbacks; both rendered well and either could take over if a serif proves
+  wrong on paper. Further serif candidates are queued in `tasks.md`
+  #serif-alternatives.
+- **Fonts are installed, not bundled.** The stylesheet names families, and the
+  README documents the install. Only publicly available, open-licensed fonts are
+  used, so any machine can be set up identically; the exact files are captured
+  in `bridge-private` alongside its other fonts, in case an upstream copy
+  vanishes or drifts. The public repo carries no font files.
 - **Screen**: a single column of readable measure that narrows with the
   viewport.
 
