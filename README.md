@@ -114,22 +114,24 @@ Regenerate that file after any dependency change:
 `system_notes/` — Python
 
 Renders a partnership's system notes — a long, deeply nested bidding and carding
-agreement written in Pandoc Markdown — into two outputs from one source: a
-self-contained HTML page for the screen and a hard-wrapped plain-text rendering
-for pasting into email. See `system_notes/spec.md` for the design.
+agreement written in Pandoc Markdown — into three outputs from one source: a
+self-contained HTML page for the screen, a US-letter PDF, and a hard-wrapped
+plain-text rendering for pasting into email. See `system_notes/spec.md` for the
+design.
 
 The notes themselves are partnership agreements and live in the private
 companion repository; only the renderer and an AI-drafted sample document
 (`system_notes/fixture/notes.md`, unreviewed and not a workable system) live
 here.
 
-Prerequisites beyond `uv`: `pandoc`, and the fonts, installed for your user:
-`brew install --cask font-ibm-plex-serif`. Render, from the repo root, with
+Prerequisites beyond `uv` are listed in `system_notes/Brewfile`; install them
+with `brew bundle --file system_notes/Brewfile`. Run that as the account that
+renders, since a font cask installs into the running account's
+`~/Library/Fonts`. Render, from the repo root, with
 
     uv run --project . python -m system_notes.render_notes path/to/notes.md
 
-which writes `notes.html` and `notes.txt` beside the input — the text ready for
-email.
+which writes `notes.html`, `notes.pdf`, and `notes.txt` beside the input.
 
 The Markdown is ordinary Pandoc Markdown plus a few conventions:
 

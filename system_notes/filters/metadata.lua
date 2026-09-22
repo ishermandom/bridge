@@ -1,9 +1,9 @@
 -- Copyright 2026 Ilya Sherman (ishermandom@)
 -- SPDX-License-Identifier: MIT
 
--- Check the document's metadata block. The title feeds the `<title>` and the
--- title block atop the page, so the notes must carry one; make its absence an
--- error.
+-- Check the document's metadata block. The title feeds the page header, the
+-- `<title>`, and the PDF's metadata, so its absence would ship a blank header
+-- on every page rather than fail; make it an error instead.
 
 function Pandoc(document)
   local title = document.meta.title

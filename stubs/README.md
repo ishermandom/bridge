@@ -7,10 +7,10 @@ the slice of its API the repo calls. Extend the stubs as usage grows — they
 deliberately omit everything unused, so a new call site fails type checking
 until its signature is added.
 
-No manual install: `convention_cards` declares these packages in its `dev`
-dependency group as editable local path dependencies, so `uv sync` installs each
-one as a pointer to its directory here, and an edited stub takes effect on the
-next type check.
+No manual install: each project that calls one of these libraries declares its
+stub package in its own `dev` dependency group as an editable local path
+dependency, so `uv sync` installs each one as a pointer to its directory here,
+and an edited stub takes effect on the next type check.
 
 ## Naming {#naming}
 

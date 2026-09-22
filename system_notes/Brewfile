@@ -1,0 +1,11 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# What the renderer needs beyond uv and its Python dependencies, which
+# pyproject.toml declares. Install with
+# `brew bundle --file system_notes/Brewfile`.
+
+brew "pandoc" # Markdown to HTML and to plain text
+brew "pango" # the text layout engine WeasyPrint draws through
+brew "poppler" # pdftotext, which reads the PDF back for the goldens
+cask "font-ibm-plex-serif" # the body and heading face

@@ -1,12 +1,13 @@
 /* Copyright 2026 Ilya Sherman (ishermandom@) */
 /* SPDX-License-Identifier: MIT */
 
-/* A single readable column that adapts to the viewport. Typeface and layout
-   decisions are recorded in spec.md #appearance. */
+/* One stylesheet, two media: the screen rules give a single readable column
+   that adapts to the viewport; the print rules lay the notes out on US letter
+   paper. Typeface and layout decisions are recorded in spec.md #appearance. */
 
 /* Units: em for spacing next to text, so it scales with that text; rem for the
    screen page box, tied to the reader's default text size; px for borders and
-   other fixed lengths. */
+   other fixed lengths; points and inches in print. */
 :root {
   --ink: #161616; /* near-black */
   --accent: #0b57d0; /* medium blue */
@@ -77,5 +78,42 @@ a {
   }
   ul, ol {
     padding-left: 1em;
+  }
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 0.6in 0.6in 0.75in;
+    /* The running header and footer are small and gray, so they recede behind
+       the notes; the margin boxes below inherit that type from the page. */
+    font: 8pt "IBM Plex Serif", serif;
+    color: #666;
+    @top-left {
+      content: string(doc-title);
+    }
+    @top-right {
+      content: string(section-title);
+    }
+    @bottom-center {
+      content: counter(page) " / " counter(pages);
+    }
+  }
+
+  body {
+    font-size: 11pt;
+    margin: 0;
+  }
+
+  .title {
+    string-set: doc-title content();
+    margin-top: 0;
+  }
+  main h1 {
+    string-set: section-title content();
+    break-after: avoid;
+  }
+  h2, h3 {
+    break-after: avoid;
   }
 }

@@ -70,6 +70,39 @@ ul, ol {
 padding-left: 1em;
 }
 }
+@media print {
+@page {
+size: letter;
+margin: 0.6in 0.6in 0.75in;
+
+font: 8pt "IBM Plex Serif", serif;
+color: #666;
+@top-left {
+content: string(doc-title);
+}
+@top-right {
+content: string(section-title);
+}
+@bottom-center {
+content: counter(page) " / " counter(pages);
+}
+}
+body {
+font-size: 11pt;
+margin: 0;
+}
+.title {
+string-set: doc-title content();
+margin-top: 0;
+}
+main h1 {
+string-set: section-title content();
+break-after: avoid;
+}
+h2, h3 {
+break-after: avoid;
+}
+}
 </style>
 </head>
 <body>

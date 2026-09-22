@@ -1,19 +1,25 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Render partnership system notes from Pandoc Markdown to HTML and text.
+"""Render partnership system notes from Pandoc Markdown to HTML, PDF, and text.
 
-`python -m system_notes.render_notes notes.md` writes `notes.html` and
-`notes.txt` beside the input. The HTML is self-contained and serves the screen;
-pandoc's plain writer produces the text rendering for email. The design and its
-rationale live in `spec.md`.
+`python -m system_notes.render_notes notes.md` writes `notes.html`, `notes.pdf`,
+and `notes.txt` beside the input. The HTML is self-contained and serves the
+screen; WeasyPrint lays the same HTML out under the stylesheet's print rules for
+the PDF; pandoc's plain writer produces the text rendering for email. The design
+and its rationale live in `spec.md`.
 """
 
 import argparse
+import logging
+import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+
+import weasyprint
 
 TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
@@ -26,13 +32,39 @@ FILTERS = tuple(TOOL_DIRECTORY / 'filters' / name for name in ('metadata.lua',))
 # terminal, with room for the deepest list indentation.
 PLAIN_TEXT_COLUMNS = 72
 
+# WeasyPrint parses media types only, so the stylesheet's phone-width media
+# query draws warnings on every render. That rule is screen-only, so they carry
+# no information. The match is on the query's own text, not on the warning's
+# wording, so a print rule WeasyPrint cannot parse still warns.
+PHONE_WIDTH_MEDIA_QUERY = 'max-width: 600px'
+
 
 @dataclass(frozen=True)
 class RenderedNotes:
-  """The output paths of one render."""
+  """The three output paths of one render."""
 
   html: Path
+  pdf: Path
   text: Path
+
+
+class IgnoreKnownWarning(logging.Filter):
+  """Drop the benign phone-width media-query warnings."""
+
+  def filter(self, record: logging.LogRecord) -> bool:
+    return PHONE_WIDTH_MEDIA_QUERY not in record.getMessage()
+
+
+class CollectedWarnings(logging.Handler):
+  """Collect WeasyPrint's warnings so the render can fail on them."""
+
+  def __init__(self) -> None:
+    super().__init__(logging.WARNING)
+    self.addFilter(IgnoreKnownWarning())
+    self.messages: list[str] = []
+
+  def emit(self, record: logging.LogRecord) -> None:
+    self.messages.append(record.getMessage())
 
 
 def run_pandoc(
@@ -75,6 +107,45 @@ def render_html(source: Path, output: Path) -> None:
   )
 
 
+def verify_nothing_warned(messages: Sequence[str], output: Path) -> None:
+  """Fail on anything WeasyPrint reported while laying the page out.
+
+  It warns and carries on where it cannot parse a rule or honor a layout, so —
+  as with pandoc's `--fail-if-warnings` — every report but the known one means
+  the page is not what the stylesheet asked for.
+  """
+  if messages:
+    raise RuntimeError(
+      f'WeasyPrint warned or errored while writing {output}:\n'
+      + '\n'.join(messages)
+    )
+
+
+def render_pdf(html: Path, output: Path) -> None:
+  """Lay the HTML out under the stylesheet's print rules as the PDF.
+
+  WeasyPrint warns and carries on where it cannot parse a rule or honor a
+  layout, so — as with pandoc's `--fail-if-warnings` — every warning but the
+  known one fails the render.
+
+  So the render goes to a scratch copy, and only a copy that passes every check
+  reaches `output`. The outputs are committed beside their source, and a
+  rejected layout left in place would be committed along with them.
+  """
+  collected = CollectedWarnings()
+  logger = logging.getLogger('weasyprint')
+  logger.addHandler(collected)
+  with tempfile.TemporaryDirectory() as directory:
+    unverified = Path(directory) / output.name
+    try:
+      markup = html.read_text(encoding='utf-8')
+      weasyprint.HTML(string=markup).write_pdf(str(unverified))
+    finally:
+      logger.removeHandler(collected)
+      verify_nothing_warned(collected.messages, output)
+    shutil.copyfile(unverified, output)
+
+
 def render_text(source: Path, output: Path) -> None:
   """Write the hard-wrapped plain-text rendering, for pasting into email."""
   run_pandoc(
@@ -83,25 +154,29 @@ def render_text(source: Path, output: Path) -> None:
 
 
 def render(source: Path) -> RenderedNotes:
-  """Render `source` to its outputs, named after it and beside it."""
+  """Render `source` to its three outputs, named after it and beside it."""
   outputs = RenderedNotes(
     html=source.with_suffix('.html'),
+    pdf=source.with_suffix('.pdf'),
     text=source.with_suffix('.txt'),
   )
   render_html(source, outputs.html)
+  render_pdf(outputs.html, outputs.pdf)
   render_text(source, outputs.text)
   return outputs
 
 
 def main(argv: Sequence[str]) -> None:
-  """Command line: one Markdown path in, two files out beside it."""
+  """Command line: one Markdown path in, three files out beside it."""
   parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
   parser.add_argument(
     'source', type=Path, help='the notes Markdown file to render'
   )
   arguments = parser.parse_args(argv)
+  logging.basicConfig(level=logging.WARNING, format='%(name)s: %(message)s')
+  logging.getLogger('weasyprint').addFilter(IgnoreKnownWarning())
   outputs = render(arguments.source.resolve())
-  for path in (outputs.html, outputs.text):
+  for path in (outputs.html, outputs.pdf, outputs.text):
     print(f'wrote {path}')
 
 

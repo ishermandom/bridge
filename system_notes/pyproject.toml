@@ -4,9 +4,27 @@
 [project]
 name = "system-notes"
 version = "0.0.0"
-description = "Renders partnership system notes to HTML and plain text."
+description = "Renders partnership system notes to HTML, PDF, and plain text."
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+  "weasyprint>=69",
+]
+
+[dependency-groups]
+dev = [
+  # The type stubs below install with the dev tools.
+  { include-group = "types" },
+]
+# Stubs for dependencies that ship no type information of their own, from the
+# repo's stub packages (../stubs, see the README there).
+types = [
+  "weasyprint-stubs",
+]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+# Editable, so an edited stub takes effect on the next check without a
+# reinstall — see ../stubs/README.md.
+weasyprint-stubs = { path = "../stubs/weasyprint", editable = true }

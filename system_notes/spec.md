@@ -80,54 +80,71 @@ One stylesheet, shipped with the tool, holding `@media screen` and
 colors are the tool's, and flexibility is added only when a second partnership
 wants something different.
 
-- **Typeface**: IBM Plex Serif for body and headings. Chosen from full-document
-  renders of the fixture across open-licensed candidates: the serif scanned best
-  when skimming list-heavy pages, and Plex Serif meets the letterform
-  preferences the search settled on — a straight-tailed Q with no flourish, a
-  simple `g`, a conventional ampersand, an undecorated zero, true italics, and a
-  distinguishable `I l 1`. Inter and Open Sans are the recorded sans-serif
-  fallbacks; both rendered well and either could take over if a serif proves
-  wrong on paper. Further serif candidates are queued in `tasks.md`
+- **Typeface**: IBM Plex Serif for body and headings, 11pt body in print. Chosen
+  from full-document renders of the fixture across open-licensed candidates: the
+  serif scanned best when skimming list-heavy pages, and Plex Serif meets the
+  letterform preferences the search settled on — a straight-tailed Q with no
+  flourish, a simple `g`, a conventional ampersand, an undecorated zero, true
+  italics, and a distinguishable `I l 1`. Inter and Open Sans are the recorded
+  sans-serif fallbacks; both rendered well and either could take over if a serif
+  proves wrong on paper. Further serif candidates are queued in `tasks.md`
   #serif-alternatives.
-- **Fonts are installed, not bundled.** The stylesheet names families, and the
-  README documents the install. Only publicly available, open-licensed fonts are
-  used, so any machine can be set up identically; the exact files are captured
-  in `bridge-private` alongside its other fonts, in case an upstream copy
-  vanishes or drifts. The public repo carries no font files.
+- **Fonts are installed, not bundled.** The stylesheet names families,
+  WeasyPrint finds them through fontconfig, and the README documents the
+  install. Only publicly available, open-licensed fonts are used, so any machine
+  can be set up identically; the exact files are captured in `bridge-private`
+  alongside its other fonts, in case an upstream copy vanishes or drifts. The
+  public repo carries no font files.
 - **Screen**: a single column of readable measure that narrows with the
   viewport.
+- **Print**: US letter paper size; running document title and section title in
+  the page header, "page / total" in the footer.
 
 ## Command line
 
 `python -m system_notes.render_notes notes.md` — one positional input;
-`notes.html` and `notes.txt` are written beside it, named after the input. The
-outputs are committed alongside the source in `bridge-private`, so the latest
-notes can be read from the repository on any device without a build, and so the
-self-contained HTML can be published anywhere later. Where it is published is
-undecided and not needed soon.
+`notes.html`, `notes.pdf`, and `notes.txt` are written beside it, named after
+the input. The outputs are committed alongside the source in `bridge-private`,
+so the latest notes can be read from the repository on any device without a
+build, and so the self-contained HTML can be published anywhere later. Where it
+is published is undecided and not needed soon.
 
 Pandoc runs with `--fail-if-warnings`, so a duplicate heading id or similar
 authoring slip stops the render rather than producing a subtly wrong document;
-the filters add their own hard errors for a missing title.
+the filters add their own hard errors for a missing title. WeasyPrint gets the
+same treatment for the same reason: it warns about a stylesheet it cannot parse
+or a layout it cannot honor, then lays the page out anyway, so its warnings fail
+the render too. One is exempt — the phone-width screen media query, which it
+cannot parse and does not need.
 
 ## Testing
 
 - **Filter unit tests** run pandoc over small Markdown snippets with one filter
   at a time and assert the resulting HTML and plain text.
-- **Golden files** for the fixture, committed and diffed on every test run: the
-  HTML and the plain text.
+- **Golden files** {#goldens} for the fixture, committed and diffed on every
+  test run: the HTML, the plain text, and the PDF as extracted by
+  `pdftotext -layout`. The PDF golden is text rather than bytes because the
+  bytes embed font subsets and vary with font-file and WeasyPrint versions, and
+  a binary diff says nothing about what changed; the extracted text carries page
+  numbers, running headers, and column order, and diffs like any file. It is
+  stable as long as the same fonts are installed. Rasterized image diffs are a
+  possible later addition for reviewing layout changes; the design does not
+  depend on them.
 
-`pandoc` is a prerequisite of the tests as well as the tool; the README
-documents it.
+The tests need every program and font the tool itself needs, since they render
+the fixture for real. `Brewfile` lists them, each with what it is for, and the
+README gives the install command.
 
 ## Module shape
 
-- `render_notes.py` — the command line; runs pandoc twice, as a command.
+- `render_notes.py` — the command line; runs pandoc twice, as a command, and
+  WeasyPrint once, through its Python API.
 - `filters/` — one Lua filter to a job: a check, a notation rule, or a
   structural rewrite.
 - `template.html` — a minimal skeleton replacing pandoc's default, so none of
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
+- `pdf_inspection.py` — the PDF readouts the tests share: extracted text.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its
   expected renderings.
 - `filters_test.py`, `render_notes_test.py` — the tests above, beside the code
