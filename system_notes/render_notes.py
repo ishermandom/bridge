@@ -22,6 +22,8 @@ from pathlib import Path
 
 import weasyprint
 
+from system_notes import pdf_inspection
+
 TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
@@ -50,6 +52,12 @@ PLAIN_LIST_MARKER = re.compile(r'^(?P<indent>[ ]*)- ', flags=re.MULTILINE)
 # no information. The match is on the query's own text, not on the warning's
 # wording, so a print rule WeasyPrint cannot parse still warns.
 PHONE_WIDTH_MEDIA_QUERY = 'max-width: 600px'
+
+# The families the stylesheet asks for, spelled as `pdffonts` reports them. A
+# rendered PDF may embed nothing else: another family means fontconfig supplied
+# a face the stylesheet never named — a glyph the chosen fonts lack, or an
+# element such as a code span that the stylesheet gives no family.
+CHOSEN_FONT_FAMILIES = frozenset({'IBM-Plex-Serif', 'Source-Sans-3'})
 
 
 @dataclass(frozen=True)
@@ -120,6 +128,19 @@ def render_html(source: Path, output: Path) -> None:
   )
 
 
+def verify_fonts(pdf: Path) -> None:
+  """Fail if the PDF embeds any font family outside the chosen set."""
+  unexpected = pdf_inspection.embedded_font_families(pdf) - CHOSEN_FONT_FAMILIES
+  if unexpected:
+    raise RuntimeError(
+      f'{pdf} embeds font families outside the chosen set: '
+      f'{", ".join(sorted(unexpected))}. Some text fell back to a face the '
+      'stylesheet never named — a glyph the chosen fonts lack, or an element '
+      'such as a code span that the stylesheet gives no family '
+      '(spec.md #appearance).'
+    )
+
+
 def verify_nothing_warned(messages: Sequence[str], output: Path) -> None:
   """Fail on anything WeasyPrint reported while laying the page out.
 
@@ -139,7 +160,8 @@ def render_pdf(html: Path, output: Path) -> None:
 
   WeasyPrint warns and carries on where it cannot parse a rule or honor a
   layout, so — as with pandoc's `--fail-if-warnings` — every warning but the
-  known one fails the render.
+  known one fails the render. The embedded fonts are checked here too, since
+  only the finished file shows what the page was actually set in.
 
   So the render goes to a scratch copy, and only a copy that passes every check
   reaches `output`. The outputs are committed beside their source, and a
@@ -156,6 +178,7 @@ def render_pdf(html: Path, output: Path) -> None:
     finally:
       logger.removeHandler(collected)
       verify_nothing_warned(collected.messages, output)
+    verify_fonts(unverified)
     shutil.copyfile(unverified, output)
 
 

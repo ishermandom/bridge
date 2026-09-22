@@ -95,6 +95,13 @@ wants something different.
   can be set up identically; the exact files are captured in `bridge-private`
   alongside its other fonts, in case an upstream copy vanishes or drifts. The
   public repo carries no font files.
+- **No font fallback goes unnoticed.** Every render inspects the PDF's embedded
+  fonts and fails if a family outside the chosen set appears — the sign that
+  something fell back to whatever fontconfig found: a glyph the chosen fonts
+  lack, or an element the stylesheet gives no family. The check is also why the
+  stylesheet names no monospace face. No code span has appeared in the notes so
+  far, and the first one will fail the render rather than quietly pick up the
+  machine's monospace; a face gets chosen then.
 - **A marker per list depth, paired by round of the auction**
   (`○ ● □ ▪ ◦ • △ ▲ ▽ ▼ ▷ ▶`): the two depths of one round share a shape, the
   unfilled marker for the seat that calls first and the filled one for the seat
@@ -138,9 +145,15 @@ cannot parse and does not need.
   bytes embed font subsets and vary with font-file and WeasyPrint versions, and
   a binary diff says nothing about what changed; the extracted text carries page
   numbers, running headers, and column order, and diffs like any file. It is
-  stable as long as the same fonts are installed. Rasterized image diffs are a
-  possible later addition for reviewing layout changes; the design does not
-  depend on them.
+  stable as long as the same fonts are installed, which the next test enforces.
+  Rasterized image diffs are a possible later addition for reviewing layout
+  changes; the design does not depend on them.
+- **An embedded-font test** asserts that the fixture PDF embeds exactly the
+  chosen families, and that a document forcing a fallback (a code span) fails to
+  render. A fallback is otherwise invisible: the prototype once picked up
+  Georgia for a single character. On a machine without the fonts the render
+  fails loudly rather than writing a plausible wrong golden, which is what an
+  eventual CI run needs.
 
 The tests need every program and font the tool itself needs, since they render
 the fixture for real. `Brewfile` lists them, each with what it is for, and the
@@ -155,7 +168,8 @@ README gives the install command.
 - `template.html` — a minimal skeleton replacing pandoc's default, so none of
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
-- `pdf_inspection.py` — the PDF readouts the tests share: extracted text.
+- `pdf_inspection.py` — the PDF readouts the renderer and the tests share:
+  embedded fonts, extracted text.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its
   expected renderings.
 - `filters_test.py`, `render_notes_test.py` — the tests above, beside the code

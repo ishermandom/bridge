@@ -131,7 +131,9 @@ renders, since a font cask installs into the running account's
 
     uv run --project . python -m system_notes.render_notes path/to/notes.md
 
-which writes `notes.html`, `notes.pdf`, and `notes.txt` beside the input.
+which writes `notes.html`, `notes.pdf`, and `notes.txt` beside the input. A
+render fails if the PDF embeds a font the stylesheet never asked for, which
+means some text fell back to whatever the machine happened to have.
 
 The Markdown is ordinary Pandoc Markdown plus a few conventions:
 

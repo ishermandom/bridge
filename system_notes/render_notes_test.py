@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""The fixture rendered end to end, against its goldens."""
+"""The fixture rendered end to end: goldens and embedded fonts."""
 
 import re
 import shutil
@@ -98,6 +98,28 @@ def test_a_weasyprint_warning_fails_the_render(tmp_path: Path) -> None:
     render_notes.render_pdf(html, pdf)
 
   assert not pdf.exists(), 'the rejected layout reached the output file'
+
+
+# --- fonts ---
+
+
+def test_pdf_embeds_exactly_the_chosen_font_families(
+  rendered: render_notes.RenderedNotes,
+) -> None:
+  families = pdf_inspection.embedded_font_families(rendered.pdf)
+  assert families == render_notes.CHOSEN_FONT_FAMILIES
+
+
+def test_a_font_fallback_fails_the_render(tmp_path: Path) -> None:
+  # A code span has no family in the stylesheet, so it falls back to whatever
+  # monospace the machine offers — never one of the chosen families.
+  source = tmp_path / 'notes.md'
+  source.write_text(
+    '---\ntitle: Notes\n---\n\n# A {#a}\n\nUse `code` here.\n',
+    encoding='utf-8',
+  )
+  with pytest.raises(RuntimeError, match='outside'):
+    render_notes.render(source)
 
 
 # --- stylesheet coupling ---
