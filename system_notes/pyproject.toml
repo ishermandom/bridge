@@ -1,0 +1,12 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+[project]
+name = "system-notes"
+version = "0.0.0"
+description = "Renders partnership system notes to HTML and plain text."
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv]
+package = false

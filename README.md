@@ -109,6 +109,31 @@ Regenerate that file after any dependency change:
     uv export --format requirements.txt --package convention-cards --no-dev \
       --no-hashes -o convention_cards/requirements.txt
 
+### System notes renderer
+
+`system_notes/` — Python
+
+Renders a partnership's system notes — a long, deeply nested bidding and carding
+agreement written in Pandoc Markdown — into two outputs from one source: a
+self-contained HTML page for the screen and a hard-wrapped plain-text rendering
+for pasting into email. See `system_notes/spec.md` for the design.
+
+The notes themselves are partnership agreements and live in the private
+companion repository; only the renderer and an AI-drafted sample document
+(`system_notes/fixture/notes.md`, unreviewed and not a workable system) live
+here.
+
+Prerequisites beyond `uv`: `pandoc`. Render, from the repo root, with
+
+    uv run --project . python -m system_notes.render_notes path/to/notes.md
+
+which writes `notes.html` and `notes.txt` beside the input — the text ready for
+email.
+
+After an intentional change to the rendering, run
+`uv run --project . python -m system_notes.update_goldens` and review the golden
+diff.
+
 ### Session analysis (exploratory)
 
 `session_analysis/` — Python

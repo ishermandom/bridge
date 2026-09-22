@@ -11,6 +11,7 @@ members = [
   "convention_cards",
   "practice/squeezes/scratch",
   "session_analysis",
+  "system_notes",
 ]
 
 # The tools every member is held to, rather than anything one member needs in

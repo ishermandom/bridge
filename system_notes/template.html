@@ -1,0 +1,24 @@
+<!-- Copyright 2026 Ilya Sherman (ishermandom@) -->
+<!-- SPDX-License-Identifier: MIT -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$pagetitle$</title>
+$for(css)$
+<link rel="stylesheet" href="$css$">
+$endfor$
+</head>
+<body>
+<header id="title-block">
+<h1 class="title">$title$</h1>
+$if(date)$
+<p class="date">$date$</p>
+$endif$
+</header>
+<main>
+$body$
+</main>
+</body>
+</html>

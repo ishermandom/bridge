@@ -61,13 +61,14 @@ fi
 
 # The Python suites run as one pytest invocation through the uv workspace, so
 # all share the lockfile/venv regardless of the caller's directory. Pytest picks
-# the right import root per suite: the repo root for `session_analysis.*`
-# imports, and each remaining suite's own directory, since their modules import
-# each other by bare name.
+# the right import root per suite: the repo root for `session_analysis.*` and
+# `system_notes.*` imports, and each remaining suite's own directory, since
+# their modules import each other by bare name.
 #
 # `exec` replaces this shell with pytest, so pytest's exit status becomes the
 # script's directly — safe as the last step, since nothing follows it here.
 exec uv run --project "$repo_root" pytest \
-  "$repo_root/session_analysis" \
+  "$repo_root/convention_cards" \
   "$repo_root/practice/squeezes/scratch" \
-  "$repo_root/convention_cards"
+  "$repo_root/session_analysis" \
+  "$repo_root/system_notes"

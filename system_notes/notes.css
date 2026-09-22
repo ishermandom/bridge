@@ -1,0 +1,80 @@
+/* Copyright 2026 Ilya Sherman (ishermandom@) */
+/* SPDX-License-Identifier: MIT */
+
+/* A single readable column that adapts to the viewport. Layout decisions are
+   recorded in spec.md #appearance. */
+
+/* Units: em for spacing next to text, so it scales with that text; rem for the
+   screen page box, tied to the reader's default text size; px for borders and
+   other fixed lengths. */
+:root {
+  --ink: #161616; /* near-black */
+  --accent: #0b57d0; /* medium blue */
+  --rule: #d0d0d0; /* light gray */
+}
+
+body {
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+/* Headings take tighter line spacing than body text, and more space above than
+   below, so each heading sits with the text it introduces. */
+h1, h2, h3, .title {
+  line-height: 1.15;
+  margin: 1.1em 0 0.35em;
+}
+h1 {
+  font-size: 1.5em;
+}
+.title {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.15em;
+}
+
+.date {
+  margin: 0.2em 0;
+  color: #555; /* mid gray */
+}
+
+blockquote {
+  margin: 1em 0;
+  padding: 0.4em 1em;
+  border-left: 3px solid var(--rule);
+}
+
+ul, ol {
+  /* Lists nest deeply in the notes, so each depth indents about half as far as
+     a browser's default 2.5em (40px at the reader's default text size). */
+  padding-left: 1.3em;
+  margin: 0.25em 0;
+}
+li {
+  margin: 0.12em 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+@media screen {
+  body {
+    /* Cap the line at a readable length and center the column; the side padding
+       keeps text off the edges of a narrow screen. */
+    max-width: 44rem;
+    margin: 2rem auto;
+    padding: 0 1.2rem;
+  }
+}
+
+/* Phone width: a tighter top and bottom margin, and a shallower indent per list
+   depth so deep lists keep usable width. */
+@media screen and (max-width: 600px) {
+  body {
+    margin: 1rem auto;
+  }
+  ul, ol {
+    padding-left: 1em;
+  }
+}

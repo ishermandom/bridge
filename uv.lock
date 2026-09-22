@@ -16,6 +16,7 @@ members = [
     "pabc-reservations-helper",
     "session-analysis",
     "squeezes-scratch",
+    "system-notes",
 ]
 
 [manifest.dependency-groups]
@@ -1543,6 +1544,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/9c/13/725a798311129fc13
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/4b/c2902746fb3fcc737ba925865a73475ad51521f26f84652aa9b337e12227/streamlit-1.59.2-py3-none-any.whl", hash = "sha256:5014cb4f0064bd16c58fe334cb0d3c4b7e2be3d1ce4c02202c07114a33576dab", size = 10338011, upload-time = "2026-07-13T09:00:48.464Z" },
 ]
+
+[[package]]
+name = "system-notes"
+version = "0.0.0"
+source = { virtual = "system_notes" }
 
 [[package]]
 name = "tenacity"

@@ -72,3 +72,44 @@ equally well but is not the default, because it needs Playwright to drive the
 browser. It also needs the stylesheet embedded, as the renderer already writes
 it: in the prototype, Paged.js failed to load a linked stylesheet from a page
 opened as a local file.
+
+## Appearance {#appearance}
+
+One stylesheet, shipped with the tool, holding `@media screen` and
+`@media print` blocks. There is no per-partnership override: the layout and
+colors are the tool's, and flexibility is added only when a second partnership
+wants something different.
+
+- **Screen**: a single column of readable measure that narrows with the
+  viewport.
+
+## Command line
+
+`python -m system_notes.render_notes notes.md` — one positional input;
+`notes.html` and `notes.txt` are written beside it, named after the input. The
+outputs are committed alongside the source in `bridge-private`, so the latest
+notes can be read from the repository on any device without a build, and so the
+self-contained HTML can be published anywhere later. Where it is published is
+undecided and not needed soon.
+
+Pandoc runs with `--fail-if-warnings`, so a duplicate heading id or similar
+authoring slip stops the render rather than producing a subtly wrong document.
+
+## Testing
+
+- **Golden files** for the fixture, committed and diffed on every test run: the
+  HTML and the plain text.
+
+`pandoc` is a prerequisite of the tests as well as the tool; the README
+documents it.
+
+## Module shape
+
+- `render_notes.py` — the command line; runs pandoc twice, as a command.
+- `template.html` — a minimal skeleton replacing pandoc's default, so none of
+  pandoc's default styling reaches the print layout.
+- `notes.css` — the stylesheet.
+- `fixture/notes.md` and `fixture/golden/` — the sample document and its
+  expected renderings.
+- `render_notes_test.py` — the tests above, beside the code they cover per the
+  repo's `*_test.py` convention; `update_goldens.py` refreshes the goldens.
