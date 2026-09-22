@@ -157,6 +157,10 @@ wants something different.
   stylesheet names no monospace face. No code span has appeared in the notes so
   far, and the first one will fail the render rather than quietly pick up the
   machine's monospace; a face gets chosen then.
+- **Heading rank without a size ladder**: the section heading takes the accent
+  color and italic; below it, subsections and their children stay at body size
+  and are told apart by underline and weight. The notes nest too deeply for each
+  level to claim a size of its own.
 - **A marker per list depth, paired by round of the auction**
   (`○ ● □ ▪ ◦ • △ ▲ ▽ ▼ ▷ ▶`): the two depths of one round share a shape, the
   unfilled marker for the seat that calls first and the filled one for the seat

@@ -37,6 +37,25 @@ font-size: 1.5em;
 border-bottom: 1px solid var(--rule);
 padding-bottom: 0.15em;
 }
+
+main h1 {
+color: var(--accent);
+font-style: italic;
+}
+
+h2:not(#toc-title) {
+font-size: 1em;
+font-weight: normal;
+font-style: italic;
+text-decoration: underline;
+}
+#toc-title {
+font-size: 1.2em;
+}
+
+h3 {
+font-size: 1em;
+}
 .date {
 margin: 0.2em 0;
 color: #555; 
@@ -63,7 +82,9 @@ font-weight: normal;
 }
 
 em .suit,
-a.xref .suit {
+a.xref .suit,
+main h1 .suit,
+h2 .suit {
 transform: skewX(-14deg);
 }
 .spade {

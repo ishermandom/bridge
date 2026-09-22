@@ -42,6 +42,34 @@ h1 {
   padding-bottom: 0.15em;
 }
 
+/* A section heading takes the accent color and italic; below it the levels stay
+   at body size, so rank comes from slant, underline, and weight rather than
+   from further size steps — the notes nest too deeply for a size ladder
+   (spec.md #appearance). The table of contents' own title is an h2 the selector
+   exempts, so it keeps its larger size. */
+main h1 {
+  color: var(--accent);
+  font-style: italic;
+}
+/* Browsers do not draw an ancestor's underline through an inline-block, so on
+   screen the underline gaps under each suit symbol in a subsection heading;
+   WeasyPrint draws it through, so print is whole. Giving the suit its own
+   underline was tried and is worse: it draws in the suit's color at the suit
+   face's metrics, breaking the line's color and depth. */
+h2:not(#toc-title) {
+  font-size: 1em;
+  font-weight: normal;
+  font-style: italic;
+  text-decoration: underline;
+}
+#toc-title {
+  font-size: 1.2em;
+}
+/* A sub-subsection keeps the default bold at body size: any larger would
+   outrank the 1em subsection above it. */
+h3 {
+  font-size: 1em;
+}
 .date {
   margin: 0.2em 0;
   color: #555; /* mid gray */
@@ -85,7 +113,9 @@ blockquote {
    Italic's 14° angle supplies the slant. The angle must track the body font:
    test_suit_skew_tracks_the_body_font_italic_angle fails when they part. */
 em .suit,
-a.xref .suit {
+a.xref .suit,
+main h1 .suit,
+h2 .suit {
   transform: skewX(-14deg);
 }
 .spade {
