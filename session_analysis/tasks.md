@@ -299,6 +299,15 @@ rather than a fault.
     the morning session's, and it fits only the morning sheet. Until the
     afternoon capture is fetched or this escape hatch lands, every ingest run
     reports `no_capture_of_date_fits` for the afternoon session.
+- [ ] Reach `store_travellers`' refresh from a command.
+      {#refresh-from-a-command}
+  - Rationale: the parameter exists for exactly one job — its docstring says
+    "used to validate parser changes" — and no command passes it, so the job it
+    exists for takes a hand-written script. Re-reading every stored capture is
+    what says whether a parser change moved anything it should not have, which
+    makes it the check worth reaching for after any parser edit.
+  - Note: a flag on `fetch_travellers` is the smaller change, though the run it
+    wants has nothing to fetch. The alternative is a command of its own.
 
 ---
 
