@@ -7,12 +7,18 @@ published for nearly every game — so this is the club parser that has to exist
 with the PBN an easier path where it happens to be there (see travellers.md
 `#club-format`).
 
-The club's directors publish under two filename prefixes, `R` and `C`, and the
-two differ only in presentation: the score tables are identical, `R`
-additionally prints the par contract where `C` prints the par score alone.
-Neither difference needs a branch here, because both are read through the score
-table's own class rather than through the board container, whose class attribute
-`C` omits.
+The club's directors publish under two filename prefixes, `R` and `C`. They
+differ in two places: `C` omits the board container's class attribute, and `C`
+prints the par score alone where `R` prints the par contract too. Neither
+difference needs a branch here — a score table is found by its own class rather
+than through the container, and a par score with no contract is a complete
+reading.
+
+The standings recap varies too: one spells its headings out in words, the other
+packs them into labelled fields and abbreviates. Which layout a capture carries
+does not follow from its prefix — `C` captures have been seen in both — so every
+recap line is matched against both shapes rather than against the one a filename
+would imply.
 
 Reading through a real HTML parser also absorbs the difference between a file
 fetched directly and the same file saved from a browser — attribute quoting,
@@ -146,24 +152,47 @@ _SECTION_ROW_PATTERN = re.compile(r'Section\s+(?P<name>\S+)')
 # rather than newline characters.
 _LINE_BREAK_PATTERN = re.compile(r'<br\s*/?>')
 
-# The standings recap's own section heading, and the side it introduces. A
-# two-winner movement ranks each side in a list of its own, under
-# `Section  P  North-South` and `Section  P  East-West`. A one-winner movement
-# ranks all its pairs in a single list, under `Section  P` alone.
-_RECAP_SECTION_PATTERN = re.compile(
+# The standings recap's own section heading, and the side it introduces, in the
+# layout that spells both out in words. A two-winner movement ranks each side in
+# a list of its own, under `Section  P  North-South` and
+# `Section  P  East-West`. A one-winner movement ranks all its pairs in a single
+# list, under `Section  P` alone.
+_SPELLED_SECTION_PATTERN = re.compile(
   r"""
-  Section\s+(?P<name>\S+)
+  Section\s+(?P<name>[A-Za-z]+)  # a section letter, as `_PAIR_PATTERN` reads
   (?:\s+(?P<side>North-South|East-West))?  # absent in a one-winner movement
-  # Nothing may follow the heading on its line. The side being optional, the
-  # column header beneath it, `Section Rank  Overall Rank  MPs`, would otherwise
-  # read as a heading for a section named `Rank`.
+  # Two things keep the word `Section` elsewhere in the block from reading as a
+  # heading. Nothing may follow the heading on its line, or the column header
+  # beneath it — `Section Rank  Overall Rank  MPs` — would name a section
+  # `Rank`, the side being optional. And the name must be letters, because
+  # `Section` is also one of the labels written over a group of columns, and
+  # the row carrying those labels ends on a column edge — `Section  |` — where
+  # a heading would have a name.
   \s*$
   """,
   re.VERBOSE,
 )
-_RECAP_SIDES: Mapping[str, Side] = {
+_SPELLED_SIDES: Mapping[str, Side] = {
   'North-South': Side.NORTH_SOUTH,
   'East-West': Side.EAST_WEST,
+}
+
+# The same heading in the layout that abbreviates it, writing the recap's
+# context as labelled fields packed onto one line and shortening the side:
+# `EVENT>Placeholder Pairs  |SESSION>Monday Morn  |SECTION> C N-S`. `SECTION>`
+# is a label the block writes nowhere else, so this needs neither guard the
+# spelled heading above does — the bare word `Section` is what turns up in
+# column headers and rules.
+_ABBREVIATED_SECTION_PATTERN = re.compile(
+  r"""
+  SECTION>\s*(?P<name>[A-Za-z]+)  # a section letter, as above
+  (?:\s+(?P<side>N-S|E-W))?  # absent in a one-winner movement
+  """,
+  re.VERBOSE,
+)
+_ABBREVIATED_SIDES: Mapping[str, Side] = {
+  'N-S': Side.NORTH_SOUTH,
+  'E-W': Side.EAST_WEST,
 }
 
 # The date the recap prints in its title line, e.g. `July 14, 2026`.
@@ -198,6 +227,21 @@ _RECAP_AWARD_PATTERN = re.compile(
   [A-Z]+      # the letters, e.g. `SA`
   \)
   \s*         # whatever spaces the column left over, possibly none
+  """,
+  re.VERBOSE,
+)
+
+# The opening column of a standings row in the layout that gives each name a
+# column of its own: the pair number and the first player's name, one space
+# apart, as in `4 Ann Alfa`. One space is fewer than the two the column
+# separator breaks on, so number and name arrive glued together and are split by
+# shape here — the same problem `_RECAP_AWARD_PATTERN` solves at the other end
+# of a row.
+_RECAP_NUMBERED_NAME_PATTERN = re.compile(
+  r"""
+  (?P<number>\d+)
+  \s+
+  (?P<name>\S.*)  # the rest of the column: a full name, inner spaces and all
   """,
   re.VERBOSE,
 )
@@ -237,6 +281,13 @@ _UNREADABLE_PAR_CONTRACT = issue_reporting.Failure(
 # sat in; `names` points at the field that falls back to surnames in those rows.
 _UNREADABLE_RECAP_NAMES = issue_reporting.Failure(
   'unreadable_recap_names', IssueSeverity.MEDIUM, 'names'
+)
+# Reported for a recap block that yielded no pair at all. A capture with no
+# recap is ordinary and says nothing, so a recap in a layout this module cannot
+# read would otherwise look exactly like a capture that carries no standings —
+# and it would cost every pair its full names without a word.
+_UNREADABLE_RECAP = issue_reporting.Failure(
+  'unreadable_recap', IssueSeverity.MEDIUM, 'names'
 )
 
 # The pair cells are the one failure whose field depends on which side it was
@@ -304,9 +355,13 @@ class _PairKey:
 class _Standings:
   """The recap's pair standings: who each pair was, in full.
 
-  A score table names a pair by surnames alone. The recap that both variants
-  embed names the same pair in full, so it is read once and every row looks its
+  A score table names a pair by surnames alone. A capture's standings recap
+  names the same pair in full, so the recap is read once and every row looks its
   pair up here.
+
+  The recap comes in two layouts, which differ in how they head each list of
+  pairs and where in a row they print the names. `_recap_section` and
+  `_recap_pair` each read both, so nothing here chooses between them.
   """
 
   def __init__(
@@ -326,6 +381,9 @@ class _Standings:
     per-board rows stand on their own, only with surnames in place of full
     names. A standings line with a name that does not start with a letter is
     reported and skipped, leaving that one pair on surnames too.
+
+    A recap that is present but yields no pair at all is reported; see
+    `_UNREADABLE_RECAP` for why that case cannot pass in silence.
     """
     recap = soup.find(id='bcrecap')
     if not recap:
@@ -336,18 +394,20 @@ class _Standings:
     date: datetime.date | None = None
     section: str | None = None
     side: Side | None = None
+    # Whether any line read as a pair. That is not the same as `names` ending up
+    # non-empty: a row read and then dropped for an unreadable name leaves
+    # `names` empty while saying nothing about the layout.
+    has_read_a_pair = False
 
-    for line in recap.get_text().splitlines():
+    lines = recap.get_text().splitlines()
+    for line in lines:
       if date is None:
         date = _recap_date(line)
 
-      heading = _RECAP_SECTION_PATTERN.search(line)
+      heading = _recap_section(line)
       if heading:
-        section = heading.group('name')
-        # A one-winner heading names no side, so its pairs are filed under no
-        # side.
-        side_name = heading.group('side')
-        side = _RECAP_SIDES[side_name] if side_name else None
+        section = heading.section
+        side = heading.side
         continue
 
       # The lines above the first heading, the title among them, name no pair.
@@ -356,7 +416,9 @@ class _Standings:
       entry = _recap_pair(line)
       if not entry:
         continue
-      number, players = entry
+      has_read_a_pair = True
+      number = entry.number
+      players = entry.players
       # A real name starts with a letter, so anything else at the front is text
       # from a neighboring column that the split left attached. A name carrying
       # that text would disagree with how the other sources spell the pair, so
@@ -370,6 +432,19 @@ class _Standings:
         )
         continue
       names[_PairKey(section=section, side=side, number=number)] = players
+
+    if not has_read_a_pair:
+      # The recap's first line is quoted because it names the event, and in the
+      # abbreviated layout the section as well. That is usually enough to place
+      # what arrived without opening the capture.
+      opening = next((line.strip() for line in lines if line.strip()), '')
+      issues.append(
+        _UNREADABLE_RECAP.issue(
+          'the capture carries a standings recap, but none of its lines could '
+          f'be read as a pair — it opens {opening!r}, and every pair keeps the '
+          'surnames from the score table'
+        )
+      )
 
     return issue_reporting.Read(cls(names=names, date=date), tuple(issues))
 
@@ -418,21 +493,80 @@ def _recap_date(line: str) -> datetime.date | None:
     return None
 
 
-def _recap_pair(line: str) -> tuple[str, tuple[str, ...]] | None:
+@dataclasses.dataclass(frozen=True)
+class _RecapHeading:
+  """What a standings heading introduces: a section, and the side it ranks."""
+
+  section: str
+  # `None` in a one-winner movement, whose heading names no side.
+  side: Side | None
+
+
+@dataclasses.dataclass(frozen=True)
+class _RecapPair:
+  """One standings row: the pair it ranks, and who that pair was."""
+
+  # As the recap prints it. A number names a pair only alongside the section and
+  # side of the heading above its row: a two-winner movement numbers each side
+  # from 1, so its North-South 4 and East-West 4 are two different pairs. A
+  # one-winner movement numbers its pairs once and the side does not arise.
+  number: str
+  # The two players, given name first, as `PairIdentity.names` holds them.
+  players: tuple[str, ...]
+
+
+def _recap_section(line: str) -> _RecapHeading | None:
+  """The heading a standings line carries, or None for other lines.
+
+  Both layouts head each list of pairs with the section that list ranks, plus
+  the side in a two-winner movement; they differ only in how that heading is
+  written. Each shape is tried in turn, because nothing above this level knows
+  which layout the capture carries.
+  """
+  for pattern, sides in (
+    (_SPELLED_SECTION_PATTERN, _SPELLED_SIDES),
+    (_ABBREVIATED_SECTION_PATTERN, _ABBREVIATED_SIDES),
+  ):
+    heading = pattern.search(line)
+    if heading:
+      side = heading.group('side')
+      return _RecapHeading(
+        section=heading.group('name'), side=sides[side] if side else None
+      )
+  return None
+
+
+def _recap_pair(line: str) -> _RecapPair | None:
   """A standings row's pair number and full names, or None for other lines.
 
-  The recap is fixed-width text whose columns are two or more spaces apart. A
-  standings row is the one shape that opens with a pair number and closes with
-  two names joined by a spaced hyphen — the spaces being what tells that
-  separator apart from the hyphen inside a surname.
+  The recap is fixed-width text whose columns are two or more spaces apart. Both
+  layouts open a standings row with the pair number, but one closes the row with
+  the two names while the other puts them right after the number. So each shape
+  is tried in turn, as in `_recap_section`.
 
-  The masterpoint award column can be glued to the names column (see
-  `_RECAP_AWARD_PATTERN`), so the award is stripped before the names are read.
+  Trying both is safe and needs nothing to tell the layouts apart: neither shape
+  matches the other's rows, and neither matches the headings, dashed lines and
+  totals around them.
   """
   columns = [
     column for column in _RECAP_COLUMN_SEPARATOR.split(line.strip()) if column
   ]
-  if len(columns) < 2 or not columns[0].isdigit():
+  if len(columns) < 2:
+    return None
+  return _pair_with_trailing_names(columns) or _pair_with_leading_names(columns)
+
+
+def _pair_with_trailing_names(columns: Sequence[str]) -> _RecapPair | None:
+  """The pair of a row closing with both names joined by a spaced hyphen.
+
+  In this layout the opening column holds the number alone, so the names are
+  whatever the last column holds. Its rows run in rank order, where the other
+  layout's run in pair-number order.
+
+  The masterpoint award column can be glued to the names column (see
+  `_RECAP_AWARD_PATTERN`), so the award is stripped before the names are read.
+  """
+  if not columns[0].isdigit():
     return None
   # Does nothing where the award split off on its own or no award was printed.
   names_column = _RECAP_AWARD_PATTERN.sub('', columns[-1])
@@ -441,7 +575,28 @@ def _recap_pair(line: str) -> tuple[str, tuple[str, ...]] | None:
   players = tuple(
     name.strip() for name in names_column.split(_RECAP_NAME_SEPARATOR)
   )
-  return columns[0], players
+  return _RecapPair(number=columns[0], players=players)
+
+
+def _pair_with_leading_names(columns: Sequence[str]) -> _RecapPair | None:
+  """The pair of a row opening with the number and both names in columns.
+
+  This layout lists the pairs in number order and gives each name a column of
+  its own, gluing the pair number to the first name's column (see
+  `_RECAP_NUMBERED_NAME_PATTERN`). So the pair is read from the opening two
+  columns rather than the closing one.
+  """
+  opening = _RECAP_NUMBERED_NAME_PATTERN.fullmatch(columns[0])
+  if not opening:
+    return None
+  # TODO: a pair printed with only one name would take the column after it — the
+  # flight letter — as the second player. No capture does that, so this waits
+  # for a case seen in the wild, and such a pair would disagree with the other
+  # sources rather than pass unnoticed.
+  return _RecapPair(
+    number=opening.group('number'),
+    players=(opening.group('name'), columns[1]),
+  )
 
 
 class _BoardMarkup:

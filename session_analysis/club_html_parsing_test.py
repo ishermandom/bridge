@@ -967,6 +967,84 @@ def test_the_standings_column_header_is_not_read_as_a_section() -> None:
   )
 
 
+def test_full_names_come_from_an_abbreviated_heading_recap() -> None:
+  # The abbreviated layout heads its sections with labelled fields and gives
+  # each player a column of the row, rather than closing the row with both names
+  # joined. A pair reads the same out of either layout.
+  traveller = parse_markup(
+    _make_recap(
+      'EVENT>Placeholder Pairs  |SESSION>Monday Morn  |SECTION> A N-S',
+      'No Name           Name          |Flt|Rnk-A| Score | Pct  | Awards |',
+      '-------------------------------- --- ----- ------- ------ --------',
+      ' 1 Ann Alfa       Bob Bravo       A   1    108.00  64.29',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='A1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+
+
+def test_a_one_winner_abbreviated_heading_names_no_side() -> None:
+  # In this layout too, a one-winner section's heading names the section alone,
+  # and its pairs are filed under no side so that a row from either side takes
+  # them.
+  traveller = parse_markup(
+    _make_recap(
+      'EVENT>Placeholder Pairs  |SESSION>Monday Morn  |SECTION> B',
+      'No Name           Name          |Flt|Rnk-A| Score | Pct  | Awards |',
+      '-------------------------------- --- ----- ------- ------ --------',
+      ' 6 Ann Alfa       Bob Bravo       A   1    108.00  64.29',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_section_row('B'),
+      _make_score_row(
+        contract='4S', declarer='E', made='4', pair_east_west='B6-Alfa-Bravo'
+      ),
+    ),
+  )
+
+  assert traveller.boards[0].results[0].east_west.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+
+
+def test_a_column_group_label_is_not_read_as_a_section() -> None:
+  # `Section` labels a group of columns as well as heading a list of pairs, and
+  # the row carrying those labels ends on a column edge. Were that row read as a
+  # heading, the pairs beneath it would be filed under a section named `|`,
+  # which no row's lookup ever asks for.
+  traveller = parse_markup(
+    _make_recap(
+      'EVENT>Placeholder Pairs  |SESSION>Monday Morn  |SECTION> A N-S',
+      '--------------------------------|   |     |       |      |Section |',
+      'No Name           Name          |Flt|Rnk-A| Score | Pct  | Awards |',
+      '-------------------------------- --- ----- ------- ------ --------',
+      ' 1 Ann Alfa       Bob Bravo       A   1    108.00  64.29',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='A1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == (
+    'Ann Alfa',
+    'Bob Bravo',
+  )
+
+
 # --- what could not be read ---
 
 
@@ -992,6 +1070,28 @@ def test_recap_names_not_starting_with_a_letter_fall_back_to_surnames() -> None:
   assert [issue.code for issue in traveller.issues] == [
     'unreadable_recap_names'
   ]
+
+
+def test_a_recap_naming_no_pair_at_all_is_reported() -> None:
+  # See `_UNREADABLE_RECAP` for why a recap that yields no pair has to say so.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A North-South',
+      # Neither shape matches: the trailing-names shape wants a spaced hyphen,
+      # and `and` is not one; the leading-names shape wants a name glued to the
+      # number, and here the number stands alone.
+      '  1   75.00    3.00  A   1     Ann Alfa and Bob Bravo',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == ('Alfa', 'Bravo')
+  assert [issue.code for issue in traveller.issues] == ['unreadable_recap']
 
 
 def test_a_capture_holding_no_game_reports_an_issue() -> None:
