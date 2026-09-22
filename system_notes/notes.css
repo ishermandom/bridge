@@ -9,6 +9,10 @@
    screen page box, tied to the reader's default text size; px for borders and
    other fixed lengths; points and inches in print. */
 :root {
+  --spade: #1b1b1b; /* near-black */
+  --heart: #c8102e; /* red */
+  --diamond: #e0730c; /* orange */
+  --club: #1a7f37; /* green */
   --ink: #161616; /* near-black */
   --accent: #0b57d0; /* medium blue */
   --rule: #d0d0d0; /* light gray */
@@ -46,6 +50,40 @@ blockquote {
   margin: 1em 0;
   padding: 0.4em 1em;
   border-left: 3px solid var(--rule);
+}
+
+/* A bid never parts between its level and its strain at a line break. */
+.bid {
+  white-space: nowrap;
+}
+
+/* Suits come from a dedicated face — the body font has no suit glyphs — and are
+   colored four-color style. STIX Two Math draws them rounder and fuller than
+   the sans candidates. Regular weight everywhere: bold adds nothing to a solid
+   symbol. No fallback family: in print, a machine without the face fails the
+   render's font check instead of quietly changing the glyphs; a browser without
+   it substitutes on its own, since the check can only guard the PDF. */
+.suit {
+  font-family: "STIX Two Math";
+  /* A suit glyph hangs 0.10em below the baseline, so at the text's own size
+     only 0.62em of it stands beside a Plex digit's 0.70em. 1.15 levels the two
+     tops; the extra descent falls inside the line's own descender space. */
+  font-size: 1.15em;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.spade {
+  color: var(--spade);
+}
+.heart {
+  color: var(--heart);
+}
+.diamond {
+  color: var(--diamond);
+}
+.club {
+  color: var(--club);
 }
 
 /* Nested lists: the markers run in pairs of one shape, unfilled then filled, a
@@ -131,8 +169,10 @@ a {
     size: letter;
     margin: 0.6in 0.6in 0.75in;
     /* The running header and footer are small and gray, so they recede behind
-       the notes; the margin boxes below inherit that type from the page. */
-    font: 8pt "IBM Plex Serif", "Source Sans 3", serif;
+       the notes; the margin boxes below inherit that type from the page. STIX
+       stands in the stack for the suit glyphs a copied section title can carry.
+       */
+    font: 8pt "IBM Plex Serif", "STIX Two Math", "Source Sans 3", serif;
     color: #666;
     @top-left {
       content: string(doc-title);

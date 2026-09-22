@@ -73,6 +73,21 @@ browser. It also needs the stylesheet embedded, as the renderer already writes
 it: in the prototype, Paged.js failed to load a linked stylesheet from a page
 opened as a local file.
 
+## Notation {#notation}
+
+The notation is deliberately tiny — each piece a Lua filter over pandoc's
+document tree — because every addition is syntax the author must remember and
+syntax the plain-text output must survive:
+
+- **Bids and suits**: a bid is written plainly — `4S`, `2NT` — and detected: a
+  level 1–7 and a strain standing as a word of its own, so `1ST` and `15S` are
+  left alone. Notrump is always `NT`; any other spelling after a level — `2N`,
+  `2n`, `2nt` — is a hard error (`bids.lua` says why). `!S !H !D !C` mark a suit
+  outside a bid. Either way the source stays plain ASCII and reads naturally in
+  an auction (`1S – 2C`). Each strain becomes a span; suits are colored
+  four-color style. The plain-text rendering keeps bids exactly as typed and
+  reduces `!H` to its letter — in email, the letters read better than symbols.
+
 ## Appearance {#appearance}
 
 One stylesheet, shipped with the tool, holding `@media screen` and
@@ -89,6 +104,18 @@ wants something different.
   sans-serif fallbacks; both rendered well and either could take over if a serif
   proves wrong on paper. Further serif candidates are queued in `tasks.md`
   #serif-alternatives.
+- **Suits**: a dedicated face on the `.suit` span carries them, never the body
+  font — Plex Serif has no suit glyphs, and most text faces do not, so leaving
+  them to fallback means accepting whatever fontconfig finds. They are colored
+  four-color style — spade black, heart red, diamond orange, club green — and
+  set slightly larger than the text so the glyphs match the digits they follow,
+  at regular weight (the stylesheet carries the why). The face is STIX Two Math,
+  chosen over the prototype's Source Sans 3 and other verified carriers (Noto
+  Sans Symbols 2, Overpass, DejaVu Sans) by glyph measurement and an 11pt
+  specimen: its four suits are uniformly wider than Source Sans 3's
+  tall-and-narrow set at the same height, where the others improved only some
+  suits, ran small, or carried wide side bearings. It also ships with macOS and
+  pairs naturally with serif text.
 - **Fonts are installed, not bundled.** The stylesheet names families,
   WeasyPrint finds them through fontconfig, and the README documents the
   install. Only publicly available, open-licensed fonts are used, so any machine
@@ -113,6 +140,18 @@ wants something different.
   the disc/circle/square keywords: browsers draw the keywords as shapes while
   WeasyPrint substitutes glyphs of its own choosing, and the two media would
   drift apart.
+- **Suit bids align on their own; notrump does not.** Plex's digits are tabular
+  by default and STIX's four suits share one advance width, so every suit bid
+  comes out the same width with no styling at all, and a run of list items
+  opening with one lines up. `NT` is two letters where a suit is one symbol, so
+  a notrump bid is wider, and calls like `Pass` and `Dbl` wider still. An
+  earlier design boxed every strain to a fixed width to bring those into line
+  too: `NT` cannot be squeezed into a suit's width, so the box has to take
+  `NT`'s, which opens a gap after every suit symbol — a worse trade than letting
+  the one bid stand out. A fallback face with proportional digits would need
+  `tnum`, and then only on bids, never body-wide: Inter's `tnum` also widens the
+  hyphen, and tabular digits in prose spread shape notation like `5-3-3-2`
+  apart.
 - **Screen**: a single column of readable measure that narrows with the
   viewport.
 - **Print**: US letter paper size; running document title and section title in

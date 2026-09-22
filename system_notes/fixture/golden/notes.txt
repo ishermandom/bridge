@@ -13,8 +13,8 @@ General approach
   ● Third seat: any hand worth a lead-directing bid; responder keeps the
     auction low with Drury (see ).
   ● Fourth seat: rule of 15 — high-card points plus spades.
-○ Weak twos in !D, !H, and !S: 6–10 high-card points, a six-card suit,
-  no outside four-card major in first or second seat.
+○ Weak twos in D, H, and S: 6–10 high-card points, a six-card suit, no
+  outside four-card major in first or second seat.
 ○ Strong, artificial 2C — see .
 
 Notrump openings
@@ -352,18 +352,18 @@ Woolsey
 ○ DBL=4cM & 5+m / 6+m / strong 5+M / 19+ bal (15+ vs WNT)
   ● Pass=pen, rare
   ● 2C=P/C, 3+ both m
-    □ Pass=!C 1-suiter, or M & !C
-    □ 2D=!D 1-suiter, or M & !D
+    □ Pass=C 1-suiter, or M & C
+    □ 2D=D 1-suiter, or M & D
       ▪ 2H=P/C, asks M
     □ 2M=nat 5+M, strong
     □ 2NT=19+ bal
   ● 2D=3+ both M, asks M
-    □ Pass=!D 1-suiter
+    □ Pass=D 1-suiter
     □ 2M=4cM
       ▪ 2NT=GT, 4-4 fit
       ▪ 3M=LAW
     □ 2NT=19+ bal
-    □ 3C=!C 1-suiter
+    □ 3C=C 1-suiter
   ● 2M, 3m=nat 6+, NF
   ● 3M=nat, inv
   ● 2NT=ask
@@ -373,30 +373,30 @@ Woolsey
   ● vs WNT: DBL=pen 15+ · Pass=5+ or bal · pull=5+ suit, <5 · then
     systems on
 ○ 2C=both M, 5-4 (4-4 rare), Landy
-  ● Pass=6+!C
+  ● Pass=6+C
   ● 2D=equal M, asks
     □ 2M=longer/better
   ● 2M=pref
   ● 2NT=ask, inv+
-    □ 3C=!H better, max
-    □ 3D=!S better, max
+    □ 3C=H better, max
+    □ 3D=S better, max
     □ 3M=longer M, min
     □ 3NT=5-5, max
-  ● 3C=6+!C, NF
+  ● 3C=6+C, NF
   ● 3M=preempt, 4+T
   ● 4M=to play
 ○ 2D=6+M (good 5), Multi
-  ● Pass=6+!D
-  ● 2H=P/C: weak both M, or inv !S
-    □ Pass=!H
-    □ 2S=!S
-      ▪ Pass=signoff · 2NT=!S GT · 3S=preempt
-  ● 2S=P/C: inv !H
-    □ Pass=!S · 3H=!H min · else=!H max
+  ● Pass=6+D
+  ● 2H=P/C: weak both M, or inv S
+    □ Pass=H
+    □ 2S=S
+      ▪ Pass=signoff · 2NT=S GT · 3S=preempt
+  ● 2S=P/C: inv H
+    □ Pass=S · 3H=H min · else=H max
   ● 2NT=ask, as over 2C
-    □ 3C=6+!H max · 3D=6+!S max · 3M=6+M min
+    □ 3C=6+H max · 3D=6+S max · 3M=6+M min
   ● 3H=M preempt, P/C
-  ● 3S=!S game / !H inv, P/C
+  ● 3S=S game / H inv, P/C
   ● 4C=bid suit below M; advancer declares
   ● 4D=bid M
   ● 4M=nat, own 6+

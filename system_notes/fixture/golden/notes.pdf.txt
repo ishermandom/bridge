@@ -1,4 +1,4 @@
-System Notes                                                                                  General approach
+System Notes                                                                                 General approach
 
 
 
@@ -14,15 +14,15 @@ System Notes
 
 General approach
  ○ Five-card majors, 2/1 game forcing (see ), 15–17 1NT.
- ○ Better minor with 3–3 and 4–4 in the minors; 1D with 4–5.
+ ○ Better minor with 3–3 and 4–4 in the minors; 1♦ with 4–5.
  ○ Opening style
     ● First and second seat: rule of 20, with a sound suit or two quick tricks.
     ● Third seat: any hand worth a lead-directing bid; responder keeps the auction low with Drury
       (see ).
     ● Fourth seat: rule of 15 — high-card points plus spades.
- ○ Weak twos in !D, !H, and !S: 6–10 high-card points, a six-card suit, no outside four-card major in
+ ○ Weak twos in ♦, ♥, and ♠: 6–10 high-card points, a six-card suit, no outside four-card major in
    first or second seat.
- ○ Strong, artificial 2C — see .
+ ○ Strong, artificial 2♣ — see .
 
 
 Notrump openings
@@ -33,65 +33,63 @@ The 1NT opening
     ● A six-card minor is fine with 6-3-2-2 shape and no weak doubleton.
     ● Singleton honor with 5-4-3-1 is acceptable at the bottom of the range; treat 17 with a singleton
       as a suit opening.
- ○ A 2C response is Stayman; 2D and 2H are Jacoby transfers; 2S is a minor-suit relay ().
+ ○ A 2♣ response is Stayman; 2♦ and 2♥ are Jacoby transfers; 2♠ is a minor-suit relay ().
 
 
 Stayman
- ○ 1NT – 2C asks for a four-card major and promises nothing: responder may be weak with 4-4 in the
+ ○ 1NT – 2♣ asks for a four-card major and promises nothing: responder may be weak with 4-4 in the
    majors and a short club, or 4-4-4-1 in any order except club length (garbage Stayman).
-    ● 2D: no four-card major.
-        □ 2H or 2S: five cards in the bid major and four in the other, invitational. Opener passes, raises,
+    ● 2♦: no four-card major.
+        □ 2♥ or 2♠: five cards in the bid major and four in the other, invitational. Opener passes, raises,
           or corrects to the other major.
-        □ 3H or 3S: Smolen — see .
+        □ 3♥ or 3♠: Smolen — see .
         □ 2NT: invitational, shows a four-card major (a direct 2NT would deny one).
-        □ 3C or 3D: game forcing with a four-card major and five or more cards in the bid minor.
 
 
 
                                                     1/9
-System Notes                                                                                Notrump openings
+System Notes                                                                               Notrump openings
 
 
+        □ 3♣ or 3♦: game forcing with a four-card major and five or more cards in the bid minor.
         □ 3NT: to play, showing a four-card major that opener could not match.
         □ Pass: garbage Stayman with diamond length.
-    ● 2H: four hearts, possibly four spades as well.
-        □ 2S: five spades and four hearts, invitational.
+    ● 2♥: four hearts, possibly four spades as well.
+        □ 2♠: five spades and four hearts, invitational.
         □ 2NT or 3NT: invitational or to play, denies four hearts, so implies four spades. Opener with
-          four spades corrects to 3S or 4S.
-        □ 3H: invitational raise.
-        □ 3S: slam try in hearts with a spade splinter; see for the continuations.
-        □ 4H: to play.
-    ● 2S: four spades, denies four hearts.
+          four spades corrects to 3♠ or 4♠.
+        □ 3♥: invitational raise.
+        □ 3♠: slam try in hearts with a spade splinter; see for the continuations.
+        □ 4♥: to play.
+    ● 2♠: four spades, denies four hearts.
         □ 2NT or 3NT: invitational or to play.
-        □ 3S: invitational raise.
-        □ 3H: game-forcing spade raise with slam interest; opener control bids or signs off.
-               ▪ 3S: minimum, no slam interest. Responder may still continue with 4C, 4D, or 4H as control
-                 bids.
-               ▪ 4C, 4D, 4H: control bid, accepting the try.
+        □ 3♠: invitational raise.
+        □ 3♥: game-forcing spade raise with slam interest; opener control bids or signs off.
+               ▪ 3♠: minimum, no slam interest. Responder may still continue with 4♣, 4♦, or 4♥ as
+                 control bids.
+               ▪ 4♣, 4♦, 4♥: control bid, accepting the try.
                  ◦ Responder continues with 4NT (see ) or bids the cheapest control.
-                 ◦ Responder signs off in 4S with nothing further to show.
-               ▪ 4S: maximum but no side-suit control worth showing.
-        □ 4S: to play.
- ○ After a 2D reply to Stayman, 3NT still lets opener correct to a five-card major, since opener may
+                 ◦ Responder signs off in 4♠ with nothing further to show.
+               ▪ 4♠: maximum but no side-suit control worth showing.
+        □ 4♠: to play.
+ ○ After a 2♦ reply to Stayman, 3NT still lets opener correct to a five-card major, since opener may
    open 1NT with 5-3-3-2.
 
 
 Smolen
- ○ After 1NT – 2C – 2D, a jump to 3H or 3S shows 5-4 in the majors with game values, four cards in the
-   bid suit and five in the other. Opener chooses between 3NT and the five-card major:
-    ● 3H (four hearts, five spades)
-        □ 3S: three spades; responder continues naturally.
+ ○ After 1NT – 2♣ – 2♦, a jump to 3♥ or 3♠ shows 5-4 in the majors with game values, four cards in
+   the bid suit and five in the other. Opener chooses between 3NT and the five-card major:
+    ● 3♥ (four hearts, five spades)
+        □ 3♠: three spades; responder continues naturally.
         □ 3NT: two spades.
-        □ 4S: three spades and a maximum with a source of tricks.
-    ● 3S (four spades, five hearts)
-        □ 4D: transfer to hearts with three-card support, letting responder make a slam try below
+        □ 4♠: three spades and a maximum with a source of tricks.
+    ● 3♠ (four spades, five hearts)
+        □ 4♦: transfer to hearts with three-card support, letting responder make a slam try below
           game.
-               ▪ 4H: no slam interest.
-               ▪ 4S, 5C, 5D: control bid with slam interest.
+               ▪ 4♥: no slam interest.
+               ▪ 4♠, 5♣, 5♦: control bid with slam interest.
         □ 3NT: two hearts.
  ○ With 5-5 in the majors, use a transfer to spades and then bid hearts; Smolen is never 5-5.
-
-
 
 
                                                         2/9
@@ -100,7 +98,7 @@ Smolen
 
 
 Jacoby transfers
- ○ 1NT – 2D shows five or more hearts; 1NT – 2H shows five or more spades. Opener completes the
+ ○ 1NT – 2♦ shows five or more hearts; 1NT – 2♥ shows five or more spades. Opener completes the
    transfer with any hand, except:
     ● Superaccept with four-card support and a maximum.
         □ Jump to three of the major: four-card support, 17 points, no good doubleton to show.
@@ -120,16 +118,16 @@ Jacoby transfers
 
 
 Texas transfers
- ○ 1NT – 4D shows six or more hearts; 1NT – 4H shows six or more spades. Opener always completes.
+ ○ 1NT – 4♦ shows six or more hearts; 1NT – 4♥ shows six or more spades. Opener always completes.
  ○ Texas then 4NT is Roman key card for the major (); Jacoby then 4NT is quantitative.
 
 
 Minor-suit transfers
- ○ 1NT – 2S: relay to 3C, either a weak signoff in clubs or diamonds, or a minor-suit slam try.
-    ● Opener bids 3C with a poor hand for a minor contract, 2NT with a good one (at least Q-x-x in
+ ○ 1NT – 2♠: relay to 3♣, either a weak signoff in clubs or diamonds, or a minor-suit slam try.
+    ● Opener bids 3♣ with a poor hand for a minor contract, 2NT with a good one (at least Q-x-x in
       both minors).
-    ● Responder passes 3C, corrects to 3D, or continues:
-        □ 3H or 3S: shortness, both minors, game forcing.
+    ● Responder passes 3♣, corrects to 3♦, or continues:
+        □ 3♥ or 3♠: shortness, both minors, game forcing.
         □ 3NT: to play; the sequence denied a major.
  ○ 1NT – 2NT: transfer to diamonds, weak or strong. A direct invitational raise goes through Stayman
    instead.
@@ -137,23 +135,23 @@ Minor-suit transfers
 
 Interference over 1NT
  ○ Over a natural or artificial overcall at the two level, responder uses lebensohl: a direct three-level
-   bid is game forcing, and 2NT is a relay to 3C that either signs off in a suit below the overcall or
+   bid is game forcing, and 2NT is a relay to 3♣ that either signs off in a suit below the overcall or
    continues with a slow, stopper-showing sequence.
     ● Fast denies, slow shows: a direct 3NT denies a stopper in their suit, and 2NT then 3NT shows one.
-    ● Double is negative through 2S and penalty above that.
- ○ Over a double, redouble shows any 10 or more points; all bids are to play.
+    ● Double is negative through 2♠ and penalty above that.
 
 
                                                     3/9
 System Notes                                                                           Major-suit openings
 
 
+ ○ Over a double, redouble shows any 10 or more points; all bids are to play.
  ○ Over their 1NT overcall of our suit opening, see .
 
 
 The 2NT opening
- ○ 20–21 balanced. 3C is Stayman, 3D and 3H are transfers, 3S is a minor-suit relay, 4D and 4H are
-   Texas. The same structures apply after a 2C opening and a 2NT rebid ().
+ ○ 20–21 balanced. 3♣ is Stayman, 3♦ and 3♥ are transfers, 3♠ is a minor-suit relay, 4♦ and 4♥ are
+   Texas. The same structures apply after a 2♣ opening and a 2NT rebid ().
 
 
 Major-suit openings
@@ -165,7 +163,7 @@ Responses to one of a major
  ○ 2NT: Jacoby ().
  ○ Three of a minor, or three of the other major: Bergen ().
  ○ Double jump in a new suit: splinter ().
- ○ 1H – 1S: four or more spades, 6 or more points, forcing.
+ ○ 1♥ – 1♠: four or more spades, 6 or more points, forcing.
 
 
 The forcing 1NT
@@ -185,19 +183,20 @@ The forcing 1NT
 
 Two-over-one
  ○ A two-level response in a new suit by an unpassed hand is game forcing.
-    ● 1S – 2H promises five hearts. 1H – 2D and 1H – 2C may be four cards.
+    ● 1♠ – 2♥ promises five hearts. 1♥ – 2♦ and 1♥ – 2♣ may be four cards.
     ● Responder’s rebid of the same suit shows six.
  ○ Opener’s rebids are natural; a jump shows extras and a good suit, and a reverse shows shape
    without extra values.
+
+
+
+
+                                                  4/9
+System Notes                                                                             Minor-suit openings
+
+
  ○ Support for responder’s suit at the three level is a genuine raise; 2NT shows a balanced minimum
    with stoppers.
-
-
-
-                                                   4/9
-System Notes                                                                           Minor-suit openings
-
-
  ○ Slow arrival: bidding game directly shows a minimum; taking a slower route shows slam interest
    ().
 
@@ -213,7 +212,7 @@ Jacoby 2NT
 
 
 Bergen raises
- ○ 3C: four-card support, 7–9 points. 3D: four-card support, 10–12.
+ ○ 3♣: four-card support, 7–9 points. 3♦: four-card support, 10–12.
  ○ Three of the other major: a mixed raise, four-card support, 7–9 with a good suit.
  ○ Three of opener’s major: preemptive, four-card support, 0–6.
  ○ Over interference, Bergen is off; raises are natural.
@@ -226,7 +225,7 @@ Splinters
 
 
 Drury
- ○ By a passed hand, 2C over a major opening shows three or more trumps with a limit raise. Opener
+ ○ By a passed hand, 2♣ over a major opening shows three or more trumps with a limit raise. Opener
    rebids two of the major with a light opening; any other bid is natural and shows a full opener.
 
 
@@ -236,24 +235,26 @@ Inverted minors
  ○ A single raise of a minor is 10 or more points, forcing to 2NT or three of the minor, and denies a
    four-card major.
  ○ A jump raise is preemptive, five-card support, 0–6.
- ○ After 1C – 2C or 1D – 2D, opener bids a stopper, 2NT with a minimum, or three of the minor with a
+ ○ After 1♣ – 2♣ or 1♦ – 2♦, opener bids a stopper, 2NT with a minimum, or three of the minor with a
    minimum and an unbalanced hand.
 
 
-Walsh responses
- ○ Over 1C, bypass a four-card or five-card diamond suit with a four-card major and less than game
-   values. Bidding 1D and then a major shows five diamonds and game-going values.
 
 
                                                      5/9
-System Notes                                                                                  The strong 2C opening
+System Notes                                                                                  The strong 2♣ opening
 
 
 
-The strong 2C opening
- ○ 2C: 22 or more balanced, or any hand with nine or more playing tricks.
- ○ 2D is waiting; 2H is a double negative, showing a very bad hand.
- ○ 2C – 2D – 2NT: 22–24, with the 2NT structure ().
+Walsh responses
+ ○ Over 1♣, bypass a four-card or five-card diamond suit with a four-card major and less than game
+   values. Bidding 1♦ and then a major shows five diamonds and game-going values.
+
+
+The strong 2♣ opening
+ ○ 2♣: 22 or more balanced, or any hand with nine or more playing tricks.
+ ○ 2♦ is waiting; 2♥ is a double negative, showing a very bad hand.
+ ○ 2♣ – 2♦ – 2NT: 22–24, with the 2NT structure ().
 
 
 Competitive bidding
@@ -277,21 +278,15 @@ Takeout doubles
 
 
 Negative doubles
- ○ Through 3S.
- ○ Over 1C or 1D – 1H, the double shows exactly four spades; 1S shows five.
- ○ Over an overcall of 1S, the double shows four hearts, five or more when the double is at the two
+ ○ Through 3♠.
+ ○ Over 1♣ or 1♦ – 1♥, the double shows exactly four spades; 1♠ shows five.
+ ○ Over an overcall of 1♠, the double shows four hearts, five or more when the double is at the two
    level.
 
 
 Support doubles
  ○ When responder bids a major at the one level and the next hand bids or doubles, opener’s double
    or redouble shows exactly three-card support. A direct raise promises four.
-
-
-Versus their notrump
- ○ Over their 1NT opening, strong or weak: Woolsey — see .
- ○ Over their 1NT overcall of our opening, double is penalty; all suit bids are to play, and a cue bid is a
-   game-forcing raise.
 
 
 
@@ -301,17 +296,23 @@ Versus their notrump
 
 
 
+Versus their notrump
+ ○ Over their 1NT opening, strong or weak: Woolsey — see .
+ ○ Over their 1NT overcall of our opening, double is penalty; all suit bids are to play, and a cue bid is a
+   game-forcing raise.
+
+
 Slam bidding
 
 Roman key card 1430
  ○ 4NT asks for key cards; the responses are 1 or 4, 3 or 0, 2 without the trump queen, 2 with the
    trump queen.
-    ● After a 5C or 5D reply, the cheapest non-trump bid asks for the queen.
+    ● After a 5♣ or 5♦ reply, the cheapest non-trump bid asks for the queen.
         □ The cheapest bid denies the queen.
         □ Bidding a suit shows the queen and a king in the bid suit.
         □ Bidding six of the trump suit shows the queen without an outside king.
     ● 5NT asks for specific kings; responder bids the cheapest king, or six of the trump suit with none.
- ○ When hearts are trumps, the queen ask over 5D is 5S; when spades are trumps, it is the cheapest
+ ○ When hearts are trumps, the queen ask over 5♦ is 5♠; when spades are trumps, it is the cheapest
    suit below five of the trumps.
  ○ Trumps are the last suit bid naturally and raised, or the last suit bid by the 4NT bidder if none was
    raised.
@@ -340,17 +341,15 @@ Opening leads
    for an unblock of the jack.
 
 
+                                                    7/9
+System Notes                                                                                       Woolsey
+
+
+
 Signals
  ○ Standard attitude on partner’s lead; upside-down count when count is requested.
  ○ Suit preference when the situation is clearly not attitude or count: a high card asks for the higher-
    ranking suit, a low card for the lower.
-
-
-
-                                                    7/9
-System Notes                                                                               Woolsey
-
-
  ○ Trump echo shows the ability to ruff.
 
 
@@ -362,19 +361,19 @@ Woolsey
  ○ vs 1NT, direct or balancing; vs WNT only DBL differs
  ○ DBL=4cM & 5+m / 6+m / strong 5+M / 19+ bal (15+ vs WNT)
     ● Pass=pen, rare
-    ● 2C=P/C, 3+ both m
-        □ Pass=!C 1-suiter, or M & !C
-        □ 2D=!D 1-suiter, or M & !D
-               ▪ 2H=P/C, asks M
+    ● 2♣=P/C, 3+ both m
+        □ Pass=♣ 1-suiter, or M & ♣
+        □ 2♦=♦ 1-suiter, or M & ♦
+               ▪ 2♥=P/C, asks M
         □ 2M=nat 5+M, strong
         □ 2NT=19+ bal
-    ● 2D=3+ both M, asks M
-        □ Pass=!D 1-suiter
+    ● 2♦=3+ both M, asks M
+        □ Pass=♦ 1-suiter
         □ 2M=4cM
                ▪ 2NT=GT, 4-4 fit
                ▪ 3M=LAW
         □ 2NT=19+ bal
-        □ 3C=!C 1-suiter
+        □ 3♣=♣ 1-suiter
     ● 2M, 3m=nat 6+, NF
     ● 3M=nat, inv
     ● 2NT=ask
@@ -382,39 +381,39 @@ Woolsey
         □ 3M=nat, max
     ● RHO bids: DBL=pen · 2NT=asks m · Pass=else, OVC may reopen
     ● vs WNT: DBL=pen 15+ · Pass=5+ or bal · pull=5+ suit, <5 · then systems on
- ○ 2C=both M, 5-4 (4-4 rare), Landy
-    ● Pass=6+!C
-    ● 2D=equal M, asks
+ ○ 2♣=both M, 5-4 (4-4 rare), Landy
+    ● Pass=6+♣
+    ● 2♦=equal M, asks
         □ 2M=longer/better
     ● 2M=pref
-    ● 2NT=ask, inv+
-        □ 3C=!H better, max
-        □ 3D=!S better, max
-        □ 3M=longer M, min
-        □ 3NT=5-5, max
-    ● 3C=6+!C, NF
 
 
-                                                 8/9
+                                                   8/9
 System Notes                                                  Woolsey
 
 
+    ● 2NT=ask, inv+
+        □ 3♣=♥ better, max
+        □ 3♦=♠ better, max
+        □ 3M=longer M, min
+        □ 3NT=5-5, max
+    ● 3♣=6+♣, NF
     ● 3M=preempt, 4+T
     ● 4M=to play
- ○ 2D=6+M (good 5), Multi
-    ● Pass=6+!D
-    ● 2H=P/C: weak both M, or inv !S
-        □ Pass=!H
-        □ 2S=!S
-               ▪ Pass=signoff · 2NT=!S GT · 3S=preempt
-    ● 2S=P/C: inv !H
-        □ Pass=!S · 3H=!H min · else=!H max
-    ● 2NT=ask, as over 2C
-        □ 3C=6+!H max · 3D=6+!S max · 3M=6+M min
-    ● 3H=M preempt, P/C
-    ● 3S=!S game / !H inv, P/C
-    ● 4C=bid suit below M; advancer declares
-    ● 4D=bid M
+ ○ 2♦=6+M (good 5), Multi
+    ● Pass=6+♦
+    ● 2♥=P/C: weak both M, or inv ♠
+        □ Pass=♥
+        □ 2♠=♠
+               ▪ Pass=signoff · 2NT=♠ GT · 3♠=preempt
+    ● 2♠=P/C: inv ♥
+        □ Pass=♠ · 3♥=♥ min · else=♥ max
+    ● 2NT=ask, as over 2♣
+        □ 3♣=6+♥ max · 3♦=6+♠ max · 3M=6+M min
+    ● 3♥=M preempt, P/C
+    ● 3♠=♠ game / ♥ inv, P/C
+    ● 4♣=bid suit below M; advancer declares
+    ● 4♦=bid M
     ● 4M=nat, own 6+
  ○ 2M=5+M & 4+m, Cappelletti
     ● Pass=to play
@@ -434,6 +433,5 @@ Woolsey
 
 
 
-
-                                                    9/9
+                                                   9/9
 

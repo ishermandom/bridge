@@ -6,7 +6,8 @@
 and `notes.txt` beside the input. The HTML is self-contained and serves the
 screen; WeasyPrint lays the same HTML out under the stylesheet's print rules for
 the PDF; pandoc's plain writer produces the text rendering for email. The design
-and its rationale live in `spec.md`.
+and its rationale live in `spec.md`; the notation the Markdown may use is in the
+repo README.
 """
 
 import argparse
@@ -29,7 +30,13 @@ TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 
 # Filter order matters: metadata checks the front matter first.
-FILTERS = tuple(TOOL_DIRECTORY / 'filters' / name for name in ('metadata.lua',))
+FILTERS = tuple(
+  TOOL_DIRECTORY / 'filters' / name
+  for name in (
+    'metadata.lua',
+    'bids.lua',
+  )
+)
 
 # Hard-wrap width of the plain-text rendering: comfortable in any mail client or
 # terminal, with room for the deepest list indentation.
@@ -57,7 +64,9 @@ PHONE_WIDTH_MEDIA_QUERY = 'max-width: 600px'
 # rendered PDF may embed nothing else: another family means fontconfig supplied
 # a face the stylesheet never named — a glyph the chosen fonts lack, or an
 # element such as a code span that the stylesheet gives no family.
-CHOSEN_FONT_FAMILIES = frozenset({'IBM-Plex-Serif', 'Source-Sans-3'})
+CHOSEN_FONT_FAMILIES = frozenset(
+  {'IBM-Plex-Serif', 'Source-Sans-3', 'STIX-Two-Math'}
+)
 
 
 @dataclass(frozen=True)

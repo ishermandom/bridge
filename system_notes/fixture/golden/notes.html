@@ -11,6 +11,10 @@
 
 
 :root {
+--spade: #1b1b1b; 
+--heart: #c8102e; 
+--diamond: #e0730c; 
+--club: #1a7f37; 
 --ink: #161616; 
 --accent: #0b57d0; 
 --rule: #d0d0d0; 
@@ -41,6 +45,30 @@ blockquote {
 margin: 1em 0;
 padding: 0.4em 1em;
 border-left: 3px solid var(--rule);
+}
+
+.bid {
+white-space: nowrap;
+}
+
+.suit {
+font-family: "STIX Two Math";
+
+font-size: 1.15em;
+font-style: normal;
+font-weight: normal;
+}
+.spade {
+color: var(--spade);
+}
+.heart {
+color: var(--heart);
+}
+.diamond {
+color: var(--diamond);
+}
+.club {
+color: var(--club);
 }
 
 ul, ol {
@@ -113,7 +141,7 @@ padding-left: 1em;
 size: letter;
 margin: 0.6in 0.6in 0.75in;
 
-font: 8pt "IBM Plex Serif", "Source Sans 3", serif;
+font: 8pt "IBM Plex Serif", "STIX Two Math", "Source Sans 3", serif;
 color: #666;
 @top-left {
 content: string(doc-title);
@@ -157,8 +185,9 @@ conventions. No human has reviewed or verified any of it.</p>
 </blockquote>
 <h1 id="general">General approach</h1>
 <ul>
-<li>Five-card majors, 2/1 game forcing (see <a href="#two-over-one"></a>), 15–17 1NT.</li>
-<li>Better minor with 3–3 and 4–4 in the minors; 1D with 4–5.</li>
+<li>Five-card majors, 2/1 game forcing (see <a href="#two-over-one"></a>), 15–17 <span class="bid">1<span class="strain notrump">NT</span></span>.</li>
+<li>Better minor with 3–3 and 4–4 in the minors; <span class="bid">1<span class="strain suit diamond">♦</span></span> with
+4–5.</li>
 <li>Opening style
 <ul>
 <li>First and second seat: rule of 20, with a sound suit or two quick
@@ -167,12 +196,12 @@ tricks.</li>
 auction low with Drury (see <a href="#drury"></a>).</li>
 <li>Fourth seat: rule of 15 — high-card points plus spades.</li>
 </ul></li>
-<li>Weak twos in !D, !H, and !S: 6–10 high-card points, a six-card suit,
-no outside four-card major in first or second seat.</li>
-<li>Strong, artificial 2C — see <a href="#strong-two-clubs"></a>.</li>
+<li>Weak twos in <span class="strain suit diamond">♦</span>, <span class="strain suit heart">♥</span>, and <span class="strain suit spade">♠</span>: 6–10 high-card points, a six-card
+suit, no outside four-card major in first or second seat.</li>
+<li>Strong, artificial <span class="bid">2<span class="strain suit club">♣</span></span> — see <a href="#strong-two-clubs"></a>.</li>
 </ul>
 <h1 id="notrump">Notrump openings</h1>
-<h2 id="one-notrump">The 1NT opening</h2>
+<h2 id="one-notrump">The <span class="bid">1<span class="strain notrump">NT</span></span> opening</h2>
 <ul>
 <li>15–17 high-card points, balanced or semi-balanced.
 <ul>
@@ -182,82 +211,118 @@ doubleton.</li>
 <li>Singleton honor with 5-4-3-1 is acceptable at the bottom of the
 range; treat 17 with a singleton as a suit opening.</li>
 </ul></li>
-<li>A 2C response is <a href="#stayman">Stayman</a>; 2D and 2H are <a href="#jacoby-transfers">Jacoby transfers</a>; 2S is a minor-suit relay
-(<a href="#minor-suit-transfers"></a>).</li>
+<li>A <span class="bid">2<span class="strain suit club">♣</span></span>
+response is <a href="#stayman">Stayman</a>; <span class="bid">2<span class="strain suit diamond">♦</span></span> and <span class="bid">2<span class="strain suit heart">♥</span></span> are <a href="#jacoby-transfers">Jacoby transfers</a>; <span class="bid">2<span class="strain suit spade">♠</span></span> is a minor-suit relay (<a href="#minor-suit-transfers"></a>).</li>
 </ul>
 <h2 id="stayman">Stayman</h2>
 <ul>
-<li>1NT – 2C asks for a four-card major and promises nothing: responder
-may be weak with 4-4 in the majors and a short club, or 4-4-4-1 in any
-order except club length (<em>garbage Stayman</em>).
+<li><span class="bid">1<span class="strain notrump">NT</span></span> –
+<span class="bid">2<span class="strain suit club">♣</span></span> asks
+for a four-card major and promises nothing: responder may be weak with
+4-4 in the majors and a short club, or 4-4-4-1 in any order except club
+length (<em>garbage Stayman</em>).
 <ul>
-<li>2D: no four-card major.
+<li><span class="bid">2<span class="strain suit diamond">♦</span></span>: no four-card major.
 <ul>
-<li>2H or 2S: five cards in the bid major and four in the other,
-invitational. Opener passes, raises, or corrects to the other
-major.</li>
-<li>3H or 3S: Smolen — see <a href="#smolen"></a>.</li>
-<li>2NT: invitational, shows a four-card major (a direct 2NT would deny
-one).</li>
-<li>3C or 3D: game forcing with a four-card major and five or more cards
-in the bid minor.</li>
-<li>3NT: to play, showing a four-card major that opener could not
-match.</li>
+<li><span class="bid">2<span class="strain suit heart">♥</span></span>
+or <span class="bid">2<span class="strain suit spade">♠</span></span>:
+five cards in the bid major and four in the other, invitational. Opener
+passes, raises, or corrects to the other major.</li>
+<li><span class="bid">3<span class="strain suit heart">♥</span></span>
+or <span class="bid">3<span class="strain suit spade">♠</span></span>:
+Smolen — see <a href="#smolen"></a>.</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>:
+invitational, shows a four-card major (a direct <span class="bid">2<span class="strain notrump">NT</span></span> would deny one).</li>
+<li><span class="bid">3<span class="strain suit club">♣</span></span> or
+<span class="bid">3<span class="strain suit diamond">♦</span></span>:
+game forcing with a four-card major and five or more cards in the bid
+minor.</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>: to
+play, showing a four-card major that opener could not match.</li>
 <li>Pass: garbage Stayman with diamond length.</li>
 </ul></li>
-<li>2H: four hearts, possibly four spades as well.
+<li><span class="bid">2<span class="strain suit heart">♥</span></span>:
+four hearts, possibly four spades as well.
 <ul>
-<li>2S: five spades and four hearts, invitational.</li>
-<li>2NT or 3NT: invitational or to play, denies four hearts, so implies
-four spades. Opener with four spades corrects to 3S or 4S.</li>
-<li>3H: invitational raise.</li>
-<li>3S: slam try in hearts with a spade splinter; see <a href="#control-bids"></a> for the continuations.</li>
-<li>4H: to play.</li>
+<li><span class="bid">2<span class="strain suit spade">♠</span></span>:
+five spades and four hearts, invitational.</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span> or
+<span class="bid">3<span class="strain notrump">NT</span></span>:
+invitational or to play, denies four hearts, so implies four spades.
+Opener with four spades corrects to <span class="bid">3<span class="strain suit spade">♠</span></span> or <span class="bid">4<span class="strain suit spade">♠</span></span>.</li>
+<li><span class="bid">3<span class="strain suit heart">♥</span></span>:
+invitational raise.</li>
+<li><span class="bid">3<span class="strain suit spade">♠</span></span>:
+slam try in hearts with a spade splinter; see <a href="#control-bids"></a> for the continuations.</li>
+<li><span class="bid">4<span class="strain suit heart">♥</span></span>:
+to play.</li>
 </ul></li>
-<li>2S: four spades, denies four hearts.
+<li><span class="bid">2<span class="strain suit spade">♠</span></span>:
+four spades, denies four hearts.
 <ul>
-<li>2NT or 3NT: invitational or to play.</li>
-<li>3S: invitational raise.</li>
-<li>3H: game-forcing spade raise with slam interest; opener control bids
-or signs off.
+<li><span class="bid">2<span class="strain notrump">NT</span></span> or
+<span class="bid">3<span class="strain notrump">NT</span></span>:
+invitational or to play.</li>
+<li><span class="bid">3<span class="strain suit spade">♠</span></span>:
+invitational raise.</li>
+<li><span class="bid">3<span class="strain suit heart">♥</span></span>:
+game-forcing spade raise with slam interest; opener control bids or
+signs off.
 <ul>
-<li>3S: minimum, no slam interest. Responder may still continue with 4C,
-4D, or 4H as control bids.</li>
-<li>4C, 4D, 4H: control bid, accepting the try.
+<li><span class="bid">3<span class="strain suit spade">♠</span></span>:
+minimum, no slam interest. Responder may still continue with <span class="bid">4<span class="strain suit club">♣</span></span>, <span class="bid">4<span class="strain suit diamond">♦</span></span>, or <span class="bid">4<span class="strain suit heart">♥</span></span> as control
+bids.</li>
+<li><span class="bid">4<span class="strain suit club">♣</span></span>,
+<span class="bid">4<span class="strain suit diamond">♦</span></span>,
+<span class="bid">4<span class="strain suit heart">♥</span></span>:
+control bid, accepting the try.
 <ul>
-<li>Responder continues with 4NT (see <a href="#rkcb"></a>) or bids the
-cheapest control.</li>
-<li>Responder signs off in 4S with nothing further to show.</li>
+<li>Responder continues with <span class="bid">4<span class="strain notrump">NT</span></span> (see <a href="#rkcb"></a>) or
+bids the cheapest control.</li>
+<li>Responder signs off in <span class="bid">4<span class="strain suit spade">♠</span></span> with nothing further to
+show.</li>
 </ul></li>
-<li>4S: maximum but no side-suit control worth showing.</li>
+<li><span class="bid">4<span class="strain suit spade">♠</span></span>:
+maximum but no side-suit control worth showing.</li>
 </ul></li>
-<li>4S: to play.</li>
+<li><span class="bid">4<span class="strain suit spade">♠</span></span>:
+to play.</li>
 </ul></li>
 </ul></li>
-<li>After a 2D reply to Stayman, 3NT still lets opener correct to a
-five-card major, since opener may open 1NT with 5-3-3-2.</li>
+<li>After a <span class="bid">2<span class="strain suit diamond">♦</span></span> reply to Stayman, <span class="bid">3<span class="strain notrump">NT</span></span> still lets
+opener correct to a five-card major, since opener may open <span class="bid">1<span class="strain notrump">NT</span></span> with
+5-3-3-2.</li>
 </ul>
 <h2 id="smolen">Smolen</h2>
 <ul>
-<li>After 1NT – 2C – 2D, a jump to 3H or 3S shows 5-4 in the majors with
-game values, four cards in the bid suit and five in the other. Opener
-chooses between 3NT and the five-card major:
+<li>After <span class="bid">1<span class="strain notrump">NT</span></span> – <span class="bid">2<span class="strain suit club">♣</span></span> – <span class="bid">2<span class="strain suit diamond">♦</span></span>, a jump to <span class="bid">3<span class="strain suit heart">♥</span></span> or <span class="bid">3<span class="strain suit spade">♠</span></span> shows 5-4
+in the majors with game values, four cards in the bid suit and five in
+the other. Opener chooses between <span class="bid">3<span class="strain notrump">NT</span></span> and the five-card major:
 <ul>
-<li>3H (four hearts, five spades)
+<li><span class="bid">3<span class="strain suit heart">♥</span></span>
+(four hearts, five spades)
 <ul>
-<li>3S: three spades; responder continues naturally.</li>
-<li>3NT: two spades.</li>
-<li>4S: three spades and a maximum with a source of tricks.</li>
+<li><span class="bid">3<span class="strain suit spade">♠</span></span>:
+three spades; responder continues naturally.</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>:
+two spades.</li>
+<li><span class="bid">4<span class="strain suit spade">♠</span></span>:
+three spades and a maximum with a source of tricks.</li>
 </ul></li>
-<li>3S (four spades, five hearts)
+<li><span class="bid">3<span class="strain suit spade">♠</span></span>
+(four spades, five hearts)
 <ul>
-<li>4D: transfer to hearts with three-card support, letting responder
-make a slam try below game.
+<li><span class="bid">4<span class="strain suit diamond">♦</span></span>: transfer to hearts with
+three-card support, letting responder make a slam try below game.
 <ul>
-<li>4H: no slam interest.</li>
-<li>4S, 5C, 5D: control bid with slam interest.</li>
+<li><span class="bid">4<span class="strain suit heart">♥</span></span>:
+no slam interest.</li>
+<li><span class="bid">4<span class="strain suit spade">♠</span></span>,
+<span class="bid">5<span class="strain suit club">♣</span></span>, <span class="bid">5<span class="strain suit diamond">♦</span></span>: control
+bid with slam interest.</li>
 </ul></li>
-<li>3NT: two hearts.</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>:
+two hearts.</li>
 </ul></li>
 </ul></li>
 <li>With 5-5 in the majors, use a transfer to spades and then bid
@@ -265,8 +330,10 @@ hearts; Smolen is <em>never</em> 5-5.</li>
 </ul>
 <h2 id="jacoby-transfers">Jacoby transfers</h2>
 <ul>
-<li>1NT – 2D shows five or more hearts; 1NT – 2H shows five or more
-spades. Opener completes the transfer with any hand, except:
+<li><span class="bid">1<span class="strain notrump">NT</span></span> –
+<span class="bid">2<span class="strain suit diamond">♦</span></span>
+shows five or more hearts; <span class="bid">1<span class="strain notrump">NT</span></span> – <span class="bid">2<span class="strain suit heart">♥</span></span> shows five or more spades.
+Opener completes the transfer with any hand, except:
 <ul>
 <li>Superaccept with four-card support and a maximum.
 <ul>
@@ -274,17 +341,20 @@ spades. Opener completes the transfer with any hand, except:
 doubleton to show.</li>
 <li>Bid a new suit at the three level: four-card support and a doubleton
 in the bid suit. Responder retransfers with the cheaper bid.</li>
-<li>2NT: four-card support, 4-3-3-3 shape.</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>:
+four-card support, 4-3-3-3 shape.</li>
 </ul></li>
 </ul></li>
 <li>Responder’s continuations after the simple completion:
 <ul>
 <li>Pass: weak, five or six cards.</li>
-<li>2NT: invitational, exactly five cards. Opener passes, raises to 3NT,
-or bids three or four of the major with three-card support.</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>:
+invitational, exactly five cards. Opener passes, raises to <span class="bid">3<span class="strain notrump">NT</span></span>, or bids
+three or four of the major with three-card support.</li>
 <li>Three of the major: invitational, six cards.</li>
-<li>3NT: game values, five cards. Opener passes or corrects to four of
-the major.</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>:
+game values, five cards. Opener passes or corrects to four of the
+major.</li>
 <li>A new suit at the three level: natural, game forcing, five or more
 cards.
 <ul>
@@ -293,64 +363,84 @@ stopper.</li>
 <li>A jump in the fourth suit is a splinter.</li>
 </ul></li>
 <li>Four of the major: to play, six cards, no slam interest. With slam
-interest, use <a href="#texas-transfers">Texas</a> then 4NT.</li>
+interest, use <a href="#texas-transfers">Texas</a> then <span class="bid">4<span class="strain notrump">NT</span></span>.</li>
 </ul></li>
 </ul>
 <h2 id="texas-transfers">Texas transfers</h2>
 <ul>
-<li>1NT – 4D shows six or more hearts; 1NT – 4H shows six or more
-spades. Opener always completes.</li>
-<li>Texas then 4NT is Roman key card for the major (<a href="#rkcb"></a>); Jacoby then 4NT is quantitative.</li>
+<li><span class="bid">1<span class="strain notrump">NT</span></span> –
+<span class="bid">4<span class="strain suit diamond">♦</span></span>
+shows six or more hearts; <span class="bid">1<span class="strain notrump">NT</span></span> – <span class="bid">4<span class="strain suit heart">♥</span></span> shows six or more spades.
+Opener always completes.</li>
+<li>Texas then <span class="bid">4<span class="strain notrump">NT</span></span> is Roman key card for the major
+(<a href="#rkcb"></a>); Jacoby then <span class="bid">4<span class="strain notrump">NT</span></span> is quantitative.</li>
 </ul>
 <h2 id="minor-suit-transfers">Minor-suit transfers</h2>
 <ul>
-<li>1NT – 2S: relay to 3C, either a weak signoff in clubs or diamonds,
-or a minor-suit slam try.
+<li><span class="bid">1<span class="strain notrump">NT</span></span> –
+<span class="bid">2<span class="strain suit spade">♠</span></span>:
+relay to <span class="bid">3<span class="strain suit club">♣</span></span>, either a weak signoff in clubs
+or diamonds, or a minor-suit slam try.
 <ul>
-<li>Opener bids 3C with a poor hand for a minor contract, 2NT with a
-good one (at least Q-x-x in both minors).</li>
-<li>Responder passes 3C, corrects to 3D, or continues:
+<li>Opener bids <span class="bid">3<span class="strain suit club">♣</span></span> with a poor hand for a minor
+contract, <span class="bid">2<span class="strain notrump">NT</span></span> with a good one (at least Q-x-x
+in both minors).</li>
+<li>Responder passes <span class="bid">3<span class="strain suit club">♣</span></span>, corrects to <span class="bid">3<span class="strain suit diamond">♦</span></span>, or
+continues:
 <ul>
-<li>3H or 3S: shortness, both minors, game forcing.</li>
-<li>3NT: to play; the sequence denied a major.</li>
+<li><span class="bid">3<span class="strain suit heart">♥</span></span>
+or <span class="bid">3<span class="strain suit spade">♠</span></span>:
+shortness, both minors, game forcing.</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>: to
+play; the sequence denied a major.</li>
 </ul></li>
 </ul></li>
-<li>1NT – 2NT: transfer to diamonds, weak or strong. A direct
-invitational raise goes through Stayman instead.</li>
+<li><span class="bid">1<span class="strain notrump">NT</span></span> –
+<span class="bid">2<span class="strain notrump">NT</span></span>:
+transfer to diamonds, weak or strong. A direct invitational raise goes
+through Stayman instead.</li>
 </ul>
-<h2 id="lebensohl">Interference over 1NT</h2>
+<h2 id="lebensohl">Interference over <span class="bid">1<span class="strain notrump">NT</span></span></h2>
 <ul>
 <li>Over a natural or artificial overcall at the two level, responder
-uses lebensohl: a direct three-level bid is game forcing, and 2NT is a
-relay to 3C that either signs off in a suit below the overcall or
-continues with a slow, stopper-showing sequence.
+uses lebensohl: a direct three-level bid is game forcing, and <span class="bid">2<span class="strain notrump">NT</span></span> is a relay to
+<span class="bid">3<span class="strain suit club">♣</span></span> that
+either signs off in a suit below the overcall or continues with a slow,
+stopper-showing sequence.
 <ul>
-<li><em>Fast denies, slow shows</em>: a direct 3NT denies a stopper in
-their suit, and 2NT then 3NT shows one.</li>
-<li>Double is negative through 2S and penalty above that.</li>
+<li><em>Fast denies, slow shows</em>: a direct <span class="bid">3<span class="strain notrump">NT</span></span> denies a stopper in their suit,
+and <span class="bid">2<span class="strain notrump">NT</span></span>
+then <span class="bid">3<span class="strain notrump">NT</span></span>
+shows one.</li>
+<li>Double is negative through <span class="bid">2<span class="strain suit spade">♠</span></span> and penalty above that.</li>
 </ul></li>
 <li>Over a double, redouble shows any 10 or more points; all bids are to
 play.</li>
-<li>Over their 1NT overcall of our suit opening, see <a href="#versus-notrump"></a>.</li>
+<li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> overcall of our suit opening,
+see <a href="#versus-notrump"></a>.</li>
 </ul>
-<h2 id="two-notrump">The 2NT opening</h2>
+<h2 id="two-notrump">The <span class="bid">2<span class="strain notrump">NT</span></span> opening</h2>
 <ul>
-<li>20–21 balanced. 3C is Stayman, 3D and 3H are transfers, 3S is a
-minor-suit relay, 4D and 4H are Texas. The same structures apply after a
-2C opening and a 2NT rebid (<a href="#strong-two-clubs"></a>).</li>
+<li>20–21 balanced. <span class="bid">3<span class="strain suit club">♣</span></span> is Stayman, <span class="bid">3<span class="strain suit diamond">♦</span></span> and <span class="bid">3<span class="strain suit heart">♥</span></span> are
+transfers, <span class="bid">3<span class="strain suit spade">♠</span></span> is a minor-suit relay, <span class="bid">4<span class="strain suit diamond">♦</span></span> and <span class="bid">4<span class="strain suit heart">♥</span></span> are Texas.
+The same structures apply after a <span class="bid">2<span class="strain suit club">♣</span></span> opening and a <span class="bid">2<span class="strain notrump">NT</span></span> rebid (<a href="#strong-two-clubs"></a>).</li>
 </ul>
 <h1 id="majors">Major-suit openings</h1>
 <h2 id="major-responses">Responses to one of a major</h2>
 <ul>
 <li>Single raise: 6–9 points, three-card support.</li>
-<li>1NT: forcing for one round (<a href="#forcing-notrump"></a>).</li>
+<li><span class="bid">1<span class="strain notrump">NT</span></span>:
+forcing for one round (<a href="#forcing-notrump"></a>).</li>
 <li>Two of a new suit: game forcing (<a href="#two-over-one"></a>).</li>
-<li>2NT: Jacoby (<a href="#jacoby-2nt"></a>).</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>:
+Jacoby (<a href="#jacoby-2nt"></a>).</li>
 <li>Three of a minor, or three of the other major: Bergen (<a href="#bergen"></a>).</li>
 <li>Double jump in a new suit: splinter (<a href="#splinters"></a>).</li>
-<li>1H – 1S: four or more spades, 6 or more points, forcing.</li>
+<li><span class="bid">1<span class="strain suit heart">♥</span></span> –
+<span class="bid">1<span class="strain suit spade">♠</span></span>: four
+or more spades, 6 or more points, forcing.</li>
 </ul>
-<h2 id="forcing-notrump">The forcing 1NT</h2>
+<h2 id="forcing-notrump">The forcing <span class="bid">1<span class="strain notrump">NT</span></span></h2>
 <ul>
 <li>Forcing for one round by an unpassed hand; <em>semi-forcing</em> by
 a passed hand.</li>
@@ -360,14 +450,16 @@ a passed hand.</li>
 <li>Two of the same major: six cards, or a good five with no convenient
 rebid.</li>
 <li>Jump shift: game forcing, 18 or more.</li>
-<li>2NT: 18–19 balanced.</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>:
+18–19 balanced.</li>
 </ul></li>
 <li>Responder’s continuations
 <ul>
 <li>A new suit at the two level: to play, five or more cards.</li>
 <li>Two of opener’s major: a three-card limit raise or a doubleton with
 a maximum.</li>
-<li>2NT: 11–12, invitational.</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>:
+11–12, invitational.</li>
 <li>Three of opener’s major: a three-card limit raise with a good
 hand.</li>
 <li>Jump to three of a new suit: invitational, a good six-card
@@ -379,33 +471,37 @@ suit.</li>
 <li>A two-level response in a new suit by an unpassed hand is game
 forcing.
 <ul>
-<li>1S – 2H promises five hearts. 1H – 2D and 1H – 2C may be four
-cards.</li>
+<li><span class="bid">1<span class="strain suit spade">♠</span></span> –
+<span class="bid">2<span class="strain suit heart">♥</span></span>
+promises five hearts. <span class="bid">1<span class="strain suit heart">♥</span></span> – <span class="bid">2<span class="strain suit diamond">♦</span></span> and <span class="bid">1<span class="strain suit heart">♥</span></span> – <span class="bid">2<span class="strain suit club">♣</span></span> may be four cards.</li>
 <li>Responder’s rebid of the same suit shows six.</li>
 </ul></li>
 <li>Opener’s rebids are natural; a jump shows extras and a good suit,
 and a reverse shows shape without extra values.</li>
 <li>Support for responder’s suit at the three level is a genuine raise;
-2NT shows a balanced minimum with stoppers.</li>
+<span class="bid">2<span class="strain notrump">NT</span></span> shows a
+balanced minimum with stoppers.</li>
 <li><strong>Slow arrival</strong>: bidding game directly shows a
 minimum; taking a slower route shows slam interest (<a href="#control-bids"></a>).</li>
 </ul>
-<h2 id="jacoby-2nt">Jacoby 2NT</h2>
+<h2 id="jacoby-2nt">Jacoby <span class="bid">2<span class="strain notrump">NT</span></span></h2>
 <ul>
 <li>Four-card support, game forcing. Opener describes shape and
 strength:
 <ul>
 <li>A new suit at the three level: singleton or void.</li>
 <li>Three of the major: extras, no shortness.</li>
-<li>3NT: a balanced minimum.</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>: a
+balanced minimum.</li>
 <li>A new suit at the four level: a good five-card side suit.</li>
 <li>Four of the major: minimum, no shortness.</li>
 </ul></li>
-<li>Responder continues with control bids or 4NT (<a href="#rkcb"></a>).</li>
+<li>Responder continues with control bids or <span class="bid">4<span class="strain notrump">NT</span></span> (<a href="#rkcb"></a>).</li>
 </ul>
 <h2 id="bergen">Bergen raises</h2>
 <ul>
-<li>3C: four-card support, 7–9 points. 3D: four-card support,
+<li><span class="bid">3<span class="strain suit club">♣</span></span>:
+four-card support, 7–9 points. <span class="bid">3<span class="strain suit diamond">♦</span></span>: four-card support,
 10–12.</li>
 <li>Three of the other major: a mixed raise, four-card support, 7–9 with
 a good suit.</li>
@@ -421,32 +517,40 @@ bids with slam interest.</li>
 </ul>
 <h2 id="drury">Drury</h2>
 <ul>
-<li>By a passed hand, 2C over a major opening shows three or more trumps
-with a limit raise. Opener rebids two of the major with a light opening;
-any other bid is natural and shows a full opener.</li>
+<li>By a passed hand, <span class="bid">2<span class="strain suit club">♣</span></span> over a major opening shows
+three or more trumps with a limit raise. Opener rebids two of the major
+with a light opening; any other bid is natural and shows a full
+opener.</li>
 </ul>
 <h1 id="minors">Minor-suit openings</h1>
 <h2 id="inverted-minors">Inverted minors</h2>
 <ul>
-<li>A single raise of a minor is 10 or more points, forcing to 2NT or
-three of the minor, and denies a four-card major.</li>
+<li>A single raise of a minor is 10 or more points, forcing to <span class="bid">2<span class="strain notrump">NT</span></span> or three of
+the minor, and denies a four-card major.</li>
 <li>A jump raise is preemptive, five-card support, 0–6.</li>
-<li>After 1C – 2C or 1D – 2D, opener bids a stopper, 2NT with a minimum,
-or three of the minor with a minimum and an unbalanced hand.</li>
+<li>After <span class="bid">1<span class="strain suit club">♣</span></span> – <span class="bid">2<span class="strain suit club">♣</span></span> or <span class="bid">1<span class="strain suit diamond">♦</span></span> – <span class="bid">2<span class="strain suit diamond">♦</span></span>, opener bids a stopper,
+<span class="bid">2<span class="strain notrump">NT</span></span> with a
+minimum, or three of the minor with a minimum and an unbalanced
+hand.</li>
 </ul>
 <h2 id="walsh">Walsh responses</h2>
 <ul>
-<li>Over 1C, bypass a four-card or five-card diamond suit with a
-four-card major and less than game values. Bidding 1D and then a major
-shows five diamonds and game-going values.</li>
+<li>Over <span class="bid">1<span class="strain suit club">♣</span></span>, bypass a four-card or
+five-card diamond suit with a four-card major and less than game values.
+Bidding <span class="bid">1<span class="strain suit diamond">♦</span></span> and then a major shows five
+diamonds and game-going values.</li>
 </ul>
-<h1 id="strong-two-clubs">The strong 2C opening</h1>
+<h1 id="strong-two-clubs">The strong <span class="bid">2<span class="strain suit club">♣</span></span> opening</h1>
 <ul>
-<li>2C: 22 or more balanced, or any hand with nine or more playing
-tricks.</li>
-<li>2D is waiting; 2H is a double negative, showing a very bad
-hand.</li>
-<li>2C – 2D – 2NT: 22–24, with the 2NT structure (<a href="#two-notrump"></a>).</li>
+<li><span class="bid">2<span class="strain suit club">♣</span></span>:
+22 or more balanced, or any hand with nine or more playing tricks.</li>
+<li><span class="bid">2<span class="strain suit diamond">♦</span></span>
+is waiting; <span class="bid">2<span class="strain suit heart">♥</span></span> is a double negative, showing
+a very bad hand.</li>
+<li><span class="bid">2<span class="strain suit club">♣</span></span> –
+<span class="bid">2<span class="strain suit diamond">♦</span></span> –
+<span class="bid">2<span class="strain notrump">NT</span></span>: 22–24,
+with the <span class="bid">2<span class="strain notrump">NT</span></span> structure (<a href="#two-notrump"></a>).</li>
 </ul>
 <h1 id="competitive">Competitive bidding</h1>
 <h2 id="overcalls">Overcalls</h2>
@@ -454,7 +558,8 @@ hand.</li>
 <li>Simple overcalls: 8–16, a five-card suit at the one level; a good
 suit at the two level.</li>
 <li>Jump overcalls are weak, six cards.</li>
-<li>1NT overcall: 15–18 with a stopper; systems on.</li>
+<li><span class="bid">1<span class="strain notrump">NT</span></span>
+overcall: 15–18 with a stopper; systems on.</li>
 <li>Responses to an overcall
 <ul>
 <li>A raise is competitive; a cue bid is a limit raise or better.</li>
@@ -470,16 +575,17 @@ support.</li>
 <ul>
 <li>A jump is invitational, 9–11.</li>
 <li>A cue bid is game forcing.</li>
-<li>1NT: 6–10 with a stopper.</li>
+<li><span class="bid">1<span class="strain notrump">NT</span></span>:
+6–10 with a stopper.</li>
 </ul></li>
 </ul>
 <h2 id="negative-doubles">Negative doubles</h2>
 <ul>
-<li>Through 3S.</li>
-<li>Over 1C or 1D – 1H, the double shows exactly four spades; 1S shows
-five.</li>
-<li>Over an overcall of 1S, the double shows four hearts, five or more
-when the double is at the two level.</li>
+<li>Through <span class="bid">3<span class="strain suit spade">♠</span></span>.</li>
+<li>Over <span class="bid">1<span class="strain suit club">♣</span></span> or <span class="bid">1<span class="strain suit diamond">♦</span></span> – <span class="bid">1<span class="strain suit heart">♥</span></span>, the double shows exactly four
+spades; <span class="bid">1<span class="strain suit spade">♠</span></span> shows five.</li>
+<li>Over an overcall of <span class="bid">1<span class="strain suit spade">♠</span></span>, the double shows four hearts,
+five or more when the double is at the two level.</li>
 </ul>
 <h2 id="support-doubles">Support doubles</h2>
 <ul>
@@ -489,31 +595,35 @@ support. A direct raise promises four.</li>
 </ul>
 <h2 id="versus-notrump">Versus their notrump</h2>
 <ul>
-<li>Over their 1NT opening, strong or weak: Woolsey — see <a href="#woolsey"></a>.</li>
-<li>Over their 1NT overcall of our opening, double is penalty; all suit
-bids are to play, and a cue bid is a game-forcing raise.</li>
+<li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> opening, strong or weak: Woolsey
+— see <a href="#woolsey"></a>.</li>
+<li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> overcall of our opening, double
+is penalty; all suit bids are to play, and a cue bid is a game-forcing
+raise.</li>
 </ul>
 <h1 id="slam">Slam bidding</h1>
 <h2 id="rkcb">Roman key card 1430</h2>
 <ul>
-<li>4NT asks for key cards; the responses are 1 or 4, 3 or 0, 2 without
-the trump queen, 2 with the trump queen.
+<li><span class="bid">4<span class="strain notrump">NT</span></span>
+asks for key cards; the responses are 1 or 4, 3 or 0, 2 without the
+trump queen, 2 with the trump queen.
 <ul>
-<li>After a 5C or 5D reply, the cheapest non-trump bid asks for the
-queen.
+<li>After a <span class="bid">5<span class="strain suit club">♣</span></span> or <span class="bid">5<span class="strain suit diamond">♦</span></span> reply, the cheapest
+non-trump bid asks for the queen.
 <ul>
 <li>The cheapest bid denies the queen.</li>
 <li>Bidding a suit shows the queen and a king in the bid suit.</li>
 <li>Bidding six of the trump suit shows the queen without an outside
 king.</li>
 </ul></li>
-<li>5NT asks for specific kings; responder bids the cheapest king, or
-six of the trump suit with none.</li>
+<li><span class="bid">5<span class="strain notrump">NT</span></span>
+asks for specific kings; responder bids the cheapest king, or six of the
+trump suit with none.</li>
 </ul></li>
-<li>When hearts are trumps, the queen ask over 5D is 5S; when spades are
-trumps, it is the cheapest suit below five of the trumps.</li>
+<li>When hearts are trumps, the queen ask over <span class="bid">5<span class="strain suit diamond">♦</span></span> is <span class="bid">5<span class="strain suit spade">♠</span></span>; when spades are trumps, it is
+the cheapest suit below five of the trumps.</li>
 <li><strong>Trumps</strong> are the last suit bid naturally and raised,
-or the last suit bid by the 4NT bidder if none was raised.</li>
+or the last suit bid by the <span class="bid">4<span class="strain notrump">NT</span></span> bidder if none was raised.</li>
 </ul>
 <h2 id="exclusion">Exclusion</h2>
 <ul>
@@ -557,90 +667,98 @@ T=trumps · OVC=overcaller · WNT=weak NT · NS/JNS=(jump) new suit ·
 LAW=Law raise · P/C=pass or correct · x=any suit · m/M=minor/major ·
 4cM=four-card major · NF/GF=nonforcing/game forcing · inv=invitational ·
 bal=balanced · RHO=right-hand opponent</li>
-<li>vs 1NT, direct or balancing; vs WNT only DBL differs</li>
+<li>vs <span class="bid">1<span class="strain notrump">NT</span></span>,
+direct or balancing; vs WNT only DBL differs</li>
 <li>DBL=4cM &amp; 5+m / 6+m / strong 5+M / 19+ bal (15+ vs WNT)
 <ul>
 <li>Pass=pen, <em>rare</em></li>
-<li>2C=P/C, 3+ both m
+<li><span class="bid">2<span class="strain suit club">♣</span></span>=P/C, 3+ both m
 <ul>
-<li>Pass=!C 1-suiter, or M &amp; !C</li>
-<li>2D=!D 1-suiter, or M &amp; !D
+<li>Pass=<span class="strain suit club">♣</span> 1-suiter, or M &amp;
+<span class="strain suit club">♣</span></li>
+<li><span class="bid">2<span class="strain suit diamond">♦</span></span>=<span class="strain suit diamond">♦</span> 1-suiter, or M &amp; <span class="strain suit diamond">♦</span>
 <ul>
-<li>2H=P/C, asks M</li>
+<li><span class="bid">2<span class="strain suit heart">♥</span></span>=P/C, asks M</li>
 </ul></li>
 <li>2M=nat 5+M, strong</li>
-<li>2NT=19+ bal</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=19+
+bal</li>
 </ul></li>
-<li>2D=3+ both M, asks M
+<li><span class="bid">2<span class="strain suit diamond">♦</span></span>=3+ both M, asks M
 <ul>
-<li>Pass=!D 1-suiter</li>
+<li>Pass=<span class="strain suit diamond">♦</span> 1-suiter</li>
 <li>2M=4cM
 <ul>
-<li>2NT=GT, 4-4 fit</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=GT,
+4-4 fit</li>
 <li>3M=LAW</li>
 </ul></li>
-<li>2NT=19+ bal</li>
-<li>3C=!C 1-suiter</li>
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=19+
+bal</li>
+<li><span class="bid">3<span class="strain suit club">♣</span></span>=<span class="strain suit club">♣</span> 1-suiter</li>
 </ul></li>
 <li>2M, 3m=nat 6+, NF</li>
 <li>3M=nat, inv</li>
-<li>2NT=ask
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=ask
 <ul>
 <li>3m=nat, min</li>
 <li>3M=nat, max</li>
 </ul></li>
-<li>RHO bids: DBL=pen · 2NT=asks m · Pass=else, OVC may reopen</li>
+<li>RHO bids: DBL=pen · <span class="bid">2<span class="strain notrump">NT</span></span>=asks m · Pass=else, OVC may
+reopen</li>
 <li>vs WNT: DBL=pen 15+ · Pass=5+ or bal · pull=5+ suit, &lt;5 · then
 systems on</li>
 </ul></li>
-<li>2C=both M, 5-4 (4-4 rare), Landy
+<li><span class="bid">2<span class="strain suit club">♣</span></span>=both M, 5-4 (4-4 rare), Landy
 <ul>
-<li>Pass=6+!C</li>
-<li>2D=equal M, asks
+<li>Pass=6+<span class="strain suit club">♣</span></li>
+<li><span class="bid">2<span class="strain suit diamond">♦</span></span>=equal M, asks
 <ul>
 <li>2M=longer/better</li>
 </ul></li>
 <li>2M=pref</li>
-<li>2NT=ask, inv+
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=ask, inv+
 <ul>
-<li>3C=!H better, max</li>
-<li>3D=!S better, max</li>
+<li><span class="bid">3<span class="strain suit club">♣</span></span>=<span class="strain suit heart">♥</span> better, max</li>
+<li><span class="bid">3<span class="strain suit diamond">♦</span></span>=<span class="strain suit spade">♠</span> better, max</li>
 <li>3M=longer M, min</li>
-<li>3NT=5-5, max</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>=5-5, max</li>
 </ul></li>
-<li>3C=6+!C, NF</li>
+<li><span class="bid">3<span class="strain suit club">♣</span></span>=6+<span class="strain suit club">♣</span>, NF</li>
 <li>3M=preempt, 4+T</li>
 <li>4M=to play</li>
 </ul></li>
-<li>2D=6+M (good 5), Multi
+<li><span class="bid">2<span class="strain suit diamond">♦</span></span>=6+M (good 5), Multi
 <ul>
-<li>Pass=6+!D</li>
-<li>2H=P/C: weak both M, or inv !S
+<li>Pass=6+<span class="strain suit diamond">♦</span></li>
+<li><span class="bid">2<span class="strain suit heart">♥</span></span>=P/C: weak both M, or inv <span class="strain suit spade">♠</span>
 <ul>
-<li>Pass=!H</li>
-<li>2S=!S
+<li>Pass=<span class="strain suit heart">♥</span></li>
+<li><span class="bid">2<span class="strain suit spade">♠</span></span>=<span class="strain suit spade">♠</span>
 <ul>
-<li>Pass=signoff · 2NT=!S GT · 3S=preempt</li>
+<li>Pass=signoff · <span class="bid">2<span class="strain notrump">NT</span></span>=<span class="strain suit spade">♠</span> GT · <span class="bid">3<span class="strain suit spade">♠</span></span>=preempt</li>
 </ul></li>
 </ul></li>
-<li>2S=P/C: inv !H
+<li><span class="bid">2<span class="strain suit spade">♠</span></span>=P/C: inv <span class="strain suit heart">♥</span>
 <ul>
-<li>Pass=!S · 3H=!H min · else=!H max</li>
+<li>Pass=<span class="strain suit spade">♠</span> · <span class="bid">3<span class="strain suit heart">♥</span></span>=<span class="strain suit heart">♥</span> min · else=<span class="strain suit heart">♥</span> max</li>
 </ul></li>
-<li>2NT=ask, as over 2C
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=ask, as over <span class="bid">2<span class="strain suit club">♣</span></span>
 <ul>
-<li>3C=6+!H max · 3D=6+!S max · 3M=6+M min</li>
+<li><span class="bid">3<span class="strain suit club">♣</span></span>=6+<span class="strain suit heart">♥</span> max · <span class="bid">3<span class="strain suit diamond">♦</span></span>=6+<span class="strain suit spade">♠</span> max · 3M=6+M min</li>
 </ul></li>
-<li>3H=M preempt, P/C</li>
-<li>3S=!S game / !H inv, P/C</li>
-<li>4C=bid suit below M; advancer declares</li>
-<li>4D=bid M</li>
+<li><span class="bid">3<span class="strain suit heart">♥</span></span>=M
+preempt, P/C</li>
+<li><span class="bid">3<span class="strain suit spade">♠</span></span>=<span class="strain suit spade">♠</span> game / <span class="strain suit heart">♥</span> inv, P/C</li>
+<li><span class="bid">4<span class="strain suit club">♣</span></span>=bid suit below M; advancer
+declares</li>
+<li><span class="bid">4<span class="strain suit diamond">♦</span></span>=bid M</li>
 <li>4M=nat, own 6+</li>
 </ul></li>
 <li>2M=5+M &amp; 4+m, Cappelletti
 <ul>
 <li>Pass=to play</li>
-<li>2NT=asks m
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=asks m
 <ul>
 <li>3m=nat
 <ul>
@@ -649,9 +767,11 @@ systems on</li>
 </ul></li>
 <li>NS=nat 6+, NF · JNS=nat 7+, preempt</li>
 <li>3M=LAW, 3+T</li>
-<li>3NT, 4M=to play</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>,
+4M=to play</li>
 </ul></li>
-<li>2NT=5-5 m, or strong 2-suiter
+<li><span class="bid">2<span class="strain notrump">NT</span></span>=5-5
+m, or strong 2-suiter
 <ul>
 <li>3m=pref
 <ul>
@@ -659,9 +779,11 @@ systems on</li>
 </ul></li>
 <li>3M=nat 6+, no fit</li>
 <li>4m=inv, 3+T</li>
-<li>3NT, 4M=to play</li>
+<li><span class="bid">3<span class="strain notrump">NT</span></span>,
+4M=to play</li>
 </ul></li>
-<li>3x=nat 6+, preempt · 3NT, 4M=to play · 4m=strong preempt</li>
+<li>3x=nat 6+, preempt · <span class="bid">3<span class="strain notrump">NT</span></span>, 4M=to play · 4m=strong
+preempt</li>
 </ul>
 </main>
 </body>

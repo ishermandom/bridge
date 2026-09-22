@@ -137,6 +137,9 @@ means some text fell back to whatever the machine happened to have.
 
 The Markdown is ordinary Pandoc Markdown plus a few conventions:
 
+- Bids are written plainly — `4S`, `2NT`, `3C` — and the renderer draws the suit
+  symbol. Notrump is always `NT`; a bare `N` after a level fails the render.
+- `!S !H !D !C` ask for a suit symbol outside a bid, as in `a !H lead`.
 - The YAML block needs a `title`.
 
 After an intentional change to the rendering, run

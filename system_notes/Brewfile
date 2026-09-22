@@ -10,3 +10,12 @@ brew "pango" # the text layout engine WeasyPrint draws through
 brew "poppler" # pdftotext, which reads the PDF back for the goldens
 cask "font-ibm-plex-serif" # the body and heading face
 cask "font-source-sans-3" # the list-marker glyphs Plex Serif lacks
+
+# The suit face, which macOS ships itself as STIXTwoMath.otf. The cask writes
+# its own STIXTwoMath-Regular.ttf under ~/Library/Fonts, so installing it
+# beside Apple's copy would leave fontconfig two files of one family to choose
+# between; ask for it only where that copy is missing. A Brewfile is Ruby, so
+# the check runs when `brew bundle` reads this file.
+unless File.exist?("/System/Library/Fonts/Supplemental/STIXTwoMath.otf")
+  cask "font-stix-two-math"
+end
