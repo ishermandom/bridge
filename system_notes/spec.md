@@ -25,6 +25,13 @@ shorthand are written, but nothing about what they mean.
   `system_notes/<partner>/` directory holding its `notes.md`, the committed
   outputs, and a `regenerate.sh` wrapper that runs this tool from a `bridge`
   checkout beside `bridge-private`.
+- **The fixture** (`fixture/notes.md`) is AI-drafted sample material written to
+  exercise the notation — five-deep lists, forward and backward references,
+  suits in headings and prose. It pairs a conventional 2/1 outline written in
+  prose with one maximal-shorthand section holding no subsections (a Woolsey
+  defense to 1NT) that stress-tests how much a page of nested bullets can carry.
+  It must say prominently, in its own text, that no human has reviewed or
+  verified any of it.
 - **Sibling tool**: `convention_cards/` likewise keeps its tool in this repo and
   its private data in `bridge-private`. This tool copies the `regenerate.sh`
   wrapper convention from `convention_cards/` rather than sharing code with it.
