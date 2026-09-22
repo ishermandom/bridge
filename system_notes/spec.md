@@ -87,6 +87,14 @@ syntax the plain-text output must survive:
   an auction (`1S – 2C`). Each strain becomes a span; suits are colored
   four-color style. The plain-text rendering keeps bids exactly as typed and
   reduces `!H` to its letter — in email, the letters read better than symbols.
+- **The major-suit placeholder is bolded**: the `M` closing a placeholder
+  compound — `OM`, `W2M`, `4cM`, `4+OM` — is set strong, so the placeholder
+  stands out from the capitals around it. Compounds are written apart
+  (`4cM & 5+m`) rather than run together, which keeps `+` meaning "or more"
+  alone and leaves every placeholder at the end of its own word, where the
+  filter looks for it. Ordinary capitals ending in `M` (`BAM`) and the lowercase
+  minor placeholder `m` stay plain; the filter's header carries the exact
+  grammar. The plain-text rendering keeps shorthand exactly as typed.
 - **Unbreakable tokens**: card-count ranges like `15–17` and slashed shorthand
   like `P/C` are wrapped so they never break across a line. The author writes
   them plainly; the filter recognizes digits–dash–digits, and a slashed word

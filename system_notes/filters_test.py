@@ -153,3 +153,31 @@ def test_notation_token_is_wrapped(token: str) -> None:
 )
 def test_prose_is_left_breakable(word: str) -> None:
   assert 'nowrap' not in pandoc(word, 'nowrap.lua')
+
+
+# --- shorthand ---
+
+
+@pytest.mark.parametrize(
+  'token', ['M', 'OM', '2M', 'W2M', 'Q3M', '4cM', '4+OM']
+)
+def test_major_placeholder_is_bolded(token: str) -> None:
+  assert f'{token[:-1]}<strong>M</strong>' in pandoc(token, 'shorthand.lua')
+
+
+@pytest.mark.parametrize(
+  'token', ['Major', 'IMP', 'm', 'Om', 'system', 'BAM', 'PROGRAM']
+)
+def test_other_tokens_are_untouched(token: str) -> None:
+  assert '<strong>' not in pandoc(token, 'shorthand.lua')
+
+
+def test_each_token_in_a_run_is_judged_alone() -> None:
+  html = pandoc('Q3M/Q4M=cue', 'shorthand.lua')
+  assert 'Q3<strong>M</strong>/Q4<strong>M</strong>=cue' in html
+
+
+def test_plain_text_keeps_shorthand_as_typed() -> None:
+  assert pandoc('OM and 4cM', 'shorthand.lua', to='plain').strip() == (
+    'OM and 4cM'
+  )

@@ -30,13 +30,15 @@ TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 
 # Filter order matters: metadata checks the front matter first; nowrap protects
-# the tokens bids left intact.
+# the tokens bids left intact, and must see them whole before shorthand splits a
+# `Q3M/Q4M` at each bolded placeholder.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
     'metadata.lua',
     'bids.lua',
     'nowrap.lua',
+    'shorthand.lua',
   )
 )
 
