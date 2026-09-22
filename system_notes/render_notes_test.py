@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 """The fixture rendered end to end, against its goldens."""
 
+import re
 import shutil
 from pathlib import Path
 
@@ -45,6 +46,43 @@ def test_text_matches_golden(rendered: render_notes.RenderedNotes) -> None:
   assert read(rendered.text) == read(GOLDEN_DIRECTORY / 'notes.txt')
 
 
+# --- list markers ---
+
+
+def test_list_markers_follow_depth() -> None:
+  """Each depth takes its own marker, and the deepest rung repeats below."""
+  plain = (
+    '- a\n'
+    '  - b\n'
+    '    - c\n'
+    '      - d\n'
+    '        - e\n'
+    '          - f\n'
+    '            - g\n'
+    '              - h\n'
+    '                - i\n'
+    '                  - j\n'
+    '                    - k\n'
+    '                      - l\n'
+    '                        - m\n'
+  )
+  assert render_notes.apply_list_markers(plain) == (
+    '○ a\n'
+    '  ● b\n'
+    '    □ c\n'
+    '      ▪ d\n'
+    '        ◦ e\n'
+    '          • f\n'
+    '            △ g\n'
+    '              ▲ h\n'
+    '                ▽ i\n'
+    '                  ▼ j\n'
+    '                    ▷ k\n'
+    '                      ▶ l\n'
+    '                        ▶ m\n'
+  )
+
+
 # --- warnings ---
 
 
@@ -60,3 +98,16 @@ def test_a_weasyprint_warning_fails_the_render(tmp_path: Path) -> None:
     render_notes.render_pdf(html, pdf)
 
   assert not pdf.exists(), 'the rejected layout reached the output file'
+
+
+# --- stylesheet coupling ---
+
+
+def test_text_marker_ladder_tracks_the_stylesheet() -> None:
+  """notes.css owns the list-marker ladder; the text rendering must follow."""
+  # The markers come back in the order the stylesheet declares them, which is
+  # depth order: each rule nests one `ul` deeper than the rule above it.
+  markers = re.findall(
+    r'list-style-type: "(.) ";', read(render_notes.STYLESHEET)
+  )
+  assert tuple(markers) == render_notes.LIST_MARKERS

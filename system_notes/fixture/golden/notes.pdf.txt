@@ -13,183 +13,183 @@ System Notes
 
 
 General approach
- • Five-card majors, 2/1 game forcing (see ), 15–17 1NT.
- • Better minor with 3–3 and 4–4 in the minors; 1D with 4–5.
- • Opening style
-     ◦ First and second seat: rule of 20, with a sound suit or two quick tricks.
-     ◦ Third seat: any hand worth a lead-directing bid; responder keeps the auction low with Drury
-       (see ).
-     ◦ Fourth seat: rule of 15 — high-card points plus spades.
- • Weak twos in !D, !H, and !S: 6–10 high-card points, a six-card suit, no outside four-card major in
+ ○ Five-card majors, 2/1 game forcing (see ), 15–17 1NT.
+ ○ Better minor with 3–3 and 4–4 in the minors; 1D with 4–5.
+ ○ Opening style
+    ● First and second seat: rule of 20, with a sound suit or two quick tricks.
+    ● Third seat: any hand worth a lead-directing bid; responder keeps the auction low with Drury
+      (see ).
+    ● Fourth seat: rule of 15 — high-card points plus spades.
+ ○ Weak twos in !D, !H, and !S: 6–10 high-card points, a six-card suit, no outside four-card major in
    first or second seat.
- • Strong, artificial 2C — see .
+ ○ Strong, artificial 2C — see .
 
 
 Notrump openings
 
 The 1NT opening
- • 15–17 high-card points, balanced or semi-balanced.
-     ◦ Five-card majors allowed with 5-3-3-2 shape.
-     ◦ A six-card minor is fine with 6-3-2-2 shape and no weak doubleton.
-     ◦ Singleton honor with 5-4-3-1 is acceptable at the bottom of the range; treat 17 with a singleton
-       as a suit opening.
- • A 2C response is Stayman; 2D and 2H are Jacoby transfers; 2S is a minor-suit relay ().
+ ○ 15–17 high-card points, balanced or semi-balanced.
+    ● Five-card majors allowed with 5-3-3-2 shape.
+    ● A six-card minor is fine with 6-3-2-2 shape and no weak doubleton.
+    ● Singleton honor with 5-4-3-1 is acceptable at the bottom of the range; treat 17 with a singleton
+      as a suit opening.
+ ○ A 2C response is Stayman; 2D and 2H are Jacoby transfers; 2S is a minor-suit relay ().
 
 
 Stayman
- • 1NT – 2C asks for a four-card major and promises nothing: responder may be weak with 4-4 in the
+ ○ 1NT – 2C asks for a four-card major and promises nothing: responder may be weak with 4-4 in the
    majors and a short club, or 4-4-4-1 in any order except club length (garbage Stayman).
-     ◦ 2D: no four-card major.
-        ▪ 2H or 2S: five cards in the bid major and four in the other, invitational. Opener passes, raises,
+    ● 2D: no four-card major.
+        □ 2H or 2S: five cards in the bid major and four in the other, invitational. Opener passes, raises,
           or corrects to the other major.
-        ▪ 3H or 3S: Smolen — see .
-        ▪ 2NT: invitational, shows a four-card major (a direct 2NT would deny one).
-        ▪ 3C or 3D: game forcing with a four-card major and five or more cards in the bid minor.
+        □ 3H or 3S: Smolen — see .
+        □ 2NT: invitational, shows a four-card major (a direct 2NT would deny one).
+        □ 3C or 3D: game forcing with a four-card major and five or more cards in the bid minor.
 
 
 
                                                     1/9
-System Notes                                                                               Notrump openings
+System Notes                                                                                Notrump openings
 
 
-        ▪ 3NT: to play, showing a four-card major that opener could not match.
-        ▪ Pass: garbage Stayman with diamond length.
-     ◦ 2H: four hearts, possibly four spades as well.
-        ▪ 2S: five spades and four hearts, invitational.
-        ▪ 2NT or 3NT: invitational or to play, denies four hearts, so implies four spades. Opener with
+        □ 3NT: to play, showing a four-card major that opener could not match.
+        □ Pass: garbage Stayman with diamond length.
+    ● 2H: four hearts, possibly four spades as well.
+        □ 2S: five spades and four hearts, invitational.
+        □ 2NT or 3NT: invitational or to play, denies four hearts, so implies four spades. Opener with
           four spades corrects to 3S or 4S.
-        ▪ 3H: invitational raise.
-        ▪ 3S: slam try in hearts with a spade splinter; see for the continuations.
-        ▪ 4H: to play.
-     ◦ 2S: four spades, denies four hearts.
-        ▪ 2NT or 3NT: invitational or to play.
-        ▪ 3S: invitational raise.
-        ▪ 3H: game-forcing spade raise with slam interest; opener control bids or signs off.
-           ▪ 3S: minimum, no slam interest. Responder may still continue with 4C, 4D, or 4H as control
-             bids.
-           ▪ 4C, 4D, 4H: control bid, accepting the try.
-               ▪ Responder continues with 4NT (see ) or bids the cheapest control.
-               ▪ Responder signs off in 4S with nothing further to show.
-           ▪ 4S: maximum but no side-suit control worth showing.
-        ▪ 4S: to play.
- • After a 2D reply to Stayman, 3NT still lets opener correct to a five-card major, since opener may
+        □ 3H: invitational raise.
+        □ 3S: slam try in hearts with a spade splinter; see for the continuations.
+        □ 4H: to play.
+    ● 2S: four spades, denies four hearts.
+        □ 2NT or 3NT: invitational or to play.
+        □ 3S: invitational raise.
+        □ 3H: game-forcing spade raise with slam interest; opener control bids or signs off.
+               ▪ 3S: minimum, no slam interest. Responder may still continue with 4C, 4D, or 4H as control
+                 bids.
+               ▪ 4C, 4D, 4H: control bid, accepting the try.
+                 ◦ Responder continues with 4NT (see ) or bids the cheapest control.
+                 ◦ Responder signs off in 4S with nothing further to show.
+               ▪ 4S: maximum but no side-suit control worth showing.
+        □ 4S: to play.
+ ○ After a 2D reply to Stayman, 3NT still lets opener correct to a five-card major, since opener may
    open 1NT with 5-3-3-2.
 
 
 Smolen
- • After 1NT – 2C – 2D, a jump to 3H or 3S shows 5-4 in the majors with game values, four cards in the
+ ○ After 1NT – 2C – 2D, a jump to 3H or 3S shows 5-4 in the majors with game values, four cards in the
    bid suit and five in the other. Opener chooses between 3NT and the five-card major:
-     ◦ 3H (four hearts, five spades)
-        ▪ 3S: three spades; responder continues naturally.
-        ▪ 3NT: two spades.
-        ▪ 4S: three spades and a maximum with a source of tricks.
-     ◦ 3S (four spades, five hearts)
-        ▪ 4D: transfer to hearts with three-card support, letting responder make a slam try below
+    ● 3H (four hearts, five spades)
+        □ 3S: three spades; responder continues naturally.
+        □ 3NT: two spades.
+        □ 4S: three spades and a maximum with a source of tricks.
+    ● 3S (four spades, five hearts)
+        □ 4D: transfer to hearts with three-card support, letting responder make a slam try below
           game.
-           ▪ 4H: no slam interest.
-           ▪ 4S, 5C, 5D: control bid with slam interest.
-        ▪ 3NT: two hearts.
- • With 5-5 in the majors, use a transfer to spades and then bid hearts; Smolen is never 5-5.
+               ▪ 4H: no slam interest.
+               ▪ 4S, 5C, 5D: control bid with slam interest.
+        □ 3NT: two hearts.
+ ○ With 5-5 in the majors, use a transfer to spades and then bid hearts; Smolen is never 5-5.
 
 
 
 
-                                                    2/9
+                                                        2/9
 System Notes                                                                                 Notrump openings
 
 
 
 Jacoby transfers
- • 1NT – 2D shows five or more hearts; 1NT – 2H shows five or more spades. Opener completes the
+ ○ 1NT – 2D shows five or more hearts; 1NT – 2H shows five or more spades. Opener completes the
    transfer with any hand, except:
-     ◦ Superaccept with four-card support and a maximum.
-        ▪ Jump to three of the major: four-card support, 17 points, no good doubleton to show.
-        ▪ Bid a new suit at the three level: four-card support and a doubleton in the bid suit. Responder
+    ● Superaccept with four-card support and a maximum.
+        □ Jump to three of the major: four-card support, 17 points, no good doubleton to show.
+        □ Bid a new suit at the three level: four-card support and a doubleton in the bid suit. Responder
           retransfers with the cheaper bid.
-        ▪ 2NT: four-card support, 4-3-3-3 shape.
- • Responder’s continuations after the simple completion:
-     ◦ Pass: weak, five or six cards.
-     ◦ 2NT: invitational, exactly five cards. Opener passes, raises to 3NT, or bids three or four of the
-       major with three-card support.
-     ◦ Three of the major: invitational, six cards.
-     ◦ 3NT: game values, five cards. Opener passes or corrects to four of the major.
-     ◦ A new suit at the three level: natural, game forcing, five or more cards.
-        ▪ Opener shows three-card support for the major first, then a stopper.
-        ▪ A jump in the fourth suit is a splinter.
-     ◦ Four of the major: to play, six cards, no slam interest. With slam interest, use Texas then 4NT.
+        □ 2NT: four-card support, 4-3-3-3 shape.
+ ○ Responder’s continuations after the simple completion:
+    ● Pass: weak, five or six cards.
+    ● 2NT: invitational, exactly five cards. Opener passes, raises to 3NT, or bids three or four of the
+      major with three-card support.
+    ● Three of the major: invitational, six cards.
+    ● 3NT: game values, five cards. Opener passes or corrects to four of the major.
+    ● A new suit at the three level: natural, game forcing, five or more cards.
+        □ Opener shows three-card support for the major first, then a stopper.
+        □ A jump in the fourth suit is a splinter.
+    ● Four of the major: to play, six cards, no slam interest. With slam interest, use Texas then 4NT.
 
 
 Texas transfers
- • 1NT – 4D shows six or more hearts; 1NT – 4H shows six or more spades. Opener always completes.
- • Texas then 4NT is Roman key card for the major (); Jacoby then 4NT is quantitative.
+ ○ 1NT – 4D shows six or more hearts; 1NT – 4H shows six or more spades. Opener always completes.
+ ○ Texas then 4NT is Roman key card for the major (); Jacoby then 4NT is quantitative.
 
 
 Minor-suit transfers
- • 1NT – 2S: relay to 3C, either a weak signoff in clubs or diamonds, or a minor-suit slam try.
-     ◦ Opener bids 3C with a poor hand for a minor contract, 2NT with a good one (at least Q-x-x in
-       both minors).
-     ◦ Responder passes 3C, corrects to 3D, or continues:
-        ▪ 3H or 3S: shortness, both minors, game forcing.
-        ▪ 3NT: to play; the sequence denied a major.
- • 1NT – 2NT: transfer to diamonds, weak or strong. A direct invitational raise goes through Stayman
+ ○ 1NT – 2S: relay to 3C, either a weak signoff in clubs or diamonds, or a minor-suit slam try.
+    ● Opener bids 3C with a poor hand for a minor contract, 2NT with a good one (at least Q-x-x in
+      both minors).
+    ● Responder passes 3C, corrects to 3D, or continues:
+        □ 3H or 3S: shortness, both minors, game forcing.
+        □ 3NT: to play; the sequence denied a major.
+ ○ 1NT – 2NT: transfer to diamonds, weak or strong. A direct invitational raise goes through Stayman
    instead.
 
 
 Interference over 1NT
- • Over a natural or artificial overcall at the two level, responder uses lebensohl: a direct three-level
+ ○ Over a natural or artificial overcall at the two level, responder uses lebensohl: a direct three-level
    bid is game forcing, and 2NT is a relay to 3C that either signs off in a suit below the overcall or
    continues with a slow, stopper-showing sequence.
-     ◦ Fast denies, slow shows: a direct 3NT denies a stopper in their suit, and 2NT then 3NT shows one.
-     ◦ Double is negative through 2S and penalty above that.
- • Over a double, redouble shows any 10 or more points; all bids are to play.
+    ● Fast denies, slow shows: a direct 3NT denies a stopper in their suit, and 2NT then 3NT shows one.
+    ● Double is negative through 2S and penalty above that.
+ ○ Over a double, redouble shows any 10 or more points; all bids are to play.
 
 
                                                     3/9
-System Notes                                                                            Major-suit openings
+System Notes                                                                           Major-suit openings
 
 
- • Over their 1NT overcall of our suit opening, see .
+ ○ Over their 1NT overcall of our suit opening, see .
 
 
 The 2NT opening
- • 20–21 balanced. 3C is Stayman, 3D and 3H are transfers, 3S is a minor-suit relay, 4D and 4H are
+ ○ 20–21 balanced. 3C is Stayman, 3D and 3H are transfers, 3S is a minor-suit relay, 4D and 4H are
    Texas. The same structures apply after a 2C opening and a 2NT rebid ().
 
 
 Major-suit openings
 
 Responses to one of a major
- • Single raise: 6–9 points, three-card support.
- • 1NT: forcing for one round ().
- • Two of a new suit: game forcing ().
- • 2NT: Jacoby ().
- • Three of a minor, or three of the other major: Bergen ().
- • Double jump in a new suit: splinter ().
- • 1H – 1S: four or more spades, 6 or more points, forcing.
+ ○ Single raise: 6–9 points, three-card support.
+ ○ 1NT: forcing for one round ().
+ ○ Two of a new suit: game forcing ().
+ ○ 2NT: Jacoby ().
+ ○ Three of a minor, or three of the other major: Bergen ().
+ ○ Double jump in a new suit: splinter ().
+ ○ 1H – 1S: four or more spades, 6 or more points, forcing.
 
 
 The forcing 1NT
- • Forcing for one round by an unpassed hand; semi-forcing by a passed hand.
- • Opener’s rebids
-     ◦ Two of a lower suit: natural, may be a three-card minor.
-     ◦ Two of the same major: six cards, or a good five with no convenient rebid.
-     ◦ Jump shift: game forcing, 18 or more.
-     ◦ 2NT: 18–19 balanced.
- • Responder’s continuations
-     ◦ A new suit at the two level: to play, five or more cards.
-     ◦ Two of opener’s major: a three-card limit raise or a doubleton with a maximum.
-     ◦ 2NT: 11–12, invitational.
-     ◦ Three of opener’s major: a three-card limit raise with a good hand.
-     ◦ Jump to three of a new suit: invitational, a good six-card suit.
+ ○ Forcing for one round by an unpassed hand; semi-forcing by a passed hand.
+ ○ Opener’s rebids
+    ● Two of a lower suit: natural, may be a three-card minor.
+    ● Two of the same major: six cards, or a good five with no convenient rebid.
+    ● Jump shift: game forcing, 18 or more.
+    ● 2NT: 18–19 balanced.
+ ○ Responder’s continuations
+    ● A new suit at the two level: to play, five or more cards.
+    ● Two of opener’s major: a three-card limit raise or a doubleton with a maximum.
+    ● 2NT: 11–12, invitational.
+    ● Three of opener’s major: a three-card limit raise with a good hand.
+    ● Jump to three of a new suit: invitational, a good six-card suit.
 
 
 Two-over-one
- • A two-level response in a new suit by an unpassed hand is game forcing.
-     ◦ 1S – 2H promises five hearts. 1H – 2D and 1H – 2C may be four cards.
-     ◦ Responder’s rebid of the same suit shows six.
- • Opener’s rebids are natural; a jump shows extras and a good suit, and a reverse shows shape
+ ○ A two-level response in a new suit by an unpassed hand is game forcing.
+    ● 1S – 2H promises five hearts. 1H – 2D and 1H – 2C may be four cards.
+    ● Responder’s rebid of the same suit shows six.
+ ○ Opener’s rebids are natural; a jump shows extras and a good suit, and a reverse shows shape
    without extra values.
- • Support for responder’s suit at the three level is a genuine raise; 2NT shows a balanced minimum
+ ○ Support for responder’s suit at the three level is a genuine raise; 2NT shows a balanced minimum
    with stoppers.
 
 
@@ -198,50 +198,50 @@ Two-over-one
 System Notes                                                                           Minor-suit openings
 
 
- • Slow arrival: bidding game directly shows a minimum; taking a slower route shows slam interest
+ ○ Slow arrival: bidding game directly shows a minimum; taking a slower route shows slam interest
    ().
 
 
 Jacoby 2NT
- • Four-card support, game forcing. Opener describes shape and strength:
-     ◦ A new suit at the three level: singleton or void.
-     ◦ Three of the major: extras, no shortness.
-     ◦ 3NT: a balanced minimum.
-     ◦ A new suit at the four level: a good five-card side suit.
-     ◦ Four of the major: minimum, no shortness.
- • Responder continues with control bids or 4NT ().
+ ○ Four-card support, game forcing. Opener describes shape and strength:
+    ● A new suit at the three level: singleton or void.
+    ● Three of the major: extras, no shortness.
+    ● 3NT: a balanced minimum.
+    ● A new suit at the four level: a good five-card side suit.
+    ● Four of the major: minimum, no shortness.
+ ○ Responder continues with control bids or 4NT ().
 
 
 Bergen raises
- • 3C: four-card support, 7–9 points. 3D: four-card support, 10–12.
- • Three of the other major: a mixed raise, four-card support, 7–9 with a good suit.
- • Three of opener’s major: preemptive, four-card support, 0–6.
- • Over interference, Bergen is off; raises are natural.
+ ○ 3C: four-card support, 7–9 points. 3D: four-card support, 10–12.
+ ○ Three of the other major: a mixed raise, four-card support, 7–9 with a good suit.
+ ○ Three of opener’s major: preemptive, four-card support, 0–6.
+ ○ Over interference, Bergen is off; raises are natural.
 
 
 Splinters
- • A double jump in a new suit shows four-card support, game values, and a singleton or void in the
+ ○ A double jump in a new suit shows four-card support, game values, and a singleton or void in the
    bid suit.
- • Opener signs off with wasted values in the short suit, or control bids with slam interest.
+ ○ Opener signs off with wasted values in the short suit, or control bids with slam interest.
 
 
 Drury
- • By a passed hand, 2C over a major opening shows three or more trumps with a limit raise. Opener
+ ○ By a passed hand, 2C over a major opening shows three or more trumps with a limit raise. Opener
    rebids two of the major with a light opening; any other bid is natural and shows a full opener.
 
 
 Minor-suit openings
 
 Inverted minors
- • A single raise of a minor is 10 or more points, forcing to 2NT or three of the minor, and denies a
+ ○ A single raise of a minor is 10 or more points, forcing to 2NT or three of the minor, and denies a
    four-card major.
- • A jump raise is preemptive, five-card support, 0–6.
- • After 1C – 2C or 1D – 2D, opener bids a stopper, 2NT with a minimum, or three of the minor with a
+ ○ A jump raise is preemptive, five-card support, 0–6.
+ ○ After 1C – 2C or 1D – 2D, opener bids a stopper, 2NT with a minimum, or three of the minor with a
    minimum and an unbalanced hand.
 
 
 Walsh responses
- • Over 1C, bypass a four-card or five-card diamond suit with a four-card major and less than game
+ ○ Over 1C, bypass a four-card or five-card diamond suit with a four-card major and less than game
    values. Bidding 1D and then a major shows five diamonds and game-going values.
 
 
@@ -251,46 +251,46 @@ Walsh responses
 
 
 The strong 2C opening
- • 2C: 22 or more balanced, or any hand with nine or more playing tricks.
- • 2D is waiting; 2H is a double negative, showing a very bad hand.
- • 2C – 2D – 2NT: 22–24, with the 2NT structure ().
+ ○ 2C: 22 or more balanced, or any hand with nine or more playing tricks.
+ ○ 2D is waiting; 2H is a double negative, showing a very bad hand.
+ ○ 2C – 2D – 2NT: 22–24, with the 2NT structure ().
 
 
 Competitive bidding
 
 Overcalls
- • Simple overcalls: 8–16, a five-card suit at the one level; a good suit at the two level.
- • Jump overcalls are weak, six cards.
- • 1NT overcall: 15–18 with a stopper; systems on.
- • Responses to an overcall
-     ◦ A raise is competitive; a cue bid is a limit raise or better.
-     ◦ A new suit is constructive, not forcing.
-     ◦ A jump in a new suit is fit-showing, showing the suit and support.
+ ○ Simple overcalls: 8–16, a five-card suit at the one level; a good suit at the two level.
+ ○ Jump overcalls are weak, six cards.
+ ○ 1NT overcall: 15–18 with a stopper; systems on.
+ ○ Responses to an overcall
+    ● A raise is competitive; a cue bid is a limit raise or better.
+    ● A new suit is constructive, not forcing.
+    ● A jump in a new suit is fit-showing, showing the suit and support.
 
 
 Takeout doubles
- • Shape suitable or 17 or more of any shape.
- • Responses
-     ◦ A jump is invitational, 9–11.
-     ◦ A cue bid is game forcing.
-     ◦ 1NT: 6–10 with a stopper.
+ ○ Shape suitable or 17 or more of any shape.
+ ○ Responses
+    ● A jump is invitational, 9–11.
+    ● A cue bid is game forcing.
+    ● 1NT: 6–10 with a stopper.
 
 
 Negative doubles
- • Through 3S.
- • Over 1C or 1D – 1H, the double shows exactly four spades; 1S shows five.
- • Over an overcall of 1S, the double shows four hearts, five or more when the double is at the two
+ ○ Through 3S.
+ ○ Over 1C or 1D – 1H, the double shows exactly four spades; 1S shows five.
+ ○ Over an overcall of 1S, the double shows four hearts, five or more when the double is at the two
    level.
 
 
 Support doubles
- • When responder bids a major at the one level and the next hand bids or doubles, opener’s double
+ ○ When responder bids a major at the one level and the next hand bids or doubles, opener’s double
    or redouble shows exactly three-card support. A direct raise promises four.
 
 
 Versus their notrump
- • Over their 1NT opening, strong or weak: Woolsey — see .
- • Over their 1NT overcall of our opening, double is penalty; all suit bids are to play, and a cue bid is a
+ ○ Over their 1NT opening, strong or weak: Woolsey — see .
+ ○ Over their 1NT overcall of our opening, double is penalty; all suit bids are to play, and a cue bid is a
    game-forcing raise.
 
 
@@ -304,28 +304,28 @@ Versus their notrump
 Slam bidding
 
 Roman key card 1430
- • 4NT asks for key cards; the responses are 1 or 4, 3 or 0, 2 without the trump queen, 2 with the
+ ○ 4NT asks for key cards; the responses are 1 or 4, 3 or 0, 2 without the trump queen, 2 with the
    trump queen.
-     ◦ After a 5C or 5D reply, the cheapest non-trump bid asks for the queen.
-        ▪ The cheapest bid denies the queen.
-        ▪ Bidding a suit shows the queen and a king in the bid suit.
-        ▪ Bidding six of the trump suit shows the queen without an outside king.
-     ◦ 5NT asks for specific kings; responder bids the cheapest king, or six of the trump suit with none.
- • When hearts are trumps, the queen ask over 5D is 5S; when spades are trumps, it is the cheapest
+    ● After a 5C or 5D reply, the cheapest non-trump bid asks for the queen.
+        □ The cheapest bid denies the queen.
+        □ Bidding a suit shows the queen and a king in the bid suit.
+        □ Bidding six of the trump suit shows the queen without an outside king.
+    ● 5NT asks for specific kings; responder bids the cheapest king, or six of the trump suit with none.
+ ○ When hearts are trumps, the queen ask over 5D is 5S; when spades are trumps, it is the cheapest
    suit below five of the trumps.
- • Trumps are the last suit bid naturally and raised, or the last suit bid by the 4NT bidder if none was
+ ○ Trumps are the last suit bid naturally and raised, or the last suit bid by the 4NT bidder if none was
    raised.
 
 
 Exclusion
- • A jump to the five level in a new suit after a suit is agreed asks for key cards outside the bid suit.
+ ○ A jump to the five level in a new suit after a suit is agreed asks for key cards outside the bid suit.
    Responses follow 1430 starting at the next step.
 
 
 Control bids
- • Italian style: first- or second-round controls, bid up the line, so a bypassed suit denies a control in
+ ○ Italian style: first- or second-round controls, bid up the line, so a bypassed suit denies a control in
    it.
- • The first control bid below game asks partner to cooperate with the cheapest control; returning to
+ ○ The first control bid below game asks partner to cooperate with the cheapest control; returning to
    the trump suit denies one.
 
 
@@ -334,15 +334,15 @@ Defensive carding
 Opening leads
 1. Against suits: fourth best from length with an honor, top of a doubleton, low from three small, and
    the top of a sequence.
-     ◦ Ace from A-K, except at the five level or higher where the king asks for count.
-     ◦ The king from K-Q asks for attitude.
+    ○ Ace from A-K, except at the five level or higher where the king asks for count.
+    ○ The king from K-Q asks for attitude.
 2. Against notrump: fourth best; the ace asks for an unblock or count; the queen from K-Q-10-9 asks
    for an unblock of the jack.
 
 
 Signals
- • Standard attitude on partner’s lead; upside-down count when count is requested.
- • Suit preference when the situation is clearly not attitude or count: a high card asks for the higher-
+ ○ Standard attitude on partner’s lead; upside-down count when count is requested.
+ ○ Suit preference when the situation is clearly not attitude or count: a high card asks for the higher-
    ranking suit, a low card for the lower.
 
 
@@ -351,89 +351,89 @@ Signals
 System Notes                                                                               Woolsey
 
 
- • Trump echo shows the ability to ruff.
+ ○ Trump echo shows the ability to ruff.
 
 
 Woolsey
- • Key: pen=penalty · nat=natural · pref=preference · GT=game try · T=trumps · OVC=overcaller ·
+ ○ Key: pen=penalty · nat=natural · pref=preference · GT=game try · T=trumps · OVC=overcaller ·
    WNT=weak NT · NS/JNS=(jump) new suit · LAW=Law raise · P/C=pass or correct · x=any suit · m/
    M=minor/major · 4cM=four-card major · NF/GF=nonforcing/game forcing · inv=invitational ·
    bal=balanced · RHO=right-hand opponent
- • vs 1NT, direct or balancing; vs WNT only DBL differs
- • DBL=4cM & 5+m / 6+m / strong 5+M / 19+ bal (15+ vs WNT)
-     ◦ Pass=pen, rare
-     ◦ 2C=P/C, 3+ both m
-        ▪ Pass=!C 1-suiter, or M & !C
-        ▪ 2D=!D 1-suiter, or M & !D
-           ▪ 2H=P/C, asks M
-        ▪ 2M=nat 5+M, strong
-        ▪ 2NT=19+ bal
-     ◦ 2D=3+ both M, asks M
-        ▪ Pass=!D 1-suiter
-        ▪ 2M=4cM
-           ▪ 2NT=GT, 4-4 fit
-           ▪ 3M=LAW
-        ▪ 2NT=19+ bal
-        ▪ 3C=!C 1-suiter
-     ◦ 2M, 3m=nat 6+, NF
-     ◦ 3M=nat, inv
-     ◦ 2NT=ask
-        ▪ 3m=nat, min
-        ▪ 3M=nat, max
-     ◦ RHO bids: DBL=pen · 2NT=asks m · Pass=else, OVC may reopen
-     ◦ vs WNT: DBL=pen 15+ · Pass=5+ or bal · pull=5+ suit, <5 · then systems on
- • 2C=both M, 5-4 (4-4 rare), Landy
-     ◦ Pass=6+!C
-     ◦ 2D=equal M, asks
-        ▪ 2M=longer/better
-     ◦ 2M=pref
-     ◦ 2NT=ask, inv+
-        ▪ 3C=!H better, max
-        ▪ 3D=!S better, max
-        ▪ 3M=longer M, min
-        ▪ 3NT=5-5, max
-     ◦ 3C=6+!C, NF
+ ○ vs 1NT, direct or balancing; vs WNT only DBL differs
+ ○ DBL=4cM & 5+m / 6+m / strong 5+M / 19+ bal (15+ vs WNT)
+    ● Pass=pen, rare
+    ● 2C=P/C, 3+ both m
+        □ Pass=!C 1-suiter, or M & !C
+        □ 2D=!D 1-suiter, or M & !D
+               ▪ 2H=P/C, asks M
+        □ 2M=nat 5+M, strong
+        □ 2NT=19+ bal
+    ● 2D=3+ both M, asks M
+        □ Pass=!D 1-suiter
+        □ 2M=4cM
+               ▪ 2NT=GT, 4-4 fit
+               ▪ 3M=LAW
+        □ 2NT=19+ bal
+        □ 3C=!C 1-suiter
+    ● 2M, 3m=nat 6+, NF
+    ● 3M=nat, inv
+    ● 2NT=ask
+        □ 3m=nat, min
+        □ 3M=nat, max
+    ● RHO bids: DBL=pen · 2NT=asks m · Pass=else, OVC may reopen
+    ● vs WNT: DBL=pen 15+ · Pass=5+ or bal · pull=5+ suit, <5 · then systems on
+ ○ 2C=both M, 5-4 (4-4 rare), Landy
+    ● Pass=6+!C
+    ● 2D=equal M, asks
+        □ 2M=longer/better
+    ● 2M=pref
+    ● 2NT=ask, inv+
+        □ 3C=!H better, max
+        □ 3D=!S better, max
+        □ 3M=longer M, min
+        □ 3NT=5-5, max
+    ● 3C=6+!C, NF
 
 
                                                  8/9
 System Notes                                                  Woolsey
 
 
-     ◦ 3M=preempt, 4+T
-     ◦ 4M=to play
- • 2D=6+M (good 5), Multi
-     ◦ Pass=6+!D
-     ◦ 2H=P/C: weak both M, or inv !S
-        ▪ Pass=!H
-        ▪ 2S=!S
-           ▪ Pass=signoff · 2NT=!S GT · 3S=preempt
-     ◦ 2S=P/C: inv !H
-        ▪ Pass=!S · 3H=!H min · else=!H max
-     ◦ 2NT=ask, as over 2C
-        ▪ 3C=6+!H max · 3D=6+!S max · 3M=6+M min
-     ◦ 3H=M preempt, P/C
-     ◦ 3S=!S game / !H inv, P/C
-     ◦ 4C=bid suit below M; advancer declares
-     ◦ 4D=bid M
-     ◦ 4M=nat, own 6+
- • 2M=5+M & 4+m, Cappelletti
-     ◦ Pass=to play
-     ◦ 2NT=asks m
-        ▪ 3m=nat
-           ▪ 3M=GT, 3+T · 4m=inv, 4+T
-     ◦ NS=nat 6+, NF · JNS=nat 7+, preempt
-     ◦ 3M=LAW, 3+T
-     ◦ 3NT, 4M=to play
- • 2NT=5-5 m, or strong 2-suiter
-     ◦ 3m=pref
-        ▪ NS by OVC=strong 2-suiter, GF
-     ◦ 3M=nat 6+, no fit
-     ◦ 4m=inv, 3+T
-     ◦ 3NT, 4M=to play
- • 3x=nat 6+, preempt · 3NT, 4M=to play · 4m=strong preempt
+    ● 3M=preempt, 4+T
+    ● 4M=to play
+ ○ 2D=6+M (good 5), Multi
+    ● Pass=6+!D
+    ● 2H=P/C: weak both M, or inv !S
+        □ Pass=!H
+        □ 2S=!S
+               ▪ Pass=signoff · 2NT=!S GT · 3S=preempt
+    ● 2S=P/C: inv !H
+        □ Pass=!S · 3H=!H min · else=!H max
+    ● 2NT=ask, as over 2C
+        □ 3C=6+!H max · 3D=6+!S max · 3M=6+M min
+    ● 3H=M preempt, P/C
+    ● 3S=!S game / !H inv, P/C
+    ● 4C=bid suit below M; advancer declares
+    ● 4D=bid M
+    ● 4M=nat, own 6+
+ ○ 2M=5+M & 4+m, Cappelletti
+    ● Pass=to play
+    ● 2NT=asks m
+        □ 3m=nat
+               ▪ 3M=GT, 3+T · 4m=inv, 4+T
+    ● NS=nat 6+, NF · JNS=nat 7+, preempt
+    ● 3M=LAW, 3+T
+    ● 3NT, 4M=to play
+ ○ 2NT=5-5 m, or strong 2-suiter
+    ● 3m=pref
+        □ NS by OVC=strong 2-suiter, GF
+    ● 3M=nat 6+, no fit
+    ● 4m=inv, 3+T
+    ● 3NT, 4M=to play
+ ○ 3x=nat 6+, preempt · 3NT, 4M=to play · 4m=strong preempt
 
 
 
 
-                                                9/9
+                                                    9/9
 

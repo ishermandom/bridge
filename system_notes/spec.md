@@ -95,6 +95,17 @@ wants something different.
   can be set up identically; the exact files are captured in `bridge-private`
   alongside its other fonts, in case an upstream copy vanishes or drifts. The
   public repo carries no font files.
+- **A marker per list depth, paired by round of the auction**
+  (`○ ● □ ▪ ◦ • △ ▲ ▽ ▼ ▷ ▶`): the two depths of one round share a shape, the
+  unfilled marker for the seat that calls first and the filled one for the seat
+  that answers, so a line's shape says which round it belongs to and its fill
+  says which seat. The ladder runs six rounds deep, past anything a real outline
+  reaches; a deeper list repeats the last marker, since CSS cannot count nesting
+  depth and the stylesheet's deepest selector matches everything below it. The
+  markers are explicit glyphs, checked against Source Sans 3's coverage, never
+  the disc/circle/square keywords: browsers draw the keywords as shapes while
+  WeasyPrint substitutes glyphs of its own choosing, and the two media would
+  drift apart.
 - **Screen**: a single column of readable measure that narrows with the
   viewport.
 - **Print**: US letter paper size; running document title and section title in

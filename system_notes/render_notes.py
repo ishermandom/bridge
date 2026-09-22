@@ -11,6 +11,7 @@ and its rationale live in `spec.md`.
 
 import argparse
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +32,18 @@ FILTERS = tuple(TOOL_DIRECTORY / 'filters' / name for name in ('metadata.lua',))
 # Hard-wrap width of the plain-text rendering: comfortable in any mail client or
 # terminal, with room for the deepest list indentation.
 PLAIN_TEXT_COLUMNS = 72
+
+# One list marker per nesting depth, the ladder notes.css gives `ul` levels;
+# pandoc's plain writer marks every level `-`, so the markers are rewritten
+# afterward. Twelve rungs — six rounds of the auction, a pair to each — cover
+# any outline worth reading; a thirteenth depth keeps the last marker rather
+# than starting over, matching the stylesheet, whose deepest selector applies to
+# everything below it too.
+LIST_MARKERS = ('○', '●', '□', '▪', '◦', '•', '△', '▲', '▽', '▼', '▷', '▶')
+
+# A plain-writer list marker opening any line: its indent (two spaces per level)
+# and the `-`.
+PLAIN_LIST_MARKER = re.compile(r'^(?P<indent>[ ]*)- ', flags=re.MULTILINE)
 
 # WeasyPrint parses media types only, so the stylesheet's phone-width media
 # query draws warnings on every render. That rule is screen-only, so they carry
@@ -146,10 +159,24 @@ def render_pdf(html: Path, output: Path) -> None:
     shutil.copyfile(unverified, output)
 
 
+def apply_list_markers(text: str) -> str:
+  """Give each list depth its marker from LIST_MARKERS."""
+
+  def marker_for(match: re.Match[str]) -> str:
+    indent = match['indent']
+    depth = min(len(indent) // 2, len(LIST_MARKERS) - 1)
+    return indent + LIST_MARKERS[depth] + ' '
+
+  return PLAIN_LIST_MARKER.sub(marker_for, text)
+
+
 def render_text(source: Path, output: Path) -> None:
   """Write the hard-wrapped plain-text rendering, for pasting into email."""
   run_pandoc(
     source, output, ['--to', 'plain', '--columns', str(PLAIN_TEXT_COLUMNS)]
+  )
+  output.write_text(
+    apply_list_markers(output.read_text(encoding='utf-8')), encoding='utf-8'
   )
 
 

@@ -15,3 +15,16 @@ Design decisions live in `spec.md`; this file tracks the work.
     sans-serif fallbacks. The prototype's per-font sample renderer
     (`bridge-private/scratch/system_notes_prototype/font_samples/`) is the
     starting point.
+
+---
+
+## Backlog
+
+- [ ] **Per-level list markers in the source** {#source-list-markers} — an
+      autoformatter giving each indentation depth its own list marker, so the
+      Markdown source reads like the rendered page.
+  - Note: Markdown has only three unordered markers (`-`, `*`, `+`), which
+    pandoc treats identically, so markers would cycle below three levels — and
+    prettier normalizes all three to `-` (verified with prettier 3.9), so the
+    repo's Markdown formatting hook would undo them; the formatter must exclude
+    these files or run after it.

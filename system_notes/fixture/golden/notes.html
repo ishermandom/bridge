@@ -15,8 +15,9 @@
 --accent: #0b57d0; 
 --rule: #d0d0d0; 
 }
+
 body {
-font-family: "IBM Plex Serif", serif;
+font-family: "IBM Plex Serif", "Source Sans 3", serif;
 color: var(--ink);
 line-height: 1.35;
 }
@@ -41,6 +42,7 @@ margin: 1em 0;
 padding: 0.4em 1em;
 border-left: 3px solid var(--rule);
 }
+
 ul, ol {
 
 padding-left: 1.3em;
@@ -48,6 +50,42 @@ margin: 0.25em 0;
 }
 li {
 margin: 0.12em 0;
+}
+ul {
+list-style-type: "○ ";
+}
+ul ul {
+list-style-type: "● ";
+}
+ul ul ul {
+list-style-type: "□ ";
+}
+ul ul ul ul {
+list-style-type: "▪ ";
+}
+ul ul ul ul ul {
+list-style-type: "◦ ";
+}
+ul ul ul ul ul ul {
+list-style-type: "• ";
+}
+ul ul ul ul ul ul ul {
+list-style-type: "△ ";
+}
+ul ul ul ul ul ul ul ul {
+list-style-type: "▲ ";
+}
+ul ul ul ul ul ul ul ul ul {
+list-style-type: "▽ ";
+}
+ul ul ul ul ul ul ul ul ul ul {
+list-style-type: "▼ ";
+}
+ul ul ul ul ul ul ul ul ul ul ul {
+list-style-type: "▷ ";
+}
+ul ul ul ul ul ul ul ul ul ul ul ul {
+list-style-type: "▶ ";
 }
 a {
 color: var(--accent);
@@ -75,7 +113,7 @@ padding-left: 1em;
 size: letter;
 margin: 0.6in 0.6in 0.75in;
 
-font: 8pt "IBM Plex Serif", serif;
+font: 8pt "IBM Plex Serif", "Source Sans 3", serif;
 color: #666;
 @top-left {
 content: string(doc-title);

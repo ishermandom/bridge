@@ -9,3 +9,4 @@ brew "pandoc" # Markdown to HTML and to plain text
 brew "pango" # the text layout engine WeasyPrint draws through
 brew "poppler" # pdftotext, which reads the PDF back for the goldens
 cask "font-ibm-plex-serif" # the body and heading face
+cask "font-source-sans-3" # the list-marker glyphs Plex Serif lacks

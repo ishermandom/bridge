@@ -14,8 +14,11 @@
   --rule: #d0d0d0; /* light gray */
 }
 
+/* Source Sans 3 stands second so a glyph Plex Serif lacks — the ○ and ▪ list
+   markers, for instance — falls back to a font we chose, never to whatever
+   fontconfig finds. */
 body {
-  font-family: "IBM Plex Serif", serif;
+  font-family: "IBM Plex Serif", "Source Sans 3", serif;
   color: var(--ink);
   line-height: 1.35;
 }
@@ -45,6 +48,12 @@ blockquote {
   border-left: 3px solid var(--rule);
 }
 
+/* Nested lists: the markers run in pairs of one shape, unfilled then filled, a
+   pair to each round of the auction — spec.md #appearance says why. CSS cannot
+   count nesting depth, so every depth needs a selector of its own; the ladder
+   runs twelve deep, six rounds, and its last rung also covers anything deeper.
+   Explicit glyphs rather than the disc/circle/square keywords, which the two
+   media draw differently. */
 ul, ol {
   /* Lists nest deeply in the notes, so each depth indents about half as far as
      a browser's default 2.5em (40px at the reader's default text size). */
@@ -53,6 +62,42 @@ ul, ol {
 }
 li {
   margin: 0.12em 0;
+}
+ul {
+  list-style-type: "○ ";
+}
+ul ul {
+  list-style-type: "● ";
+}
+ul ul ul {
+  list-style-type: "□ ";
+}
+ul ul ul ul {
+  list-style-type: "▪ ";
+}
+ul ul ul ul ul {
+  list-style-type: "◦ ";
+}
+ul ul ul ul ul ul {
+  list-style-type: "• ";
+}
+ul ul ul ul ul ul ul {
+  list-style-type: "△ ";
+}
+ul ul ul ul ul ul ul ul {
+  list-style-type: "▲ ";
+}
+ul ul ul ul ul ul ul ul ul {
+  list-style-type: "▽ ";
+}
+ul ul ul ul ul ul ul ul ul ul {
+  list-style-type: "▼ ";
+}
+ul ul ul ul ul ul ul ul ul ul ul {
+  list-style-type: "▷ ";
+}
+ul ul ul ul ul ul ul ul ul ul ul ul {
+  list-style-type: "▶ ";
 }
 
 a {
@@ -87,7 +132,7 @@ a {
     margin: 0.6in 0.6in 0.75in;
     /* The running header and footer are small and gray, so they recede behind
        the notes; the margin boxes below inherit that type from the page. */
-    font: 8pt "IBM Plex Serif", serif;
+    font: 8pt "IBM Plex Serif", "Source Sans 3", serif;
     color: #666;
     @top-left {
       content: string(doc-title);
