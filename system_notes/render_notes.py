@@ -29,12 +29,14 @@ TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 
-# Filter order matters: metadata checks the front matter first.
+# Filter order matters: metadata checks the front matter first; nowrap protects
+# the tokens bids left intact.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
     'metadata.lua',
     'bids.lua',
+    'nowrap.lua',
   )
 )
 

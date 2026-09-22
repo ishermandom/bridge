@@ -140,6 +140,8 @@ The Markdown is ordinary Pandoc Markdown plus a few conventions:
 - Bids are written plainly — `4S`, `2NT`, `3C` — and the renderer draws the suit
   symbol. Notrump is always `NT`; a bare `N` after a level fails the render.
 - `!S !H !D !C` ask for a suit symbol outside a bid, as in `a !H lead`.
+- Card-count ranges such as `15–17` and slashed shorthand such as `P/C` never
+  break across lines; other hyphenated and slashed words wrap normally.
 - The YAML block needs a `title`.
 
 After an intentional change to the rendering, run

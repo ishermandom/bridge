@@ -87,6 +87,12 @@ syntax the plain-text output must survive:
   an auction (`1S – 2C`). Each strain becomes a span; suits are colored
   four-color style. The plain-text rendering keeps bids exactly as typed and
   reduces `!H` to its letter — in email, the letters read better than symbols.
+- **Unbreakable tokens**: card-count ranges like `15–17` and slashed shorthand
+  like `P/C` are wrapped so they never break across a line. The author writes
+  them plainly; the filter recognizes digits–dash–digits, and a slashed word
+  holding a capital or a digit (so `and/or` stays prose). Whole auctions may
+  still break at a column edge; keeping them intact is deferred until a real
+  page shows a bad break.
 
 ## Appearance {#appearance}
 

@@ -348,7 +348,7 @@ Signals
 
 
                                                     7/9
-System Notes                                                                               Woolsey
+System Notes                                                                                Woolsey
 
 
  ○ Trump echo shows the ability to ruff.
@@ -356,8 +356,8 @@ Signals
 
 Woolsey
  ○ Key: pen=penalty · nat=natural · pref=preference · GT=game try · T=trumps · OVC=overcaller ·
-   WNT=weak NT · NS/JNS=(jump) new suit · LAW=Law raise · P/C=pass or correct · x=any suit · m/
-   M=minor/major · 4cM=four-card major · NF/GF=nonforcing/game forcing · inv=invitational ·
+   WNT=weak NT · NS/JNS=(jump) new suit · LAW=Law raise · P/C=pass or correct · x=any suit ·
+   m/M=minor/major · 4cM=four-card major · NF/GF=nonforcing/game forcing · inv=invitational ·
    bal=balanced · RHO=right-hand opponent
  ○ vs 1NT, direct or balancing; vs WNT only DBL differs
  ○ DBL=4cM & 5+m / 6+m / strong 5+M / 19+ bal (15+ vs WNT)

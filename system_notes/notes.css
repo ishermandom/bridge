@@ -99,6 +99,10 @@ em .suit {
   color: var(--club);
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 /* Nested lists: the markers run in pairs of one shape, unfilled then filled, a
    pair to each round of the auction — spec.md #appearance says why. CSS cannot
    count nesting depth, so every depth needs a selector of its own; the ladder

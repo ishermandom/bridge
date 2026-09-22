@@ -135,3 +135,21 @@ def test_plain_text_reduces_explicit_shorthand_to_its_letter() -> None:
 def test_missing_or_empty_title_fails_the_render(front_matter: str) -> None:
   stderr = failing_pandoc(f'---\n{front_matter}\n---\n\nBody.', 'metadata.lua')
   assert 'non-empty `title`' in stderr
+
+
+# --- nowrap ---
+
+
+# The first token's range is spelled with an en dash (U+2013), which nowrap.lua
+# matches with a pattern of its own. The escape keeps it from reading as the
+# plain hyphen in the token beside it.
+@pytest.mark.parametrize('token', ['15\u201317', '5-3-3-2', 'P/C', 'NS/JNS'])
+def test_notation_token_is_wrapped(token: str) -> None:
+  assert f'<span class="nowrap">{token}</span>' in pandoc(token, 'nowrap.lua')
+
+
+@pytest.mark.parametrize(
+  'word', ['four-card', 'lead-directing', 'and/or', 'opener/responder', 'plain']
+)
+def test_prose_is_left_breakable(word: str) -> None:
+  assert 'nowrap' not in pandoc(word, 'nowrap.lua')
