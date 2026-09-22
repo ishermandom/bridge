@@ -206,6 +206,8 @@ wants something different.
   - `column-span: all` is never used: with a spanning heading inside one
     document-wide column flow, WeasyPrint silently dropped everything after the
     first section in one render (12pt body; the exact trigger was not isolated).
+  - The section wrappers the packer keys on are raw markup rather than pandoc
+    divs; `sections.lua`'s header says why.
 
 ## Command line
 

@@ -214,3 +214,46 @@ def test_plain_text_keeps_shorthand_as_typed() -> None:
   assert pandoc('OM and 4cM', 'shorthand.lua', to='plain').strip() == (
     'OM and 4cM'
   )
+
+
+# --- sections ---
+
+DOCUMENT = """\
+# First {#first}
+
+Intro.
+
+## Nested {#nested}
+
+::: {.note}
+## Aside {#aside}
+
+Body.
+:::
+
+# Second {#second}
+
+More.
+"""
+
+
+def test_each_top_level_section_is_wrapped_whole() -> None:
+  html = pandoc(DOCUMENT, 'sections.lua')
+  assert html.count('<div class="sections">') == 1
+  assert html.count('<div class="section">') == 2
+  assert '<div class="section">\n<h1 id="first">First</h1>' in html
+  # 3, not 4: pandoc writes the author's .note div, which opens with a heading,
+  # as <section>, so only the three raw wrappers close with </div>.
+  assert html.count('</div>') == 3
+
+
+def test_nested_headings_and_author_divs_are_left_alone() -> None:
+  html = pandoc(DOCUMENT, 'sections.lua')
+  first_section = html.index('<div class="section">')
+  second_heading = html.index('<h1 id="second">')
+  assert first_section < html.index('<h2 id="nested">') < second_heading
+  assert 'class="note"' in html
+
+
+def test_plain_text_gets_no_wrappers() -> None:
+  assert '<div' not in pandoc(DOCUMENT, 'sections.lua', to='plain')
