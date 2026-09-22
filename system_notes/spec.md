@@ -190,6 +190,22 @@ wants something different.
   the page header, "page / total" in the footer; a page-numbered table of
   contents listing only the top-level sections; every cross-reference followed
   by its page number.
+- **A printed section is an atom.** {#section-packing} It renders whole on one
+  page where it fits, ideally within a single column. The two columns exist so
+  that short sections can sit side by side. A section taller than a column gets
+  a page of its own: its heading spans the page and its body flows in two
+  columns beneath, continuing onto further pages when even that page cannot hold
+  it. Once a page can take no more, its sections are rebalanced between the two
+  columns, so the two come out near the same height rather than filling the
+  first to the brim and leaving the second bare.
+  - CSS cannot express this fitting in any engine — no multicol does page-level
+    fitting of column-spanning atoms — and WeasyPrint additionally ignores break
+    properties on a multicol's children and pushes a fragmenting multicol
+    container to a fresh page. So the renderer packs sections itself, from a
+    measuring probe render; `print_layout.py` carries the mechanism.
+  - `column-span: all` is never used: with a spanning heading inside one
+    document-wide column flow, WeasyPrint silently dropped everything after the
+    first section in one render (12pt body; the exact trigger was not isolated).
 
 ## Command line
 
@@ -213,6 +229,8 @@ parse and does not need.
 
 - **Filter unit tests** run pandoc over small Markdown snippets with one filter
   at a time and assert the resulting HTML and plain text.
+- **Packer unit tests** drive `print_layout.py`'s packing on hand-built section
+  lists, with no render in the loop.
 - **Golden files** {#goldens} for the fixture, committed and diffed on every
   test run: the HTML, the plain text, and the PDF as extracted by
   `pdftotext -layout`. The PDF golden is text rather than bytes because the
@@ -248,10 +266,11 @@ test-only Python dependency.
 - `template.html` — a minimal skeleton replacing pandoc's default, so none of
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
+- `print_layout.py` — the section packer (#section-packing records why).
 - `pdf_inspection.py` — the PDF readouts the renderer and the tests share:
   embedded fonts, bookmark pages, extracted text.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its
   expected renderings.
-- `filters_test.py`, `render_notes_test.py` — the tests above, beside the code
-  they cover per the repo's `*_test.py` convention; `update_goldens.py`
-  refreshes the goldens.
+- `filters_test.py`, `print_layout_test.py`, `render_notes_test.py` — the tests
+  above, beside the code they cover per the repo's `*_test.py` convention;
+  `update_goldens.py` refreshes the goldens.
