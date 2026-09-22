@@ -2,17 +2,25 @@
 # SPDX-License-Identifier: MIT
 """Read back what a rendered PDF contains.
 
-Verifying a render asks two things of the finished file: what text landed on
-each page, and which fonts it embedded. poppler's `pdftotext` reads the text,
-and its `-layout` mode keeps column order and running headers, so the result can
-serve as a golden. `pdffonts` lists the fonts, and that list is where a silent
+Verifying a render asks three things of the finished file: what text landed on
+each page, which page each heading is on, and which fonts it embedded. poppler's
+`pdftotext` reads the text, and its `-layout` mode keeps column order and
+running headers, so the result can serve as a golden. The PDF's outline — the
+bookmarks WeasyPrint writes for every heading — gives each heading its page,
+read through pypdf. `pdffonts` lists the fonts, and that list is where a silent
 fallback to an unintended face shows itself.
 """
 
 import re
 import subprocess
-from collections.abc import Sequence, Set
+from collections.abc import Mapping, Sequence, Set
 from pathlib import Path
+
+from pypdf import PdfReader
+from pypdf.generic import Destination
+
+# A PDF outline nests: a heading's subsections follow it as a sequence.
+type Outline = Sequence[Destination | Outline]
 
 # WeasyPrint names an embedded font `Family-Style`, and one face can carry
 # several styles: a bold italic arrives as `-Bold-Italic`. Strip the suffix and
@@ -30,6 +38,37 @@ def _run_poppler(command: Sequence[str]) -> str:
 def extract_text(pdf: Path) -> str:
   """Return the PDF's text, laid out as on the page (`pdftotext -layout`)."""
   return _run_poppler(['pdftotext', '-layout', str(pdf), '-'])
+
+
+def heading_pages(pdf: Path) -> Mapping[str, int]:
+  """Map each heading's text to its 1-based page, from the PDF's bookmarks.
+
+  Keyed by title, because a cross-reference cites a title rather than a number.
+  Two headings sharing one would collide in the map, so the second raises rather
+  than overwriting the first. That constraint is this map's, not the renderer's,
+  which is content with duplicate titles: only the fixture, whose pages this
+  reads in the page-reference test, has to avoid them.
+  """
+  reader = PdfReader(str(pdf))
+  pages: dict[str, int] = {}
+
+  def visit(entries: Outline) -> None:
+    for entry in entries:
+      if not isinstance(entry, Destination):
+        visit(entry)
+      elif entry.title is not None:
+        page_index = reader.get_destination_page_number(entry)
+        if page_index is None:
+          raise ValueError(f'bookmark {entry.title!r} in {pdf} has no page')
+        if entry.title in pages:
+          raise ValueError(
+            f'bookmark title {entry.title!r} appears twice in {pdf}; the '
+            "unnumbered titles are this map's keys, so they must be unique"
+          )
+        pages[entry.title] = page_index + 1
+
+  visit(reader.outline)
+  return pages
 
 
 def embedded_font_families(pdf: Path) -> Set[str]:

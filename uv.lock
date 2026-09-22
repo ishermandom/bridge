@@ -1700,6 +1700,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pypdf" },
     { name = "weasyprint-stubs" },
 ]
 types = [
@@ -1710,7 +1711,10 @@ types = [
 requires-dist = [{ name = "weasyprint", specifier = ">=69" }]
 
 [package.metadata.requires-dev]
-dev = [{ name = "weasyprint-stubs", editable = "stubs/weasyprint" }]
+dev = [
+    { name = "pypdf" },
+    { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
+]
 types = [{ name = "weasyprint-stubs", editable = "stubs/weasyprint" }]
 
 [[package]]

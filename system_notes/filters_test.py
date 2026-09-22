@@ -137,6 +137,39 @@ def test_missing_or_empty_title_fails_the_render(front_matter: str) -> None:
   assert 'non-empty `title`' in stderr
 
 
+# --- headings ---
+
+
+def test_empty_link_is_filled_with_the_section_title() -> None:
+  html = pandoc('# Openings {#openings}\n\nSee [](#openings).', 'headings.lua')
+  assert '<a href="#openings" class="xref">Openings</a>' in html
+
+
+def test_link_with_its_own_text_keeps_it_and_is_still_a_reference() -> None:
+  html = pandoc('# Stayman {#stayman}\n\n[the relay](#stayman)', 'headings.lua')
+  assert '<a href="#stayman" class="xref">the relay</a>' in html
+
+
+@pytest.mark.parametrize('link', ['[](#missing)', '[see](#missing)'])
+def test_unknown_target_fails_the_render(link: str) -> None:
+  stderr = failing_pandoc(f'# A {{#a}}\n\n{link}', 'headings.lua')
+  assert 'unknown cross-reference target: #missing' in stderr
+
+
+@pytest.mark.parametrize(
+  'document', ['## B {#b}\n\n# A {#a}', '# A {#a}\n\n### C {#c}']
+)
+def test_skipped_heading_level_fails_the_render(document: str) -> None:
+  assert 'levels must not skip' in failing_pandoc(document, 'headings.lua')
+
+
+def test_copied_titles_drop_links_and_footnotes() -> None:
+  document = '# A [B](#b)^[note] {#a}\n\n# B {#b}\n\n[](#a)'
+  html = pandoc(document, 'headings.lua')
+  assert '<a href="#a" class="xref">A B</a>' in html
+  assert html.count('class="footnote-ref"') == 1
+
+
 # --- nowrap ---
 
 

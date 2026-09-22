@@ -12,6 +12,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  # The tests read heading pages from the PDF's bookmarks through pypdf; the
+  # renderer itself does not need it.
+  "pypdf",
   # The type stubs below install with the dev tools.
   { include-group = "types" },
 ]

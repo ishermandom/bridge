@@ -62,7 +62,8 @@ font-style: normal;
 font-weight: normal;
 }
 
-em .suit {
+em .suit,
+a.xref .suit {
 transform: skewX(-14deg);
 }
 .spade {
@@ -129,6 +130,11 @@ a {
 color: var(--accent);
 text-decoration: none;
 }
+
+a.xref {
+white-space: nowrap;
+font-style: italic;
+}
 @media screen {
 body {
 
@@ -178,6 +184,9 @@ break-after: avoid;
 h2, h3 {
 break-after: avoid;
 }
+a.xref::after {
+content: " (p. " target-counter(attr(href), page) ")";
+}
 }
 </style>
 </head>
@@ -196,20 +205,21 @@ conventions. No human has reviewed or verified any of it.</p>
 <h1 id="general">General approach</h1>
 <ul>
 <li>Five-card majors, <span class="nowrap">2/1</span> game forcing (see
-<a href="#two-over-one"></a>), <span class="nowrap">15–17</span> <span class="bid">1<span class="strain notrump">NT</span></span>.</li>
+<a href="#two-over-one" class="xref">Two-over-one</a>), <span class="nowrap">15–17</span> <span class="bid">1<span class="strain notrump">NT</span></span>.</li>
 <li>Better minor with <span class="nowrap">3–3</span> and <span class="nowrap">4–4</span> in the minors; <span class="bid">1<span class="strain suit diamond">♦</span></span> with <span class="nowrap">4–5.</span></li>
 <li>Opening style
 <ul>
 <li>First and second seat: rule of 20, with a sound suit or two quick
 tricks.</li>
 <li>Third seat: any hand worth a lead-directing bid; responder keeps the
-auction low with Drury (see <a href="#drury"></a>).</li>
+auction low with Drury (see <a href="#drury" class="xref">Drury</a>).</li>
 <li>Fourth seat: rule of 15 — high-card points plus spades.</li>
 </ul></li>
 <li>Weak twos in <span class="strain suit diamond">♦</span>, <span class="strain suit heart">♥</span>, and <span class="strain suit spade">♠</span>: <span class="nowrap">6–10</span>
 high-card points, a six-card suit, no outside four-card major in first
 or second seat.</li>
-<li>Strong, artificial <span class="bid">2<span class="strain suit club">♣</span></span> — see <a href="#strong-two-clubs"></a>.</li>
+<li>Strong, artificial <span class="bid">2<span class="strain suit club">♣</span></span> — see <a href="#strong-two-clubs" class="xref">The strong <span class="bid">2<span class="strain suit club">♣</span></span>
+opening</a>.</li>
 </ul>
 <h1 id="notrump">Notrump openings</h1>
 <h2 id="one-notrump">The <span class="bid">1<span class="strain notrump">NT</span></span> opening</h2>
@@ -226,7 +236,8 @@ acceptable at the bottom of the range; treat 17 with a singleton as a
 suit opening.</li>
 </ul></li>
 <li>A <span class="bid">2<span class="strain suit club">♣</span></span>
-response is <a href="#stayman">Stayman</a>; <span class="bid">2<span class="strain suit diamond">♦</span></span> and <span class="bid">2<span class="strain suit heart">♥</span></span> are <a href="#jacoby-transfers">Jacoby transfers</a>; <span class="bid">2<span class="strain suit spade">♠</span></span> is a minor-suit relay (<a href="#minor-suit-transfers"></a>).</li>
+response is <a href="#stayman" class="xref">Stayman</a>; <span class="bid">2<span class="strain suit diamond">♦</span></span> and <span class="bid">2<span class="strain suit heart">♥</span></span> are <a href="#jacoby-transfers" class="xref">Jacoby transfers</a>; <span class="bid">2<span class="strain suit spade">♠</span></span> is a
+minor-suit relay (<a href="#minor-suit-transfers" class="xref">Minor-suit transfers</a>).</li>
 </ul>
 <h2 id="stayman">Stayman</h2>
 <ul>
@@ -244,7 +255,7 @@ five cards in the bid major and four in the other, invitational. Opener
 passes, raises, or corrects to the other major.</li>
 <li><span class="bid">3<span class="strain suit heart">♥</span></span>
 or <span class="bid">3<span class="strain suit spade">♠</span></span>:
-Smolen — see <a href="#smolen"></a>.</li>
+Smolen — see <a href="#smolen" class="xref">Smolen</a>.</li>
 <li><span class="bid">2<span class="strain notrump">NT</span></span>:
 invitational, shows a four-card major (a direct <span class="bid">2<span class="strain notrump">NT</span></span> would deny one).</li>
 <li><span class="bid">3<span class="strain suit club">♣</span></span> or
@@ -267,7 +278,7 @@ Opener with four spades corrects to <span class="bid">3<span class="strain suit 
 <li><span class="bid">3<span class="strain suit heart">♥</span></span>:
 invitational raise.</li>
 <li><span class="bid">3<span class="strain suit spade">♠</span></span>:
-slam try in hearts with a spade splinter; see <a href="#control-bids"></a> for the continuations.</li>
+slam try in hearts with a spade splinter; see <a href="#control-bids" class="xref">Control bids</a> for the continuations.</li>
 <li><span class="bid">4<span class="strain suit heart">♥</span></span>:
 to play.</li>
 </ul></li>
@@ -291,8 +302,7 @@ bids.</li>
 <span class="bid">4<span class="strain suit heart">♥</span></span>:
 control bid, accepting the try.
 <ul>
-<li>Responder continues with <span class="bid">4<span class="strain notrump">NT</span></span> (see <a href="#rkcb"></a>) or
-bids the cheapest control.</li>
+<li>Responder continues with <span class="bid">4<span class="strain notrump">NT</span></span> (see <a href="#rkcb" class="xref">Roman key card 1430</a>) or bids the cheapest control.</li>
 <li>Responder signs off in <span class="bid">4<span class="strain suit spade">♠</span></span> with nothing further to
 show.</li>
 </ul></li>
@@ -376,7 +386,8 @@ stopper.</li>
 <li>A jump in the fourth suit is a splinter.</li>
 </ul></li>
 <li>Four of the major: to play, six cards, no slam interest. With slam
-interest, use <a href="#texas-transfers">Texas</a> then <span class="bid">4<span class="strain notrump">NT</span></span>.</li>
+interest, use <a href="#texas-transfers" class="xref">Texas</a> then
+<span class="bid">4<span class="strain notrump">NT</span></span>.</li>
 </ul></li>
 </ul>
 <h2 id="texas-transfers">Texas transfers</h2>
@@ -386,7 +397,9 @@ interest, use <a href="#texas-transfers">Texas</a> then <span class="bid">4<span
 shows six or more hearts; <span class="bid">1<span class="strain notrump">NT</span></span> – <span class="bid">4<span class="strain suit heart">♥</span></span> shows six or more spades.
 Opener always completes.</li>
 <li>Texas then <span class="bid">4<span class="strain notrump">NT</span></span> is Roman key card for the major
-(<a href="#rkcb"></a>); Jacoby then <span class="bid">4<span class="strain notrump">NT</span></span> is quantitative.</li>
+(<a href="#rkcb" class="xref">Roman key card 1430</a>); Jacoby then
+<span class="bid">4<span class="strain notrump">NT</span></span> is
+quantitative.</li>
 </ul>
 <h2 id="minor-suit-transfers">Minor-suit transfers</h2>
 <ul>
@@ -430,13 +443,15 @@ shows one.</li>
 <li>Over a double, redouble shows any 10 or more points; all bids are to
 play.</li>
 <li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> overcall of our suit opening,
-see <a href="#versus-notrump"></a>.</li>
+see <a href="#versus-notrump" class="xref">Versus their
+notrump</a>.</li>
 </ul>
 <h2 id="two-notrump">The <span class="bid">2<span class="strain notrump">NT</span></span> opening</h2>
 <ul>
 <li><span class="nowrap">20–21</span> balanced. <span class="bid">3<span class="strain suit club">♣</span></span> is Stayman, <span class="bid">3<span class="strain suit diamond">♦</span></span> and <span class="bid">3<span class="strain suit heart">♥</span></span> are
 transfers, <span class="bid">3<span class="strain suit spade">♠</span></span> is a minor-suit relay, <span class="bid">4<span class="strain suit diamond">♦</span></span> and <span class="bid">4<span class="strain suit heart">♥</span></span> are Texas.
-The same structures apply after a <span class="bid">2<span class="strain suit club">♣</span></span> opening and a <span class="bid">2<span class="strain notrump">NT</span></span> rebid (<a href="#strong-two-clubs"></a>).</li>
+The same structures apply after a <span class="bid">2<span class="strain suit club">♣</span></span> opening and a <span class="bid">2<span class="strain notrump">NT</span></span> rebid (<a href="#strong-two-clubs" class="xref">The strong <span class="bid">2<span class="strain suit club">♣</span></span>
+opening</a>).</li>
 </ul>
 <h1 id="majors">Major-suit openings</h1>
 <h2 id="major-responses">Responses to one of a major</h2>
@@ -444,12 +459,13 @@ The same structures apply after a <span class="bid">2<span class="strain suit cl
 <li>Single raise: <span class="nowrap">6–9</span> points, three-card
 support.</li>
 <li><span class="bid">1<span class="strain notrump">NT</span></span>:
-forcing for one round (<a href="#forcing-notrump"></a>).</li>
-<li>Two of a new suit: game forcing (<a href="#two-over-one"></a>).</li>
+forcing for one round (<a href="#forcing-notrump" class="xref">The
+forcing <span class="bid">1<span class="strain notrump">NT</span></span></a>).</li>
+<li>Two of a new suit: game forcing (<a href="#two-over-one" class="xref">Two-over-one</a>).</li>
 <li><span class="bid">2<span class="strain notrump">NT</span></span>:
-Jacoby (<a href="#jacoby-2nt"></a>).</li>
-<li>Three of a minor, or three of the other major: Bergen (<a href="#bergen"></a>).</li>
-<li>Double jump in a new suit: splinter (<a href="#splinters"></a>).</li>
+Jacoby (<a href="#jacoby-2nt" class="xref">Jacoby <span class="bid">2<span class="strain notrump">NT</span></span></a>).</li>
+<li>Three of a minor, or three of the other major: Bergen (<a href="#bergen" class="xref">Bergen raises</a>).</li>
+<li>Double jump in a new suit: splinter (<a href="#splinters" class="xref">Splinters</a>).</li>
 <li><span class="bid">1<span class="strain suit heart">♥</span></span> –
 <span class="bid">1<span class="strain suit spade">♠</span></span>: four
 or more spades, 6 or more points, forcing.</li>
@@ -496,7 +512,7 @@ and a reverse shows shape without extra values.</li>
 <span class="bid">2<span class="strain notrump">NT</span></span> shows a
 balanced minimum with stoppers.</li>
 <li><strong>Slow arrival</strong>: bidding game directly shows a
-minimum; taking a slower route shows slam interest (<a href="#control-bids"></a>).</li>
+minimum; taking a slower route shows slam interest (<a href="#control-bids" class="xref">Control bids</a>).</li>
 </ul>
 <h2 id="jacoby-2nt">Jacoby <span class="bid">2<span class="strain notrump">NT</span></span></h2>
 <ul>
@@ -510,7 +526,7 @@ balanced minimum.</li>
 <li>A new suit at the four level: a good five-card side suit.</li>
 <li>Four of the major: minimum, no shortness.</li>
 </ul></li>
-<li>Responder continues with control bids or <span class="bid">4<span class="strain notrump">NT</span></span> (<a href="#rkcb"></a>).</li>
+<li>Responder continues with control bids or <span class="bid">4<span class="strain notrump">NT</span></span> (<a href="#rkcb" class="xref">Roman key card 1430</a>).</li>
 </ul>
 <h2 id="bergen">Bergen raises</h2>
 <ul>
@@ -562,7 +578,7 @@ is waiting; <span class="bid">2<span class="strain suit heart">♥</span></span>
 a very bad hand.</li>
 <li><span class="bid">2<span class="strain suit club">♣</span></span> –
 <span class="bid">2<span class="strain suit diamond">♦</span></span> –
-<span class="bid">2<span class="strain notrump">NT</span></span>: <span class="nowrap">22–24,</span> with the <span class="bid">2<span class="strain notrump">NT</span></span> structure (<a href="#two-notrump"></a>).</li>
+<span class="bid">2<span class="strain notrump">NT</span></span>: <span class="nowrap">22–24,</span> with the <span class="bid">2<span class="strain notrump">NT</span></span> structure (<a href="#two-notrump" class="xref">The <span class="bid">2<span class="strain notrump">NT</span></span> opening</a>).</li>
 </ul>
 <h1 id="competitive">Competitive bidding</h1>
 <h2 id="overcalls">Overcalls</h2>
@@ -609,7 +625,7 @@ support. A direct raise promises four.</li>
 <h2 id="versus-notrump">Versus their notrump</h2>
 <ul>
 <li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> opening, strong or weak: Woolsey
-— see <a href="#woolsey"></a>.</li>
+— see <a href="#woolsey" class="xref">Woolsey</a>.</li>
 <li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> overcall of our opening, double
 is penalty; all suit bids are to play, and a cue bid is a game-forcing
 raise.</li>

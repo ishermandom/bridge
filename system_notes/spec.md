@@ -95,6 +95,18 @@ syntax the plain-text output must survive:
   filter looks for it. Ordinary capitals ending in `M` (`BAM`) and the lowercase
   minor placeholder `m` stay plain; the filter's header carries the exact
   grammar. The plain-text rendering keeps shorthand exactly as typed.
+- **Cross-references**: a link to a heading — `[Stayman](#stayman)` — is classed
+  `xref` and set in italic, the way prose marks a term of art; print CSS appends
+  "(p. N)" to every one, since a reference on paper is worth nothing without the
+  page. Sections are unnumbered — the notes are read by section name, and a
+  number would only add noise — so a reference cites the name rather than a
+  number. Left empty, as `[](#stayman)`, a link takes the section's title for
+  its text, which saves keeping a second copy of the title in step with the
+  heading; the author who wants a shorter name writes it out instead. On paper
+  the link keeps its color, which marks the text as pointing elsewhere even
+  where it cannot be followed. An unknown target is a hard error, so a typo
+  cannot ship as a dead link. Which links deserve a page number is unsettled —
+  `tasks.md` #numbered-references.
 - **Unbreakable tokens**: card-count ranges like `15–17` and slashed shorthand
   like `P/C` are wrapped so they never break across a line. The author writes
   them plainly; the filter recognizes digits–dash–digits, and a slashed word
@@ -169,9 +181,10 @@ wants something different.
   hyphen, and tabular digits in prose spread shape notation like `5-3-3-2`
   apart.
 - **Screen**: a single column of readable measure that narrows with the
-  viewport.
+  viewport; cross-references as links.
 - **Print**: US letter paper size; running document title and section title in
-  the page header, "page / total" in the footer.
+  the page header, "page / total" in the footer; every cross-reference followed
+  by its page number.
 
 ## Command line
 
@@ -184,11 +197,12 @@ is published is undecided and not needed soon.
 
 Pandoc runs with `--fail-if-warnings`, so a duplicate heading id or similar
 authoring slip stops the render rather than producing a subtly wrong document;
-the filters add their own hard errors for a missing title. WeasyPrint gets the
-same treatment for the same reason: it warns about a stylesheet it cannot parse
-or a layout it cannot honor, then lays the page out anyway, so its warnings fail
-the render too. One is exempt — the phone-width screen media query, which it
-cannot parse and does not need.
+the filters add their own hard errors for a missing title, a skipped heading
+level, and a link to a heading that does not exist. WeasyPrint gets the same
+treatment for the same reason: it warns about a stylesheet it cannot parse or a
+layout it cannot honor, then lays the page out anyway, so its warnings fail the
+render too. One is exempt — the phone-width screen media query, which it cannot
+parse and does not need.
 
 ## Testing
 
@@ -209,10 +223,16 @@ cannot parse and does not need.
   Georgia for a single character. On a machine without the fonts the render
   fails loudly rather than writing a plausible wrong golden, which is what an
   eventual CI run needs.
+- **A page-reference test** enumerates the cross-references from the rendered
+  HTML and checks each one's printed "(p. N)" against the page its heading
+  actually lands on, read from the PDF's bookmarks — WeasyPrint writes one per
+  heading, with the exact page. The golden shows a page number is unchanged;
+  this shows it is correct.
 
 The tests need every program and font the tool itself needs, since they render
 the fixture for real. `Brewfile` lists them, each with what it is for, and the
-README gives the install command.
+README gives the install command. pypdf, which reads the bookmarks, is a
+test-only Python dependency.
 
 ## Module shape
 
@@ -224,7 +244,7 @@ README gives the install command.
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
 - `pdf_inspection.py` — the PDF readouts the renderer and the tests share:
-  embedded fonts, extracted text.
+  embedded fonts, bookmark pages, extracted text.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its
   expected renderings.
 - `filters_test.py`, `render_notes_test.py` — the tests above, beside the code

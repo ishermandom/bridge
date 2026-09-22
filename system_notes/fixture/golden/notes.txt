@@ -5,17 +5,17 @@
 
 General approach
 
-○ Five-card majors, 2/1 game forcing (see ), 15–17 1NT.
+○ Five-card majors, 2/1 game forcing (see Two-over-one), 15–17 1NT.
 ○ Better minor with 3–3 and 4–4 in the minors; 1D with 4–5.
 ○ Opening style
   ● First and second seat: rule of 20, with a sound suit or two quick
     tricks.
   ● Third seat: any hand worth a lead-directing bid; responder keeps the
-    auction low with Drury (see ).
+    auction low with Drury (see Drury).
   ● Fourth seat: rule of 15 — high-card points plus spades.
 ○ Weak twos in D, H, and S: 6–10 high-card points, a six-card suit, no
   outside four-card major in first or second seat.
-○ Strong, artificial 2C — see .
+○ Strong, artificial 2C — see The strong 2C opening.
 
 Notrump openings
 
@@ -27,7 +27,7 @@ The 1NT opening
   ● Singleton honor with 5-4-3-1 is acceptable at the bottom of the
     range; treat 17 with a singleton as a suit opening.
 ○ A 2C response is Stayman; 2D and 2H are Jacoby transfers; 2S is a
-  minor-suit relay ().
+  minor-suit relay (Minor-suit transfers).
 
 Stayman
 
@@ -38,7 +38,7 @@ Stayman
     □ 2H or 2S: five cards in the bid major and four in the other,
       invitational. Opener passes, raises, or corrects to the other
       major.
-    □ 3H or 3S: Smolen — see .
+    □ 3H or 3S: Smolen — see Smolen.
     □ 2NT: invitational, shows a four-card major (a direct 2NT would
       deny one).
     □ 3C or 3D: game forcing with a four-card major and five or more
@@ -51,8 +51,8 @@ Stayman
     □ 2NT or 3NT: invitational or to play, denies four hearts, so
       implies four spades. Opener with four spades corrects to 3S or 4S.
     □ 3H: invitational raise.
-    □ 3S: slam try in hearts with a spade splinter; see for the
-      continuations.
+    □ 3S: slam try in hearts with a spade splinter; see Control bids for
+      the continuations.
     □ 4H: to play.
   ● 2S: four spades, denies four hearts.
     □ 2NT or 3NT: invitational or to play.
@@ -62,8 +62,8 @@ Stayman
       ▪ 3S: minimum, no slam interest. Responder may still continue with
         4C, 4D, or 4H as control bids.
       ▪ 4C, 4D, 4H: control bid, accepting the try.
-        ◦ Responder continues with 4NT (see ) or bids the cheapest
-          control.
+        ◦ Responder continues with 4NT (see Roman key card 1430) or bids
+          the cheapest control.
         ◦ Responder signs off in 4S with nothing further to show.
       ▪ 4S: maximum but no side-suit control worth showing.
     □ 4S: to play.
@@ -118,8 +118,8 @@ Texas transfers
 
 ○ 1NT – 4D shows six or more hearts; 1NT – 4H shows six or more spades.
   Opener always completes.
-○ Texas then 4NT is Roman key card for the major (); Jacoby then 4NT is
-  quantitative.
+○ Texas then 4NT is Roman key card for the major (Roman key card 1430);
+  Jacoby then 4NT is quantitative.
 
 Minor-suit transfers
 
@@ -144,24 +144,24 @@ Interference over 1NT
   ● Double is negative through 2S and penalty above that.
 ○ Over a double, redouble shows any 10 or more points; all bids are to
   play.
-○ Over their 1NT overcall of our suit opening, see .
+○ Over their 1NT overcall of our suit opening, see Versus their notrump.
 
 The 2NT opening
 
 ○ 20–21 balanced. 3C is Stayman, 3D and 3H are transfers, 3S is a
   minor-suit relay, 4D and 4H are Texas. The same structures apply after
-  a 2C opening and a 2NT rebid ().
+  a 2C opening and a 2NT rebid (The strong 2C opening).
 
 Major-suit openings
 
 Responses to one of a major
 
 ○ Single raise: 6–9 points, three-card support.
-○ 1NT: forcing for one round ().
-○ Two of a new suit: game forcing ().
-○ 2NT: Jacoby ().
-○ Three of a minor, or three of the other major: Bergen ().
-○ Double jump in a new suit: splinter ().
+○ 1NT: forcing for one round (The forcing 1NT).
+○ Two of a new suit: game forcing (Two-over-one).
+○ 2NT: Jacoby (Jacoby 2NT).
+○ Three of a minor, or three of the other major: Bergen (Bergen raises).
+○ Double jump in a new suit: splinter (Splinters).
 ○ 1H – 1S: four or more spades, 6 or more points, forcing.
 
 The forcing 1NT
@@ -193,7 +193,7 @@ Two-over-one
 ○ Support for responder’s suit at the three level is a genuine raise;
   2NT shows a balanced minimum with stoppers.
 ○ Slow arrival: bidding game directly shows a minimum; taking a slower
-  route shows slam interest ().
+  route shows slam interest (Control bids).
 
 Jacoby 2NT
 
@@ -203,7 +203,7 @@ Jacoby 2NT
   ● 3NT: a balanced minimum.
   ● A new suit at the four level: a good five-card side suit.
   ● Four of the major: minimum, no shortness.
-○ Responder continues with control bids or 4NT ().
+○ Responder continues with control bids or 4NT (Roman key card 1430).
 
 Bergen raises
 
@@ -246,7 +246,7 @@ The strong 2C opening
 
 ○ 2C: 22 or more balanced, or any hand with nine or more playing tricks.
 ○ 2D is waiting; 2H is a double negative, showing a very bad hand.
-○ 2C – 2D – 2NT: 22–24, with the 2NT structure ().
+○ 2C – 2D – 2NT: 22–24, with the 2NT structure (The 2NT opening).
 
 Competitive bidding
 
@@ -285,7 +285,7 @@ Support doubles
 
 Versus their notrump
 
-○ Over their 1NT opening, strong or weak: Woolsey — see .
+○ Over their 1NT opening, strong or weak: Woolsey — see Woolsey.
 ○ Over their 1NT overcall of our opening, double is penalty; all suit
   bids are to play, and a cue bid is a game-forcing raise.
 

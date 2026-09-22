@@ -1,7 +1,8 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""The fixture rendered end to end: goldens and embedded fonts."""
+"""The fixture rendered end to end: goldens, embedded fonts, page references."""
 
+import html
 import re
 import shutil
 import struct
@@ -14,6 +15,37 @@ from system_notes import pdf_inspection, render_notes
 
 FIXTURE = Path(__file__).resolve().parent / 'fixture'
 GOLDEN_DIRECTORY = FIXTURE / 'golden'
+
+# A cross-reference link in the rendered HTML: its target id and its text, which
+# may hold strain spans. The class list may carry author classes beside `xref`;
+# DOTALL because pandoc wraps long link text across lines.
+CROSS_REFERENCE_LINK = re.compile(
+  r'<a href="#(?P<target>[^"]+)" class="(?:[^"]* )?xref(?: [^"]*)?">'
+  r'(?P<text>.*?)</a>',
+  re.DOTALL,
+)
+# Any tag carrying the xref class, for checking the regex above misses none.
+XREF_CLASS = re.compile(r'class="[^"]*\bxref\b[^"]*"')
+# A heading in the rendered HTML, by id and title. A reference's text is the
+# author's own words, so its page has to be looked up through the heading it
+# targets; the bookmarks that carry pages are keyed by title, and this joins the
+# two.
+HEADING = re.compile(
+  r'<h(?P<level>[123]) id="(?P<id>[^"]+)"[^>]*>(?P<title>.*?)</h(?P=level)>',
+  re.DOTALL,
+)
+HTML_TAG = re.compile(r'<[^>]+>')
+WHITESPACE = re.compile(r'\s+')
+
+
+def stripped_text(markup: str) -> str:
+  """The visible text of a markup fragment, with every space removed.
+
+  A reference may wrap across lines, and `pdftotext` sets a space beside the
+  inline-block suit symbols, so neither side of a comparison can keep its
+  spacing.
+  """
+  return WHITESPACE.sub('', html.unescape(HTML_TAG.sub('', markup)))
 
 
 @pytest.fixture(scope='module')
@@ -200,3 +232,74 @@ def test_text_marker_ladder_tracks_the_stylesheet() -> None:
     r'list-style-type: "(.) ";', read(render_notes.STYLESHEET)
   )
   assert tuple(markers) == render_notes.LIST_MARKERS
+
+
+# --- page references ---
+
+
+def _heading_pages_by_stripped_key(pdf: Path) -> dict[str, int]:
+  """Each heading's printed page, keyed by its title with spacing removed.
+
+  WeasyPrint writes one PDF bookmark per heading, carrying the page. Dropping
+  the spacing lets a title that wrapped in the PDF match the HTML's.
+  """
+  pages: dict[str, int] = {}
+  for title, page in pdf_inspection.heading_pages(pdf).items():
+    key = WHITESPACE.sub('', title)
+    # Two distinct titles must not meet at one key, or a reference could be
+    # checked against the wrong heading's page.
+    assert key not in pages, f'titles collide when stripped: {title!r}'
+    pages[key] = page
+  return pages
+
+
+def _reference_targets(document: str) -> dict[str, str]:
+  """Each cross-reference's printed text, by the heading id it points at."""
+  links = list(CROSS_REFERENCE_LINK.finditer(document))
+  assert links, 'the fixture should contain cross-references'
+  assert len(links) == len(XREF_CLASS.findall(document)), (
+    'some cross-reference eluded CROSS_REFERENCE_LINK'
+  )
+  targets: dict[str, str] = {}
+  for link in links:
+    text = stripped_text(link['text'])
+    # A reference is found in the PDF by its text alone, so one wording must not
+    # lead to two headings, whose pages would differ.
+    assert targets.setdefault(text, link['target']) == link['target'], (
+      f'reference {text!r} points at two headings'
+    )
+  return targets
+
+
+def test_every_printed_page_reference_is_correct(
+  rendered: render_notes.RenderedNotes,
+) -> None:
+  """Each cross-reference's "(p. N)" names the page of the heading it targets.
+
+  The references are enumerated from the HTML, so every one is checked. A
+  reference's text is the author's own words, so the heading comes from the
+  link's target id, and the page from that heading's PDF bookmark.
+  """
+  document = read(rendered.html)
+  heading_pages = _heading_pages_by_stripped_key(rendered.pdf)
+  titles = {
+    heading['id']: stripped_text(heading['title'])
+    for heading in HEADING.finditer(document)
+  }
+  targets = _reference_targets(document)
+  pdf_text = WHITESPACE.sub('', pdf_inspection.extract_text(rendered.pdf))
+
+  # Longest first, each consumed once checked: a short reference can appear as
+  # the tail of a longer one ('Stayman' inside 'Garbage Stayman'), so a checked
+  # one must not match again.
+  for text in sorted(targets, key=len, reverse=True):
+    title = titles[targets[text]]
+    assert title in heading_pages, f'no bookmark for heading {title!r}'
+    reference = re.compile(re.escape(text) + r'\(p\.(\d+)\)')
+    printed_pages = reference.findall(pdf_text)
+    assert printed_pages, f'reference {text!r} is not printed with a page'
+    assert {int(page) for page in printed_pages} == {heading_pages[title]}, (
+      f'{text!r} is printed with pages {printed_pages} but {title!r} is on '
+      f'page {heading_pages[title]}'
+    )
+    pdf_text = reference.sub('', pdf_text)

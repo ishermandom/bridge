@@ -3,7 +3,8 @@
 
 /* One stylesheet, two media: the screen rules give a single readable column
    that adapts to the viewport; the print rules lay the notes out on US letter
-   paper. Typeface and layout decisions are recorded in spec.md #appearance. */
+   paper, and append a page number to each cross-reference. Typeface and layout
+   decisions are recorded in spec.md #appearance. */
 
 /* Units: em for spacing next to text, so it scales with that text; rem for the
    screen page box, tied to the reader's default text size; px for borders and
@@ -83,7 +84,8 @@ blockquote {
    symbols — italic fonts keep symbols upright — so a skew at Plex Serif
    Italic's 14° angle supplies the slant. The angle must track the body font:
    test_suit_skew_tracks_the_body_font_italic_angle fails when they part. */
-em .suit {
+em .suit,
+a.xref .suit {
   transform: skewX(-14deg);
 }
 .spade {
@@ -159,6 +161,12 @@ a {
   color: var(--accent);
   text-decoration: none;
 }
+/* A cross-reference points at something the notes define elsewhere, so it reads
+   in italic, the way prose marks a term of art. */
+a.xref {
+  white-space: nowrap;
+  font-style: italic;
+}
 
 @media screen {
   body {
@@ -206,7 +214,6 @@ a {
     font-size: 11pt;
     margin: 0;
   }
-
   .title {
     string-set: doc-title content();
     margin-top: 0;
@@ -217,5 +224,9 @@ a {
   }
   h2, h3 {
     break-after: avoid;
+  }
+
+  a.xref::after {
+    content: " (p. " target-counter(attr(href), page) ")";
   }
 }

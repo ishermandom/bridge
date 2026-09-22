@@ -29,9 +29,15 @@ TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 
-# Filter order matters: metadata checks the front matter first; nowrap protects
-# the tokens bids left intact, and must see them whole before shorthand splits a
-# `Q3M/Q4M` at each bolded placeholder.
+# Filter order matters. Each filter below works on what the ones before it leave
+# behind, and three constraints fix the order they run in:
+#
+# - `metadata.lua` runs first, so a document missing its title fails before
+#   anything has rewritten it.
+# - `nowrap.lua` runs before `shorthand.lua`, because it has to see a token
+#   whole, and shorthand splits one such as `Q3M/Q4M` at its bolded placeholder.
+# - `headings.lua` runs last, because it copies titles into cross-references,
+#   and every copy should carry the spans the filters above it put there.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
@@ -39,6 +45,7 @@ FILTERS = tuple(
     'bids.lua',
     'nowrap.lua',
     'shorthand.lua',
+    'headings.lua',
   )
 )
 

@@ -115,9 +115,9 @@ Regenerate that file after any dependency change:
 
 Renders a partnership's system notes — a long, deeply nested bidding and carding
 agreement written in Pandoc Markdown — into three outputs from one source: a
-self-contained HTML page for the screen, a US-letter PDF, and a hard-wrapped
-plain-text rendering for pasting into email. See `system_notes/spec.md` for the
-design.
+self-contained HTML page for the screen, a US-letter PDF whose cross-references
+carry page numbers, and a hard-wrapped plain-text rendering for pasting into
+email. See `system_notes/spec.md` for the design.
 
 The notes themselves are partnership agreements and live in the private
 companion repository; only the renderer and an AI-drafted sample document
@@ -144,9 +144,15 @@ The Markdown is ordinary Pandoc Markdown plus a few conventions:
   `4cM` — gets that `M` bolded automatically; ordinary words (`IMP`, `BAM`) and
   the minor's lowercase `m` stay plain. Write compounds apart, as `4cM & 5+m`,
   so each one ends its own word.
+- A link to a heading id — `[Stayman](#stayman)` — carries that heading's page
+  number in print, as "Stayman (p. 4)". Left empty, `[](#stayman)` takes the
+  heading's own title for its text. Give headings explicit ids
+  (`## Stayman {#stayman}`) so references survive retitling.
 - Card-count ranges such as `15–17` and slashed shorthand such as `P/C` never
   break across lines; other hyphenated and slashed words wrap normally.
-- The YAML block needs a `title`.
+- The YAML block needs a `title`. Heading levels must not skip (no `###`
+  directly under a `#`), and every internal link must point at a heading that
+  exists.
 
 After an intentional change to the rendering, run
 `uv run --project . python -m system_notes.update_goldens` and review the golden
