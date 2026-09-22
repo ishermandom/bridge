@@ -69,10 +69,23 @@ blockquote {
      only 0.62em of it stands beside a Plex digit's 0.70em. 1.15 levels the two
      tops; the extra descent falls inside the line's own descender space. */
   font-size: 1.15em;
+  /* An inline-block so the italic-context skew below can apply: transforms do
+     not reach plain inline boxes. Its own line box must then stay inside the
+     body's leading — at the inherited 1.35 the enlarged face stretches every
+     line holding a suit. */
+  display: inline-block;
+  line-height: 1;
   font-style: normal;
   font-weight: normal;
 }
 
+/* Inside italic text a suit leans with the letters. No face draws italic suit
+   symbols — italic fonts keep symbols upright — so a skew at Plex Serif
+   Italic's 14° angle supplies the slant. The angle must track the body font:
+   test_suit_skew_tracks_the_body_font_italic_angle fails when they part. */
+em .suit {
+  transform: skewX(-14deg);
+}
 .spade {
   color: var(--spade);
 }

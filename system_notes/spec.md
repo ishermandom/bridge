@@ -109,10 +109,12 @@ wants something different.
   them to fallback means accepting whatever fontconfig finds. They are colored
   four-color style — spade black, heart red, diamond orange, club green — and
   set slightly larger than the text so the glyphs match the digits they follow,
-  at regular weight (the stylesheet carries the why). The face is STIX Two Math,
-  chosen over the prototype's Source Sans 3 and other verified carriers (Noto
-  Sans Symbols 2, Overpass, DejaVu Sans) by glyph measurement and an 11pt
-  specimen: its four suits are uniformly wider than Source Sans 3's
+  at regular weight (the stylesheet carries the why). Inside italic text a suit
+  leans with the letters, through an explicit skew the stylesheet owns; a
+  coupling test holds the angle to the installed body italic's. The face is STIX
+  Two Math, chosen over the prototype's Source Sans 3 and other verified
+  carriers (Noto Sans Symbols 2, Overpass, DejaVu Sans) by glyph measurement and
+  an 11pt specimen: its four suits are uniformly wider than Source Sans 3's
   tall-and-narrow set at the same height, where the others improved only some
   suits, ran small, or carried wide side bearings. It also ships with macOS and
   pairs naturally with serif text.

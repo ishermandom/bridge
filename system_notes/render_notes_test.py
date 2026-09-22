@@ -4,6 +4,8 @@
 
 import re
 import shutil
+import struct
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -120,6 +122,71 @@ def test_a_font_fallback_fails_the_render(tmp_path: Path) -> None:
   )
   with pytest.raises(RuntimeError, match='outside'):
     render_notes.render(source)
+
+
+def _italic_angle(font: Path) -> float:
+  """The italic angle, in degrees, from the font's `post` table.
+
+  A hand parse rather than a font library: the font file's sfnt layout is frozen
+  — a `uint16` table count at offset 4, then 16-byte records of tag, checksum,
+  offset, and length from offset 12 — and the angle sits at offset 4 of the
+  `post` table as a signed 16.16 fixed-point number.
+  """
+  data = font.read_bytes()
+  if data[:4] == b'ttcf':
+    raise ValueError(
+      f'{font} is a TrueType Collection; this parse reads single-font files'
+    )
+  (table_count,) = struct.unpack_from('>H', data, 4)
+  for index in range(table_count):
+    tag, _, offset, _ = struct.unpack_from('>4sIII', data, 12 + 16 * index)
+    if tag == b'post':
+      (angle,) = struct.unpack_from('>i', data, offset + 4)
+      return float(angle) / 65536
+  raise ValueError(f'{font} has no post table')
+
+
+def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
+  """Changing the body font must carry the suit skew along with it.
+
+  Suit symbols lean inside italic text through an explicit `skewX` angle in the
+  stylesheet, chosen to match the body font's italic angle. A future body face
+  (`tasks.md` #serif-alternatives) ships an angle of its own, so this test reads
+  both and fails until the stylesheet follows.
+  """
+  stylesheet = read(render_notes.STYLESHEET)
+  body_rule = re.search(r'body \{(?P<declarations>[^}]*)\}', stylesheet)
+  assert body_rule, 'no body rule in the stylesheet'
+  family = re.search(
+    r'font-family: "(?P<family>[^"]+)"', body_rule['declarations']
+  )
+  assert family, 'no quoted font family in the body rule'
+  skew = re.search(
+    r'\.suit \{\s*transform: skewX\((?P<degrees>-?[0-9.]+)deg\)', stylesheet
+  )
+  assert skew, 'no suit skew in the stylesheet'
+
+  matched_font = subprocess.run(
+    ['fc-match', '-f', '%{family}\t%{file}', f'{family["family"]}:italic'],
+    capture_output=True,
+    text=True,
+    encoding='utf-8',
+    check=True,
+  ).stdout
+  matched_family, _, font_file = matched_font.partition('\t')
+  # A font can carry several family names; fc-match then reports them
+  # comma-joined.
+  assert family['family'] in matched_family.split(','), (
+    f'no installed italic for the body font: fontconfig offered '
+    f'{matched_family!r}'
+  )
+
+  angle = _italic_angle(Path(font_file))
+  # The tolerance lets the stylesheet round the angle to a whole degree.
+  assert abs(float(skew['degrees']) - angle) <= 0.75, (
+    f'the stylesheet skews suits {skew["degrees"]}° but '
+    f'{matched_family} Italic leans at {angle:.2f}°'
+  )
 
 
 # --- stylesheet coupling ---

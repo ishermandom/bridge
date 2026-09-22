@@ -15,6 +15,10 @@ Design decisions live in `spec.md`; this file tracks the work.
     sans-serif fallbacks. The prototype's per-font sample renderer
     (`bridge-private/scratch/system_notes_prototype/font_samples/`) is the
     starting point.
+  - Note: a new body face means a new italic angle, and the suit skew in
+    `notes.css` must follow — enforced by
+    `test_suit_skew_tracks_the_body_font_italic_angle`, which fails until the
+    stylesheet matches the installed italic.
 
 ---
 

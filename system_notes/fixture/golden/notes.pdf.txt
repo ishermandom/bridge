@@ -44,6 +44,7 @@ Stayman
           or corrects to the other major.
         □ 3♥ or 3♠: Smolen — see .
         □ 2NT: invitational, shows a four-card major (a direct 2NT would deny one).
+        □ 3♣ or 3♦: game forcing with a four-card major and five or more cards in the bid minor.
 
 
 
@@ -51,7 +52,6 @@ Stayman
 System Notes                                                                               Notrump openings
 
 
-        □ 3♣ or 3♦: game forcing with a four-card major and five or more cards in the bid minor.
         □ 3NT: to play, showing a four-card major that opener could not match.
         □ Pass: garbage Stayman with diamond length.
     ● 2♥: four hearts, possibly four spades as well.
@@ -92,7 +92,9 @@ Smolen
  ○ With 5-5 in the majors, use a transfer to spades and then bid hearts; Smolen is never 5-5.
 
 
-                                                        2/9
+
+
+                                                       2/9
 System Notes                                                                                 Notrump openings
 
 
@@ -139,13 +141,13 @@ Interference over 1NT
    continues with a slow, stopper-showing sequence.
     ● Fast denies, slow shows: a direct 3NT denies a stopper in their suit, and 2NT then 3NT shows one.
     ● Double is negative through 2♠ and penalty above that.
+ ○ Over a double, redouble shows any 10 or more points; all bids are to play.
 
 
                                                     3/9
 System Notes                                                                           Major-suit openings
 
 
- ○ Over a double, redouble shows any 10 or more points; all bids are to play.
  ○ Over their 1NT overcall of our suit opening, see .
 
 
@@ -187,16 +189,15 @@ Two-over-one
     ● Responder’s rebid of the same suit shows six.
  ○ Opener’s rebids are natural; a jump shows extras and a good suit, and a reverse shows shape
    without extra values.
-
-
-
-
-                                                  4/9
-System Notes                                                                             Minor-suit openings
-
-
  ○ Support for responder’s suit at the three level is a genuine raise; 2NT shows a balanced minimum
    with stoppers.
+
+
+
+                                                   4/9
+System Notes                                                                           Minor-suit openings
+
+
  ○ Slow arrival: bidding game directly shows a minimum; taking a slower route shows slam interest
    ().
 
@@ -239,16 +240,14 @@ Inverted minors
    minimum and an unbalanced hand.
 
 
+Walsh responses
+ ○ Over 1♣, bypass a four-card or five-card diamond suit with a four-card major and less than game
+   values. Bidding 1♦ and then a major shows five diamonds and game-going values.
 
 
                                                      5/9
 System Notes                                                                                  The strong 2♣ opening
 
-
-
-Walsh responses
- ○ Over 1♣, bypass a four-card or five-card diamond suit with a four-card major and less than game
-   values. Bidding 1♦ and then a major shows five diamonds and game-going values.
 
 
 The strong 2♣ opening
@@ -289,17 +288,17 @@ Support doubles
    or redouble shows exactly three-card support. A direct raise promises four.
 
 
+Versus their notrump
+ ○ Over their 1NT opening, strong or weak: Woolsey — see .
+ ○ Over their 1NT overcall of our opening, double is penalty; all suit bids are to play, and a cue bid is a
+   game-forcing raise.
+
+
 
 
                                                     6/9
 System Notes                                                                                      Slam bidding
 
-
-
-Versus their notrump
- ○ Over their 1NT opening, strong or weak: Woolsey — see .
- ○ Over their 1NT overcall of our opening, double is penalty; all suit bids are to play, and a cue bid is a
-   game-forcing raise.
 
 
 Slam bidding
@@ -341,15 +340,17 @@ Opening leads
    for an unblock of the jack.
 
 
-                                                    7/9
-System Notes                                                                                       Woolsey
-
-
-
 Signals
  ○ Standard attitude on partner’s lead; upside-down count when count is requested.
  ○ Suit preference when the situation is clearly not attitude or count: a high card asks for the higher-
    ranking suit, a low card for the lower.
+
+
+
+                                                    7/9
+System Notes                                                                               Woolsey
+
+
  ○ Trump echo shows the ability to ruff.
 
 
@@ -386,18 +387,18 @@ Woolsey
     ● 2♦=equal M, asks
         □ 2M=longer/better
     ● 2M=pref
-
-
-                                                   8/9
-System Notes                                                  Woolsey
-
-
     ● 2NT=ask, inv+
         □ 3♣=♥ better, max
         □ 3♦=♠ better, max
         □ 3M=longer M, min
         □ 3NT=5-5, max
     ● 3♣=6+♣, NF
+
+
+                                                 8/9
+System Notes                                                  Woolsey
+
+
     ● 3M=preempt, 4+T
     ● 4M=to play
  ○ 2♦=6+M (good 5), Multi
@@ -430,6 +431,7 @@ Woolsey
     ● 4m=inv, 3+T
     ● 3NT, 4M=to play
  ○ 3x=nat 6+, preempt · 3NT, 4M=to play · 4m=strong preempt
+
 
 
 
