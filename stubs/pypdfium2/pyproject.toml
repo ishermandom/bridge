@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 [project]
-# Named after the import directory it ships, the way stub distributions from
-# outside typeshed are named (pandas-stubs, lxml-stubs): the typing spec's
-# "Distributing type information" chapter keeps `types-*` for typeshed's own.
+# Named for its import directory: see ../README.md #naming.
 name = "pypdfium2-stubs"
 version = "0.1.0"
 description = "Minimal local type stubs for the pypdfium2 API this repo uses."
@@ -15,8 +13,8 @@ requires = ["uv_build>=0.12"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-# Type checkers resolve the stubs only under the exact `<package>-stubs`
-# spelling — the naming requirement in the same spec chapter.
+# Type checkers resolve stubs only under this exact name — see
+# ../README.md #naming.
 module-name = "pypdfium2-stubs"
 # The stub directory sits beside this file rather than under `src/`.
 module-root = ""

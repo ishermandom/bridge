@@ -12,6 +12,15 @@ dependency group as editable local path dependencies, so `uv sync` installs each
 one as a pointer to its directory here, and an edited stub takes effect on the
 next type check.
 
+## Naming {#naming}
+
+Each package is named for the import directory it ships, the way stub
+distributions from outside typeshed are named (pandas-stubs, lxml-stubs): the
+typing spec's "Distributing type information" chapter keeps `types-*` for
+typeshed's own. The same chapter fixes the directory's spelling — type checkers
+resolve stubs only under an exact `<package>-stubs`, matching the import name's
+case, so fontTools' stubs live in `fontTools-stubs`.
+
 ## Build backend {#build-backend}
 
 Type checkers follow an editable install only when it is a plain path entry, so

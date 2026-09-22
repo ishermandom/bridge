@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 [project]
-# Named for its import directory, like the pypdfium2 distribution beside it —
-# see ../pypdfium2/pyproject.toml for the naming rationale.
+# Named for its import directory: see ../README.md #naming.
 name = "fonttools-stubs"
 version = "0.1.0"
 description = "Minimal local type stubs for the fontTools API this repo uses."
@@ -14,9 +13,9 @@ requires = ["uv_build>=0.12"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-# The `<package>-stubs` spelling — matching the import name's case, so
-# `fontTools`, not the distribution's lowercase — is what lets type checkers
-# resolve the stubs.
+# Type checkers resolve stubs only under this exact name, which follows the
+# import's case — `fontTools`, not the distribution's lowercase. See
+# ../README.md #naming.
 module-name = "fontTools-stubs"
 # The stub directory sits beside this file rather than under `src/`.
 module-root = ""
