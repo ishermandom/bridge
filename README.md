@@ -130,6 +130,10 @@ Prerequisites beyond `uv`: `pandoc`. Render, from the repo root, with
 which writes `notes.html` and `notes.txt` beside the input — the text ready for
 email.
 
+The Markdown is ordinary Pandoc Markdown plus a few conventions:
+
+- The YAML block needs a `title`.
+
 After an intentional change to the rendering, run
 `uv run --project . python -m system_notes.update_goldens` and review the golden
 diff.

@@ -19,6 +19,9 @@ TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 
+# Filter order matters: metadata checks the front matter first.
+FILTERS = tuple(TOOL_DIRECTORY / 'filters' / name for name in ('metadata.lua',))
+
 # Hard-wrap width of the plain-text rendering: comfortable in any mail client or
 # terminal, with room for the deepest list indentation.
 PLAIN_TEXT_COLUMNS = 72
@@ -35,12 +38,14 @@ class RenderedNotes:
 def run_pandoc(
   source: Path, output: Path, format_arguments: Sequence[str]
 ) -> None:
-  """Run pandoc over `source`, writing `output`.
+  """Run pandoc over `source` with every filter, writing `output`.
 
   `--fail-if-warnings` turns authoring slips such as a duplicate heading id into
   a failed render rather than a subtly wrong document.
   """
   command = ['pandoc', str(source), '--fail-if-warnings']
+  for filter_path in FILTERS:
+    command.extend(['--lua-filter', str(filter_path)])
   command.extend(format_arguments)
   command.extend(['--output', str(output)])
   try:

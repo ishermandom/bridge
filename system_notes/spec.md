@@ -93,10 +93,13 @@ self-contained HTML can be published anywhere later. Where it is published is
 undecided and not needed soon.
 
 Pandoc runs with `--fail-if-warnings`, so a duplicate heading id or similar
-authoring slip stops the render rather than producing a subtly wrong document.
+authoring slip stops the render rather than producing a subtly wrong document;
+the filters add their own hard errors for a missing title.
 
 ## Testing
 
+- **Filter unit tests** run pandoc over small Markdown snippets with one filter
+  at a time and assert the resulting HTML and plain text.
 - **Golden files** for the fixture, committed and diffed on every test run: the
   HTML and the plain text.
 
@@ -106,10 +109,13 @@ documents it.
 ## Module shape
 
 - `render_notes.py` — the command line; runs pandoc twice, as a command.
+- `filters/` — one Lua filter to a job: a check, a notation rule, or a
+  structural rewrite.
 - `template.html` — a minimal skeleton replacing pandoc's default, so none of
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its
   expected renderings.
-- `render_notes_test.py` — the tests above, beside the code they cover per the
-  repo's `*_test.py` convention; `update_goldens.py` refreshes the goldens.
+- `filters_test.py`, `render_notes_test.py` — the tests above, beside the code
+  they cover per the repo's `*_test.py` convention; `update_goldens.py`
+  refreshes the goldens.

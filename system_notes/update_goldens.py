@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: MIT
 """Re-render the fixture and overwrite its golden files.
 
-Run after an intentional change to the template, stylesheet, or fixture, then
-review the golden diff before committing: the diff *is* the record of what the
-change did to the rendering. `render_notes_test.py` compares against these
-files.
+Run after an intentional change to the filters, template, stylesheet, or
+fixture, then review the golden diff before committing: the diff *is* the record
+of what the change did to the rendering. `render_notes_test.py` compares against
+these files.
 """
 
 import shutil
