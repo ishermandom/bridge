@@ -37,7 +37,7 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 # - `nowrap.lua` runs before `shorthand.lua`, because it has to see a token
 #   whole, and shorthand splits one such as `Q3M/Q4M` at its bolded placeholder.
 # - `headings.lua` runs last, because it copies titles into cross-references,
-#   and every copy should carry the spans the filters above it put there.
+#   and every copy should carry the spans the earlier filters put there.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
@@ -144,6 +144,12 @@ def render_html(source: Path, output: Path) -> None:
       str(TEMPLATE),
       '--css',
       str(STYLESHEET),
+      # The table of contents fills the template's `$toc$`, listing top-level
+      # sections only: subheadings would crowd it. `render_text` passes neither
+      # flag, and no template either, so the email text carries no table of
+      # contents.
+      '--toc',
+      '--toc-depth=1',
     ],
   )
 

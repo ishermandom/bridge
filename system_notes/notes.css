@@ -168,6 +168,17 @@ a.xref {
   font-style: italic;
 }
 
+/* The table of contents reads as a plain column of titles, so its entries carry
+   no markers and no indent. Each entry fills its own line, giving the page
+   number floated beside it in print a line to sit on. */
+#TOC ul {
+  list-style: none;
+  padding-left: 0;
+}
+#TOC a {
+  display: block;
+}
+
 @media screen {
   body {
     /* Cap the line at a readable length and center the column; the side padding
@@ -175,6 +186,15 @@ a.xref {
     max-width: 44rem;
     margin: 2rem auto;
     padding: 0 1.2rem;
+  }
+  #TOC {
+    background: #f5f5f3; /* off-white */
+    border-radius: 6px;
+    padding: 0.6em 1em;
+  }
+  /* The tinted panel would otherwise open with the h2's full top margin. */
+  #toc-title {
+    margin-top: 0.2em;
   }
 }
 
@@ -224,6 +244,17 @@ a.xref {
   }
   h2, h3 {
     break-after: avoid;
+  }
+
+  /* No tinted panel on paper; a margin below sets the contents list off from
+     what follows it. */
+  #TOC {
+    margin-bottom: 1em;
+  }
+  #TOC a::after {
+    content: target-counter(attr(href), page);
+    float: right;
+    padding-left: 0.6em;
   }
 
   a.xref::after {

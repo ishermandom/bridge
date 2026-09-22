@@ -181,9 +181,10 @@ wants something different.
   hyphen, and tabular digits in prose spread shape notation like `5-3-3-2`
   apart.
 - **Screen**: a single column of readable measure that narrows with the
-  viewport; cross-references as links.
+  viewport; the table of contents at the top; cross-references as links.
 - **Print**: US letter paper size; running document title and section title in
-  the page header, "page / total" in the footer; every cross-reference followed
+  the page header, "page / total" in the footer; a page-numbered table of
+  contents listing only the top-level sections; every cross-reference followed
   by its page number.
 
 ## Command line

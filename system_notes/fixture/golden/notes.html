@@ -135,12 +135,29 @@ a.xref {
 white-space: nowrap;
 font-style: italic;
 }
+
+#TOC ul {
+list-style: none;
+padding-left: 0;
+}
+#TOC a {
+display: block;
+}
 @media screen {
 body {
 
 max-width: 44rem;
 margin: 2rem auto;
 padding: 0 1.2rem;
+}
+#TOC {
+background: #f5f5f3; 
+border-radius: 6px;
+padding: 0.6em 1em;
+}
+
+#toc-title {
+margin-top: 0.2em;
 }
 }
 
@@ -184,6 +201,15 @@ break-after: avoid;
 h2, h3 {
 break-after: avoid;
 }
+
+#TOC {
+margin-bottom: 1em;
+}
+#TOC a::after {
+content: target-counter(attr(href), page);
+float: right;
+padding-left: 0.6em;
+}
 a.xref::after {
 content: " (p. " target-counter(attr(href), page) ")";
 }
@@ -196,6 +222,23 @@ content: " (p. " target-counter(attr(href), page) ")";
 <p class="date"><span class="nowrap">2026-08-26</span></p>
 </header>
 <main>
+<section id="TOC">
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#general" id="toc-general">General approach</a></li>
+<li><a href="#notrump" id="toc-notrump">Notrump openings</a></li>
+<li><a href="#majors" id="toc-majors">Major-suit openings</a></li>
+<li><a href="#minors" id="toc-minors">Minor-suit openings</a></li>
+<li><a href="#strong-two-clubs" id="toc-strong-two-clubs">The strong
+<span class="bid">2<span class="strain suit club">♣</span></span>
+opening</a></li>
+<li><a href="#competitive" id="toc-competitive">Competitive
+bidding</a></li>
+<li><a href="#slam" id="toc-slam">Slam bidding</a></li>
+<li><a href="#carding" id="toc-carding">Defensive carding</a></li>
+<li><a href="#woolsey" id="toc-woolsey">Woolsey</a></li>
+</ul>
+</section>
 <blockquote>
 <p><strong>This is AI-drafted sample content, not a real partnership
 agreement.</strong> It was written to exercise the renderer — nesting,

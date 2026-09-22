@@ -6,7 +6,13 @@ Design decisions live in `spec.md`; this file tracks the work.
 
 ## Typography
 
-**Goal:** settle the open serif choice before the stylesheet hardens.
+**Goal:** settle how the notes look before the stylesheet hardens.
+
+- Open question {#page-numbers}: does the "(p. N)" after each cross-reference
+  stay? Ilya deferred the call (2026-09-07), having seen only the HTML then; the
+  PDF now shows what it looks like. The numbers down the table of contents are
+  not in question — a printed table of contents with no page numbers has nothing
+  to point with — and section headings carry no numbers of their own either way.
 
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
