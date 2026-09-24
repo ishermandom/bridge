@@ -538,8 +538,8 @@ record waits for review, and what becomes of a scan that raises.
       "the latest Opus" rather than a specific release. {#latest-opus-model}
   - Worktree: latest-opus-model
 - [ ] Ingest the latest scoresheet, settling it with the user in chat.
-  - Note: waits for `#latest-opus-model` to land, so the new model reads this
-    sheet.
+  - Note: depends on #latest-opus-model landing first, so the new model reads
+    this sheet.
   - Note: run the whole path first — ingest, the traveller fetch, and
     reconciliation.
   - Note: while the review UI (`#review-ui`) has not landed, raise any detail
