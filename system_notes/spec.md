@@ -164,16 +164,19 @@ wants something different.
   and are told apart by underline and weight. The notes nest too deeply for each
   level to claim a size of its own.
 - **A marker per list depth, paired by round of the auction**
-  (`○ ● □ ▪ ◦ • △ ▲ ▽ ▼ ▷ ▶`): the two depths of one round share a shape, the
+  (`○ ● □ ■ △ ▲ ▷ ▶ ▽ ▼ ◦ •`): the two depths of one round share a shape, the
   unfilled marker for the seat that calls first and the filled one for the seat
   that answers, so a line's shape says which round it belongs to and its fill
-  says which seat. The ladder runs six rounds deep, past anything a real outline
-  reaches; a deeper list repeats the last marker, since CSS cannot count nesting
-  depth and the stylesheet's deepest selector matches everything below it. The
-  markers are explicit glyphs, checked against Source Sans 3's coverage, never
-  the disc/circle/square keywords: browsers draw the keywords as shapes while
-  WeasyPrint substitutes glyphs of its own choosing, and the two media would
-  drift apart.
+  says which seat. The full-size shapes take the first five rounds and the two
+  small bullets close the ladder, so markers lose prominence only past the
+  depths real outlines use; the right-pointing pair sits between the upward and
+  downward pairs, keeping those mirror images apart. The ladder runs six rounds
+  deep, past anything a real outline reaches; a deeper list repeats the last
+  marker, since CSS cannot count nesting depth and the stylesheet's deepest
+  selector matches everything below it. The markers are explicit glyphs, checked
+  against Source Sans 3's coverage, never the disc/circle/square keywords:
+  browsers draw the keywords as shapes while WeasyPrint substitutes glyphs of
+  its own choosing, and the two media would drift apart.
 - **Suit bids align on their own; notrump does not.** Plex's digits are tabular
   by default and STIX's four suits share one advance width, so every suit bid
   comes out the same width with no styling at all, and a run of list items

@@ -64,7 +64,7 @@ PLAIN_TEXT_COLUMNS = 72
 # any outline worth reading; a thirteenth depth keeps the last marker rather
 # than starting over, matching the stylesheet, whose deepest selector applies to
 # everything below it too.
-LIST_MARKERS = ('○', '●', '□', '▪', '◦', '•', '△', '▲', '▽', '▼', '▷', '▶')
+LIST_MARKERS = ('○', '●', '□', '■', '△', '▲', '▷', '▶', '▽', '▼', '◦', '•')
 
 # A plain-writer list marker opening any line: its indent (two spaces per level)
 # and the `-`.

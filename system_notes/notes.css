@@ -24,7 +24,7 @@
   --rule: #d0d0d0; /* light gray */
 }
 
-/* Source Sans 3 stands second so a glyph Plex Serif lacks — the ○ and ▪ list
+/* Source Sans 3 stands second so a glyph Plex Serif lacks — the ○ and ■ list
    markers, for instance — falls back to a font we chose, never to whatever
    fontconfig finds. */
 body {
@@ -167,19 +167,19 @@ ul ul ul {
   list-style-type: "□ ";
 }
 ul ul ul ul {
-  list-style-type: "▪ ";
+  list-style-type: "■ ";
 }
 ul ul ul ul ul {
-  list-style-type: "◦ ";
-}
-ul ul ul ul ul ul {
-  list-style-type: "• ";
-}
-ul ul ul ul ul ul ul {
   list-style-type: "△ ";
 }
-ul ul ul ul ul ul ul ul {
+ul ul ul ul ul ul {
   list-style-type: "▲ ";
+}
+ul ul ul ul ul ul ul {
+  list-style-type: "▷ ";
+}
+ul ul ul ul ul ul ul ul {
+  list-style-type: "▶ ";
 }
 ul ul ul ul ul ul ul ul ul {
   list-style-type: "▽ ";
@@ -188,10 +188,10 @@ ul ul ul ul ul ul ul ul ul ul {
   list-style-type: "▼ ";
 }
 ul ul ul ul ul ul ul ul ul ul ul {
-  list-style-type: "▷ ";
+  list-style-type: "◦ ";
 }
 ul ul ul ul ul ul ul ul ul ul ul ul {
-  list-style-type: "▶ ";
+  list-style-type: "• ";
 }
 
 a {

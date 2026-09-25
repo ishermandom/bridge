@@ -67,23 +67,23 @@ The 1NT opening                                                        corrects 
  ○ A 2♣ response is Stayman (p. 2); 2♦ and 2♥                          interest; opener control bids or signs
    are Jacoby transfers (p. 3); 2♠ is a minor-suit                     off.
    relay (Minor-suit transfers (p. 3)).
-                                                                        ▪ 3♠: minimum, no slam interest.
+                                                                        ■ 3♠: minimum, no slam interest.
 Stayman                                                                   Responder may still continue with
                                                                           4♣, 4♦, or 4♥ as control bids.
  ○ 1NT – 2♣ asks for a four-card major and
-                                                                        ▪ 4♣, 4♦, 4♥: control bid, accepting
+                                                                        ■ 4♣, 4♦, 4♥: control bid, accepting
    promises nothing: responder may be weak
                                                                           the try.
    with 4-4 in the majors and a short club, or
-   4-4-4-1 in any order except club length                                  ◦ Responder continues with 4NT
-   (garbage Stayman).                                                         (see Roman key card 1430 (p. 8)) or
-                                                                              bids the cheapest control.
+   4-4-4-1 in any order except club length                                 △ Responder continues with 4NT
+   (garbage Stayman).                                                        (see Roman key card 1430 (p. 8)) or
+                                                                             bids the cheapest control.
     ● 2♦: no four-card major.
-                                                                            ◦ Responder signs off in 4♠ with
+                                                                           △ Responder signs off in 4♠ with
         □ 2♥ or 2♠: five cards in the bid major
-                                                                              nothing further to show.
+                                                                             nothing further to show.
           and four in the other, invitational.
-          Opener passes, raises, or corrects to the                     ▪ 4♠: maximum but no side-suit
+          Opener passes, raises, or corrects to the                     ■ 4♠: maximum but no side-suit
           other major.                                                    control worth showing.
         □ 3♥ or 3♠: Smolen — see Smolen (p. 2).                      □ 4♠: to play.
         □ 2NT: invitational, shows a four-card                 ○ After a 2♦ reply to Stayman, 3NT still lets
@@ -124,11 +124,11 @@ Stayman                                                                   Respon
                                                                ○ 1NT – 4♦ shows six or more hearts; 1NT – 4♥
           try below game.
                                                                  shows six or more spades. Opener always
-               ▪ 4♥: no slam interest.
+           ■ 4♥: no slam interest.
                                                                  completes.
-               ▪ 4♠, 5♣, 5♦: control bid with slam
+           ■ 4♠, 5♣, 5♦: control bid with slam
                                                                ○ Texas then 4NT is Roman key card for the
-                 interest.
+             interest.
                                                                  major (Roman key card 1430 (p. 8)); Jacoby then
         □ 3NT: two hearts.                                       4NT is quantitative.
  ○ With 5-5 in the majors, use a transfer to
@@ -352,7 +352,7 @@ Control bids
 
 
                                                        8 / 10
-System Notes                                                                                        Woolsey
+System Notes                                                                                       Woolsey
 
 
 
@@ -376,14 +376,14 @@ Woolsey
     ● 2♣=P/C, 3+ both m                                      ● 2♥=P/C: weak both M, or inv ♠
         □ Pass=♣ 1-suiter, or M & ♣                             □ Pass=♥
         □ 2♦=♦ 1-suiter, or M & ♦                               □ 2♠=♠
-               ▪ 2♥=P/C, asks M                                    ▪ Pass=signoff · 2NT=♠ GT · 3♠
-        □ 2M=nat 5+M, strong                                         =preempt
+           ■ 2♥=P/C, asks M                                       ■ Pass=signoff · 2NT=♠ GT · 3♠
+        □ 2M=nat 5+M, strong                                        =preempt
         □ 2NT=19+ bal                                        ● 2♠=P/C: inv ♥
     ● 2♦=3+ both M, asks M                                      □ Pass=♠ · 3♥=♥ min · else=♥ max
         □ Pass=♦ 1-suiter                                    ● 2NT=ask, as over 2♣
         □ 2M=4cM                                                □ 3♣=6+♥ max · 3♦=6+♠ max · 3M=6+M
-               ▪ 2NT=GT, 4-4 fit                                  min
-               ▪ 3M=LAW                                      ● 3♥=M preempt, P/C
+           ■ 2NT=GT, 4-4 fit                                      min
+           ■ 3M=LAW                                          ● 3♥=M preempt, P/C
         □ 2NT=19+ bal                                        ● 3♠=♠ game / ♥ inv, P/C
         □ 3♣=♣ 1-suiter                                      ● 4♣=bid suit below M; advancer declares
     ● 2M, 3m=nat 6+, NF                                      ● 4♦=bid M
@@ -392,7 +392,7 @@ Woolsey
         □ 3m=nat, min                                        ● Pass=to play
         □ 3M=nat, max                                        ● 2NT=asks m
     ● RHO bids: DBL=pen · 2NT=asks m ·                          □ 3m=nat
-      Pass=else, OVC may reopen                                    ▪ 3M=GT, 3+T · 4m=inv, 4+T
+      Pass=else, OVC may reopen                                   ■ 3M=GT, 3+T · 4m=inv, 4+T
     ● vs WNT: DBL=pen 15+ · Pass=5+ or bal ·                 ● NS=nat 6+, NF · JNS=nat 7+, preempt
       pull=5+ suit, <5 · then systems on
                                                              ● 3M=LAW, 3+T

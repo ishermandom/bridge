@@ -20,13 +20,6 @@ Design decisions live in `spec.md`; this file tracks the work.
   2026-09-12 by the render's new page-count guard, which tolerates the flow
   whenever a wide atom exists.
 
-- Open question {#marker-prominence}: the marker ladder stops shrinking after
-  the third round — the bullets at depths 5–6 are its smallest shapes, and the
-  triangles at 7–12 are larger again. Reordering the pairs would restore the
-  taper, at the cost of changing the markers at depths 5–6, which the real notes
-  already use (raised 2026-09-20). Ilya leans toward reordering but left it
-  queued (2026-09-25).
-
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
       at 11pt, against the letterform preferences in `spec.md` #appearance.

@@ -59,13 +59,13 @@ Stayman
     □ 3S: invitational raise.
     □ 3H: game-forcing spade raise with slam interest; opener control
       bids or signs off.
-      ▪ 3S: minimum, no slam interest. Responder may still continue with
+      ■ 3S: minimum, no slam interest. Responder may still continue with
         4C, 4D, or 4H as control bids.
-      ▪ 4C, 4D, 4H: control bid, accepting the try.
-        ◦ Responder continues with 4NT (see Roman key card 1430) or bids
+      ■ 4C, 4D, 4H: control bid, accepting the try.
+        △ Responder continues with 4NT (see Roman key card 1430) or bids
           the cheapest control.
-        ◦ Responder signs off in 4S with nothing further to show.
-      ▪ 4S: maximum but no side-suit control worth showing.
+        △ Responder signs off in 4S with nothing further to show.
+      ■ 4S: maximum but no side-suit control worth showing.
     □ 4S: to play.
 ○ After a 2D reply to Stayman, 3NT still lets opener correct to a
   five-card major, since opener may open 1NT with 5-3-3-2.
@@ -82,8 +82,8 @@ Smolen
   ● 3S (four spades, five hearts)
     □ 4D: transfer to hearts with three-card support, letting responder
       make a slam try below game.
-      ▪ 4H: no slam interest.
-      ▪ 4S, 5C, 5D: control bid with slam interest.
+      ■ 4H: no slam interest.
+      ■ 4S, 5C, 5D: control bid with slam interest.
     □ 3NT: two hearts.
 ○ With 5-5 in the majors, use a transfer to spades and then bid hearts;
   Smolen is never 5-5.
@@ -354,14 +354,14 @@ Woolsey
   ● 2C=P/C, 3+ both m
     □ Pass=C 1-suiter, or M & C
     □ 2D=D 1-suiter, or M & D
-      ▪ 2H=P/C, asks M
+      ■ 2H=P/C, asks M
     □ 2M=nat 5+M, strong
     □ 2NT=19+ bal
   ● 2D=3+ both M, asks M
     □ Pass=D 1-suiter
     □ 2M=4cM
-      ▪ 2NT=GT, 4-4 fit
-      ▪ 3M=LAW
+      ■ 2NT=GT, 4-4 fit
+      ■ 3M=LAW
     □ 2NT=19+ bal
     □ 3C=C 1-suiter
   ● 2M, 3m=nat 6+, NF
@@ -390,7 +390,7 @@ Woolsey
   ● 2H=P/C: weak both M, or inv S
     □ Pass=H
     □ 2S=S
-      ▪ Pass=signoff · 2NT=S GT · 3S=preempt
+      ■ Pass=signoff · 2NT=S GT · 3S=preempt
   ● 2S=P/C: inv H
     □ Pass=S · 3H=H min · else=H max
   ● 2NT=ask, as over 2C
@@ -404,7 +404,7 @@ Woolsey
   ● Pass=to play
   ● 2NT=asks m
     □ 3m=nat
-      ▪ 3M=GT, 3+T · 4m=inv, 4+T
+      ■ 3M=GT, 3+T · 4m=inv, 4+T
   ● NS=nat 6+, NF · JNS=nat 7+, preempt
   ● 3M=LAW, 3+T
   ● 3NT, 4M=to play
