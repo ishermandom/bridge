@@ -549,6 +549,7 @@ record waits for review, and what becomes of a scan that raises.
     which differ only in case and a period — and already slug identically, so
     the flag asks a person to resolve a difference that changes nothing.
 - [ ] Ingest the latest scoresheet, settling it with the user in chat.
+  - Worktree: ingest-sheet-sept-24
   - Note: run the whole path first — ingest, the traveller fetch, and
     reconciliation.
   - Note: this is the first sheet read by Opus 5.5, and the first read through
