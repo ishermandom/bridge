@@ -18,7 +18,9 @@ from collections.abc import Mapping, Sequence
 import pytest
 
 from session_analysis.vision_model_invocation import (
+  DEFAULT_EFFORT,
   CommandRunner,
+  Effort,
   LabeledImage,
   VisionModelInvocationError,
   invoke_vision_model,
@@ -83,6 +85,7 @@ def _invoke_vision_model(
   system_prompt: str = _SYSTEM_PROMPT,
   json_schema: Mapping[str, object] = _SCHEMA,
   model: str = _MODEL,
+  effort: Effort = DEFAULT_EFFORT,
 ) -> str:
   """Call `invoke_vision_model`, defaulting the args a given test doesn't care
   about — callers pass only what they're testing.
@@ -92,6 +95,7 @@ def _invoke_vision_model(
     system_prompt,
     json_schema,
     model=model,
+    effort=effort,
     run_command=run_command,
   )
 
@@ -188,6 +192,33 @@ def test_command_carries_the_model_prompt_and_schema() -> None:
   assert '--json-schema' in runner.command
   schema_argument = runner.command[runner.command.index('--json-schema') + 1]
   assert json.loads(schema_argument) == _SCHEMA
+
+
+def test_command_pins_the_effort_level() -> None:
+  """Every run sends a level, so none inherits the CLI's per-model default.
+
+  Calls the entry point directly rather than through the helper above, which
+  passes an effort of its own and would stand in for the default under test.
+  """
+  runner = _make_successful_runner()
+
+  invoke_vision_model(_SINGLE_PART, _SYSTEM_PROMPT, _SCHEMA, run_command=runner)
+
+  assert runner.command is not None
+  assert '--effort' in runner.command
+  assert runner.command[runner.command.index('--effort') + 1] == DEFAULT_EFFORT
+
+
+def test_command_uses_the_given_effort_not_the_default() -> None:
+  # `LOW` because transcription would never default to it: were the level under
+  # test also the default, the assertion would pass without the override doing
+  # anything.
+  runner = _make_successful_runner()
+
+  _invoke_vision_model(run_command=runner, effort=Effort.LOW)
+
+  assert runner.command is not None
+  assert runner.command[runner.command.index('--effort') + 1] == 'low'
 
 
 def test_command_uses_the_given_model_not_the_default() -> None:

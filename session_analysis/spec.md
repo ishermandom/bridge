@@ -163,12 +163,12 @@ the normalizer is **built and unit-tested before anything that depends on it**
 The sheet's handwriting is read by a vision model via **Claude Code in headless
 mode**, on the existing Claude subscription — no separate API billing.
 
-- **Model**: `claude-opus-5`. A **single model, no escalation fallback** — the
-  digest's Sonnet-workhorse-plus-Opus-escalation tiering is deliberately skipped
-  as premature for 1–2 sheets/week. Started on `claude-sonnet-5`; switched
-  because Opus read the sheet's markup more reliably, and it stays the choice
-  after that comparison was re-run on Opus 5 (2026-08-22 — both models over the
-  same strips from the 6/29 sheet, twice each).
+- **Model**: Based on experimentation, Opus appears to provide the best balance
+  between reliable quality and cost.
+  - **Why an alias rather than a release** {#model-alias}: this task is happy to
+    automatically pick up periodic improvements by tracking an evergreen target.
+    The risk of quality or cost regressions due to automatic updates is
+    considered an acceptable tradeoff.
   - **Quality**: scored through the pipeline's own voting pass, Opus 5 left zero
     review flags where Sonnet 5 left 33 — 23 disagreements between its own two
     runs, and 10 calls the parser could not resolve. Most of that is instability
@@ -185,6 +185,11 @@ mode**, on the existing Claude subscription — no separate API billing.
     naming which of the two runs it describes. Measured on real scans: about
     $0.15 a transcription run, plus about $0.06 for the layout reading that
     precedes the pair.
+- **`high` effort** {#extraction-effort}: Across ~10 runs, Opus 5.5 behaves very
+  similarly at `medium` vs. `high` effort, with `high` having a slight quality
+  edge. `medium` saves only about $0.02 a sheet, a dollar or two a year at 1–2
+  sheets a week. The small quality gain currently seems worth the small
+  increased cost.
 - **Checked against the sheet's own arithmetic** {#extraction-accuracy}: a teams
   sheet fills a `Score` column that extraction deliberately drops, and a score
   follows from the contract, the result and the board's vulnerability — so

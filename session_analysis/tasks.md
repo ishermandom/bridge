@@ -534,18 +534,31 @@ record waits for review, and what becomes of a scan that raises.
     between `Santa Clara Wed. aft teams` and `Santa Clara wed. aft. teams`,
     which differ only in case and a period — and already slug identically, so
     the flag asks a person to resolve a difference that changes nothing.
-- [ ] Move ingestion onto the latest Opus release, and learn whether it can name
-      "the latest Opus" rather than a specific release. {#latest-opus-model}
-  - Worktree: latest-opus-model
 - [ ] Ingest the latest scoresheet, settling it with the user in chat.
-  - Note: depends on #latest-opus-model landing first, so the new model reads
-    this sheet.
   - Note: run the whole path first — ingest, the traveller fetch, and
     reconciliation.
+  - Note: this is the first sheet read by Opus 5.5, and the first read through
+    the `opus` alias rather than a pinned release — see spec.md #model-alias.
+    The comparison behind the switch ran on the 6/29 sheet alone, so this sheet
+    is also the first evidence of how the new release does on a scan it was not
+    chosen against.
   - Note: while the review UI (`#review-ui`) has not landed, raise any detail
     that needs clarifying or review in chat, and apply the user's fixes there.
   - Note: hold the sheet's transcript until every detail is settled, then give
     it to the user inline in the chat.
+- [ ] Record which model release read each ingested sheet.
+      {#record-ingest-model}
+  - Rationale: ingestion names its model by the `opus` alias (spec.md
+    #model-alias), so the release that reads a sheet changes whenever the
+    installed CLI updates, and nothing on a stored session says which one it
+    was. A quality or cost regression after an update would have no trail back
+    to the release behind it.
+  - Note: the release is already on the stream, as the `system` init event's
+    `model` field. `invoke_vision_model` returns only the result's payload, so
+    it would need to hand the release back beside it.
+  - Note: `models.SheetImage` already records how a session's scan was read, so
+    the release belongs there — for the layout reading and for the transcription
+    runs, which are separate calls.
 
 ---
 

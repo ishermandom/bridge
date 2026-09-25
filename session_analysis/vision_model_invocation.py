@@ -20,6 +20,7 @@ envelope `--output-format json` gives.
 
 import base64
 import dataclasses
+import enum
 import json
 import pathlib
 import subprocess
@@ -35,7 +36,32 @@ _SCRATCH_DIRECTORY = (
   pathlib.Path(tempfile.gettempdir()) / 'session_analysis_vision_model_scratch'
 )
 
-DEFAULT_MODEL = 'claude-opus-5'
+# The current Opus, named by family rather than by release. `--model` takes an
+# alias for the latest model of a family, so the pipeline follows Opus forward
+# without a code change per release. The alias resolves against a catalog
+# compiled into the installed CLI, so what it names moves when the CLI updates
+# rather than the moment a release ships.
+DEFAULT_MODEL = 'opus'
+
+
+class Effort(enum.StrEnum):
+  """How much thinking the model spends before it answers.
+
+  The CLI carries a default per resolved model, and those defaults differ
+  between releases — Opus 5 thinks at `HIGH` where Opus 5.5 thinks at `MEDIUM`.
+  Naming the model by alias means not knowing which entry a run would inherit,
+  so the level is passed on every invocation rather than left to the CLI.
+  spec.md #extraction-effort records what the chosen level was measured against.
+  """
+
+  LOW = 'low'
+  MEDIUM = 'medium'
+  HIGH = 'high'
+  XHIGH = 'xhigh'
+  MAX = 'max'
+
+
+DEFAULT_EFFORT = Effort.HIGH
 
 # The user-turn ask that closes a transcription request, after the images. All
 # real instruction lives in the system prompt; the user turn exists because the
@@ -152,6 +178,7 @@ def invoke_vision_model(
   json_schema: Mapping[str, object],
   *,
   model: str = DEFAULT_MODEL,
+  effort: Effort = DEFAULT_EFFORT,
   run_command: CommandRunner = run_claude,
   instruction: str = TRANSCRIPTION_INSTRUCTION,
 ) -> str:
@@ -166,6 +193,8 @@ def invoke_vision_model(
       `--json-schema` so the result is directly parseable rather than prose or
       markdown-fenced JSON.
     model: the model alias or full name to invoke.
+    effort: how much thinking the model spends; passed explicitly rather than
+      inherited from the CLI's per-model default.
     instruction: the one-line user-turn ask closing the request.
     run_command: the subprocess runner to use. Defaults to a real
       `subprocess.run` call, which creates the scratch directory if missing;
@@ -185,6 +214,7 @@ def invoke_vision_model(
   command = [
       'claude', '-p',
       '--model', model,
+      '--effort', effort,
       '--system-prompt', system_prompt,
       '--tools', '',
       '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}',
