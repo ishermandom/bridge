@@ -14,6 +14,12 @@ Design decisions live in `spec.md`; this file tracks the work.
   not in question — a printed table of contents with no page numbers has nothing
   to point with — and section headings carry no numbers of their own either way.
 
+- Open question {#wide-overflow}: should a section taller than even a full wide
+  page flow onto following pages (today's behavior — three fixture sections do)
+  or fail the render, forcing the author to split the section? Surfaced
+  2026-09-12 by the render's new page-count guard, which tolerates the flow
+  whenever a wide atom exists.
+
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
       at 11pt, against the letterform preferences in `spec.md` #appearance.
@@ -39,6 +45,11 @@ Design decisions live in `spec.md`; this file tracks the work.
     limitation engineered around (after `column-span: all`). Escape hatch if
     quirks keep accumulating; switching costs a second styling system beside the
     CSS, plus Typst branches in the notation filters.
+- [ ] **Pack pandoc's footnote endnotes** {#pack-footnotes} — pandoc appends a
+      `<section id="footnotes">` after the sections wrapper, where the packer
+      can neither measure nor place it, so `paged_document` now refuses
+      documents with footnotes. Fold the endnotes into the packed run to lift
+      the refusal.
 - [ ] **Per-level list markers in the source** {#source-list-markers} — an
       autoformatter giving each indentation depth its own list marker, so the
       Markdown source reads like the rendered page.

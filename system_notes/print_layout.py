@@ -52,8 +52,11 @@ SECTIONS_CLASS = 'sections'
 SECTION_CLASS = 'section'
 SECTIONS_WRAPPER_PATH = f'.//div[@class="{SECTIONS_CLASS}"]'
 
-# The id the HTML template gives the table of contents pandoc's `--toc` fills.
+# The id the HTML template gives the table of contents pandoc's `--toc` fills,
+# and the id pandoc gives the endnotes it writes for footnotes — those after the
+# sections wrapper, where the packer can neither measure nor place them.
 TABLE_OF_CONTENTS_ID = 'TOC'
+FOOTNOTES_ID = 'footnotes'
 
 # A parsed document carries no doctype, so `document_html` puts one back: the
 # packed copy is the same HTML5 document pandoc wrote, with only its sections
@@ -196,6 +199,18 @@ class ProbeHeights:
 
   height_above_sections: Points
   section_heights: tuple[Points, ...]
+
+
+@dataclass(frozen=True)
+class PagedDocument:
+  """The print-ready HTML and the page plan behind it.
+
+  `pages` is empty when the document has no sections and the HTML came back
+  unchanged.
+  """
+
+  html: str
+  pages: tuple[PrintPage, ...]
 
 
 def _fill_at(heights: Sequence[Points], split: int) -> ColumnFill:
@@ -498,16 +513,22 @@ def _measure(document: Element, section_count: int) -> ProbeHeights:
   return ProbeHeights(heights[0], tuple(heights[1:]))
 
 
-def paged_document(html: str) -> str:
+def paged_document(html: str) -> PagedDocument:
   """Rewrite the HTML's sections into explicitly packed printed pages.
 
-  A document with no sections comes back unchanged.
+  A document with no sections comes back unchanged, with an empty plan.
   """
   document = parse_html(html)
   atomize_table_of_contents(document)
   section_run = find_section_run(document)
   if section_run is None:
-    return document_html(document)
+    return PagedDocument(document_html(document), ())
+  if document.find(f'.//*[@id="{FOOTNOTES_ID}"]') is not None:
+    raise NotImplementedError(
+      'the document has footnotes, whose endnotes pandoc appends outside the '
+      'sections run; the packer cannot yet place them on any page (tasks.md '
+      '#pack-footnotes)'
+    )
   measured = _measure(document, len(section_run.sections))
   pages = pack(
     section_heights=measured.section_heights,
@@ -515,4 +536,4 @@ def paged_document(html: str) -> str:
     column_height=PAGE_CONTENT_HEIGHT,
   )
   rewrite_into_pages(section_run, pages)
-  return document_html(document)
+  return PagedDocument(document_html(document), tuple(pages))

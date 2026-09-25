@@ -186,18 +186,41 @@ def verify_nothing_warned(messages: Sequence[str], output: Path) -> None:
     )
 
 
+def verify_page_count(
+  paged: print_layout.PagedDocument, rendered_pages: int, output: Path
+) -> None:
+  """Fail if the rendered page count departs from the packer's plan.
+
+  Packing rests on probe measurements, so only the real render can confirm that
+  every atom fit its page. The plan is exact for column pages, but a wide atom
+  taller than even its own page flows onto further pages — whether that should
+  instead fail is an open question (tasks.md #wide-overflow) — so extra pages
+  pass when a wide atom exists.
+  """
+  planned_pages = len(paged.pages)
+  has_wide_atom = any(
+    isinstance(page, print_layout.WidePage) for page in paged.pages
+  )
+  overflow_is_wide = has_wide_atom and rendered_pages > planned_pages
+  if planned_pages and rendered_pages != planned_pages and not overflow_is_wide:
+    raise RuntimeError(
+      f'{output} has {rendered_pages} pages where the packer planned '
+      f'{planned_pages}: an atom overflowed its page — most likely a section '
+      'too tall even for a page of its own, which no packing can honor '
+      '(spec.md #section-packing)'
+    )
+
+
 def render_pdf(html: Path, output: Path) -> None:
   """Pack sections onto printed pages and lay the result out as the PDF.
 
   `print_layout` rewrites the HTML into explicit page and column boxes — its
   module docstring carries the why — and WeasyPrint renders the rewritten copy
-  under the print stylesheet. WeasyPrint warns and carries on where it cannot
-  parse a rule or honor a layout, so — as with pandoc's `--fail-if-warnings` —
-  every warning but the known one fails the render. The embedded fonts are
-  checked here too, since only the finished file shows what the page was
-  actually set in.
+  under the print stylesheet. Three checks then decide whether the result is
+  acceptable, and each of them reads the finished file: what WeasyPrint
+  reported, the page count against the plan, and the fonts actually embedded.
 
-  So the render goes to a scratch copy, and only a copy that passes every check
+  So the render goes to a scratch copy, and only a copy that passes all three
   reaches `output`. The outputs are committed beside their source, and a
   rejected layout left in place would be committed along with them.
   """
@@ -208,10 +231,13 @@ def render_pdf(html: Path, output: Path) -> None:
     unverified = Path(directory) / output.name
     try:
       paged = print_layout.paged_document(html.read_text(encoding='utf-8'))
-      weasyprint.HTML(string=paged).write_pdf(str(unverified))
+      document = weasyprint.HTML(string=paged.html).render()
+      document.write_pdf(str(unverified))
     finally:
       logger.removeHandler(collected)
-      verify_nothing_warned(collected.messages, output)
+
+    verify_nothing_warned(collected.messages, output)
+    verify_page_count(paged, len(document.pages), output)
     verify_fonts(unverified)
     shutil.copyfile(unverified, output)
 

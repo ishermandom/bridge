@@ -197,9 +197,10 @@ wants something different.
   that short sections can sit side by side. A section taller than a column gets
   a page of its own: its heading spans the page and its body flows in two
   columns beneath, continuing onto further pages when even that page cannot hold
-  it. Once a page can take no more, its sections are rebalanced between the two
-  columns, so the two come out near the same height rather than filling the
-  first to the brim and leaving the second bare.
+  it; `tasks.md` #wide-overflow asks whether such a section should instead fail
+  the render. Once a page can take no more, its sections are rebalanced between
+  the two columns, so the two come out near the same height rather than filling
+  the first to the brim and leaving the second bare.
   - CSS cannot express this fitting in any engine — no multicol does page-level
     fitting of column-spanning atoms — and WeasyPrint additionally ignores break
     properties on a multicol's children and pushes a fragmenting multicol

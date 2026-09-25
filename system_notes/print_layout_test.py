@@ -275,3 +275,14 @@ def test_a_wide_section_without_a_heading_fails_the_render() -> None:
       '<div class="sections"><div class="section"><p>x</p></div></div>',
       [WidePage(section=0)],
     )
+
+
+def test_a_document_with_footnotes_is_refused() -> None:
+  # pandoc appends the endnotes after the sections wrapper, where the packer can
+  # neither measure nor place them.
+  document = (
+    '<div class="sections"><div class="section"><h1 id="a">A</h1></div></div>'
+    '<section id="footnotes"><ol><li>note</li></ol></section>'
+  )
+  with pytest.raises(NotImplementedError, match='footnotes'):
+    print_layout.paged_document(document)
