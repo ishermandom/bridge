@@ -10,15 +10,19 @@ filesystem at all.
 """
 
 import base64
+import io
 import json
+import os
 import pathlib
 import subprocess
 from collections.abc import Mapping, Sequence
 
 import pytest
+from PIL import Image
 
 from session_analysis.vision_model_invocation import (
   DEFAULT_EFFORT,
+  MAX_IMAGE_BYTES,
   CommandRunner,
   Effort,
   LabeledImage,
@@ -26,8 +30,26 @@ from session_analysis.vision_model_invocation import (
   invoke_vision_model,
 )
 
+
+def _make_image_bytes(
+  width: int, height: int, *, is_noise: bool = False
+) -> bytes:
+  """A PNG of the given size — blank, which compresses to almost nothing, or
+  random noise, which PNG cannot compress at all.
+  """
+  if is_noise:
+    image = Image.frombytes(
+      'RGB', (width, height), os.urandom(width * height * 3)
+    )
+  else:
+    image = Image.new('RGB', (width, height), 'white')
+  buffer = io.BytesIO()
+  image.save(buffer, format='PNG')
+  return buffer.getvalue()
+
+
 _SCHEMA = {'type': 'object', 'properties': {'board': {'type': 'string'}}}
-_IMAGE_BYTES = b'not a real image, just test bytes'
+_IMAGE_BYTES = _make_image_bytes(8, 8)
 _MEDIA_TYPE = 'image/png'
 _SYSTEM_PROMPT = 'transcribe this'
 _MODEL = 'claude-sonnet-5'
@@ -135,9 +157,15 @@ def test_request_embeds_the_image_as_base64() -> None:
 
 def test_request_precedes_each_image_with_its_label() -> None:
   runner = _make_successful_runner()
+  first_image = _make_image_bytes(8, 8)
+  second_image = _make_image_bytes(9, 9)
   parts = [
-    LabeledImage(label='Row 1:', image_bytes=b'one', media_type='image/jpeg'),
-    LabeledImage(label='Row 2:', image_bytes=b'two', media_type='image/jpeg'),
+    LabeledImage(
+      label='Row 1:', image_bytes=first_image, media_type='image/png'
+    ),
+    LabeledImage(
+      label='Row 2:', image_bytes=second_image, media_type='image/png'
+    ),
   ]
 
   _invoke_vision_model(run_command=runner, parts=parts)
@@ -153,7 +181,7 @@ def test_request_precedes_each_image_with_its_label() -> None:
   ]
   assert content[0]['text'] == 'Row 1:'
   assert content[2]['text'] == 'Row 2:'
-  assert content[3]['source']['data'] == base64.b64encode(b'two').decode(
+  assert content[3]['source']['data'] == base64.b64encode(second_image).decode(
     'ascii'
   )
 
@@ -231,6 +259,78 @@ def test_command_uses_the_given_model_not_the_default() -> None:
     runner.command[runner.command.index('--model') + 1]
     == 'claude-haiku-4-5-20251001'
   )
+
+
+# --- image limits ---
+
+
+def test_an_image_exactly_at_the_edge_limit_is_sent() -> None:
+  runner = _make_successful_runner()
+  parts = [
+    LabeledImage(
+      label='Strip:',
+      image_bytes=_make_image_bytes(2000, 10),
+      media_type='image/png',
+    )
+  ]
+
+  _invoke_vision_model(run_command=runner, parts=parts)
+
+  assert runner.command is not None
+
+
+def test_an_image_over_the_edge_limit_is_refused_before_sending() -> None:
+  runner = _make_successful_runner()
+  parts = [
+    LabeledImage(
+      label='Strip:',
+      image_bytes=_make_image_bytes(2001, 10),
+      media_type='image/png',
+    )
+  ]
+
+  with pytest.raises(ValueError, match='2001x10'):
+    _invoke_vision_model(run_command=runner, parts=parts)
+  assert runner.command is None
+
+
+def test_an_image_over_the_token_budget_is_refused_before_sending() -> None:
+  # 1960 pixels is within the edge limit, but 70 patches a side is 4900 visual
+  # tokens, past the 4784 budget.
+  runner = _make_successful_runner()
+  parts = [
+    LabeledImage(
+      label='Page:',
+      image_bytes=_make_image_bytes(1960, 1960),
+      media_type='image/png',
+    )
+  ]
+
+  with pytest.raises(ValueError, match='4900 visual tokens'):
+    _invoke_vision_model(run_command=runner, parts=parts)
+  assert runner.command is None
+
+
+def test_an_image_over_the_byte_limit_is_refused_before_sending() -> None:
+  # Noise defeats PNG's compression, so 1200x1200 encodes to about 4.3MB — past
+  # the byte limit while well within both the edge limit and the token budget.
+  runner = _make_successful_runner()
+  parts = [
+    LabeledImage(
+      label='Page:',
+      image_bytes=_make_image_bytes(1200, 1200, is_noise=True),
+      media_type='image/png',
+    )
+  ]
+
+  with pytest.raises(
+    ValueError, match=f'exceed the {MAX_IMAGE_BYTES}-byte cap'
+  ) as refusal:
+    _invoke_vision_model(run_command=runner, parts=parts)
+  assert runner.command is None
+  # The two limits the image is within go unmentioned.
+  assert 'pixels' not in str(refusal.value)
+  assert 'tokens' not in str(refusal.value)
 
 
 # --- failure modes ---

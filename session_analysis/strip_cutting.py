@@ -3,14 +3,16 @@
 """Cut a dewarped scan into the labeled per-row strips the model transcribes.
 
 Sent whole, a scan reaches the vision model downscaled below legibility for
-dense handwriting, so the sheet is sent as native-resolution crops instead: one
-strip per printed board row, cut from the detected `SheetGeometry`, plus the
-footer. Each strip is preceded by a text label naming its printed row — the
-row's printed board number is inside the crop too, but the label is what pins
-strip-to-row correspondence, so the model emits exactly one board object per
-row strip, in order, with no counting left to chance. The footer strip carries
-the event and date instead, and no board of its own. See spec.md `#extraction`
-for the design and the measurements behind it.
+dense handwriting, so the sheet is sent as crops instead: one strip per printed
+board row, cut from the detected `SheetGeometry`, plus the footer. A crop keeps
+the scan's own resolution unless it is wider than the model receives unresized.
+A crop that wide is scaled down to fit here, rather than silently by the CLI on
+the way through. Each strip is preceded by a text label naming its printed row —
+the row's printed board number is inside the crop too, but the label is what
+pins strip-to-row correspondence, so the model emits exactly one board object
+per row strip, in order, with no counting left to chance. The footer strip
+carries the event and date instead, and no board of its own. See spec.md
+`#extraction` for the design and the measurements behind it.
 """
 
 import io
@@ -19,7 +21,10 @@ from collections.abc import Sequence
 from PIL import Image
 
 from session_analysis.unreviewed.sheet_geometry import Box, SheetGeometry
-from session_analysis.vision_model_invocation import LabeledImage
+from session_analysis.vision_model_invocation import (
+  MAX_IMAGE_EDGE,
+  LabeledImage,
+)
 
 # How far a strip extends past its tight row box into each neighbor, as a
 # fraction of the row pitch. The padding covers two things at once: handwriting
@@ -84,12 +89,35 @@ def cut_strips(
     LabeledImage(
       label=label,
       image_bytes=_encode_jpeg(
-        rgb.crop((box.left, box.top, box.right, box.bottom))
+        _fit_within_edge(rgb.crop((box.left, box.top, box.right, box.bottom)))
       ),
       media_type='image/jpeg',
     )
     for label, box in labeled_boxes
   )
+
+
+def _fit_within_edge(strip: Image.Image) -> Image.Image:
+  """Scale a strip down to `MAX_IMAGE_EDGE` on its longest side, if over it.
+
+  A row strip spans the table's full width, and on a phone scan of a letter page
+  that width runs past the edge limit. The edge is the only limit a strip
+  reaches: at the edge limit, a strip would have to be over 1,800 pixels tall to
+  exceed the token budget. `invoke_vision_model` refuses any strip over a limit
+  regardless.
+  """
+  longest = max(strip.size)
+  if longest <= MAX_IMAGE_EDGE:
+    return strip
+  scale = MAX_IMAGE_EDGE / longest
+  # Floating-point error leaves the long side within a trillionth of a pixel of
+  # `MAX_IMAGE_EDGE`, so it rounds to exactly the limit.
+  target = (round(strip.width * scale), round(strip.height * scale))
+  # Pillow's documentation rates Lanczos its highest-quality filter for
+  # shrinking, and handwriting is fine detail worth keeping; the extra time is
+  # negligible for a few dozen strips a sheet. The choice rests on that rating,
+  # not on comparing filters on real strips.
+  return strip.resize(target, Image.Resampling.LANCZOS)
 
 
 def _encode_jpeg(image: Image.Image) -> bytes:

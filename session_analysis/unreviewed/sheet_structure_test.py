@@ -60,23 +60,32 @@ def test_an_image_within_the_limits_is_sent_unscaled() -> None:
 
 
 def test_a_wide_image_is_scaled_by_the_edge_limit() -> None:
-  # A 4K frame is over the 2576px edge limit, and for a frame this wide that
-  # limit is what binds: the scaled result lands at 4761 visual tokens, just
-  # inside the 4784 budget.
+  # A 4K frame is over the 2000px edge limit. Edges are counted in whole 28px
+  # patches, so the long edge lands at 71 of them — 1988px, a patch inside the
+  # limit.
   sent, scale = image_for_model(Image.new('L', (3840, 2160)))
 
-  assert sent.size == (2576, 1449)
-  assert scale == pytest.approx(2576 / 3840)
+  assert sent.size == (1988, 1118)
+  assert scale == pytest.approx(1988 / 3840)
 
 
-def test_a_page_shaped_image_is_scaled_by_the_token_budget() -> None:
+def test_a_page_shaped_image_is_scaled_by_the_edge_limit() -> None:
   # A letter-shaped scan at 300 dpi, which is the shape this pipeline actually
-  # sends. Its long edge comes back at 2184, well inside the 2576px limit — the
-  # 4784-token budget ran out first, at 4702 tokens.
+  # sends. Its long edge reaches the limit at 1988px while the image still costs
+  # only 3905 of the 4784 visual tokens.
   sent, scale = image_for_model(Image.new('L', (2550, 3300)))
 
-  assert sent.size == (1688, 2184)
-  assert scale == pytest.approx(1688 / 2550)
+  assert sent.size == (1536, 1988)
+  assert scale == pytest.approx(1536 / 2550)
+
+
+def test_a_near_square_image_is_scaled_by_the_token_budget() -> None:
+  # At 1988px a side a square would cost 71 x 71 = 5041 visual tokens, over the
+  # 4784 budget, so the budget binds before the edge: 69 x 69 = 4761.
+  sent, scale = image_for_model(Image.new('L', (3000, 3000)))
+
+  assert sent.size == (1932, 1932)
+  assert scale == pytest.approx(1932 / 3000)
 
 
 # --- returning the reading to the sheet's own space ---

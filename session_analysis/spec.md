@@ -233,21 +233,21 @@ mode**, on the existing Claude subscription — no separate API billing.
   `--output-format stream-json` in turn, so the response is a `result` event
   parsed out of a JSON-lines stream rather than a single `--output-format json`
   envelope; `--json-schema` keeps that event's payload schema-conformant JSON.
-- **Input format: labeled per-row strips at native resolution.** A full 12MP
-  scan reaches the model at ~56% linear, and a live comparison on the 6/29 sheet
-  showed every resolution-class error (a misread contract digit, dropped
-  announcements, box-vs-circle swaps on dense rows) vanishing when the sheet
-  arrives as native-resolution crops instead — at lower cost than the full-sheet
-  run ($0.21 vs $0.29 — one run each, on Sonnet 5 before the switch to Opus, so
-  neither figure lines up with the per-sheet ones above). The request is an
-  ordered sequence of labeled parts: one crop per printed board row, each
-  preceded by a text label naming its printed row, then the footer crop. Three
-  details are load-bearing, found by live experiment: each crop includes the
-  printed `Bd` column (without it the model substitutes the adjacent `Vs`
-  number), the labels fix board identity, and the prompt says explicitly to emit
-  blank rows. Per-row is the tile size because the review UI needs per-row crops
-  regardless, so row-precision geometry exists either way; coarser bands would
-  save only the labeling machinery.
+- **Input format: labeled per-row strips, at native resolution where
+  #image-limits allows.** A full 12MP scan reaches the model at ~56% linear, and
+  a live comparison on the 6/29 sheet showed every resolution-class error (a
+  misread contract digit, dropped announcements, box-vs-circle swaps on dense
+  rows) vanishing when the sheet arrives as native-resolution crops instead — at
+  lower cost than the full-sheet run ($0.21 vs $0.29 — one run each, on Sonnet 5
+  before the switch to Opus, so neither figure lines up with the per-sheet ones
+  above). The request is an ordered sequence of labeled parts: one crop per
+  printed board row, each preceded by a text label naming its printed row, then
+  the footer crop. Three details are load-bearing, found by live experiment:
+  each crop includes the printed `Bd` column (without it the model substitutes
+  the adjacent `Vs` number), the labels fix board identity, and the prompt says
+  explicitly to emit blank rows. Per-row is the tile size because the review UI
+  needs per-row crops regardless, so row-precision geometry exists either way;
+  coarser bands would save only the labeling machinery.
 
   The ~56% figure is a property of a raw photo, where most of the frame is not
   sheet. A scanner app that rectifies and crops writes files that are all sheet,
@@ -256,6 +256,33 @@ mode**, on the existing Claude subscription — no separate API billing.
   whole-page read comes close but never better, and the geometry they are cut
   from is needed for the review UI regardless. Reading the layout from the sheet
   changed where the cut lines come from, not whether to cut.
+
+- **Every image is sized to what the model receives unresized** {#image-limits}:
+  the API's own high-resolution tier allows 2576 pixels a side, but ingestion
+  runs through the Claude Code CLI, which shrinks any image over 2000 on its way
+  to the model. Nothing reports the shrinking, so it has to be avoided rather
+  than detected. Each caller sizes its images to fit, and `invoke_vision_model`
+  refuses any image over the limits kept beside
+  `vision_model_invocation.MAX_IMAGE_EDGE`.
+  - **What it cost the layout reading**: the page went out 2044 pixels wide, and
+    every coordinate the model reported came back about 2% short, pulled toward
+    the top-left corner. Four of six readings of the 6/29 sheet placed the
+    table's right border at 2497–2505, against a printed border at 2553; a
+    2000/2044 shrink predicts 2498. That gap is past the reach of
+    `sheet_geometry`'s search for a border's printed line, so every strip lost
+    the table's last 50 pixels. The footer came back high, and two footer strips
+    cleared the handwritten date by only 2 pixels. Sized to fit, six readings of
+    six put the right border on the printed one, and every footer strip clears
+    the date by at least 20 pixels.
+  - **What it costs the strips**: a row strip spans the table's full width,
+    about 2500 pixels on a phone scan, so fitting it keeps about 80% of the
+    scan's resolution rather than all of it. That cost nothing measurable. Opus
+    5.5 read fitted and full-width strips cut from the same geometry differently
+    in at most one cell of 84, on board 17, which flips between identical sweeps
+    anyway. The fitted strips also cost about 6% fewer input tokens. The
+    comparison may not isolate the lost resolution, though: if the CLI was
+    already shrinking the full-width strips, both sets reached the model at the
+    same size. Whether the CLI was doing so is not settled.
 
 - **The scan is dewarped from its own printed grid before anything else reads
   it.** The live 6/29 scan (a raw phone photo) showed why: perspective slants

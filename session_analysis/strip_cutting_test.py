@@ -69,6 +69,22 @@ def test_strip_padding_clamps_at_the_image_edges() -> None:
   assert _decode(parts[0].image_bytes).size == (80, 24)
 
 
+def test_a_strip_wider_than_the_edge_limit_is_scaled_to_fit() -> None:
+  # A full-width row on a phone scan: 2500px of table, over the 2000px the model
+  # receives unresized.
+  image = Image.new('RGB', (2600, 200), color='white')
+  geometry = SheetGeometry(
+    image_width=2600,
+    image_height=200,
+    row_boxes=(Box(left=50, top=50, right=2550, bottom=70),),
+  )
+
+  parts = cut_strips(image, geometry)
+
+  # The padded 2500x32 crop, scaled by 2000/2500 on both axes.
+  assert _decode(parts[0].image_bytes).size == (2000, 26)
+
+
 def test_the_footer_strip_is_padded_like_a_row() -> None:
   # The footer band is read off the sheet rather than derived with a margin of
   # its own, so it can hug the printed guide underlines that ascenders cross —
@@ -83,8 +99,8 @@ def test_the_footer_strip_is_padded_like_a_row() -> None:
 
 def test_a_sheet_with_no_footer_contributes_no_footer_strip() -> None:
   # Several vendor forms print conversion charts below the table and no footer
-  # at all; cutting one anyway would hand the model a chart to read an event
-  # and date out of.
+  # at all; cutting one anyway would hand the model a chart to read an event and
+  # date out of.
   image = Image.new('RGB', (100, 200), color='white')
   geometry = SheetGeometry(
     image_width=100,

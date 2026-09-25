@@ -138,6 +138,33 @@ output, parsed into the canonical model.
     it had been joined to.
   - Note: #date-from-scan is the other candidate for this gap, and weighs the
     two against each other.
+- [ ] Check the fitted layout reading on a real scan of a multi-panel form.
+      {#fitted-layout-other-forms}
+  - Rationale: fitting every image to the model's limits (spec.md #image-limits)
+    put the 6/29 sheet's right border on the printed rule in six readings of six
+    and cleared its footer by at least 20 pixels — but that is one sheet, on the
+    custom single-panel form. The vendor forms in `samples/` lay their panels
+    out differently: two side by side, a few pixels apart on Bridge Buddy's and
+    sharing one divider on Baron Barclay's, or four in a 2×2 grid on both teams
+    forms. Each layout puts panel borders mid-page, where snapping a border onto
+    its printed line has less room to work: the search reaches a share of the
+    panel's width, so a narrow panel gets a short reach, and its interior rules
+    sit close to its borders.
+  - Note: it needs a high-resolution scan, not the samples. The samples are
+    small vendor images that never exceeded the limits, so they cannot show the
+    fitting doing anything. The archive's Swiss teams sheet from 9/14 is the
+    likely candidate. The comparison harness's `cut` command is enough on its
+    own, since the strip set's manifest records the geometry;
+    `scratch/README.md` shows how to run it.
+  - Note: two risks the fitting does not remove by construction.
+    - **A border can snap to the wrong line.** The snap takes the nearest
+      printed line in reach, so a border reported far enough inside a panel can
+      still land on an interior rule. On the custom form, a left border reported
+      more than about 22 pixels inside the table lands on the `Bd` column's
+      inner rule and crops the board number from every strip.
+    - **The footer is measured against nothing.** On the fitted 6/29 cuttings
+      its top sat at the handwriting's top edge, and the strip padding supplied
+      the whole 20-pixel margin above it.
 - [ ] Decide whether the two-run vote still earns its keep on Opus 5.
   - Rationale: the refreshed strips comparison found Opus 5's two runs agreeing
     completely on the 6/29 sheet — the pass flags nothing, and the errors that
@@ -355,13 +382,9 @@ record waits for review, and what becomes of a scan that raises.
     row count correctly at 55% linear, so the input is there.
   - Note: a two-panel sheet also doubles the strip count — 36 row strips plus a
     footer, against 29 for a single-panel sheet. Above 20 image blocks in one
-    request a stricter per-image dimension limit applies to every image in it,
-    documented as 2000px a side to be safe on all platforms. Unquantified rather
-    than known-bad: a real run has already sent 29 strips 2262px wide through
-    the CLI without complaint, so the first-party limit is evidently higher than
-    the cross-platform figure. Worth measuring before a two-panel sheet is
-    transcribed for real, since a rejected image fails the whole request and no
-    board is read.
+    request a stricter per-image limit applies, documented as 2000px a side.
+    Every image is sized within 2000px regardless (spec.md #image-limits), so
+    the count does not change what may be sent.
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
     panels reported flush against each other pass — and a single table read as

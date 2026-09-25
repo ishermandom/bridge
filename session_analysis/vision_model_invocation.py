@@ -21,11 +21,15 @@ envelope `--output-format json` gives.
 import base64
 import dataclasses
 import enum
+import io
 import json
+import math
 import pathlib
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
+
+from PIL import Image
 
 # A fixed, reused scratch directory to invoke `claude` from. Even with a
 # replacement system prompt and every setting source disabled, the CLI still
@@ -62,6 +66,34 @@ class Effort(enum.StrEnum):
 
 
 DEFAULT_EFFORT = Effort.HIGH
+
+# The largest image the model receives exactly as sent. Past the edge or byte
+# limit the Claude Code CLI resizes an image on its way through; past the token
+# budget the API does. Either way the model then reads a copy the caller never
+# saw, and any pixel position the model reports is in that copy's frame. So each
+# caller sizes its own images to fit, and `invoke_vision_model` refuses any
+# image that does not fit. spec.md #image-limits measures what an unfitted image
+# costs.
+#
+# - `MAX_IMAGE_EDGE`: the CLI's cap on either side — tighter than the API's
+#   own 2576. The figure comes from reading the CLI's source, not from a
+#   documented interface, and the CLI sets it per model, so a new release behind
+#   `DEFAULT_MODEL`'s alias could bring a different one.
+# - `MAX_IMAGE_TOKENS`: the high-resolution tier's visual-token budget, one
+#   token per `IMAGE_PATCH_SIZE` square.
+# - `MAX_IMAGE_BYTES`: the CLI's cap on an image's encoded size.
+MAX_IMAGE_EDGE = 2000
+MAX_IMAGE_TOKENS = 4784
+IMAGE_PATCH_SIZE = 28
+MAX_IMAGE_BYTES = 3_932_160
+
+
+def image_token_count(width: int, height: int) -> int:
+  """Visual tokens an image of this size costs: one per patch, rounded up."""
+  return math.ceil(width / IMAGE_PATCH_SIZE) * math.ceil(
+    height / IMAGE_PATCH_SIZE
+  )
+
 
 # The user-turn ask that closes a transcription request, after the images. All
 # real instruction lives in the system prompt; the user turn exists because the
@@ -108,6 +140,40 @@ def run_claude(
   return subprocess.run(
     command, input=stdin_text, capture_output=True, text=True, cwd=cwd
   )
+
+
+def _check_within_limits(part: LabeledImage) -> None:
+  """Refuse an image the model would not receive exactly as sent.
+
+  Raises:
+    ValueError: the image exceeds `MAX_IMAGE_EDGE` on a side,
+      `MAX_IMAGE_TOKENS` in visual tokens, or `MAX_IMAGE_BYTES` encoded.
+  """
+  with Image.open(io.BytesIO(part.image_bytes)) as image:
+    width, height = image.size
+  tokens = image_token_count(width, height)
+  byte_count = len(part.image_bytes)
+
+  # Only the limits this image breaks, so the message says what to fix.
+  exceeded_limits: list[str] = []
+  if max(width, height) > MAX_IMAGE_EDGE:
+    exceeded_limits.append(
+      f'its {width}x{height} pixels exceed the {MAX_IMAGE_EDGE}-pixel edge'
+      ' limit'
+    )
+  if tokens > MAX_IMAGE_TOKENS:
+    exceeded_limits.append(
+      f'its {tokens} visual tokens exceed the {MAX_IMAGE_TOKENS}-token budget'
+    )
+  if byte_count > MAX_IMAGE_BYTES:
+    exceeded_limits.append(
+      f'its {byte_count} bytes exceed the {MAX_IMAGE_BYTES}-byte cap'
+    )
+  if exceeded_limits:
+    raise ValueError(
+      f'the image labeled {part.label!r} must be sized to fit before it is'
+      f' sent: {"; ".join(exceeded_limits)}'
+    )
 
 
 def _build_request(parts: Sequence[LabeledImage], instruction: str) -> str:
@@ -205,10 +271,15 @@ def invoke_vision_model(
     The model's response, as a JSON string conforming to `json_schema`.
 
   Raises:
+    ValueError: an image is larger than the model receives unresized — see
+      `MAX_IMAGE_EDGE` and the limits beside it. Checked before anything is
+      sent.
     VisionModelInvocationError: the `claude` process exited nonzero, or
       its output failed to yield a successful result event — see
       `_parse_result`.
   """
+  for part in parts:
+    _check_within_limits(part)
   request = _build_request(parts, instruction)
 
   command = [

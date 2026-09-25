@@ -38,8 +38,12 @@ from session_analysis.frozen_model import FrozenModel
 from session_analysis.unreviewed.sheet_geometry import BoardPanel, Box
 from session_analysis.vision_model_invocation import (
   DEFAULT_MODEL,
+  IMAGE_PATCH_SIZE,
+  MAX_IMAGE_EDGE,
+  MAX_IMAGE_TOKENS,
   CommandRunner,
   LabeledImage,
+  image_token_count,
   invoke_vision_model,
   run_claude,
 )
@@ -59,20 +63,13 @@ _STRUCTURE_INSTRUCTION = (
 # well below the scale of a printed rule.
 _PAGE_JPEG_QUALITY = 92
 
-# The model's image limits, as (longest edge, visual tokens). An image over
-# either is scaled down before the model sees it, so a coordinate it reports is
-# in the scaled image's pixels; sending the already-scaled image makes the two
-# spaces one. These are the high-resolution tier's published limits, which
-# `DEFAULT_MODEL` is on — see the vision guide's "Resolution and token cost".
-# `_check_fits` catches a reading that landed nowhere near the image. It cannot
-# catch these limits being too large: a second rescaling shrinks every
-# coordinate inward, which stays inside the frame and so passes that check —
-# `sheet_geometry` is what refuses it, since the shrunken coordinates place the
-# grid nowhere near the printed rules.
-SCALE_LIMITS = (2576, 4784)
-# The model sees an image as patches this many pixels on a side, one visual
-# token each.
-_PATCH_SIZE = 28
+# The limits the page is scaled to, as (longest edge, visual tokens). An image
+# over either is resized on its way to the model, so a coordinate the model
+# reports would be in the resized copy's pixels; sending an image already within
+# the limits makes the two spaces one. `vision_model_invocation` owns the
+# figures and refuses an image over them. `_check_fits` says what follows if an
+# image is resized anyway.
+SCALE_LIMITS = (MAX_IMAGE_EDGE, MAX_IMAGE_TOKENS)
 
 # How far outside the sent image a reported box may lie, as a fraction of the
 # image's own size, before `_check_fits` takes the reading to be of something
@@ -243,17 +240,21 @@ def _check_fits(structure: SheetStructure, width: int, height: int) -> None:
 
   What is worth refusing is a reading that is not describing this image at all,
   which lands nowhere near its frame. It is worth being clear about what that
-  does *not* catch: were `SCALE_LIMITS` wrong and the image scaled again before
-  the model saw it, every coordinate would come back proportionally *smaller* —
-  inside the image, and so past this check entirely. That direction is caught by
-  `sheet_geometry` instead, loudly, because coordinates shrunk by a scale factor
-  place the grid nowhere near the printed rules.
+  does *not* catch: were the image scaled again before the model saw it, every
+  coordinate would come back proportionally *smaller* — inside the image, and so
+  past this check entirely. `sheet_geometry` catches only a large rescaling, one
+  that puts the grid nowhere near the printed rules. A small rescaling passes
+  `sheet_geometry` as well. Each row still snaps to its printed rule, but
+  `sheet_geometry` looks for a border's printed line only near where the model
+  put it, so a border pulled in too far stays short of the rule — spec.md
+  #image-limits measures one such case.
 
   The API has a guard for exactly that — an image block marked `transformations:
   {"oversized_image": "error"}` is refused rather than rescaled — but it is not
   reachable from here. Tested: an image over both limits, sent through the CLI
   with that field set, came back answered rather than refused, so the field does
-  not survive the trip.
+  not survive the trip. `invoke_vision_model` makes the same refusal on this
+  side instead.
 
   Raises:
     SheetStructureError: a reported box lies substantially outside the image.
@@ -296,18 +297,20 @@ def _scaled_size(
   """The size an image is scaled to before the model sees it.
 
   The largest size at the image's own aspect ratio whose edges are both within
-  `max_edge` and whose visual token cost — one token per `_PATCH_SIZE` square —
-  is within `max_tokens`. For page-shaped images it is the token limit that
-  binds, never the edge.
+  `max_edge` and whose visual token cost is within `max_tokens`. Edges are
+  counted in whole patches, so the result can fall up to a patch short of
+  `max_edge`. Which limit binds depends on shape: at the CLI's 2000-pixel edge,
+  a page-shaped image runs into the edge first, and only a near-square one into
+  the token budget.
   """
 
   def fits(candidate_width: int, candidate_height: int) -> bool:
-    wide = math.ceil(candidate_width / _PATCH_SIZE)
-    tall = math.ceil(candidate_height / _PATCH_SIZE)
+    wide = math.ceil(candidate_width / IMAGE_PATCH_SIZE)
+    tall = math.ceil(candidate_height / IMAGE_PATCH_SIZE)
     return (
-      wide * _PATCH_SIZE <= max_edge
-      and tall * _PATCH_SIZE <= max_edge
-      and wide * tall <= max_tokens
+      wide * IMAGE_PATCH_SIZE <= max_edge
+      and tall * IMAGE_PATCH_SIZE <= max_edge
+      and image_token_count(candidate_width, candidate_height) <= max_tokens
     )
 
   if fits(width, height):
