@@ -120,7 +120,7 @@ class PairIdentity(FrozenModel):
   # section prefixes the number, `10` where two digits are needed.
   number: str
   side: Side
-  # `None` when the event ran a single unnamed section.
+  # `None` when the source names no section.
   section: str | None = None
   # The two players, each written given name first — the order the Palo Alto
   # club and the sheets use, and the one ACBL's surname-first filing is turned
@@ -128,7 +128,7 @@ class PairIdentity(FrozenModel):
   # than on their spelling of them. Sources differ in how much they give: ACBL
   # prints full names, the club's per-board rows only surnames — so the club
   # parsers recover full names from the standings recap the capture embeds,
-  # keyed by `number` and `side`.
+  # keyed by `section`, `number`, and `side`.
   names: tuple[str, ...] = ()
 
 

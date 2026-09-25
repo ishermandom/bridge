@@ -407,7 +407,8 @@ A pair as a traveller records them, on one board. Shared by the canonical
 
 - `number` — the pair number.
 - `side` — the `Side` the pair sat.
-- `section` — the section, when the event has more than one; else omitted.
+- `section` — the section the pair played in, when the source names one; else
+  omitted.
 - `names` — the two players, as the source names them.
 
 Per-board — and `PairIdentity`'s docstring explains why that is not a

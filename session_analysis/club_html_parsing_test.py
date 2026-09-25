@@ -792,9 +792,10 @@ def test_matchpoints_are_kept_per_side() -> None:
 # --- sections ---
 
 
-def test_a_single_section_game_leaves_the_section_unnamed() -> None:
-  # A game that ran one section prints no section letter anywhere in its table,
-  # which is what the rows themselves say.
+def test_a_game_with_no_recap_leaves_the_section_unnamed() -> None:
+  # A game that ran one section prints no section letter anywhere in its table.
+  # With no recap to name that section either, the rows are left with no
+  # section.
   traveller = parse_markup(
     '<div id=Board1></div>',
     _make_score_table(
@@ -805,6 +806,57 @@ def test_a_single_section_game_leaves_the_section_unnamed() -> None:
   )
 
   assert traveller.boards[0].results[0].north_south.section is None
+
+
+def test_a_single_section_game_takes_its_section_from_the_recap() -> None:
+  # The game ran a single section, C. The rows print no section letter, but the
+  # recap heads both its lists with C. The club's PBN and the ACBL pages name
+  # that section too, so a row left without it would disagree with them over the
+  # pair's section.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  C  North-South',
+      '  3   75.00    3.00  C   1     Ann Alfa - Bob Bravo',
+      'Scores after  1 round   Average:    2.0      Section  C  East-West',
+      '  4   75.00    3.00  C   1     Gus Charlie - Hal Delta',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S',
+        declarer='N',
+        made='4',
+        pair_north_south='3-Alfa-Bravo',
+        pair_east_west='4-Charlie-Delta',
+      )
+    ),
+  )
+
+  row = traveller.boards[0].results[0]
+  assert row.north_south.section == 'C'
+  assert row.east_west.section == 'C'
+
+
+def test_a_row_naming_none_of_several_sections_keeps_its_surnames() -> None:
+  # Sections A and B each have a pair 1, and the two pairs even share the row's
+  # surnames, so a row naming no section could hold either pair. The row keeps
+  # the surnames it prints rather than borrowing either section's names.
+  traveller = parse_markup(
+    _make_recap(
+      'Scores after  1 round   Average:    2.0      Section  A  North-South',
+      '  1   75.00    3.00  A   1     Ann Alfa - Bob Bravo',
+      'Scores after  1 round   Average:    2.0      Section  B  North-South',
+      '  1   75.00    3.00  B   1     Gus Alfa - Hal Bravo',
+    ),
+    '<div id=Board1></div>',
+    _make_score_table(
+      _make_score_row(
+        contract='4S', declarer='N', made='4', pair_north_south='1-Alfa-Bravo'
+      )
+    ),
+  )
+
+  assert traveller.boards[0].results[0].north_south.names == ('Alfa', 'Bravo')
 
 
 def test_a_full_width_heading_assigns_the_rows_below_it() -> None:
@@ -921,9 +973,9 @@ def test_a_one_winner_pair_is_named_in_full_sitting_either_way() -> None:
 
 
 def test_a_single_section_one_winner_game_is_named_in_full() -> None:
-  # The rows of a single-section game print no section letter, so the lookup
-  # falls back to matching the pair number in any section. A one-winner recap
-  # files its pairs under no side, so that fallback has to accept them too.
+  # The game ran a single section, A, and its rows print no section letter, so
+  # they take A from the recap. A one-winner recap files its pairs under no
+  # side, so the lookup has to accept a row from either side.
   traveller = parse_markup(
     _make_recap(
       'Scores after  1 round   Average:    2.0      Section  A',

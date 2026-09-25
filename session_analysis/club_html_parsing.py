@@ -36,7 +36,7 @@ read — so every pattern here spells plain ASCII.
 import dataclasses
 import datetime
 import re
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence, Set
 
 import bs4
 
@@ -357,7 +357,7 @@ class _Standings:
 
   A score table names a pair by surnames alone. A capture's standings recap
   names the same pair in full, so the recap is read once and every row looks its
-  pair up here.
+  pair up here. The recap also names the sections the game ran.
 
   The recap comes in two layouts, which differ in how they head each list of
   pairs and where in a row they print the names. `_recap_section` and
@@ -368,9 +368,12 @@ class _Standings:
     self,
     *,
     names: Mapping[_PairKey, tuple[str, ...]],
+    sections: Set[str],
     date: datetime.date | None,
   ) -> None:
     self._names = names
+    # Every section in the recap. Empty when there is no recap.
+    self.sections = sections
     self.date = date
 
   @classmethod
@@ -378,18 +381,20 @@ class _Standings:
     """Read the standings out of the capture's recap block.
 
     A capture with no recap yields empty standings rather than an error: the
-    per-board rows stand on their own, only with surnames in place of full
-    names. A standings line with a name that does not start with a letter is
-    reported and skipped, leaving that one pair on surnames too.
+    per-board rows stand on their own, only with surnames in place of full names
+    — and, in a single-section game, with no section. A standings line with a
+    name that does not start with a letter is reported and skipped, leaving that
+    one pair on surnames too.
 
     A recap that is present but yields no pair at all is reported; see
     `_UNREADABLE_RECAP` for why that case cannot pass in silence.
     """
     recap = soup.find(id='bcrecap')
     if not recap:
-      return issue_reporting.Read(cls(names={}, date=None))
+      return issue_reporting.Read(cls(names={}, sections=set(), date=None))
 
     names: dict[_PairKey, tuple[str, ...]] = {}
+    sections: set[str] = set()
     issues: list[Issue] = []
     date: datetime.date | None = None
     section: str | None = None
@@ -408,6 +413,7 @@ class _Standings:
       if heading:
         section = heading.section
         side = heading.side
+        sections.add(section)
         continue
 
       # The lines above the first heading, the title among them, name no pair.
@@ -446,7 +452,9 @@ class _Standings:
         )
       )
 
-    return issue_reporting.Read(cls(names=names, date=date), tuple(issues))
+    return issue_reporting.Read(
+      cls(names=names, sections=sections, date=date), tuple(issues)
+    )
 
   def players(
     self, *, section: str | None, side: Side, number: str
@@ -457,28 +465,15 @@ class _Standings:
     names no side. A pair the recap filed under no side therefore matches a row
     from either side.
 
-    A single-section game prints no section letter on its rows but still names
-    one in the recap, so a row that carries none falls back to whichever section
-    the recap recorded that pair number under.
+    `section` is the row's section, and is None only when the page gives no way
+    to infer it. The recap files every pair under a section, so a row with none
+    matches nothing.
     """
     # Look under the row's own side first, then under no side, where a
     # one-winner section's pairs are filed.
-    found = self._names.get(
+    return self._names.get(
       _PairKey(section=section, side=side, number=number)
     ) or self._names.get(_PairKey(section=section, side=None, number=number))
-    if found or section:
-      return found
-    # TODO: a multi-section game whose rows printed no section letter would take
-    # another section's names here, with nothing said. No capture does that, so
-    # fixing this waits for a repro case seen in the wild.
-    return next(
-      (
-        players
-        for key, players in self._names.items()
-        if key.side in (side, None) and key.number == number
-      ),
-      None,
-    )
 
 
 def _recap_date(line: str) -> datetime.date | None:
@@ -926,7 +921,9 @@ def _results(
   A multi-section game introduces each section with a full-width row above the
   rows belonging to it, so the section a row sat in is carried forward from the
   last such heading — except where the pair cells state it themselves, which
-  they do in exactly the games that have more than one section.
+  they do in exactly the games that have more than one section. A single-section
+  game prints no heading row and no section letter in its pair cells. Its recap
+  names a single section, and every row takes that section.
   """
   if not score_table:
     # Every board of every capture seen prints one, so a board with none means
@@ -942,7 +939,9 @@ def _results(
     )
 
   results: list[TravellerResult] = []
-  section: str | None = None
+  section = (
+    next(iter(standings.sections)) if len(standings.sections) == 1 else None
+  )
   for row in score_table.find_all('tr'):
     heading = _section_heading(row)
     if heading:
@@ -1001,7 +1000,8 @@ def _pair(
 
   The row itself gives surnames only. The recap names the same pair in full, so
   it is preferred where it has an entry and the surnames stand in where it does
-  not — a pair that played but placed nowhere, or a capture with no recap.
+  not — a pair that played but placed nowhere, a capture with no recap, or a row
+  that names no section in a game that ran several.
 
   A cell naming no pair still yields a pair, carrying an empty number: the row's
   other side, its contract, and its score are all still good, and dropping the
