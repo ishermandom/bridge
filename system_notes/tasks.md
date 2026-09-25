@@ -27,15 +27,6 @@ Design decisions live in `spec.md`; this file tracks the work.
   already use (raised 2026-09-20). Ilya leans toward reordering but left it
   queued (2026-09-25).
 
-- [ ] **Close the underline gap under suits in screen headings**
-      {#heading-underline-gap} — a subsection heading's underline breaks beneath
-      each suit symbol on screen, because browsers draw no ancestor's underline
-      through the inline-block a suit is set in; print draws it whole. Ilya saw
-      it (2026-09-25) and finds it clumsy. Giving the suit its own underline was
-      tried and is worse: it draws in the suit's color at the suit face's
-      metrics. The fixture has no suit in a subsection heading; rendering one
-      such as `## Responses to 1H and 1S` shows the gap.
-
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
       at 11pt, against the letterform preferences in `spec.md` #appearance.

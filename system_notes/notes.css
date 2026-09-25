@@ -56,16 +56,18 @@ main h1 {
   color: var(--accent);
   font-style: italic;
 }
-/* Browsers do not draw an ancestor's underline through an inline-block, so on
-   screen the underline gaps under each suit symbol in a subsection heading;
-   WeasyPrint draws it through, so print is whole. Giving the suit its own
-   underline was tried and is worse: it draws in the suit's color at the suit
-   face's metrics, breaking the line's color and depth. */
+/* A subsection heading is underlined with a border rather than a text
+   underline, which cannot cross a suit symbol cleanly: browsers stop it at the
+   inline-block a suit is set in, and WeasyPrint draws that stretch in the
+   suit's color. `display: table` shrinks the box to its text, so the border
+   runs only as far as the words; a heading that wraps gets one line beneath
+   its last row. */
 h2:not(#toc-title) {
+  display: table;
   font-size: 1em;
   font-weight: normal;
   font-style: italic;
-  text-decoration: underline;
+  border-bottom: 0.06em solid currentColor;
 }
 #toc-title {
   font-size: 1.2em;

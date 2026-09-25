@@ -71,11 +71,14 @@ The 1NT opening                                                        corrects 
 Stayman                                                                   Responder may still continue with
                                                                           4♣, 4♦, or 4♥ as control bids.
  ○ 1NT – 2♣ asks for a four-card major and
-   promises nothing: responder may be weak                              ▪ 4♣, 4♦, 4♥: control bid, accepting
-   with 4-4 in the majors and a short club, or                            the try.
+                                                                        ▪ 4♣, 4♦, 4♥: control bid, accepting
+   promises nothing: responder may be weak
+                                                                          the try.
+   with 4-4 in the majors and a short club, or
    4-4-4-1 in any order except club length                                  ◦ Responder continues with 4NT
    (garbage Stayman).                                                         (see Roman key card 1430 (p. 8)) or
-    ● 2♦: no four-card major.                                                 bids the cheapest control.
+                                                                              bids the cheapest control.
+    ● 2♦: no four-card major.
                                                                             ◦ Responder signs off in 4♠ with
         □ 2♥ or 2♠: five cards in the bid major
                                                                               nothing further to show.
@@ -211,6 +214,7 @@ The forcing 1NT                                                    ● A new sui
     ● Jump shift: game forcing, 18 or more.                       4NT (Roman key card 1430 (p. 8)).
     ● 2NT: 18–19 balanced.
  ○ Responder’s continuations                                   Bergen raises
+
     ● A new suit at the two level: to play, five or             ○ 3♣: four-card support, 7–9 points. 3♦: four-
       more cards.                                                 card support, 10–12.
     ● Two of opener’s major: a three-card limit                 ○ Three of the other major: a mixed raise, four-
