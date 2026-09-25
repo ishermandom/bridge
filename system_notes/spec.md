@@ -238,8 +238,8 @@ parse and does not need.
 - **Filter unit tests** run pandoc over small Markdown snippets with one filter
   at a time and assert the resulting HTML and plain text.
 - **Packer unit tests** drive `print_layout.py`'s packing on hand-built lists of
-  section heights, and its page rewrite on hand-built markup, with no render in
-  the loop.
+  section heights, and `paged_document` on hand-built markup, with chosen
+  heights standing in for the measuring render so that no render runs.
 - **Golden files** {#goldens} for the fixture, committed and diffed on every
   test run: the HTML, the plain text, and the PDF as extracted by
   `pdftotext -layout`. The PDF golden is text rather than bytes because the

@@ -23,8 +23,8 @@ sit side by side. WeasyPrint cannot be told this in CSS (spec.md
   the original flat HTML.
 
 Atomizing and rewriting move elements around a parsed document rather than
-splice markup: `parse_html` reads the HTML with WeasyPrint's own parser and
-`document_html` writes the tree back out, so the packer works on the document
+splice markup: `_parse_html` reads the HTML with WeasyPrint's own parser and
+`_document_html` writes the tree back out, so the packer works on the document
 WeasyPrint will lay out.
 
 The page geometry mirrors the print rules in `notes.css`, which owns the values.
@@ -32,7 +32,7 @@ The page geometry mirrors the print rules in `notes.css`, which owns the values.
 
 import copy
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -58,7 +58,7 @@ SECTIONS_WRAPPER_PATH = f'.//div[@class="{SECTIONS_CLASS}"]'
 TABLE_OF_CONTENTS_ID = 'TOC'
 FOOTNOTES_ID = 'footnotes'
 
-# A parsed document carries no doctype, so `document_html` puts one back: the
+# A parsed document carries no doctype, so `_document_html` puts one back: the
 # packed copy is the same HTML5 document pandoc wrote, with only its sections
 # moved.
 DOCTYPE = '<!DOCTYPE html>\n'
@@ -117,7 +117,7 @@ a.xref::after {
 
 
 # A top-level section's place in document order. A page plan names the sections
-# on it by this index, and `SectionRun.sections` holds them in the same order.
+# on it by this index, and `_SectionRun.sections` holds them in the same order.
 type SectionIndex = int
 
 # A vertical measurement in points, as the probe render reported it.
@@ -174,7 +174,7 @@ type PrintPage = ColumnPage | WidePage
 
 
 @dataclass(frozen=True)
-class SectionRun:
+class _SectionRun:
   """The run of top-level sections, and where it sits in the document.
 
   `wrapper` is the div sections.lua wrote around the whole run, and `parent` the
@@ -321,7 +321,7 @@ def pack(
   return pages
 
 
-def parse_html(html: str) -> Element:
+def _parse_html(html: str) -> Element:
   """Parse a whole HTML document, returning its `<html>` element.
 
   The parser prefixes every tag name with its namespace by default, which the
@@ -331,15 +331,15 @@ def parse_html(html: str) -> Element:
   return tinyhtml5.parse(html, namespace_html_elements=False)
 
 
-def element_html(element: Element) -> str:
+def _element_html(element: Element) -> str:
   """One element's own markup, without the text that follows it."""
   markup = tostring(element, encoding='unicode', method='html')
   return markup.removesuffix(element.tail or '')
 
 
-def document_html(document: Element) -> str:
+def _document_html(document: Element) -> str:
   """A whole parsed document's markup, doctype and all."""
-  return DOCTYPE + element_html(document)
+  return DOCTYPE + _element_html(document)
 
 
 def _parents(document: Element) -> Mapping[Element, Element]:
@@ -360,7 +360,7 @@ def _reject_content_outside_sections(wrapper: Element) -> None:
   texts = (wrapper.text, *(child.tail for child in wrapper))
   strays = [text.strip() for text in texts if text and text.strip()]
   strays += [
-    element_html(child)
+    _element_html(child)
     for child in wrapper
     if child.tag != 'div' or child.get('class') != SECTION_CLASS
   ]
@@ -372,7 +372,7 @@ def _reject_content_outside_sections(wrapper: Element) -> None:
     )
 
 
-def find_section_run(document: Element) -> SectionRun | None:
+def _find_section_run(document: Element) -> _SectionRun | None:
   """Locate the sections wrapper and the sections it holds.
 
   Returns None when the document has no sections wrapper. Whatever the wrapper
@@ -389,7 +389,7 @@ def find_section_run(document: Element) -> SectionRun | None:
       'writes that class only around a run of sections, so this div came from '
       'author markup'
     )
-  return SectionRun(_parents(document)[wrapper], wrapper, tuple(wrapper))
+  return _SectionRun(_parents(document)[wrapper], wrapper, tuple(wrapper))
 
 
 def _heading_parent(atom: Element) -> Element:
@@ -410,7 +410,7 @@ def _heading_parent(atom: Element) -> Element:
     if len(table_of_contents) and table_of_contents[0].tag == 'h2':
       return table_of_contents
   raise ValueError(
-    f'wide section does not open with a heading: {element_html(atom)[:100]!r}'
+    f'wide section does not open with a heading: {_element_html(atom)[:100]!r}'
   )
 
 
@@ -452,12 +452,12 @@ def _page_element(
   return box
 
 
-def rewrite_into_pages(
-  section_run: SectionRun, pages: Sequence[PrintPage]
+def _rewrite_into_pages(
+  section_run: _SectionRun, pages: Sequence[PrintPage]
 ) -> None:
   """Put the packed pages where the sections wrapper stood."""
   for section in section_run.sections:
-    # find_section_run proved that nothing but whitespace stood between the
+    # _find_section_run proved that nothing but whitespace stood between the
     # sections, and no column has any use for that whitespace.
     section.tail = None
   insertion_point = list(section_run.parent).index(section_run.wrapper)
@@ -469,7 +469,7 @@ def rewrite_into_pages(
     )
 
 
-def atomize_table_of_contents(document: Element) -> None:
+def _atomize_table_of_contents(document: Element) -> None:
   """Move the table of contents into the sections run as its first atom.
 
   Packed like a section, the table of contents keeps to a single column instead
@@ -501,7 +501,7 @@ def _measure(document: Element, section_count: int) -> ProbeHeights:
   SubElement(head, 'style').text = PROBE_STYLESHEET
   with tempfile.TemporaryDirectory() as directory:
     pdf = Path(directory) / 'probe.pdf'
-    weasyprint.HTML(string=document_html(probe)).write_pdf(str(pdf))
+    weasyprint.HTML(string=_document_html(probe)).write_pdf(str(pdf))
     heights = pdf_inspection.page_text_heights(pdf)
   if len(heights) != section_count + 1:
     raise ValueError(
@@ -513,27 +513,33 @@ def _measure(document: Element, section_count: int) -> ProbeHeights:
   return ProbeHeights(heights[0], tuple(heights[1:]))
 
 
-def paged_document(html: str) -> PagedDocument:
+def paged_document(
+  html: str,
+  measure: Callable[[Element, int], ProbeHeights] = _measure,
+) -> PagedDocument:
   """Rewrite the HTML's sections into explicitly packed printed pages.
 
   A document with no sections comes back unchanged, with an empty plan.
+  `measure` reports the heights the packing works from, given the parsed
+  document and its section count. It defaults to the probe render; the parameter
+  exists so that tests can supply chosen heights and skip rendering.
   """
-  document = parse_html(html)
-  atomize_table_of_contents(document)
-  section_run = find_section_run(document)
+  document = _parse_html(html)
+  _atomize_table_of_contents(document)
+  section_run = _find_section_run(document)
   if section_run is None:
-    return PagedDocument(document_html(document), ())
+    return PagedDocument(_document_html(document), ())
   if document.find(f'.//*[@id="{FOOTNOTES_ID}"]') is not None:
     raise NotImplementedError(
       'the document has footnotes, whose endnotes pandoc appends outside the '
       'sections run; the packer cannot yet place them on any page (tasks.md '
       '#pack-footnotes)'
     )
-  measured = _measure(document, len(section_run.sections))
+  measured = measure(document, len(section_run.sections))
   pages = pack(
     section_heights=measured.section_heights,
     first_column_height=PAGE_CONTENT_HEIGHT - measured.height_above_sections,
     column_height=PAGE_CONTENT_HEIGHT,
   )
-  rewrite_into_pages(section_run, pages)
-  return PagedDocument(document_html(document), tuple(pages))
+  _rewrite_into_pages(section_run, pages)
+  return PagedDocument(_document_html(document), tuple(pages))
