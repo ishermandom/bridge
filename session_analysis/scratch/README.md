@@ -7,15 +7,15 @@ wherever the decision it supports lives.
 
 ## Extraction model comparison
 
-A two-step harness for re-running the live comparison behind the extraction
-model choice. The measurements it produces are recorded in spec.md #extraction —
-the model bullet's quality and cost figures — and in spec.md #extraction-voting,
-which rests on how consistent the chosen model is with itself.
+A harness for re-running the live comparison behind the extraction model choice.
+The measurements it produces are recorded in spec.md #extraction — the model
+bullet's quality and cost figures — and in spec.md #extraction-voting, which
+rests on how consistent the chosen model is with itself.
 
 **Re-run it when `vision_model_invocation.DEFAULT_MODEL` or `DEFAULT_EFFORT`
 moves.** Those spec figures are measurements of one setting against one
 alternative, so a change to either silently invalidates them; the whole point of
-keeping the harness is that refreshing them should be a two-command job rather
+keeping the harness is that refreshing them should take a few commands rather
 than a rebuild.
 
 `DEFAULT_MODEL` names an alias rather than a release, so it can also move
@@ -25,18 +25,37 @@ asked for, so a refreshed figure says which release it describes.
 
 ### Running it
 
-`strips_model_comparison.py` cuts one scan's strips once and reads those same
-strips at every combination of `--models` and `--efforts`, so the sweep is the
-only variable. It writes each run's raw transcription and its cost and token
-figures as JSON.
+Every comparison reads one fixed set of strips. Cutting rests on the sheet's
+layout reading, and that reading is a model call whose answer varies: two
+cuttings of one image are never byte-identical. So the strips are cut once and
+saved, and every sweep after that reads the saved set rather than cutting its
+own.
+
+First, `cut` a strip set from a scan and save it.
 
 ```sh
 PYTHONPATH=. uv run --project . python \
-  session_analysis/scratch/strips_model_comparison.py \
+  session_analysis/scratch/strips_model_comparison.py cut \
   --image ../bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg \
+  --output-directory /tmp/strips-6-29
+```
+
+Then `transcribe` that set at each setting, in one invocation or several. Each
+run's raw transcription and its cost and token figures are written as JSON
+beside a copy of the strips it read.
+
+```sh
+PYTHONPATH=. uv run --project . python \
+  session_analysis/scratch/strips_model_comparison.py transcribe \
+  --strips-from /tmp/strips-6-29 \
   --output-directory /tmp/strips-comparison \
   --models opus sonnet --efforts high --runs 2
 ```
+
+Both scripts enforce the fixing. The harness will not cut a new set into a
+directory that already holds one, and the scoring step below will not vote runs
+that read different sets. `--layout-model` names the model that cuts, defaulting
+to `DEFAULT_MODEL`.
 
 `voted_session_comparison.py` then scores those runs the way the pipeline does —
 each model's two runs voted against each other, reporting the issues a review
