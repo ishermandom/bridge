@@ -108,7 +108,7 @@ syntax the plain-text output must survive:
   the link keeps its color, which marks the text as pointing elsewhere even
   where it cannot be followed. An unknown target is a hard error, so a typo
   cannot ship as a dead link. Which links deserve a page number is unsettled —
-  `tasks.md` #numbered-references.
+  `tasks.md` #page-numbers.
 - **Unbreakable tokens**: card-count ranges like `15–17` and slashed shorthand
   like `P/C` are wrapped so they never break across a line. The author writes
   them plainly; the filter recognizes digits–dash–digits, and a slashed word

@@ -8,12 +8,6 @@ Design decisions live in `spec.md`; this file tracks the work.
 
 **Goal:** settle how the notes look before the stylesheet hardens.
 
-- Open question {#page-numbers}: does the "(p. N)" after each cross-reference
-  stay? Ilya deferred the call (2026-09-07), having seen only the HTML then; the
-  PDF now shows what it looks like. The numbers down the table of contents are
-  not in question — a printed table of contents with no page numbers has nothing
-  to point with — and section headings carry no numbers of their own either way.
-
 - Open question {#wide-overflow}: should a section taller than even a full wide
   page flow onto following pages (today's behavior — three fixture sections do)
   or fail the render, forcing the author to split the section? Surfaced
@@ -63,15 +57,24 @@ Design decisions live in `spec.md`; this file tracks the work.
       Ilya asked (2026-09-21) whether the filters could read better overall, and
       chose to take it up after the branch lands (2026-09-25).
 
-- [ ] **Decide which links carry a page number** {#numbered-references} — every
-      link to a heading is page-numbered in print today, which would put "(p.
-      7)" on each of the six `[MTB](#mtb)` mentions in the Callahan notes.
-      Telling a pointer from a mention needs something the author writes — a
-      pandoc link attribute, say — weighed against keeping the notation tiny.
-      Whether the empty-link form earns its place belongs here too: Ilya has
-      never written one, and it expands to the full heading title where his
-      lines abbreviate (2026-09-21). Whether the numbers stay at all is
-      #page-numbers. A `term` class keyed on whether the author typed the link
-      text was tried and dropped: it styled `[Stayman](#stayman)` and
-      `[](#stayman)` differently though both render "Stayman", and it fired on
-      all 26 links in the Callahan notes, none of which is empty.
+- [ ] **Decide whether and where references carry page numbers** {#page-numbers}
+      — every link to a heading is page-numbered in print today, as "(p. N)"
+      after its text. The numbers down the table of contents are not in
+      question, since a printed table of contents with no page numbers has
+      nothing to point with, and section headings carry no numbers of their own
+      either way.
+  - Open question: whether the "(p. N)" stays at all. Ilya deferred the call
+    (2026-09-07), having seen only the HTML then; the PDF now shows what it
+    looks like.
+  - Open question: if it stays, which links carry one. Today every link does,
+    which would put "(p. 7)" on each of the six `[MTB](#mtb)` mentions in the
+    Callahan notes. Telling a pointer from a mention needs something the author
+    writes — a pandoc link attribute, say — weighed against keeping the notation
+    tiny.
+  - Open question: whether the empty-link form earns its place. Ilya has never
+    written one, and it expands to the full heading title where his lines
+    abbreviate (2026-09-21).
+  - Note: a `term` class keyed on whether the author typed the link text was
+    tried and dropped: it styled `[Stayman](#stayman)` and `[](#stayman)`
+    differently though both render "Stayman", and it fired on all 26 links in
+    the Callahan notes, none of which is empty.
