@@ -7,6 +7,9 @@ ideally within a single column, and two columns exist so that short sections can
 sit side by side. WeasyPrint cannot be told this in CSS (spec.md
 #section-packing carries the why), so the renderer packs sections itself:
 
+- **Measure**: a probe render lays every atom out at column width, one per very
+  tall page, and the header block (the title lines and the table of contents) at
+  full width; `pdftotext` reads back each page's used height.
 - **Pack**: a greedy pass in document order fills page one's shortened columns,
   then full pages, column by column. A section taller than a full column gets a
   page of its own, its heading spanning the page and its body flowing in two
@@ -21,13 +24,25 @@ Rewriting moves elements around a parsed document rather than splicing markup:
 `parse_html` reads the HTML with WeasyPrint's own parser and `document_html`
 writes the tree back out, so the packer works on the document WeasyPrint will
 lay out.
+
+The page geometry mirrors the print rules in `notes.css`, which owns the values.
 """
 
+import copy
+import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 import tinyhtml5
+import weasyprint
+
+from system_notes import pdf_inspection
+
+# The letter page's content height under notes.css margins (0.6in top, 0.75in
+# bottom), in points.
+PAGE_CONTENT_HEIGHT = (11 - 0.6 - 0.75) * 72
 
 # The classes sections.lua writes around the run of sections and around each
 # section in it, and the path that finds the run in a parsed document.
@@ -39,6 +54,58 @@ SECTIONS_WRAPPER_PATH = f'.//div[@class="{SECTIONS_CLASS}"]'
 # packed copy is the same HTML5 document pandoc wrote, with only its sections
 # moved.
 DOCTYPE = '<!DOCTYPE html>\n'
+
+# Overrides appended for the measuring render:
+#
+# - Pages tall enough that nothing fragments, vertical margins of zero so the
+#   running margin boxes vanish, and the real horizontal margins so the header
+#   keeps its true width.
+# - Each section on a page of its own, at the print columns' width. The rules
+#   scope to the wrapper's own children, so an author element that happens to
+#   carry the class `section` gets no probe page.
+# - A sentinel line after each section, so that a section's height includes the
+#   bottom margin of its last block. The probe reads a page's height off its
+#   lowest text, and a margin holds no text, but in a real column the next
+#   section still starts below that margin:
+#
+#       …the section's last line of text   <- the probe's lowest text
+#       (the last block's bottom margin)   <- room the section still takes
+#       x                                  <- the sentinel's line
+#
+#   With the sentinel, the lowest text sits below the margin. Its own line makes
+#   every section measure one line too tall, which is the safe direction: a
+#   section measured short could overflow its column. A sentinel also opens the
+#   wrapper, so the header and any preamble above the sections measure to their
+#   true bottom too.
+# - Every page number replaced by `88`, a stand-in at least as wide as any real
+#   one. Left alone, a number would show its page in the probe, which has
+#   nothing to do with its page on paper. IBM Plex Serif gives every digit the
+#   same width, so `88` is exactly as wide as any two-digit page number and
+#   wider than any one-digit one. Too wide is the safe direction here too: a
+#   stand-in too wide can only wrap a line in the probe that stays whole on
+#   paper, so its section measures tall rather than short.
+#   `test_no_digit_is_wider_than_the_page_number_stand_in` fails if a new body
+#   face makes any digit wider than `8`.
+PROBE_STYLESHEET = """
+@page {
+  size: 8.5in 100in;
+  margin: 0 0.6in;
+}
+.sections > .section {
+  width: 3.5in;
+  break-before: page;
+}
+.sections::before, .sections > .section::after {
+  content: 'x';
+  display: block;
+}
+#TOC a::after {
+  content: '88';
+}
+a.xref::after {
+  content: ' (p. 88)';
+}
+"""
 
 
 # A top-level section's place in document order. A page plan names the sections
@@ -110,6 +177,20 @@ class SectionRun:
   parent: Element
   wrapper: Element
   sections: tuple[Element, ...]
+
+
+@dataclass(frozen=True)
+class ProbeHeights:
+  """What the probe render measured.
+
+  `height_above_sections` is the room on page one taken by everything above the
+  first section: the title block, and any preamble the author wrote. Page one's
+  columns get what remains. `section_heights` gives each section's own height,
+  in document order.
+  """
+
+  height_above_sections: Points
+  section_heights: tuple[Points, ...]
 
 
 def _fill_at(heights: Sequence[Points], split: int) -> ColumnFill:
@@ -347,3 +428,43 @@ def rewrite_into_pages(
       insertion_point + offset,
       _page_element(page, section_run.sections, is_first=offset == 0),
     )
+
+
+def _measure(document: Element, section_count: int) -> ProbeHeights:
+  """Render the probe and read back the header and per-section heights."""
+  probe = copy.deepcopy(document)
+  head = probe.find('head')
+  if head is None:
+    raise ValueError('the document to measure has no <head> for the overrides')
+  SubElement(head, 'style').text = PROBE_STYLESHEET
+  with tempfile.TemporaryDirectory() as directory:
+    pdf = Path(directory) / 'probe.pdf'
+    weasyprint.HTML(string=document_html(probe)).write_pdf(str(pdf))
+    heights = pdf_inspection.page_text_heights(pdf)
+  if len(heights) != section_count + 1:
+    raise ValueError(
+      f'the measuring render made {len(heights)} pages for '
+      f'{section_count} sections; expected one per section plus the header. '
+      'The likely cause is a section taller than the probe page, which '
+      'fragments onto a second one'
+    )
+  return ProbeHeights(heights[0], tuple(heights[1:]))
+
+
+def paged_document(html: str) -> str:
+  """Rewrite the HTML's sections into explicitly packed printed pages.
+
+  A document with no sections comes back unchanged.
+  """
+  document = parse_html(html)
+  section_run = find_section_run(document)
+  if section_run is None:
+    return document_html(document)
+  measured = _measure(document, len(section_run.sections))
+  pages = pack(
+    section_heights=measured.section_heights,
+    first_column_height=PAGE_CONTENT_HEIGHT - measured.height_above_sections,
+    column_height=PAGE_CONTENT_HEIGHT,
+  )
+  rewrite_into_pages(section_run, pages)
+  return document_html(document)

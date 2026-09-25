@@ -40,9 +40,11 @@ shorthand are written, but nothing about what they mean.
 
 Pandoc, extended by this tool's Lua filters, turns the Markdown into a single
 HTML document with the tool's stylesheet embedded. A browser shows that HTML
-directly. WeasyPrint lays the same HTML out under the stylesheet's
-`@media print` rules to make the PDF. The plain-text rendering bypasses the
-HTML: pandoc's plain-text writer produces it from the same source and filters.
+directly. For the PDF, the renderer first packs the HTML's sections onto
+explicit page and column boxes; #section-packing records why. WeasyPrint then
+lays the packed HTML out under the stylesheet's `@media print` rules. The
+plain-text rendering bypasses the HTML: pandoc's plain-text writer produces it
+from the same source and filters.
 
 Rationale for Markdown over the alternatives considered:
 
@@ -272,10 +274,11 @@ test-only Python dependency.
 - `template.html` — a minimal skeleton replacing pandoc's default, so none of
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
-- `print_layout.py` — the section packer: it rewrites the HTML into explicit
-  page and column boxes (#section-packing records why).
-- `pdf_inspection.py` — the PDF readouts the renderer and the tests share:
-  embedded fonts, bookmark pages, extracted text.
+- `print_layout.py` — the section packer: it measures a probe render and
+  rewrites the HTML into explicit page and column boxes (#section-packing
+  records why).
+- `pdf_inspection.py` — the PDF readouts the renderer, the packer, and the tests
+  share: embedded fonts, per-page text heights, bookmark pages, extracted text.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its
   expected renderings.
 - `filters_test.py`, `print_layout_test.py`, `render_notes_test.py` — the tests

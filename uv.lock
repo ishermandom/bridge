@@ -1701,11 +1701,14 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "fonttools" },
+    { name = "fonttools-stubs" },
     { name = "pypdf" },
     { name = "tinyhtml5-stubs" },
     { name = "weasyprint-stubs" },
 ]
 types = [
+    { name = "fonttools-stubs" },
     { name = "tinyhtml5-stubs" },
     { name = "weasyprint-stubs" },
 ]
@@ -1718,11 +1721,14 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fonttools" },
+    { name = "fonttools-stubs", editable = "stubs/fonttools" },
     { name = "pypdf" },
     { name = "tinyhtml5-stubs", editable = "stubs/tinyhtml5" },
     { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
 ]
 types = [
+    { name = "fonttools-stubs", editable = "stubs/fonttools" },
     { name = "tinyhtml5-stubs", editable = "stubs/tinyhtml5" },
     { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
 ]

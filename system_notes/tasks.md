@@ -30,6 +30,15 @@ Design decisions live in `spec.md`; this file tracks the work.
 
 ## Backlog
 
+- [ ] **Spike: Typst as the PDF engine** {#typst-spike} — render the fixture
+      from the same `notes.md` via pandoc's Typst writer and a template that
+      packs sections natively (`measure()` plus scripted placement), and compare
+      against the WeasyPrint output.
+  - Rationale: the packing WeasyPrint leaves to `print_layout.py` is a
+    first-class layout concern in Typst, and this is the second WeasyPrint
+    limitation engineered around (after `column-span: all`). Escape hatch if
+    quirks keep accumulating; switching costs a second styling system beside the
+    CSS, plus Typst branches in the notation filters.
 - [ ] **Per-level list markers in the source** {#source-list-markers} — an
       autoformatter giving each indentation depth its own list marker, so the
       Markdown source reads like the rendered page.

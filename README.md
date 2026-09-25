@@ -114,10 +114,11 @@ Regenerate that file after any dependency change:
 `system_notes/` — Python
 
 Renders a partnership's system notes into three outputs from one source: a
-self-contained HTML page for the screen, a US-letter PDF whose table of contents
-and cross-references carry page numbers, and a hard-wrapped plain-text rendering
-for pasting into email. The notes are a long, deeply nested bidding and carding
-agreement written in Pandoc Markdown. See `system_notes/spec.md` for the design.
+self-contained HTML page for the screen, a two-column US-letter PDF whose table
+of contents and cross-references carry page numbers, and a hard-wrapped
+plain-text rendering for pasting into email. The notes are a long, deeply nested
+bidding and carding agreement written in Pandoc Markdown. See
+`system_notes/spec.md` for the design.
 
 The notes themselves are partnership agreements and live in the private
 companion repository; only the renderer and an AI-drafted sample document

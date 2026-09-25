@@ -71,6 +71,27 @@ def heading_pages(pdf: Path) -> Mapping[str, int]:
   return pages
 
 
+def page_text_heights(pdf: Path) -> Sequence[float]:
+  """Return, per page, the lowest text edge — the page's used height.
+
+  Read from `pdftotext -bbox` word boxes, in points from the page's top. A page
+  with no words measures 0. Text bounds miss any trailing margin or padding; a
+  caller that needs such spacing counted must make it visible, as
+  `print_layout`'s probe does with a sentinel line after each atom.
+  """
+  xml = _run_poppler(['pdftotext', '-bbox', str(pdf), '-'])
+  bottom_edge = re.compile(r'yMax="(?P<y>[0-9.]+)"')
+  heights = []
+  for page in xml.split('<page ')[1:]:
+    heights.append(
+      max(
+        (float(word.group('y')) for word in bottom_edge.finditer(page)),
+        default=0.0,
+      )
+    )
+  return heights
+
+
 def embedded_font_families(pdf: Path) -> Set[str]:
   """Return the embedded fonts' family names, styles and subset tags dropped."""
   # Source Sans 3 reports a trailing comma after its name, which is no part of

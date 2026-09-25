@@ -18,12 +18,15 @@ dev = [
   # The tests read heading pages from the PDF's bookmarks through pypdf; the
   # renderer itself does not need it.
   "pypdf",
+  # The tests read digit widths from the body font through fontTools.
+  "fonttools",
   # The type stubs below install with the dev tools.
   { include-group = "types" },
 ]
 # Stubs for dependencies that ship no type information of their own, from the
 # repo's stub packages (../stubs, see the README there).
 types = [
+  "fonttools-stubs",
   "tinyhtml5-stubs",
   "weasyprint-stubs",
 ]
@@ -34,5 +37,6 @@ package = false
 [tool.uv.sources]
 # Editable, so an edited stub takes effect on the next check without a
 # reinstall — see ../stubs/README.md.
+fonttools-stubs = { path = "../stubs/fonttools", editable = true }
 tinyhtml5-stubs = { path = "../stubs/tinyhtml5", editable = true }
 weasyprint-stubs = { path = "../stubs/weasyprint", editable = true }

@@ -5,13 +5,16 @@
 import html
 import re
 import shutil
+import string
 import struct
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 import pytest
+from fontTools.ttLib import TTFont
 
-from system_notes import pdf_inspection, render_notes
+from system_notes import pdf_inspection, print_layout, render_notes
 
 FIXTURE = Path(__file__).resolve().parent / 'fixture'
 GOLDEN_DIRECTORY = FIXTURE / 'golden'
@@ -178,13 +181,15 @@ def _italic_angle(font: Path) -> float:
   raise ValueError(f'{font} has no post table')
 
 
-def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
-  """Changing the body font must carry the suit skew along with it.
+# fontconfig's names for a face's slant, as a pattern like `Family:italic` asks.
+type Slant = Literal['roman', 'italic']
 
-  Suit symbols lean inside italic text through an explicit `skewX` angle in the
-  stylesheet, chosen to match the body font's italic angle. A future body face
-  (`tasks.md` #serif-alternatives) ships an angle of its own, so this test reads
-  both and fails until the stylesheet follows.
+
+def _installed_body_font(slant: Slant) -> Path:
+  """The font file fontconfig serves for the stylesheet's body family.
+
+  `slant` is fontconfig's name for the upright or the italic face. A fallback to
+  another family fails here, since a test reading it would check the wrong face.
   """
   stylesheet = read(render_notes.STYLESHEET)
   body_rule = re.search(r'body \{(?P<declarations>[^}]*)\}', stylesheet)
@@ -193,13 +198,9 @@ def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
     r'font-family: "(?P<family>[^"]+)"', body_rule['declarations']
   )
   assert family, 'no quoted font family in the body rule'
-  skew = re.search(
-    r'\.suit \{\s*transform: skewX\((?P<degrees>-?[0-9.]+)deg\)', stylesheet
-  )
-  assert skew, 'no suit skew in the stylesheet'
 
   matched_font = subprocess.run(
-    ['fc-match', '-f', '%{family}\t%{file}', f'{family["family"]}:italic'],
+    ['fc-match', '-f', '%{family}\t%{file}', f'{family["family"]}:{slant}'],
     capture_output=True,
     text=True,
     encoding='utf-8',
@@ -209,19 +210,108 @@ def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
   # A font can carry several family names; fc-match then reports them
   # comma-joined.
   assert family['family'] in matched_family.split(','), (
-    f'no installed italic for the body font: fontconfig offered '
+    f'no installed {slant} face for the body font: fontconfig offered '
     f'{matched_family!r}'
   )
+  return Path(font_file)
 
-  angle = _italic_angle(Path(font_file))
+
+def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
+  """Changing the body font must carry the suit skew along with it.
+
+  Suit symbols lean inside italic text through an explicit `skewX` angle in the
+  stylesheet, chosen to match the body font's italic angle. A future body face
+  (`tasks.md` #serif-alternatives) ships an angle of its own, so this test reads
+  both and fails until the stylesheet follows.
+  """
+  skew = re.search(
+    r'\.suit \{\s*transform: skewX\((?P<degrees>-?[0-9.]+)deg\)',
+    read(render_notes.STYLESHEET),
+  )
+  assert skew, 'no suit skew in the stylesheet'
+
+  italic = _installed_body_font('italic')
+  angle = _italic_angle(italic)
   # The tolerance lets the stylesheet round the angle to a whole degree.
   assert abs(float(skew['degrees']) - angle) <= 0.75, (
-    f'the stylesheet skews suits {skew["degrees"]}° but '
-    f'{matched_family} Italic leans at {angle:.2f}°'
+    f'the stylesheet skews suits {skew["degrees"]}° but {italic.name} leans at '
+    f'{angle:.2f}°'
   )
+
+
+def test_no_digit_is_wider_than_the_page_number_stand_in() -> None:
+  """The probe's `88` must stay at least as wide as any real page number.
+
+  `print_layout.PROBE_STYLESHEET` measures every page number as `88`, which errs
+  safely only while no digit in the body font is wider than `8`. A future body
+  face (`tasks.md` #serif-alternatives) may size its digits unevenly, so this
+  test fails until the stand-in follows. Both faces count: the table of contents
+  prints its numbers upright, and a cross-reference prints its in italic.
+  """
+  slants: tuple[Slant, ...] = ('roman', 'italic')
+  for slant in slants:
+    face = TTFont(_installed_body_font(slant))
+    glyph_names = face.getBestCmap()
+    # The `hmtx` table pairs each glyph's advance width with its left side
+    # bearing; the advance is the room the glyph takes on the line.
+    widths = {
+      digit: face['hmtx'][glyph_names[ord(digit)]][0] for digit in string.digits
+    }
+    assert widths['8'] == max(widths.values()), (
+      f'a {slant} digit is wider than the stand-in `8`: {widths}'
+    )
 
 
 # --- stylesheet coupling ---
+
+
+def test_print_geometry_tracks_the_stylesheet() -> None:
+  """notes.css owns the print geometry; the packer's copies must follow."""
+  stylesheet = read(render_notes.STYLESHEET)
+  assert 'size: letter' in stylesheet, 'the @page size is not letter'
+  margins = re.search(
+    r'margin: (?P<top>[\d.]+)in (?P<side>[\d.]+)in (?P<bottom>[\d.]+)in;',
+    stylesheet,
+  )
+  assert margins, 'no three-value @page margin in the stylesheet'
+  content_height = (11 - float(margins['top']) - float(margins['bottom'])) * 72
+  assert content_height == print_layout.PAGE_CONTENT_HEIGHT
+
+  probe_margin = re.search(
+    r'margin: 0 (?P<side>[\d.]+)in', print_layout.PROBE_STYLESHEET
+  )
+  assert probe_margin, 'no horizontal margin in the probe stylesheet'
+  assert probe_margin['side'] == margins['side']
+
+  column = re.search(
+    r'\.print-column \{\s*width: (?P<width>[\d.]+)in', stylesheet
+  )
+  assert column, 'no .print-column width in the stylesheet'
+  probe_width = re.search(
+    r'> \.section \{\s*width: (?P<width>[\d.]+)in',
+    print_layout.PROBE_STYLESHEET,
+  )
+  assert probe_width, 'no .section width in the probe stylesheet'
+  assert probe_width['width'] == column['width']
+
+  # The probe pins reference text to a two-digit stand-in; it must track the
+  # real reference format, or every atom carrying references measures short.
+  reference = re.search(
+    r'a\.xref::after \{\s*content: "(?P<prefix>[^"]*)" '
+    r'target-counter\(attr\(href\), page\) "(?P<suffix>[^"]*)";',
+    stylesheet,
+  )
+  assert reference, 'no printed-reference format in the stylesheet'
+  stand_in = f"content: '{reference['prefix']}88{reference['suffix']}'"
+  assert stand_in in print_layout.PROBE_STYLESHEET
+
+  # The values must also cohere: two columns and their gutter fill the content
+  # width exactly, and the wide-body column gap matches the gutter.
+  gap = re.search(r'column-gap: (?P<gap>[\d.]+)in', stylesheet)
+  assert gap, 'no wide-body column gap in the stylesheet'
+  content_width = 8.5 - 2 * float(margins['side'])
+  gutter = content_width - 2 * float(column['width'])
+  assert round(gutter, 4) == float(gap['gap'])
 
 
 def test_text_marker_ladder_tracks_the_stylesheet() -> None:

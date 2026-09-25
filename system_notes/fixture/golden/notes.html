@@ -193,6 +193,7 @@ padding-left: 1em;
 @media print {
 @page {
 size: letter;
+
 margin: 0.6in 0.6in 0.75in;
 
 font: 8pt "IBM Plex Serif", "STIX Two Math", "Source Sans 3", serif;
@@ -231,6 +232,30 @@ content: target-counter(attr(href), page);
 float: right;
 padding-left: 0.6em;
 }
+
+.print-page.fresh {
+break-before: page;
+}
+
+.print-page::after {
+content: '';
+display: block;
+clear: both;
+}
+
+.print-column {
+width: 3.5in;
+}
+.print-column.first {
+float: left;
+}
+.print-column.second {
+float: right;
+}
+.wide-body {
+columns: 2;
+column-gap: 0.3in;
+}
 a.xref::after {
 content: " (p. " target-counter(attr(href), page) ")";
 }
@@ -266,6 +291,8 @@ agreement.</strong> It was written to exercise the renderer — nesting,
 cross-references, suit symbols — from public descriptions of standard
 conventions. No human has reviewed or verified any of it.</p>
 </blockquote>
+<div class="sections">
+<div class="section">
 <h1 id="general">General approach</h1>
 <ul>
 <li>Five-card majors, <span class="nowrap">2/1</span> game forcing (see
@@ -285,6 +312,8 @@ or second seat.</li>
 <li>Strong, artificial <span class="bid">2<span class="strain suit club">♣</span></span> — see <a href="#strong-two-clubs" class="xref">The strong <span class="bid">2<span class="strain suit club">♣</span></span>
 opening</a>.</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="notrump">Notrump openings</h1>
 <h2 id="one-notrump">The <span class="bid">1<span class="strain notrump">NT</span></span> opening</h2>
 <ul>
@@ -517,6 +546,8 @@ transfers, <span class="bid">3<span class="strain suit spade">♠</span></span> 
 The same structures apply after a <span class="bid">2<span class="strain suit club">♣</span></span> opening and a <span class="bid">2<span class="strain notrump">NT</span></span> rebid (<a href="#strong-two-clubs" class="xref">The strong <span class="bid">2<span class="strain suit club">♣</span></span>
 opening</a>).</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="majors">Major-suit openings</h1>
 <h2 id="major-responses">Responses to one of a major</h2>
 <ul>
@@ -615,6 +646,8 @@ three or more trumps with a limit raise. Opener rebids two of the major
 with a light opening; any other bid is natural and shows a full
 opener.</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="minors">Minor-suit openings</h1>
 <h2 id="inverted-minors">Inverted minors</h2>
 <ul>
@@ -633,6 +666,8 @@ five-card diamond suit with a four-card major and less than game values.
 Bidding <span class="bid">1<span class="strain suit diamond">♦</span></span> and then a major shows five
 diamonds and game-going values.</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="strong-two-clubs">The strong <span class="bid">2<span class="strain suit club">♣</span></span> opening</h1>
 <ul>
 <li><span class="bid">2<span class="strain suit club">♣</span></span>:
@@ -644,6 +679,8 @@ a very bad hand.</li>
 <span class="bid">2<span class="strain suit diamond">♦</span></span> –
 <span class="bid">2<span class="strain notrump">NT</span></span>: <span class="nowrap">22–24,</span> with the <span class="bid">2<span class="strain notrump">NT</span></span> structure (<a href="#two-notrump" class="xref">The <span class="bid">2<span class="strain notrump">NT</span></span> opening</a>).</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="competitive">Competitive bidding</h1>
 <h2 id="overcalls">Overcalls</h2>
 <ul>
@@ -694,6 +731,8 @@ support. A direct raise promises four.</li>
 is penalty; all suit bids are to play, and a cue bid is a game-forcing
 raise.</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="slam">Slam bidding</h1>
 <h2 id="rkcb">Roman key card 1430</h2>
 <ul>
@@ -731,6 +770,8 @@ a bypassed suit denies a control in it.</li>
 <li>The first control bid below game asks partner to cooperate with the
 cheapest control; returning to the trump suit denies one.</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="carding">Defensive carding</h1>
 <h2 id="leads">Opening leads</h2>
 <ol type="1">
@@ -754,6 +795,8 @@ a high card asks for the higher-ranking suit, a low card for the
 lower.</li>
 <li>Trump echo shows the ability to ruff.</li>
 </ul>
+</div>
+<div class="section">
 <h1 id="woolsey">Woolsey</h1>
 <ul>
 <li>Key: pen=penalty · nat=natural · pref=preference · GT=game try ·
@@ -885,6 +928,8 @@ m, or strong 2-suiter
 <li>3x=nat 6+, preempt · <span class="bid">3<span class="strain notrump">NT</span></span>, 4<strong>M</strong>=to play ·
 4m=strong preempt</li>
 </ul>
+</div>
+</div>
 </main>
 </body>
 </html>

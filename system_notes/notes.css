@@ -2,9 +2,10 @@
 /* SPDX-License-Identifier: MIT */
 
 /* One stylesheet, two media: the screen rules give a single readable column
-   that adapts to the viewport; the print rules lay the notes out on US letter
-   paper, and append a page number to each cross-reference. Typeface and layout
-   decisions are recorded in spec.md #appearance. */
+   that adapts to the viewport; the print rules style the page and column boxes
+   print_layout.py packs sections into on US letter paper, and append a page
+   number to each cross-reference. Typeface and layout decisions are recorded in
+   spec.md #appearance. */
 
 /* Units: em for spacing next to text, so it scales with that text; rem for the
    screen page box, tied to the reader's default text size; px for borders and
@@ -242,6 +243,8 @@ a.xref {
 @media print {
   @page {
     size: letter;
+    /* print_layout.py keeps its own copies of these margins, and
+       test_print_geometry_tracks_the_stylesheet checks that they match. */
     margin: 0.6in 0.6in 0.75in;
     /* The running header and footer are small and gray, so they recede behind
        the notes; the margin boxes below inherit that type from the page. STIX
@@ -285,6 +288,39 @@ a.xref {
     content: target-counter(attr(href), page);
     float: right;
     padding-left: 0.6em;
+  }
+
+  /* Sections are packed onto explicit page and column boxes at render time by
+     print_layout.py — WeasyPrint's own columns cannot keep a section whole
+     (spec.md #section-packing). A `fresh` page starts a new sheet, the two
+     columns float to opposite edges, and a wide section's `wide-body` puts
+     everything below its heading into page-wide columns. */
+  .print-page.fresh {
+    break-before: page;
+  }
+  /* Contain the floated columns without clipping, so a page that overruns its
+     budget spills visibly instead of losing content. */
+  .print-page::after {
+    content: '';
+    display: block;
+    clear: both;
+  }
+  /* Two 3.5in columns and a 0.3in gutter fill the 7.3in between the side
+     margins, and a wide body's column gap matches that gutter.
+     test_print_geometry_tracks_the_stylesheet checks that arithmetic, and that
+     print_layout.py measures sections at this column width. */
+  .print-column {
+    width: 3.5in;
+  }
+  .print-column.first {
+    float: left;
+  }
+  .print-column.second {
+    float: right;
+  }
+  .wide-body {
+    columns: 2;
+    column-gap: 0.3in;
   }
 
   a.xref::after {

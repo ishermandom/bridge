@@ -23,7 +23,7 @@ from pathlib import Path
 
 import weasyprint
 
-from system_notes import pdf_inspection
+from system_notes import pdf_inspection, print_layout
 
 TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
@@ -38,6 +38,10 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 #   whole, and shorthand splits one such as `Q3M/Q4M` at its bolded placeholder.
 # - `headings.lua` runs last, because it copies titles into cross-references,
 #   and every copy should carry the spans the earlier filters put there.
+#
+# `bids.lua` and `sections.lua` may run at any point in the order. `bids.lua`
+# rewrites only inline text that no other filter touches, and `sections.lua`
+# only wraps each top-level section in a div.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
@@ -45,6 +49,7 @@ FILTERS = tuple(
     'bids.lua',
     'nowrap.lua',
     'shorthand.lua',
+    'sections.lua',
     'headings.lua',
   )
 )
@@ -182,12 +187,15 @@ def verify_nothing_warned(messages: Sequence[str], output: Path) -> None:
 
 
 def render_pdf(html: Path, output: Path) -> None:
-  """Lay the HTML out under the stylesheet's print rules as the PDF.
+  """Pack sections onto printed pages and lay the result out as the PDF.
 
-  WeasyPrint warns and carries on where it cannot parse a rule or honor a
-  layout, so — as with pandoc's `--fail-if-warnings` — every warning but the
-  known one fails the render. The embedded fonts are checked here too, since
-  only the finished file shows what the page was actually set in.
+  `print_layout` rewrites the HTML into explicit page and column boxes — its
+  module docstring carries the why — and WeasyPrint renders the rewritten copy
+  under the print stylesheet. WeasyPrint warns and carries on where it cannot
+  parse a rule or honor a layout, so — as with pandoc's `--fail-if-warnings` —
+  every warning but the known one fails the render. The embedded fonts are
+  checked here too, since only the finished file shows what the page was
+  actually set in.
 
   So the render goes to a scratch copy, and only a copy that passes every check
   reaches `output`. The outputs are committed beside their source, and a
@@ -199,8 +207,8 @@ def render_pdf(html: Path, output: Path) -> None:
   with tempfile.TemporaryDirectory() as directory:
     unverified = Path(directory) / output.name
     try:
-      markup = html.read_text(encoding='utf-8')
-      weasyprint.HTML(string=markup).write_pdf(str(unverified))
+      paged = print_layout.paged_document(html.read_text(encoding='utf-8'))
+      weasyprint.HTML(string=paged).write_pdf(str(unverified))
     finally:
       logger.removeHandler(collected)
       verify_nothing_warned(collected.messages, output)
