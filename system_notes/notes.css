@@ -279,10 +279,17 @@ a.xref {
     break-after: avoid;
   }
 
-  /* No tinted panel on paper; a margin below sets the contents list off from
-     what follows it. */
+  /* The table of contents packs like any section: print_layout.py moves it into
+     the section run as its first atom, as the .print-page rules below describe.
+     So it needs no columns of its own, and a margin below sets it off from what
+     follows it. */
   #TOC {
     margin-bottom: 1em;
+  }
+  /* A table of contents tall enough to take a wide page of its own must not
+     split an entry between the title and the page number floated beside it. */
+  #TOC li {
+    break-inside: avoid;
   }
   #TOC a::after {
     content: target-counter(attr(href), page);

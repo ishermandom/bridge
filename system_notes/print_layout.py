@@ -7,9 +7,11 @@ ideally within a single column, and two columns exist so that short sections can
 sit side by side. WeasyPrint cannot be told this in CSS (spec.md
 #section-packing carries the why), so the renderer packs sections itself:
 
+- **Atomize**: the table of contents moves into the run of sections as its first
+  atom, so it packs like a section instead of reflowing across the page.
 - **Measure**: a probe render lays every atom out at column width, one per very
-  tall page, and the header block (the title lines and the table of contents) at
-  full width; `pdftotext` reads back each page's used height.
+  tall page, and the header block (the title lines) at full width; `pdftotext`
+  reads back each page's used height.
 - **Pack**: a greedy pass in document order fills page one's shortened columns,
   then full pages, column by column. A section taller than a full column gets a
   page of its own, its heading spanning the page and its body flowing in two
@@ -20,10 +22,10 @@ sit side by side. WeasyPrint cannot be told this in CSS (spec.md
   boxes that WeasyPrint lays out exactly as written. The screen rendering keeps
   the original flat HTML.
 
-Rewriting moves elements around a parsed document rather than splicing markup:
-`parse_html` reads the HTML with WeasyPrint's own parser and `document_html`
-writes the tree back out, so the packer works on the document WeasyPrint will
-lay out.
+Atomizing and rewriting move elements around a parsed document rather than
+splice markup: `parse_html` reads the HTML with WeasyPrint's own parser and
+`document_html` writes the tree back out, so the packer works on the document
+WeasyPrint will lay out.
 
 The page geometry mirrors the print rules in `notes.css`, which owns the values.
 """
@@ -49,6 +51,9 @@ PAGE_CONTENT_HEIGHT = (11 - 0.6 - 0.75) * 72
 SECTIONS_CLASS = 'sections'
 SECTION_CLASS = 'section'
 SECTIONS_WRAPPER_PATH = f'.//div[@class="{SECTIONS_CLASS}"]'
+
+# The id the HTML template gives the table of contents pandoc's `--toc` fills.
+TABLE_OF_CONTENTS_ID = 'TOC'
 
 # A parsed document carries no doctype, so `document_html` puts one back: the
 # packed copy is the same HTML5 document pandoc wrote, with only its sections
@@ -372,20 +377,39 @@ def find_section_run(document: Element) -> SectionRun | None:
   return SectionRun(_parents(document)[wrapper], wrapper, tuple(wrapper))
 
 
+def _heading_parent(atom: Element) -> Element:
+  """The element whose first child is the atom's heading.
+
+  An atom takes one of two shapes. A section of the notes opens with its own h1,
+  so the atom itself is the heading's parent. The table of contents atom holds
+  the `<section>` pandoc writes for the table, which opens with the h2 title one
+  level in:
+
+      <div class="section"><h1>…</h1>…</div>
+      <div class="section"><section id="TOC"><h2>…</h2>…</section></div>
+  """
+  if len(atom) and atom[0].tag == 'h1':
+    return atom
+  if len(atom) and atom[0].get('id') == TABLE_OF_CONTENTS_ID:
+    table_of_contents = atom[0]
+    if len(table_of_contents) and table_of_contents[0].tag == 'h2':
+      return table_of_contents
+  raise ValueError(
+    f'wide section does not open with a heading: {element_html(atom)[:100]!r}'
+  )
+
+
 def _widened(atom: Element) -> Element:
   """A wide atom: heading across the page, body in two columns beneath.
 
-  Everything after the heading moves into a `wide-body` div, which leaves the
-  atom's own wrapper still closing around it.
+  The heading's later siblings move into a `wide-body` div, so the heading's
+  parent still closes around them.
   """
-  if not len(atom) or atom[0].tag != 'h1':
-    raise ValueError(
-      f'wide section does not open with a heading: {element_html(atom)[:100]!r}'
-    )
+  heading_parent = _heading_parent(atom)
   body = Element('div', {'class': 'wide-body'})
-  body.extend(atom[1:])
-  del atom[1:]
-  atom.append(body)
+  body.extend(heading_parent[1:])
+  del heading_parent[1:]
+  heading_parent.append(body)
   return atom
 
 
@@ -430,6 +454,29 @@ def rewrite_into_pages(
     )
 
 
+def atomize_table_of_contents(document: Element) -> None:
+  """Move the table of contents into the sections run as its first atom.
+
+  Packed like a section, the table of contents keeps to a single column instead
+  of reflowing across the page. A document without a table of contents, or
+  without sections, is left as it stands.
+  """
+  table_of_contents = document.find(f'.//*[@id="{TABLE_OF_CONTENTS_ID}"]')
+  wrapper = document.find(SECTIONS_WRAPPER_PATH)
+  if table_of_contents is None or wrapper is None:
+    return
+  if wrapper in table_of_contents.iter():
+    raise ValueError(
+      'the sections wrapper sits inside the table of contents, so the table '
+      'of contents cannot be moved in beside the sections'
+    )
+  _parents(document)[table_of_contents].remove(table_of_contents)
+  table_of_contents.tail = None
+  atom = Element('div', {'class': SECTION_CLASS})
+  atom.append(table_of_contents)
+  wrapper.insert(0, atom)
+
+
 def _measure(document: Element, section_count: int) -> ProbeHeights:
   """Render the probe and read back the header and per-section heights."""
   probe = copy.deepcopy(document)
@@ -457,6 +504,7 @@ def paged_document(html: str) -> str:
   A document with no sections comes back unchanged.
   """
   document = parse_html(html)
+  atomize_table_of_contents(document)
   section_run = find_section_run(document)
   if section_run is None:
     return document_html(document)

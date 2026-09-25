@@ -190,8 +190,8 @@ wants something different.
   viewport; the table of contents at the top; cross-references as links.
 - **Print**: US letter paper size; running document title and section title in
   the page header, "page / total" in the footer; a page-numbered table of
-  contents listing only the top-level sections; every cross-reference followed
-  by its page number.
+  contents listing only the top-level sections, packed like any section
+  (#section-packing); every cross-reference followed by its page number.
 - **A printed section is an atom.** {#section-packing} It renders whole on one
   page where it fits, ideally within a single column. The two columns exist so
   that short sections can sit side by side. A section taller than a column gets

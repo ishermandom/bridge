@@ -210,6 +210,65 @@ def test_a_wide_section_keeps_its_heading_above_its_columns() -> None:
   ) in html
 
 
+TOC = '<section id="TOC"><h2 id="toc-title">Contents</h2><ul></ul></section>'
+
+
+def test_the_table_of_contents_becomes_the_first_atom() -> None:
+  document = print_layout.parse_html(
+    f'<body>{TOC}<blockquote>keep</blockquote>'
+    f'<div class="sections">{SECTION_A}</div></body>'
+  )
+
+  print_layout.atomize_table_of_contents(document)
+
+  run = print_layout.find_section_run(document)
+  assert run is not None
+  assert [print_layout.element_html(section) for section in run.sections] == [
+    f'<div class="section">{TOC}</div>',
+    SECTION_A,
+  ]
+
+
+def test_content_after_the_table_of_contents_stays_in_place() -> None:
+  document = print_layout.parse_html(
+    f'<body>{TOC}<blockquote>keep</blockquote>'
+    f'<div class="sections">{SECTION_A}</div></body>'
+  )
+
+  print_layout.atomize_table_of_contents(document)
+
+  assert print_layout.document_html(document).startswith(
+    '<!DOCTYPE html>\n<html><head></head><body><blockquote>keep</blockquote>'
+  )
+
+
+def test_a_document_without_a_table_of_contents_is_unchanged() -> None:
+  document = print_layout.parse_html(DOCUMENT)
+
+  print_layout.atomize_table_of_contents(document)
+
+  assert print_layout.document_html(document) == (
+    '<!DOCTYPE html>\n<html><head></head><body><p>intro</p>'
+    f'<div class="sections">\n{SECTION_A}\n{SECTION_B}\n</div>'
+    '<p>after</p></body></html>'
+  )
+
+
+def test_a_wide_atom_may_open_with_the_table_of_contents_title() -> None:
+  html = _packed_html(
+    f'<div class="sections"><div class="section">{TOC}</div></div>',
+    [WidePage(section=0)],
+  )
+
+  # The wide body goes inside the heading's parent: here the table of contents'
+  # own <section>, not the atom wrapper.
+  assert (
+    '<div class="section"><section id="TOC">'
+    '<h2 id="toc-title">Contents</h2>'
+    '<div class="wide-body"><ul></ul></div></section></div>'
+  ) in html
+
+
 def test_a_wide_section_without_a_heading_fails_the_render() -> None:
   with pytest.raises(ValueError, match='heading'):
     _packed_html(

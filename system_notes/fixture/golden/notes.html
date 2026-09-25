@@ -227,6 +227,10 @@ break-after: avoid;
 #TOC {
 margin-bottom: 1em;
 }
+
+#TOC li {
+break-inside: avoid;
+}
 #TOC a::after {
 content: target-counter(attr(href), page);
 float: right;
