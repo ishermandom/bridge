@@ -20,6 +20,27 @@ Design decisions live in `spec.md`; this file tracks the work.
   2026-09-12 by the render's new page-count guard, which tolerates the flow
   whenever a wide atom exists.
 
+- Open question {#marker-prominence}: the marker ladder stops shrinking after
+  the third round — the bullets at depths 5–6 are its smallest shapes, and the
+  triangles at 7–12 are larger again. Reordering the pairs would restore the
+  taper, at the cost of changing the markers at depths 5–6, which the real notes
+  already use (raised 2026-09-20). Ilya leans toward reordering but left it
+  queued (2026-09-25).
+
+- Open question {#two-grays}: `.date` is `#555` and the print header and footer
+  `#666`, a hair apart. One token would serve both, at the cost of changing one
+  of the two renderings (raised 2026-09-20). Ilya left the call to Claude, who
+  chose both grays, to settle soon after landing (2026-09-25).
+
+- [ ] **Close the underline gap under suits in screen headings**
+      {#heading-underline-gap} — a subsection heading's underline breaks beneath
+      each suit symbol on screen, because browsers draw no ancestor's underline
+      through the inline-block a suit is set in; print draws it whole. Ilya saw
+      it (2026-09-25) and finds it clumsy. Giving the suit its own underline was
+      tried and is worse: it draws in the suit's color at the suit face's
+      metrics. The fixture has no suit in a subsection heading; rendering one
+      such as `## Responses to 1H and 1S` shows the gap.
+
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
       at 11pt, against the letterform preferences in `spec.md` #appearance.
@@ -58,3 +79,20 @@ Design decisions live in `spec.md`; this file tracks the work.
     prettier normalizes all three to `-` (verified with prettier 3.9), so the
     repo's Markdown formatting hook would undo them; the formatter must exclude
     these files or run after it.
+
+- [ ] **Read the Lua filters for readability as a set** {#lua-readability} —
+      Ilya asked (2026-09-21) whether the filters could read better overall, and
+      chose to take it up after the branch lands (2026-09-25).
+
+- [ ] **Decide which links carry a page number** {#numbered-references} — every
+      link to a heading is page-numbered in print today, which would put "(p.
+      7)" on each of the six `[MTB](#mtb)` mentions in the Callahan notes.
+      Telling a pointer from a mention needs something the author writes — a
+      pandoc link attribute, say — weighed against keeping the notation tiny.
+      Whether the empty-link form earns its place belongs here too: Ilya has
+      never written one, and it expands to the full heading title where his
+      lines abbreviate (2026-09-21). Whether the numbers stay at all is
+      #page-numbers. A `term` class keyed on whether the author typed the link
+      text was tried and dropped: it styled `[Stayman](#stayman)` and
+      `[](#stayman)` differently though both render "Stayman", and it fired on
+      all 26 links in the Callahan notes, none of which is empty.
