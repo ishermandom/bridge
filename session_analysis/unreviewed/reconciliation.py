@@ -440,9 +440,15 @@ def _describe_matchpoints(matchpoints: float) -> str:
 
 
 def _describe_pair(pair: PairIdentity) -> str:
-  """A pair as its number, side, and players, for a disagreement message."""
+  """A pair's number, side, section, and players, for a disagreement message.
+
+  The section is spelled out even where a source gave none. A missing section
+  disagrees with a named one, and a message that left it out would show two
+  identical accounts of a pair the sources disagree on.
+  """
+  section = f'section {pair.section}' if pair.section else 'no section'
   players = ' & '.join(pair.names) if pair.names else 'unnamed'
-  return f'{pair.number}{pair.side} ({players})'
+  return f'{pair.number}{pair.side} in {section} ({players})'
 
 
 def _describe_resolution(resolution: Resolution) -> str:

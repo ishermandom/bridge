@@ -110,6 +110,7 @@ def _our_board(
   *,
   side: Side = Side.NORTH_SOUTH,
   our_names: Sequence[str] = ('First Last', 'Partner Name'),
+  our_section: str | None = None,
   opponent_names: Sequence[str] = ('Other Player', 'Their Partner'),
   resolution: Resolution | None = None,
   matchpoints: float = 6.0,
@@ -120,7 +121,7 @@ def _our_board(
   `side` decides which way round our pair sat, so a test can put us East-West
   without restating both identities.
   """
-  us = _pair('6', side, *our_names)
+  us = _pair('6', side, *our_names, section=our_section)
   them = _pair(
     '4',
     Side.EAST_WEST if side is Side.NORTH_SOUTH else Side.NORTH_SOUTH,
@@ -395,6 +396,30 @@ def test_sources_naming_different_pair_numbers_disagree() -> None:
 
   assert read.value[1].our_pair is None
   assert 'traveller_sources_disagree' in _codes(read.value[1].issues)
+
+
+def test_a_disagreement_message_names_each_sources_section() -> None:
+  # The club page places the pair in no section and the ACBL page in section C.
+  # Unless the message spells out each source's section, the two accounts read
+  # alike and hide what the sources disagree on.
+  travellers = [
+    _make_traveller(TravellerSource.CLUB_HTML, boards=[_our_board()]),
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[_our_board(our_section='C')],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  (message,) = (
+    issue.message
+    for issue in read.value[1].issues
+    if issue.code == 'traveller_sources_disagree'
+  )
+  assert 'section C' in message
+  assert 'no section' in message
 
 
 def test_sources_disagreeing_on_what_we_played_leave_it_unfilled() -> None:
