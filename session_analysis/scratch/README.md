@@ -12,24 +12,30 @@ model choice. The measurements it produces are recorded in spec.md #extraction �
 the model bullet's quality and cost figures — and in spec.md #extraction-voting,
 which rests on how consistent the chosen model is with itself.
 
-**Re-run it when `vision_model_invocation.DEFAULT_MODEL` moves.** Those spec
-figures are measurements of one specific model against one specific alternative,
-so a model bump silently invalidates them; the whole point of keeping the
-harness is that refreshing them should be a two-command job rather than a
-rebuild.
+**Re-run it when `vision_model_invocation.DEFAULT_MODEL` or `DEFAULT_EFFORT`
+moves.** Those spec figures are measurements of one setting against one
+alternative, so a change to either silently invalidates them; the whole point of
+keeping the harness is that refreshing them should be a two-command job rather
+than a rebuild.
+
+`DEFAULT_MODEL` names an alias rather than a release, so it can also move
+without an edit here — the alias follows the family forward whenever the CLI
+updates. Each run records the release that answered alongside the alias that was
+asked for, so a refreshed figure says which release it describes.
 
 ### Running it
 
-`strips_model_comparison.py` cuts one scan's strips once and has each model read
-those same strips, so the model is the only variable. It writes each run's raw
-transcription and its cost and token figures as JSON.
+`strips_model_comparison.py` cuts one scan's strips once and reads those same
+strips at every combination of `--models` and `--efforts`, so the sweep is the
+only variable. It writes each run's raw transcription and its cost and token
+figures as JSON.
 
 ```sh
 PYTHONPATH=. uv run --project . python \
   session_analysis/scratch/strips_model_comparison.py \
-  --image ../bridge-private/scoresheets/PXL_20260630_191216837.jpg \
+  --image ../bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg \
   --output-directory /tmp/strips-comparison \
-  --models claude-opus-5 claude-sonnet-5 --runs 2
+  --models opus sonnet --efforts high --runs 2
 ```
 
 `voted_session_comparison.py` then scores those runs the way the pipeline does —

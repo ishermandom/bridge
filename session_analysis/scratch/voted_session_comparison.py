@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Score each model's two strip runs the way the pipeline itself does.
+"""Score each setting's two strip runs the way the pipeline itself does.
 
 Diffing two transcriptions as raw strings answers the wrong question, in both
 directions: the voting pass compares parsed values, so `X` and `*` never reach a
@@ -32,7 +32,7 @@ _SOURCE = provenance.sheet_source(
 
 
 def main() -> None:
-  """Vote each model's two runs against each other and tally the issues."""
+  """Vote each setting's two runs against each other and tally the issues."""
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument('--run-directory', type=pathlib.Path, required=True)
   # Scoresheet footers often write a month/day with no year, which the parser
@@ -46,12 +46,15 @@ def main() -> None:
   )
   arguments = parser.parse_args()
 
-  by_model: dict[str, dict[int, str]] = collections.defaultdict(dict)
+  by_setting: dict[str, dict[int, str]] = collections.defaultdict(dict)
   for path in sorted(arguments.run_directory.glob('*.json')):
     record = json.loads(path.read_text())
-    by_model[record['model']][record['run_index']] = record['transcription']
+    # Group by what answered rather than by what was asked for: an alias and the
+    # release it resolves to name one setting and must not split into two.
+    label = f'{record["resolved_model"]} at {record["effort"]} effort'
+    by_setting[label][record['run_index']] = record['transcription']
 
-  for model, runs in sorted(by_model.items()):
+  for label, runs in sorted(by_setting.items()):
     session = parse_and_assemble_voted_session(
       runs[1], runs[2], _SOURCE, reference_date=arguments.reference_date
     )
@@ -62,7 +65,7 @@ def main() -> None:
     ]
     counts = collections.Counter(issue.code for _, issue in board_issues)
     print(
-      f'=== {model}: {len(board_issues)} issues over '
+      f'=== {label}: {len(board_issues)} issues over '
       f'{len(session.boards)} boards'
     )
     for code, count in sorted(counts.items()):
