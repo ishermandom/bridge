@@ -179,12 +179,16 @@ mode**, on the existing Claude subscription — no separate API billing.
     announcements that Sonnet flattens away (though it misreads the bid letter
     under one of them); Sonnet's one edge is two small alert ticks on board 13
     that Opus misses in both runs.
-  - **Cost**: ~$0.34 per sheet on Opus 5 against ~$0.22 on Sonnet 5, counting
-    both runs of the vote. The second run rides the prompt cache the first one
-    filled and costs about half as much, so a per-run price says little without
-    naming which of the two runs it describes. Measured on real scans: about
-    $0.15 a transcription run, plus about $0.06 for the layout reading that
-    precedes the pair.
+  - **Quality on Opus 5.5** (2026-09-24, the 6/29 sheet, 20 runs of each
+    release): Opus 5.5 closes Sonnet's one edge. It read both of board 13's
+    alert ticks in every run, where Opus 5 read one of them in 6 runs of 20 and
+    the other in none. It was steadier on two more alerts as well, reading board
+    3's `[2D!]` and board 11's `4C!` in every run against Opus 5's 16 and 12.
+    Otherwise the two releases read the sheet alike, down to the same misreads
+    of board 1's declarer and board 17's bid letter.
+  - **Cost**: On Opus 5.5: about \$0.34 for the vote's two transcription runs at
+    `high` effort, \$0.32 at `medium`; plus about \$0.05 to read the sheet
+    layout.
 - **`high` effort** {#extraction-effort}: Across ~10 runs, Opus 5.5 behaves very
   similarly at `medium` vs. `high` effort, with `high` having a slight quality
   edge. `medium` saves only about $0.02 a sheet, a dollar or two a year at 1–2
@@ -208,13 +212,18 @@ mode**, on the existing Claude subscription — no separate API billing.
   fraction of the cost and complexity that tier would add. On Opus 4.8 the pass
   paid for itself on the 6/29 sheet: the two runs' one disagreement, an
   announcement letter misread, was the sheet's one real remaining error, and it
-  was correctly flagged. Opus 5 agrees with itself completely on that sheet, so
-  the same pass now flags nothing there — and the errors it does still make go
-  unflagged, because both runs make them identically (the two alert ticks on
-  board 13). Voting bounds a model's inconsistency, not its accuracy; the more
-  self-consistent the model, the less it buys. See `voting.py` for the
-  comparison rules — parsed values, not raw transcription, so equivalent
-  notations (`x` vs `X`, a range's marker order) don't false-flag.
+  was correctly flagged. On Opus 5.5 it paid for itself again, on board 1's
+  declarer: every 4S on the game's travellers was declared by West, but most
+  runs read North. On strips cut from a correct layout reading, Opus 5.5's two
+  runs split between the two in three pairs of four, and the vote flagged each
+  split. On an earlier cutting, whose layout reading lost the table's right edge
+  (#image-limits), all 24 runs of both releases read North, and the vote had
+  nothing to flag. Which cells two runs split on shifts with the crop, so the
+  vote earns its place across sheets even where one sheet's pair happens to
+  agree. Voting bounds a model's inconsistency, not its accuracy: a cell both
+  runs misread identically passes unflagged. See `voting.py` for the comparison
+  rules — parsed values, not raw transcription, so equivalent notations (`x` vs
+  `X`, a range's marker order) don't false-flag.
 - **Invocation**: `claude -p` (non-interactive); see
   `vision_model_invocation.py`. The default agentic-coding system prompt is
   **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet

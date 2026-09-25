@@ -55,7 +55,7 @@ PYTHONPATH=. uv run --project . python \
 Both scripts enforce the fixing. The harness will not cut a new set into a
 directory that already holds one, and the scoring step below will not vote runs
 that read different sets. `--layout-model` names the model that cuts, defaulting
-to `DEFAULT_MODEL`.
+to `DEFAULT_MODEL`; #cutter-choice says how much that choice matters.
 
 `voted_session_comparison.py` then scores those runs the way the pipeline does —
 each model's two runs voted against each other, reporting the issues a review
@@ -67,12 +67,47 @@ PYTHONPATH=. uv run --project . python \
   --run-directory /tmp/strips-comparison
 ```
 
-### Two things to know before trusting the numbers
+### Five things to know before trusting the numbers
 
-- **Cost is per sheet, not per run.** The second run of a pair reads the prompt
-  cache the first one filled and costs about half as much, so a per-run figure
-  means nothing unless it says which run it describes. Re-running the same
-  strips inside the cache window measures a warm run, not a fresh one.
+- **Cost is per sheet, not per run.** A sheet takes two transcription runs for
+  the vote, plus the layout reading that cuts its strips, so a per-run figure
+  understates what a sheet costs. The second run is barely cheaper than the
+  first: only about 2,900 tokens of the prompt are ever served from cache, and
+  the strips go out in full every time.
+- **One sweep's dollar figures are rough.** Output tokens swing from run to run,
+  enough to move an arm's cost by several cents between two sweeps over the same
+  strips — Opus 5 at `medium` cost $0.43 in one and $0.39 in the next. Quote an
+  arm's cost averaged over sweeps. Cache order matters much less than it looks:
+  a cold run costs about a cent more than a warm one, so `cache_read_tokens` is
+  worth checking only to rule it out.
+- **One sweep is a first look, not a figure.** Even over a fixed strip set, two
+  sweeps of one arm read a cell or two differently — on the 6/29 sheet, 0–2
+  cells of 84 — so a difference of that size between two arms is noise until a
+  second sweep repeats it. Across different cuttings the differences run larger,
+  which is why the set stays fixed.
+- **Which model cuts matters less than cutting once** {#cutter-choice}. Three
+  cuttings of the 6/29 sheet per model all found 28 rows and a footer. How far
+  each edge moved across a model's three, in pixels, against a 73-pixel row
+  pitch:
+
+  | Edge                      | Opus 5 | Opus 5.5 |
+  | ------------------------- | -----: | -------: |
+  | Row edges, all four sides |      0 |        0 |
+  | Footer left edge          |      0 |        0 |
+  | Footer top                |     17 |        3 |
+  | Footer bottom             |     39 |       13 |
+  | Footer right edge         |    395 |       13 |
+
+  Row edges hold because `sheet_geometry` snaps each one to a printed line. The
+  footer is measured against nothing, so its box is the model's reading as
+  given, and Opus 5.5 reads it far more steadily. Opus 5's wide right-edge
+  figure is one reading that stopped just past the date where the other two ran
+  nearly to the table's border; all six footer strips keep the handwriting.
+  Cuttings still differ — in the footer, and in row tops by a pixel between the
+  two models — so keep a set fixed across sweeps; the default cutter serves.
+  These figures hold only for a page sized to fit; spec.md #image-limits
+  measures what an oversized one did.
+
 - **Raw-string diffs mislead in both directions.** Some differences vanish in
   parsing (`X` and `*` are the same call) and some spacing differences are fatal
   (`1N2C2D3N` has no seam for the parser to split on). This is why the second

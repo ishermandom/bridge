@@ -165,15 +165,6 @@ output, parsed into the canonical model.
     - **The footer is measured against nothing.** On the fitted 6/29 cuttings
       its top sat at the handwriting's top edge, and the strip padding supplied
       the whole 20-pixel margin above it.
-- [ ] Decide whether the two-run vote still earns its keep on Opus 5.
-  - Rationale: the refreshed strips comparison found Opus 5's two runs agreeing
-    completely on the 6/29 sheet — the pass flags nothing, and the errors that
-    remain are made identically by both runs, so it cannot flag them either. On
-    that sheet the second run buys nothing for about a third of the per-sheet
-    cost. One sheet is thin evidence to drop a safety net on, so this wants a
-    second sheet before deciding.
-  - Note: measurements and the limitation are in spec.md #extraction-voting;
-    `scratch/README.md` covers re-running them on a second sheet.
 
 ---
 
