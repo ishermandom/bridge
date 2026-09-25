@@ -17,6 +17,8 @@
 --club: #1a7f37; 
 --ink: #161616; 
 --accent: #0b57d0; 
+
+--muted: #555;
 --rule: #d0d0d0; 
 }
 
@@ -58,7 +60,7 @@ font-size: 1em;
 }
 .date {
 margin: 0.2em 0;
-color: #555; 
+color: var(--muted);
 }
 blockquote {
 margin: 1em 0;
@@ -197,7 +199,7 @@ size: letter;
 margin: 0.6in 0.6in 0.75in;
 
 font: 8pt "IBM Plex Serif", "STIX Two Math", "Source Sans 3", serif;
-color: #666;
+color: var(--muted);
 @top-left {
 content: string(doc-title);
 }

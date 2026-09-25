@@ -27,11 +27,6 @@ Design decisions live in `spec.md`; this file tracks the work.
   already use (raised 2026-09-20). Ilya leans toward reordering but left it
   queued (2026-09-25).
 
-- Open question {#two-grays}: `.date` is `#555` and the print header and footer
-  `#666`, a hair apart. One token would serve both, at the cost of changing one
-  of the two renderings (raised 2026-09-20). Ilya left the call to Claude, who
-  chose both grays, to settle soon after landing (2026-09-25).
-
 - [ ] **Close the underline gap under suits in screen headings**
       {#heading-underline-gap} — a subsection heading's underline breaks beneath
       each suit symbol on screen, because browsers draw no ancestor's underline
