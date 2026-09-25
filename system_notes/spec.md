@@ -208,6 +208,9 @@ wants something different.
     first section in one render (12pt body; the exact trigger was not isolated).
   - The section wrappers the packer keys on are raw markup rather than pandoc
     divs; `sections.lua`'s header says why.
+  - The packer works on a parsed document rather than on the markup text, and
+    parses with `tinyhtml5`, the parser WeasyPrint itself uses — so no second
+    reading of the markup can disagree with the reading that gets laid out.
 
 ## Command line
 
@@ -231,8 +234,9 @@ parse and does not need.
 
 - **Filter unit tests** run pandoc over small Markdown snippets with one filter
   at a time and assert the resulting HTML and plain text.
-- **Packer unit tests** drive `print_layout.py`'s packing on hand-built section
-  lists, with no render in the loop.
+- **Packer unit tests** drive `print_layout.py`'s packing on hand-built lists of
+  section heights, and its page rewrite on hand-built markup, with no render in
+  the loop.
 - **Golden files** {#goldens} for the fixture, committed and diffed on every
   test run: the HTML, the plain text, and the PDF as extracted by
   `pdftotext -layout`. The PDF golden is text rather than bytes because the
@@ -268,7 +272,8 @@ test-only Python dependency.
 - `template.html` — a minimal skeleton replacing pandoc's default, so none of
   pandoc's default styling reaches the print layout.
 - `notes.css` — the stylesheet.
-- `print_layout.py` — the section packer (#section-packing records why).
+- `print_layout.py` — the section packer: it rewrites the HTML into explicit
+  page and column boxes (#section-packing records why).
 - `pdf_inspection.py` — the PDF readouts the renderer and the tests share:
   embedded fonts, bookmark pages, extracted text.
 - `fixture/notes.md` and `fixture/golden/` — the sample document and its

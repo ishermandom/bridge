@@ -1695,27 +1695,37 @@ name = "system-notes"
 version = "0.0.0"
 source = { virtual = "system_notes" }
 dependencies = [
+    { name = "tinyhtml5" },
     { name = "weasyprint" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "pypdf" },
+    { name = "tinyhtml5-stubs" },
     { name = "weasyprint-stubs" },
 ]
 types = [
+    { name = "tinyhtml5-stubs" },
     { name = "weasyprint-stubs" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "weasyprint", specifier = ">=69" }]
+requires-dist = [
+    { name = "tinyhtml5" },
+    { name = "weasyprint", specifier = ">=69" },
+]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pypdf" },
+    { name = "tinyhtml5-stubs", editable = "stubs/tinyhtml5" },
     { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
 ]
-types = [{ name = "weasyprint-stubs", editable = "stubs/weasyprint" }]
+types = [
+    { name = "tinyhtml5-stubs", editable = "stubs/tinyhtml5" },
+    { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
+]
 
 [[package]]
 name = "tenacity"
@@ -1749,6 +1759,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/b1/1f/cfe2f6b30557c92b3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/52/48/01695a036b695f83fea7aef6955d735db0f517b1c8e25ddb399ac0bdbcbf/tinyhtml5-2.1.0-py3-none-any.whl", hash = "sha256:6e11cfff38515834268daf89d5f85bbde0b6dd02e8d9e212d1385c2289b89f0a", size = 39686, upload-time = "2026-03-05T17:06:28.498Z" },
 ]
+
+[[package]]
+name = "tinyhtml5-stubs"
+version = "0.1.0"
+source = { editable = "stubs/tinyhtml5" }
 
 [[package]]
 name = "toml"

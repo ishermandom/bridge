@@ -13,10 +13,33 @@ sit side by side. WeasyPrint cannot be told this in CSS (spec.md
   columns beneath — and onto further pages when even that page cannot hold it.
   As each page closes, its sections are rebalanced between the two columns, so
   the two come out as near the same height as reading order allows.
+- **Rewrite**: the flat run of section divs becomes explicit page and column
+  boxes that WeasyPrint lays out exactly as written. The screen rendering keeps
+  the original flat HTML.
+
+Rewriting moves elements around a parsed document rather than splicing markup:
+`parse_html` reads the HTML with WeasyPrint's own parser and `document_html`
+writes the tree back out, so the packer works on the document WeasyPrint will
+lay out.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from xml.etree.ElementTree import Element, SubElement, tostring
+
+import tinyhtml5
+
+# The classes sections.lua writes around the run of sections and around each
+# section in it, and the path that finds the run in a parsed document.
+SECTIONS_CLASS = 'sections'
+SECTION_CLASS = 'section'
+SECTIONS_WRAPPER_PATH = f'.//div[@class="{SECTIONS_CLASS}"]'
+
+# A parsed document carries no doctype, so `document_html` puts one back: the
+# packed copy is the same HTML5 document pandoc wrote, with only its sections
+# moved.
+DOCTYPE = '<!DOCTYPE html>\n'
+
 
 # A top-level section's place in document order. A page plan names the sections
 # on it by this index, and `SectionRun.sections` holds them in the same order.
@@ -73,6 +96,20 @@ class WidePage:
 
 
 type PrintPage = ColumnPage | WidePage
+
+
+@dataclass(frozen=True)
+class SectionRun:
+  """The run of top-level sections, and where it sits in the document.
+
+  `wrapper` is the div sections.lua wrote around the whole run, and `parent` the
+  element holding that div: the packed pages take the wrapper's place inside
+  `parent`. `sections` are the wrapper's own children, in document order.
+  """
+
+  parent: Element
+  wrapper: Element
+  sections: tuple[Element, ...]
 
 
 def _fill_at(heights: Sequence[Points], split: int) -> ColumnFill:
@@ -152,8 +189,8 @@ def pack(
 
   Page one's columns are `first_column_height` tall — what the header block left
   free — and every later page's are `column_height`. The first returned page is
-  always page one, and is empty when nothing fit beside the header; a
-  document with no sections gets no pages at all.
+  always page one, and is empty when nothing fit beside the header; a document
+  with no sections gets no pages at all.
   """
   pages: list[PrintPage] = []
   page = _OpenPage(first_column_height)
@@ -181,3 +218,132 @@ def pack(
   if not page.is_empty():
     close_page()
   return pages
+
+
+def parse_html(html: str) -> Element:
+  """Parse a whole HTML document, returning its `<html>` element.
+
+  The parser prefixes every tag name with its namespace by default, which the
+  HTML serializer does not recognize: it escapes an embedded stylesheet and
+  writes `<br>` as a pair of tags. Plain names keep the round trip in HTML.
+  """
+  return tinyhtml5.parse(html, namespace_html_elements=False)
+
+
+def element_html(element: Element) -> str:
+  """One element's own markup, without the text that follows it."""
+  markup = tostring(element, encoding='unicode', method='html')
+  return markup.removesuffix(element.tail or '')
+
+
+def document_html(document: Element) -> str:
+  """A whole parsed document's markup, doctype and all."""
+  return DOCTYPE + element_html(document)
+
+
+def _parents(document: Element) -> Mapping[Element, Element]:
+  """Every element in the document, mapped to the element holding it.
+
+  A parsed element carries no link back to its parent, so finding one takes this
+  map.
+  """
+  return {child: parent for parent in document.iter() for child in parent}
+
+
+def _reject_content_outside_sections(wrapper: Element) -> None:
+  """Fail the render if anything in the wrapper sits outside every section.
+
+  Only the wrapper's own children count as sections, so an author div classed
+  `section` nested inside a section stays part of that section.
+  """
+  texts = (wrapper.text, *(child.tail for child in wrapper))
+  strays = [text.strip() for text in texts if text and text.strip()]
+  strays += [
+    element_html(child)
+    for child in wrapper
+    if child.tag != 'div' or child.get('class') != SECTION_CLASS
+  ]
+  if strays:
+    raise ValueError(
+      'content inside the sections wrapper sits outside every section, where '
+      'print would drop it; the usual cause is a stray closing tag in author '
+      f'HTML. Near: {strays[0][:80]!r}'
+    )
+
+
+def find_section_run(document: Element) -> SectionRun | None:
+  """Locate the sections wrapper and the sections it holds.
+
+  Returns None when the document has no sections wrapper. Whatever the wrapper
+  holds besides sections fails the render: a stray closing tag in author HTML
+  leaves content there, which print would otherwise drop without a word.
+  """
+  wrapper = document.find(SECTIONS_WRAPPER_PATH)
+  if wrapper is None:
+    return None
+  _reject_content_outside_sections(wrapper)
+  if not len(wrapper):
+    raise ValueError(
+      f'a div classed {SECTIONS_CLASS!r} holds no sections; sections.lua '
+      'writes that class only around a run of sections, so this div came from '
+      'author markup'
+    )
+  return SectionRun(_parents(document)[wrapper], wrapper, tuple(wrapper))
+
+
+def _widened(atom: Element) -> Element:
+  """A wide atom: heading across the page, body in two columns beneath.
+
+  Everything after the heading moves into a `wide-body` div, which leaves the
+  atom's own wrapper still closing around it.
+  """
+  if not len(atom) or atom[0].tag != 'h1':
+    raise ValueError(
+      f'wide section does not open with a heading: {element_html(atom)[:100]!r}'
+    )
+  body = Element('div', {'class': 'wide-body'})
+  body.extend(atom[1:])
+  del atom[1:]
+  atom.append(body)
+  return atom
+
+
+def _page_element(
+  page: PrintPage, sections: Sequence[Element], is_first: bool
+) -> Element:
+  """One printed page, as a `print-page` box.
+
+  Every page after the first also carries `fresh`, which breaks to a new sheet
+  ahead of the box.
+  """
+  box = Element(
+    'div', {'class': 'print-page' if is_first else 'print-page fresh'}
+  )
+  if isinstance(page, WidePage):
+    box.append(_widened(sections[page.section]))
+    return box
+  for name, section_indices in (
+    ('first', page.first_column),
+    ('second', page.second_column),
+  ):
+    if section_indices:
+      column = SubElement(box, 'div', {'class': f'print-column {name}'})
+      column.extend(sections[index] for index in section_indices)
+  return box
+
+
+def rewrite_into_pages(
+  section_run: SectionRun, pages: Sequence[PrintPage]
+) -> None:
+  """Put the packed pages where the sections wrapper stood."""
+  for section in section_run.sections:
+    # find_section_run proved that nothing but whitespace stood between the
+    # sections, and no column has any use for that whitespace.
+    section.tail = None
+  insertion_point = list(section_run.parent).index(section_run.wrapper)
+  section_run.parent.remove(section_run.wrapper)
+  for offset, page in enumerate(pages):
+    section_run.parent.insert(
+      insertion_point + offset,
+      _page_element(page, section_run.sections, is_first=offset == 0),
+    )

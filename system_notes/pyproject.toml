@@ -7,6 +7,9 @@ version = "0.0.0"
 description = "Renders partnership system notes to HTML, PDF, and plain text."
 requires-python = ">=3.14"
 dependencies = [
+  # WeasyPrint's own HTML parser, which print_layout.py parses the rendered
+  # HTML with; spec.md #section-packing says why that matters.
+  "tinyhtml5",
   "weasyprint>=69",
 ]
 
@@ -21,6 +24,7 @@ dev = [
 # Stubs for dependencies that ship no type information of their own, from the
 # repo's stub packages (../stubs, see the README there).
 types = [
+  "tinyhtml5-stubs",
   "weasyprint-stubs",
 ]
 
@@ -30,4 +34,5 @@ package = false
 [tool.uv.sources]
 # Editable, so an edited stub takes effect on the next check without a
 # reinstall — see ../stubs/README.md.
+tinyhtml5-stubs = { path = "../stubs/tinyhtml5", editable = true }
 weasyprint-stubs = { path = "../stubs/weasyprint", editable = true }

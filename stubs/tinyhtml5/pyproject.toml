@@ -1,0 +1,20 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+[project]
+# Named for its import directory: see ../README.md #naming.
+name = "tinyhtml5-stubs"
+version = "0.1.0"
+description = "Minimal local type stubs for the tinyhtml5 API this repo uses."
+
+[build-system]
+requires = ["uv_build>=0.12"]
+# Why uv_build: see ../README.md #build-backend.
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# Type checkers resolve stubs only under this exact name — see
+# ../README.md #naming.
+module-name = "tinyhtml5-stubs"
+# The stub directory sits beside this file rather than under `src/`.
+module-root = ""
