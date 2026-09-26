@@ -13,6 +13,10 @@ Design decisions live in `spec.md`; this file tracks the work.
   or fail the render, forcing the author to split the section? Surfaced
   2026-09-12 by the render's new page-count guard, which tolerates the flow
   whenever a wide section exists.
+- Open question: should the table of contents' title take the section-heading
+  style (accent color, italic) and set the running page header? Since 2026-09-26
+  it is an h2, a structural peer of the top-level sections, but it keeps its own
+  plain look and stays out of the running header.
 
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
@@ -64,16 +68,19 @@ Design decisions live in `spec.md`; this file tracks the work.
     Python libraries lag its releases. A Python comparison of `sections.lua`
     showed its difficulty was structure rather than language; the filter has
     since given way to pandoc's own sections (2026-09-25).
-  - Note: the grammar version of `bids.lua` and the `headings.lua` cleanup land
-    ahead of Ilya's own reading of those files, which this task still covers
+  - Note: the grammar version of `bids.lua` and both `headings.lua` changes, the
+    heading-map cleanup and the preamble rule, landed ahead of Ilya's own
+    reading of those files, which this task still covers. The entry point
+    `check_headings_and_resolve_cross_references` is a long name worth a look
+    then (2026-09-26).
+  - Open question: the scanning loop `bids.lua` and `shorthand.lua` shared gave
+    way to the grammar in `bids.lua`, so only `shorthand.lua` keeps it. Should
+    `shorthand.lua` become a grammar too? Ilya wants to look more closely first
     (2026-09-26).
-  - Open question: fold the scanning loop that `bids.lua` and `shorthand.lua`
-    share into one helper. Ilya wants to look at it more closely first
-    (2026-09-25).
   - Open question: whether a `lua.md` rules file has enough to say. Candidates:
-    Lua's way to follow the regex-decomposition rule (grammars, if kept), the
-    byte and locale traps in Lua's string functions, and returning the filter
-    table. Ilya deferred the call (2026-09-25).
+    Lua's way to follow the regex-decomposition rule (`re` grammars, as
+    `bids.lua` now uses), the byte and locale traps in Lua's string functions,
+    and returning the filter table. Ilya deferred the call (2026-09-25).
   - Note: deferred (2026-09-25): a formatter (StyLua) and a linter (luacheck or
     selene) for the Lua files.
   - Note: type annotations declined (2026-09-25): Lua has no type syntax, pandoc

@@ -231,6 +231,10 @@ wants something different.
     div that opens with a heading into a `<section>` anyway. Anything else in
     `<main>` fails the render rather than printing out of reading order;
     comments, which render as nothing, may stand anywhere.
+  - The print copy unwraps the subsections pandoc nests inside each section
+    (`print_layout.py`'s `_flatten_subsections` says why). CSS's
+    `display: contents` would do the same without touching the markup, but
+    WeasyPrint rejects the value as invalid.
   - The packer works on a parsed document rather than on the markup text, and
     parses with `tinyhtml5`, the parser WeasyPrint itself uses — so no second
     reading of the markup can disagree with the reading that gets laid out.
