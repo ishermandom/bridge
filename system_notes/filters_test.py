@@ -170,6 +170,17 @@ def test_copied_titles_drop_links_and_footnotes() -> None:
   assert html.count('class="footnote-ref"') == 1
 
 
+def test_text_before_the_first_top_level_heading_fails() -> None:
+  stderr = failing_pandoc('Preamble.\n\n# A {#a}', 'headings.lua')
+  assert 'before the first top-level heading' in stderr
+
+
+def test_a_comment_may_stand_before_the_first_top_level_heading() -> None:
+  html = pandoc('<!-- maintainer notes -->\n\n# A {#a}', 'headings.lua')
+  assert '<!-- maintainer notes -->' in html
+  assert '<h1 id="a">A</h1>' in html
+
+
 # --- nowrap ---
 
 

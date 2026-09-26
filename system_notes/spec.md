@@ -109,6 +109,11 @@ syntax the plain-text output must survive:
   where it cannot be followed. An unknown target is a hard error, so a typo
   cannot ship as a dead link. Which links deserve a page number is unsettled —
   `tasks.md` #page-numbers.
+- **Everything visible belongs to a section**: the notes open with a top-level
+  heading, and nothing visible may stand before it. Print packs whole sections,
+  so text above the first one would have no place on the page; front matter such
+  as a disclaimer takes a section of its own, and with it a line in the table of
+  contents. A comment may stand anywhere, since it renders as nothing.
 - **Unbreakable tokens**: card-count ranges like `15–17` and slashed shorthand
   like `P/C` are wrapped so they never break across a line. The author writes
   them plainly; the filter recognizes digits–dash–digits, and a slashed word
