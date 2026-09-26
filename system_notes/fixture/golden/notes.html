@@ -28,11 +28,12 @@ color: var(--ink);
 line-height: 1.35;
 }
 
-h1, h2, h3, .title {
+h1, h2, h3, h4 {
 line-height: 1.15;
 margin: 1.1em 0 0.35em;
 }
-h1 {
+
+h1, h2 {
 font-size: 1.5em;
 }
 .title {
@@ -40,12 +41,12 @@ border-bottom: 1px solid var(--rule);
 padding-bottom: 0.15em;
 }
 
-main h1 {
+main h2:not(#toc-title) {
 color: var(--accent);
 font-style: italic;
 }
 
-h2:not(#toc-title) {
+h3 {
 display: table;
 font-size: 1em;
 font-weight: normal;
@@ -56,7 +57,7 @@ border-bottom: 0.06em solid currentColor;
 font-size: 1.2em;
 }
 
-h3 {
+h4 {
 font-size: 1em;
 }
 .date {
@@ -86,8 +87,8 @@ font-weight: normal;
 
 em .suit,
 a.xref .suit,
-main h1 .suit,
-h2 .suit {
+h2 .suit,
+h3 .suit {
 transform: skewX(-14deg);
 }
 .spade {
@@ -219,11 +220,10 @@ margin: 0;
 string-set: doc-title content();
 margin-top: 0;
 }
-main h1 {
+main h2:not(#toc-title) {
 string-set: section-title content();
-break-after: avoid;
 }
-h2, h3 {
+h2, h3, h4 {
 break-after: avoid;
 }
 
@@ -301,8 +301,8 @@ Maintainer notes — editing this fixture:
 - This comment stands ahead of the first heading on purpose: the HTML keeps
   it, the plain text drops it, and the print layout must let it pass.
 -->
-<section id="disclaimer" class="level1">
-<h1>Disclaimer</h1>
+<section id="disclaimer" class="level2">
+<h2>Disclaimer</h2>
 <blockquote>
 <p><strong>This is AI-drafted sample content, not a real partnership
 agreement.</strong> It was written to exercise the renderer — nesting,
@@ -310,8 +310,8 @@ cross-references, suit symbols — from public descriptions of standard
 conventions. No human has reviewed or verified any of it.</p>
 </blockquote>
 </section>
-<section id="general" class="level1">
-<h1>General approach</h1>
+<section id="general" class="level2">
+<h2>General approach</h2>
 <ul>
 <li>Five-card majors, <span class="nowrap">2/1</span> game forcing (see
 <a href="#two-over-one" class="xref">Two-over-one</a>), <span class="nowrap">15–17</span> <span class="bid">1<span class="strain notrump">NT</span></span>.</li>
@@ -331,11 +331,11 @@ or second seat.</li>
 opening</a>.</li>
 </ul>
 </section>
-<section id="notrump" class="level1">
-<h1>Notrump openings</h1>
-<section id="one-notrump" class="level2">
-<h2>The <span class="bid">1<span class="strain notrump">NT</span></span>
-opening</h2>
+<section id="notrump" class="level2">
+<h2>Notrump openings</h2>
+<section id="one-notrump" class="level3">
+<h3>The <span class="bid">1<span class="strain notrump">NT</span></span>
+opening</h3>
 <ul>
 <li><span class="nowrap">15–17</span> high-card points, balanced or
 semi-balanced.
@@ -353,8 +353,8 @@ response is <a href="#stayman" class="xref">Stayman</a>; <span class="bid">2<spa
 minor-suit relay (<a href="#minor-suit-transfers" class="xref">Minor-suit transfers</a>).</li>
 </ul>
 </section>
-<section id="stayman" class="level2">
-<h2>Stayman</h2>
+<section id="stayman" class="level3">
+<h3>Stayman</h3>
 <ul>
 <li><span class="bid">1<span class="strain notrump">NT</span></span> –
 <span class="bid">2<span class="strain suit club">♣</span></span> asks
@@ -432,8 +432,8 @@ to play.</li>
 opener correct to a five-card major, since opener may open <span class="bid">1<span class="strain notrump">NT</span></span> with <span class="nowrap">5-3-3-2.</span></li>
 </ul>
 </section>
-<section id="smolen" class="level2">
-<h2>Smolen</h2>
+<section id="smolen" class="level3">
+<h3>Smolen</h3>
 <ul>
 <li>After <span class="bid">1<span class="strain notrump">NT</span></span> – <span class="bid">2<span class="strain suit club">♣</span></span> – <span class="bid">2<span class="strain suit diamond">♦</span></span>, a jump to <span class="bid">3<span class="strain suit heart">♥</span></span> or <span class="bid">3<span class="strain suit spade">♠</span></span> shows <span class="nowrap">5-4</span> in the majors with game values, four cards in
 the bid suit and five in the other. Opener chooses between <span class="bid">3<span class="strain notrump">NT</span></span> and the
@@ -469,8 +469,8 @@ two hearts.</li>
 to spades and then bid hearts; Smolen is <em>never</em> <span class="nowrap">5-5.</span></li>
 </ul>
 </section>
-<section id="jacoby-transfers" class="level2">
-<h2>Jacoby transfers</h2>
+<section id="jacoby-transfers" class="level3">
+<h3>Jacoby transfers</h3>
 <ul>
 <li><span class="bid">1<span class="strain notrump">NT</span></span> –
 <span class="bid">2<span class="strain suit diamond">♦</span></span>
@@ -510,8 +510,8 @@ interest, use <a href="#texas-transfers" class="xref">Texas</a> then
 </ul></li>
 </ul>
 </section>
-<section id="texas-transfers" class="level2">
-<h2>Texas transfers</h2>
+<section id="texas-transfers" class="level3">
+<h3>Texas transfers</h3>
 <ul>
 <li><span class="bid">1<span class="strain notrump">NT</span></span> –
 <span class="bid">4<span class="strain suit diamond">♦</span></span>
@@ -523,8 +523,8 @@ Opener always completes.</li>
 quantitative.</li>
 </ul>
 </section>
-<section id="minor-suit-transfers" class="level2">
-<h2>Minor-suit transfers</h2>
+<section id="minor-suit-transfers" class="level3">
+<h3>Minor-suit transfers</h3>
 <ul>
 <li><span class="bid">1<span class="strain notrump">NT</span></span> –
 <span class="bid">2<span class="strain suit spade">♠</span></span>:
@@ -550,8 +550,8 @@ transfer to diamonds, weak or strong. A direct invitational raise goes
 through Stayman instead.</li>
 </ul>
 </section>
-<section id="lebensohl" class="level2">
-<h2>Interference over <span class="bid">1<span class="strain notrump">NT</span></span></h2>
+<section id="lebensohl" class="level3">
+<h3>Interference over <span class="bid">1<span class="strain notrump">NT</span></span></h3>
 <ul>
 <li>Over a natural or artificial overcall at the two level, responder
 uses lebensohl: a direct three-level bid is game forcing, and <span class="bid">2<span class="strain notrump">NT</span></span> is a relay to
@@ -572,9 +572,9 @@ see <a href="#versus-notrump" class="xref">Versus their
 notrump</a>.</li>
 </ul>
 </section>
-<section id="two-notrump" class="level2">
-<h2>The <span class="bid">2<span class="strain notrump">NT</span></span>
-opening</h2>
+<section id="two-notrump" class="level3">
+<h3>The <span class="bid">2<span class="strain notrump">NT</span></span>
+opening</h3>
 <ul>
 <li><span class="nowrap">20–21</span> balanced. <span class="bid">3<span class="strain suit club">♣</span></span> is Stayman, <span class="bid">3<span class="strain suit diamond">♦</span></span> and <span class="bid">3<span class="strain suit heart">♥</span></span> are
 transfers, <span class="bid">3<span class="strain suit spade">♠</span></span> is a minor-suit relay, <span class="bid">4<span class="strain suit diamond">♦</span></span> and <span class="bid">4<span class="strain suit heart">♥</span></span> are Texas.
@@ -583,10 +583,10 @@ opening</a>).</li>
 </ul>
 </section>
 </section>
-<section id="majors" class="level1">
-<h1>Major-suit openings</h1>
-<section id="major-responses" class="level2">
-<h2>Responses to one of a major</h2>
+<section id="majors" class="level2">
+<h2>Major-suit openings</h2>
+<section id="major-responses" class="level3">
+<h3>Responses to one of a major</h3>
 <ul>
 <li>Single raise: <span class="nowrap">6–9</span> points, three-card
 support.</li>
@@ -603,8 +603,8 @@ Jacoby (<a href="#jacoby-2nt" class="xref">Jacoby <span class="bid">2<span class
 or more spades, 6 or more points, forcing.</li>
 </ul>
 </section>
-<section id="forcing-notrump" class="level2">
-<h2>The forcing <span class="bid">1<span class="strain notrump">NT</span></span></h2>
+<section id="forcing-notrump" class="level3">
+<h3>The forcing <span class="bid">1<span class="strain notrump">NT</span></span></h3>
 <ul>
 <li>Forcing for one round by an unpassed hand; <em>semi-forcing</em> by
 a passed hand.</li>
@@ -631,8 +631,8 @@ suit.</li>
 </ul></li>
 </ul>
 </section>
-<section id="two-over-one" class="level2">
-<h2>Two-over-one</h2>
+<section id="two-over-one" class="level3">
+<h3>Two-over-one</h3>
 <ul>
 <li>A two-level response in a new suit by an unpassed hand is game
 forcing.
@@ -651,8 +651,8 @@ balanced minimum with stoppers.</li>
 minimum; taking a slower route shows slam interest (<a href="#control-bids" class="xref">Control bids</a>).</li>
 </ul>
 </section>
-<section id="jacoby-2nt" class="level2">
-<h2>Jacoby <span class="bid">2<span class="strain notrump">NT</span></span></h2>
+<section id="jacoby-2nt" class="level3">
+<h3>Jacoby <span class="bid">2<span class="strain notrump">NT</span></span></h3>
 <ul>
 <li>Four-card support, game forcing. Opener describes shape and
 strength:
@@ -667,8 +667,8 @@ balanced minimum.</li>
 <li>Responder continues with control bids or <span class="bid">4<span class="strain notrump">NT</span></span> (<a href="#rkcb" class="xref">Roman key card 1430</a>).</li>
 </ul>
 </section>
-<section id="bergen" class="level2">
-<h2>Bergen raises</h2>
+<section id="bergen" class="level3">
+<h3>Bergen raises</h3>
 <ul>
 <li><span class="bid">3<span class="strain suit club">♣</span></span>:
 four-card support, <span class="nowrap">7–9</span> points. <span class="bid">3<span class="strain suit diamond">♦</span></span>:
@@ -678,8 +678,8 @@ four-card support, <span class="nowrap">10–12.</span></li>
 <li>Over interference, Bergen is off; raises are natural.</li>
 </ul>
 </section>
-<section id="splinters" class="level2">
-<h2>Splinters</h2>
+<section id="splinters" class="level3">
+<h3>Splinters</h3>
 <ul>
 <li>A double jump in a new suit shows four-card support, game values,
 and a singleton or void in the bid suit.</li>
@@ -687,8 +687,8 @@ and a singleton or void in the bid suit.</li>
 bids with slam interest.</li>
 </ul>
 </section>
-<section id="drury" class="level2">
-<h2>Drury</h2>
+<section id="drury" class="level3">
+<h3>Drury</h3>
 <ul>
 <li>By a passed hand, <span class="bid">2<span class="strain suit club">♣</span></span> over a major opening shows
 three or more trumps with a limit raise. Opener rebids two of the major
@@ -697,10 +697,10 @@ opener.</li>
 </ul>
 </section>
 </section>
-<section id="minors" class="level1">
-<h1>Minor-suit openings</h1>
-<section id="inverted-minors" class="level2">
-<h2>Inverted minors</h2>
+<section id="minors" class="level2">
+<h2>Minor-suit openings</h2>
+<section id="inverted-minors" class="level3">
+<h3>Inverted minors</h3>
 <ul>
 <li>A single raise of a minor is 10 or more points, forcing to <span class="bid">2<span class="strain notrump">NT</span></span> or three of
 the minor, and denies a four-card major.</li>
@@ -711,8 +711,8 @@ minimum, or three of the minor with a minimum and an unbalanced
 hand.</li>
 </ul>
 </section>
-<section id="walsh" class="level2">
-<h2>Walsh responses</h2>
+<section id="walsh" class="level3">
+<h3>Walsh responses</h3>
 <ul>
 <li>Over <span class="bid">1<span class="strain suit club">♣</span></span>, bypass a four-card or
 five-card diamond suit with a four-card major and less than game values.
@@ -721,8 +721,8 @@ diamonds and game-going values.</li>
 </ul>
 </section>
 </section>
-<section id="strong-two-clubs" class="level1">
-<h1>The strong <span class="bid">2<span class="strain suit club">♣</span></span> opening</h1>
+<section id="strong-two-clubs" class="level2">
+<h2>The strong <span class="bid">2<span class="strain suit club">♣</span></span> opening</h2>
 <ul>
 <li><span class="bid">2<span class="strain suit club">♣</span></span>:
 22 or more balanced, or any hand with nine or more playing tricks.</li>
@@ -734,10 +734,10 @@ a very bad hand.</li>
 <span class="bid">2<span class="strain notrump">NT</span></span>: <span class="nowrap">22–24,</span> with the <span class="bid">2<span class="strain notrump">NT</span></span> structure (<a href="#two-notrump" class="xref">The <span class="bid">2<span class="strain notrump">NT</span></span> opening</a>).</li>
 </ul>
 </section>
-<section id="competitive" class="level1">
-<h1>Competitive bidding</h1>
-<section id="overcalls" class="level2">
-<h2>Overcalls</h2>
+<section id="competitive" class="level2">
+<h2>Competitive bidding</h2>
+<section id="overcalls" class="level3">
+<h3>Overcalls</h3>
 <ul>
 <li>Simple overcalls: <span class="nowrap">8–16,</span> a five-card suit
 at the one level; a good suit at the two level.</li>
@@ -754,8 +754,8 @@ support.</li>
 </ul></li>
 </ul>
 </section>
-<section id="takeout-doubles" class="level2">
-<h2>Takeout doubles</h2>
+<section id="takeout-doubles" class="level3">
+<h3>Takeout doubles</h3>
 <ul>
 <li>Shape suitable or 17 or more of any shape.</li>
 <li>Responses
@@ -767,8 +767,8 @@ support.</li>
 </ul></li>
 </ul>
 </section>
-<section id="negative-doubles" class="level2">
-<h2>Negative doubles</h2>
+<section id="negative-doubles" class="level3">
+<h3>Negative doubles</h3>
 <ul>
 <li>Through <span class="bid">3<span class="strain suit spade">♠</span></span>.</li>
 <li>Over <span class="bid">1<span class="strain suit club">♣</span></span> or <span class="bid">1<span class="strain suit diamond">♦</span></span> – <span class="bid">1<span class="strain suit heart">♥</span></span>, the double shows exactly four
@@ -777,16 +777,16 @@ spades; <span class="bid">1<span class="strain suit spade">♠</span></span> sho
 five or more when the double is at the two level.</li>
 </ul>
 </section>
-<section id="support-doubles" class="level2">
-<h2>Support doubles</h2>
+<section id="support-doubles" class="level3">
+<h3>Support doubles</h3>
 <ul>
 <li>When responder bids a major at the one level and the next hand bids
 or doubles, opener’s double or redouble shows exactly three-card
 support. A direct raise promises four.</li>
 </ul>
 </section>
-<section id="versus-notrump" class="level2">
-<h2>Versus their notrump</h2>
+<section id="versus-notrump" class="level3">
+<h3>Versus their notrump</h3>
 <ul>
 <li>Over their <span class="bid">1<span class="strain notrump">NT</span></span> opening, strong or weak: Woolsey
 — see <a href="#woolsey" class="xref">Woolsey</a>.</li>
@@ -796,10 +796,10 @@ raise.</li>
 </ul>
 </section>
 </section>
-<section id="slam" class="level1">
-<h1>Slam bidding</h1>
-<section id="rkcb" class="level2">
-<h2>Roman key card 1430</h2>
+<section id="slam" class="level2">
+<h2>Slam bidding</h2>
+<section id="rkcb" class="level3">
+<h3>Roman key card 1430</h3>
 <ul>
 <li><span class="bid">4<span class="strain notrump">NT</span></span>
 asks for key cards; the responses are 1 or 4, 3 or 0, 2 without the
@@ -823,16 +823,16 @@ the cheapest suit below five of the trumps.</li>
 or the last suit bid by the <span class="bid">4<span class="strain notrump">NT</span></span> bidder if none was raised.</li>
 </ul>
 </section>
-<section id="exclusion" class="level2">
-<h2>Exclusion</h2>
+<section id="exclusion" class="level3">
+<h3>Exclusion</h3>
 <ul>
 <li>A jump to the five level in a new suit after a suit is agreed asks
 for key cards outside the bid suit. Responses follow 1430 starting at
 the next step.</li>
 </ul>
 </section>
-<section id="control-bids" class="level2">
-<h2>Control bids</h2>
+<section id="control-bids" class="level3">
+<h3>Control bids</h3>
 <ul>
 <li>Italian style: first- or second-round controls, bid up the line, so
 a bypassed suit denies a control in it.</li>
@@ -841,10 +841,10 @@ cheapest control; returning to the trump suit denies one.</li>
 </ul>
 </section>
 </section>
-<section id="carding" class="level1">
-<h1>Defensive carding</h1>
-<section id="leads" class="level2">
-<h2>Opening leads</h2>
+<section id="carding" class="level2">
+<h2>Defensive carding</h2>
+<section id="leads" class="level3">
+<h3>Opening leads</h3>
 <ol type="1">
 <li>Against suits: fourth best from length with an honor, top of a
 doubleton, low from three small, and the top of a sequence.
@@ -858,8 +858,8 @@ the queen from <span class="nowrap">K-Q-10-9</span> asks for an unblock
 of the jack.</li>
 </ol>
 </section>
-<section id="signals" class="level2">
-<h2>Signals</h2>
+<section id="signals" class="level3">
+<h3>Signals</h3>
 <ul>
 <li>Standard attitude on partner’s lead; upside-down count when count is
 requested.</li>
@@ -870,8 +870,8 @@ lower.</li>
 </ul>
 </section>
 </section>
-<section id="woolsey" class="level1">
-<h1>Woolsey</h1>
+<section id="woolsey" class="level2">
+<h2>Woolsey</h2>
 <ul>
 <li>Key: pen=penalty · nat=natural · pref=preference · GT=game try ·
 T=trumps · OVC=overcaller · WNT=weak NT · <span class="nowrap">NS/JNS=(jump)</span> new suit · LAW=Law raise · <span class="nowrap">P/C=pass</span> or correct · x=any suit · <span class="nowrap">m/<strong>M</strong>=minor/major</span> ·

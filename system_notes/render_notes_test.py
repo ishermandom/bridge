@@ -36,7 +36,7 @@ XREF_CLASS = re.compile(r'class="[^"]*\bxref\b[^"]*"')
 # heading.
 HEADING = re.compile(
   r'<section id="(?P<id>[^"]+)"[^>]*>\s*'
-  r'<h(?P<level>[123])[^>]*>(?P<title>.*?)</h(?P=level)>',
+  r'<h(?P<level>[1-6])[^>]*>(?P<title>.*?)</h(?P=level)>',
   re.DOTALL,
 )
 HTML_TAG = re.compile(r'<[^>]+>')

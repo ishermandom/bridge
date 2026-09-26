@@ -50,9 +50,7 @@ from system_notes import pdf_inspection
 # bottom), in points.
 PAGE_CONTENT_HEIGHT = (11 - 0.6 - 0.75) * 72
 
-# The id the HTML template gives the table of contents pandoc's `--toc` fills,
-# and the id pandoc gives the endnotes it writes for footnotes.
-TABLE_OF_CONTENTS_ID = 'TOC'
+# The id pandoc gives the endnotes it writes for footnotes.
 FOOTNOTES_ID = 'footnotes'
 
 # A parsed document carries no doctype, so `_document_html` puts one back: the
@@ -324,15 +322,13 @@ def _document_html(document: Element) -> str:
 def _is_top_level_section(element: Element) -> bool:
   """Whether an element of `<main>` is a section to pack whole.
 
-  Two kinds are: the table of contents, and a section of the notes, which opens
-  with its h1. A `<section>` opening with anything else holds a subsection cut
-  off from its top-level section.
+  A top-level section opens with an h2, whether it is the table of contents or a
+  section of the notes. A `<section>` opening with anything else holds a
+  subsection cut off from its top-level section.
   """
-  if element.tag != 'section':
-    return False
-  if element.get('id') == TABLE_OF_CONTENTS_ID:
-    return True
-  return len(element) > 0 and element[0].tag == 'h1'
+  return (
+    element.tag == 'section' and len(element) > 0 and element[0].tag == 'h2'
+  )
 
 
 def _is_comment(element: Element) -> bool:
@@ -387,11 +383,11 @@ def _unwrap(parent: Element, index: int) -> int:
   # The child can border text in two places, and unwrapping keeps both in
   # reading order. This markup:
   #
-  #     <p>a</p><section>b<h2>c</h2></section>d
+  #     <p>a</p><section>b<h3>c</h3></section>d
   #
   # becomes:
   #
-  #     <p>a</p>b<h2>c</h2>d
+  #     <p>a</p>b<h3>c</h3>d
   #
   # `b` sits inside the child, ahead of its first element: ElementTree keeps it
   # as the child's `text`. It moves onto the tail of the element before the
@@ -434,7 +430,7 @@ def _flatten_subsections(element: Element) -> None:
   #     Text.
   #     :::
   #
-  # arrives as `<section id="aside" class="level2 note">`, and the print copy
+  # arrives as `<section id="aside" class="level3 note">`, and the print copy
   # keeps only its contents: `note` is gone. Keep the classes if the stylesheet
   # ever styles one.
   index = 0
@@ -453,9 +449,8 @@ def _flatten_subsections(element: Element) -> None:
 def _widened(section: Element) -> Element:
   """A wide section: heading across the page, body in two columns beneath.
 
-  Every top-level section opens with its heading: its h1, or the h2 title the
-  template gives the table of contents. The heading's later siblings move into a
-  `wide-body` div inside the section.
+  Every top-level section opens with its h2 heading. The heading's later
+  siblings move into a `wide-body` div inside the section.
   """
   body = Element('div', {'class': 'wide-body'})
   body.extend(section[1:])

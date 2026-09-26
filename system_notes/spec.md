@@ -200,6 +200,12 @@ wants something different.
   the page header, "page / total" in the footer; a page-numbered table of
   contents listing only the top-level sections, packed like any section
   (#section-packing); every cross-reference followed by its page number.
+- **Heading levels**: the document title is the page's only `h1`. The table of
+  contents and every top-level section are `h2`, subsections `h3`, and so on:
+  pandoc's `--shift-heading-level-by=1` moves each heading the source writes
+  down a level. Every level then has one meaning, and the PDF's bookmarks nest
+  the sections under the title. The source still writes a top-level heading as
+  `#`.
 - **A printed section is an atom.** {#section-packing} It renders whole on one
   page where it fits, ideally within a single column. The two columns exist so
   that short sections can sit side by side. A section taller than a column gets

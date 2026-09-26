@@ -150,12 +150,18 @@ def render_html(source: Path, output: Path) -> None:
       # Each heading and everything under it becomes a <section>, so the
       # top-level ones stand as whole elements for print_layout.py to pack.
       '--section-divs',
+      # The document title is the page's one h1, so every heading in the notes
+      # moves down a level: the top-level sections become h2, peers of the table
+      # of contents, whose title the template sets as an h2. The shift happens
+      # after the filters, which see the levels as written.
+      '--shift-heading-level-by=1',
       # The table of contents fills the template's `$toc$`, listing top-level
       # sections only: subheadings would crowd it. `render_text` passes neither
       # flag, and no template either, so the email text carries no table of
       # contents.
       '--toc',
-      '--toc-depth=1',
+      # Counted after the shift, so 2 lists the top-level sections alone.
+      '--toc-depth=2',
     ],
   )
 

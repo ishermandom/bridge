@@ -115,13 +115,13 @@ def _one_line(markup: str) -> str:
   return ''.join(line.strip() for line in markup.splitlines())
 
 
-SECTION_A = '<section id="a"><h1>A</h1><p>x</p></section>'
+SECTION_A = '<section id="a"><h2>A</h2><p>x</p></section>'
 # Nests the <section> pandoc writes for a subheading, which the packer unwraps
 # into the top-level section around it.
 SECTION_B = _one_line("""
   <section id="b">
-    <h1>B</h1>
-    <section id="b1"><h2>B1</h2><p>nested</p></section>
+    <h2>B</h2>
+    <section id="b1"><h3>B1</h3><p>nested</p></section>
   </section>
 """)
 # The line breaks around the sections stand in for the ones pandoc writes, which
@@ -170,6 +170,7 @@ def _html_from_markdown(markdown: str) -> str:
       '--template',
       str(render_notes.TEMPLATE),
       '--section-divs',
+      '--shift-heading-level-by=1',
       '--metadata',
       'title=Notes',
     ],
@@ -193,8 +194,8 @@ def test_packed_columns_become_column_boxes() -> None:
       <div class="print-column first">{SECTION_A}</div>
       <div class="print-column second">
         <section id="b">
-          <h1>B</h1>
-          <h2 id="b1">B1</h2>
+          <h2>B</h2>
+          <h3 id="b1">B1</h3>
           <p>nested</p>
         </section>
       </div>
@@ -211,11 +212,11 @@ def test_subsections_unwrap_into_their_top_level_section() -> None:
   # print keeps each section flat. Each subsection's id moves onto its heading.
   section = _one_line("""
     <section id="a">
-      <h1>A</h1>
+      <h2>A</h2>
       <section id="a1">
-        <h2>A1</h2>
+        <h3>A1</h3>
         <p>x</p>
-        <section id="a1i"><h3>A1i</h3><p>y</p></section>
+        <section id="a1i"><h4>A1i</h4><p>y</p></section>
       </section>
     </section>
   """)
@@ -223,10 +224,10 @@ def test_subsections_unwrap_into_their_top_level_section() -> None:
 
   flattened = _one_line("""
     <section id="a">
-      <h1>A</h1>
-      <h2 id="a1">A1</h2>
+      <h2>A</h2>
+      <h3 id="a1">A1</h3>
       <p>x</p>
-      <h3 id="a1i">A1i</h3>
+      <h4 id="a1i">A1i</h4>
       <p>y</p>
     </section>
   """)
@@ -241,18 +242,18 @@ def test_subsections_unwrap_into_their_top_level_section() -> None:
     pytest.param(
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           <section id="a1">
             lead
-            <h2>A1</h2>
+            <h3>A1</h3>
           </section>
         </section>
       """,
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           lead
-          <h2 id="a1">A1</h2>
+          <h3 id="a1">A1</h3>
         </section>
       """,
       id='before-its-first-element',
@@ -260,17 +261,17 @@ def test_subsections_unwrap_into_their_top_level_section() -> None:
     pytest.param(
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           <section id="a1">
-            <h2>A1</h2>
+            <h3>A1</h3>
           </section>
           trail
         </section>
       """,
       """
         <section id="a">
-          <h1>A</h1>
-          <h2 id="a1">A1</h2>
+          <h2>A</h2>
+          <h3 id="a1">A1</h3>
           trail
         </section>
       """,
@@ -279,14 +280,14 @@ def test_subsections_unwrap_into_their_top_level_section() -> None:
     pytest.param(
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           <section>only</section>
           after
         </section>
       """,
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           only
           after
         </section>
@@ -296,23 +297,23 @@ def test_subsections_unwrap_into_their_top_level_section() -> None:
     pytest.param(
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           <div>
             before
             <section id="a1">
               inside
-              <h2>A1</h2>
+              <h3>A1</h3>
             </section>
           </div>
         </section>
       """,
       """
         <section id="a">
-          <h1>A</h1>
+          <h2>A</h2>
           <div>
             before
             inside
-            <h2 id="a1">A1</h2>
+            <h3 id="a1">A1</h3>
           </div>
         </section>
       """,
@@ -354,7 +355,7 @@ def test_what_stands_above_the_sections_shortens_page_one() -> None:
 
 def test_every_page_after_the_first_breaks_to_a_fresh_sheet() -> None:
   sections = ''.join(
-    f'<section id="s{index}"><h1>S</h1></section>' for index in range(3)
+    f'<section id="s{index}"><h2>S</h2></section>' for index in range(3)
   )
   paged = _paged(f'<main>{sections}</main>', [ONE_PER_COLUMN] * 3)
 
@@ -374,7 +375,7 @@ def test_a_wide_section_keeps_its_heading_above_its_columns() -> None:
   wide_page = _one_line("""
     <div class="print-page fresh">
       <section id="a">
-        <h1>A</h1>
+        <h2>A</h2>
         <div class="wide-body"><p>x</p></div>
       </section>
     </div>

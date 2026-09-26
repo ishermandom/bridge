@@ -35,11 +35,13 @@ body {
 
 /* Headings take tighter line spacing than body text, and more space above than
    below, so each heading sits with the text it introduces. */
-h1, h2, h3, .title {
+h1, h2, h3, h4 {
   line-height: 1.15;
   margin: 1.1em 0 0.35em;
 }
-h1 {
+/* The document title is the page's one h1; the table of contents and each
+   top-level section sit one level below it, as h2. */
+h1, h2 {
   font-size: 1.5em;
 }
 .title {
@@ -50,9 +52,9 @@ h1 {
 /* A section heading takes the accent color and italic; below it the levels stay
    at body size, so rank comes from slant, underline, and weight rather than
    from further size steps — the notes nest too deeply for a size ladder
-   (spec.md #appearance). The table of contents' own title is an h2 the selector
-   exempts, so it keeps its larger size. */
-main h1 {
+   (spec.md #appearance). The table of contents' title is an h2 as well, but the
+   selector exempts it, so it keeps the plain face. */
+main h2:not(#toc-title) {
   color: var(--accent);
   font-style: italic;
 }
@@ -62,7 +64,7 @@ main h1 {
    suit's color. `display: table` shrinks the box to its text, so the border
    runs only as far as the words; a heading that wraps gets one line beneath
    its last row. */
-h2:not(#toc-title) {
+h3 {
   display: table;
   font-size: 1em;
   font-weight: normal;
@@ -74,7 +76,7 @@ h2:not(#toc-title) {
 }
 /* A sub-subsection keeps the default bold at body size: any larger would
    outrank the 1em subsection above it. */
-h3 {
+h4 {
   font-size: 1em;
 }
 .date {
@@ -121,8 +123,8 @@ blockquote {
    test_suit_skew_tracks_the_body_font_italic_angle fails when they part. */
 em .suit,
 a.xref .suit,
-main h1 .suit,
-h2 .suit {
+h2 .suit,
+h3 .suit {
   transform: skewX(-14deg);
 }
 .spade {
@@ -277,11 +279,10 @@ a.xref {
     string-set: doc-title content();
     margin-top: 0;
   }
-  main h1 {
+  main h2:not(#toc-title) {
     string-set: section-title content();
-    break-after: avoid;
   }
-  h2, h3 {
+  h2, h3, h4 {
     break-after: avoid;
   }
 
