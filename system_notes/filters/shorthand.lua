@@ -33,7 +33,7 @@ local function is_placeholder_prefix(prefix)
   return prefix == '' or prefix:match('[0-9+c]$') ~= nil
 end
 
-function Str(element)
+local function bold_major_placeholder(element)
   if FORMAT == 'plain' then
     return nil
   end
@@ -73,3 +73,5 @@ function Str(element)
   end
   return inlines
 end
+
+return { Str = bold_major_placeholder }

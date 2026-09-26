@@ -107,7 +107,7 @@ local function next_match(text, position)
   return best_start, best_finish, best_level, best_strain
 end
 
-function Str(element)
+local function render_bids_and_suits(element)
   local text = element.text
   check_notrump(text)
   if FORMAT == 'plain' then
@@ -147,3 +147,5 @@ function Str(element)
   end
   return inlines
 end
+
+return { Str = render_bids_and_suits }

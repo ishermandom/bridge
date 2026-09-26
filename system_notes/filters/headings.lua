@@ -56,8 +56,10 @@ local function make_cross_reference(link)
   return link
 end
 
-function Pandoc(document)
+local function resolve_cross_references(document)
   document:walk({ Header = record_heading })
   document = document:walk({ Link = make_cross_reference })
   return document
 end
+
+return { Pandoc = resolve_cross_references }

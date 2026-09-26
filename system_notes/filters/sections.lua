@@ -16,7 +16,7 @@ local function raw(html)
   return pandoc.RawBlock('html', html)
 end
 
-function Pandoc(document)
+local function wrap_sections(document)
   local blocks = pandoc.Blocks({})
   local is_section_open = false
   for _, block in ipairs(document.blocks) do
@@ -38,3 +38,5 @@ function Pandoc(document)
   document.blocks = blocks
   return document
 end
+
+return { Pandoc = wrap_sections }

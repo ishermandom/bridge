@@ -19,7 +19,7 @@ local digit_en_dash_digit = '[0-9]–[0-9]'
 local word_slash_word = '[A-Za-z0-9+]/[A-Za-z0-9+]'
 local capital_or_digit = '[A-Z0-9]'
 
-function Str(element)
+local function keep_token_on_one_line(element)
   local text = element.text
   local is_slashed_shorthand = text:find(word_slash_word) ~= nil
     and text:find(capital_or_digit) ~= nil
@@ -31,3 +31,5 @@ function Str(element)
   end
   return pandoc.Span({ element }, { class = 'nowrap' })
 end
+
+return { Str = keep_token_on_one_line }

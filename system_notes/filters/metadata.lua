@@ -5,9 +5,11 @@
 -- `<title>`, and the PDF's metadata, so its absence would ship a blank header
 -- on every page rather than fail; make it an error instead.
 
-function Pandoc(document)
+local function check_title(document)
   local title = document.meta.title
   if not title or pandoc.utils.stringify(title) == '' then
     error('the notes need a non-empty `title` in their YAML metadata block')
   end
 end
+
+return { Pandoc = check_title }
