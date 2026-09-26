@@ -3,6 +3,15 @@ title: "System Notes"
 date: 2026-08-26
 ---
 
+<!--
+Maintainer notes — editing this fixture:
+
+- The golden files under golden/ record how this fixture renders. After an
+  edit, run update_goldens.py and review the golden diff before committing.
+- This comment stands ahead of the first heading on purpose: the HTML keeps
+  it, the plain text drops it, and the print layout must let it pass.
+-->
+
 > **This is AI-drafted sample content, not a real partnership agreement.** It
 > was written to exercise the renderer — nesting, cross-references, suit symbols
 > — from public descriptions of standard conventions. No human has reviewed or
