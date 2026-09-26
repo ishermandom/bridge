@@ -53,9 +53,28 @@ Design decisions live in `spec.md`; this file tracks the work.
     repo's Markdown formatting hook would undo them; the formatter must exclude
     these files or run after it.
 
-- [ ] **Read the Lua filters for readability as a set** {#lua-readability} —
-      Ilya asked (2026-09-21) whether the filters could read better overall, and
-      chose to take it up after the branch lands (2026-09-25).
+- [~] **Read the Lua filters for readability as a set** {#lua-readability} —
+  Ilya asked (2026-09-21) whether the filters could read better overall, and
+  chose to take it up after the branch lands (2026-09-25).
+  - Worktree: `lua-readability`
+  - Open question: keep the filters in Lua or port them to Python. Pandoc's
+    Python libraries lag its releases. A Python comparison of `sections.lua`
+    showed its difficulty was structure rather than language (2026-09-25).
+  - Open question: keep the grammar version of `bids.lua`, the commit "Match
+    bids and explicit suits with an LPeg grammar", or drop that commit. Ilya
+    deferred the call (2026-09-25).
+  - Open question: fold the scanning loop that `bids.lua` and `shorthand.lua`
+    share into one helper. Ilya wants to look at it more closely first
+    (2026-09-25).
+  - Open question: whether a `lua.md` rules file has enough to say. Candidates:
+    Lua's way to follow the regex-decomposition rule (grammars, if kept), the
+    byte and locale traps in Lua's string functions, and returning the filter
+    table. Ilya deferred the call (2026-09-25).
+  - Note: deferred (2026-09-25): a formatter (StyLua) and a linter (luacheck or
+    selene) for the Lua files.
+  - Note: type annotations declined (2026-09-25): Lua has no type syntax, pandoc
+    publishes no type definitions for its Lua functions, and the tests already
+    run every filter through pandoc.
 
 - [ ] **Decide whether and where references carry page numbers** {#page-numbers}
       — every link to a heading is page-numbered in print today, as "(p. N)"
