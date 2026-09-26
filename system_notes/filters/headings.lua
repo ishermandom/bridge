@@ -1,21 +1,18 @@
 -- Copyright 2026 Ilya Sherman (ishermandom@)
 -- SPDX-License-Identifier: MIT
 
--- Everything derived from the heading map — every heading's id and title:
+-- Cross-references. Every link to a heading gains the `xref` class, so print
+-- CSS can append the page number, and a link left empty — `[](#section-id)` —
+-- also takes the heading's title for its text. Each link must target a
+-- heading that exists; an unknown target is an error, so a typo cannot ship
+-- as a dead link.
 --
--- - Cross-reference text. Every link to a heading gains the `xref` class, so
---   print CSS can append the page number, and a link left empty —
---   `[](#section-id)` — takes the section's title for its text as well. Each
---   one must target a heading that exists; an unknown target is an error, so
---   a typo cannot ship as a dead link.
---
--- Headings are unnumbered — spec.md #notation carries the why. Levels
--- still must not skip — no `###` directly under a `#`, no `##` before the
--- first `#`: a skip is an authoring slip, an outline claiming a depth that
--- has no parent.
+-- Heading levels must not skip — no `###` directly under a `#`, no `##`
+-- before the first `#`: a skip is an authoring slip, an outline claiming a
+-- depth that has no parent.
 
--- Heading id -> { title }, for cross-references.
-local headings_by_id = {}
+-- Each heading's title, by the heading's id.
+local titles_by_id = {}
 local previous_level = 0
 
 -- The heading's text as a title for copying elsewhere: links reduced to
@@ -41,19 +38,19 @@ local function record_heading(heading)
       pandoc.utils.stringify(heading.content), heading.level, previous_level))
   end
   previous_level = heading.level
-  headings_by_id[heading.identifier] = { title = title_of(heading) }
+  titles_by_id[heading.identifier] = title_of(heading)
 end
 
 local function make_cross_reference(link)
   if link.target:sub(1, 1) ~= '#' then
     return nil
   end
-  local heading = headings_by_id[link.target:sub(2)]
-  if not heading then
+  local title = titles_by_id[link.target:sub(2)]
+  if not title then
     error('unknown cross-reference target: ' .. link.target)
   end
   if #link.content == 0 then
-    link.content = heading.title
+    link.content = title
   end
   link.classes:insert('xref')
   return link
