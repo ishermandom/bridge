@@ -64,9 +64,9 @@ Design decisions live in `spec.md`; this file tracks the work.
     Python libraries lag its releases. A Python comparison of `sections.lua`
     showed its difficulty was structure rather than language; the filter has
     since given way to pandoc's own sections (2026-09-25).
-  - Open question: keep the grammar version of `bids.lua`, the commit "Match
-    bids and explicit suits with an LPeg grammar", or drop that commit. Ilya
-    deferred the call (2026-09-25).
+  - Note: the grammar version of `bids.lua` and the `headings.lua` cleanup land
+    ahead of Ilya's own reading of those files, which this task still covers
+    (2026-09-26).
   - Open question: fold the scanning loop that `bids.lua` and `shorthand.lua`
     share into one helper. Ilya wants to look at it more closely first
     (2026-09-25).

@@ -33,15 +33,6 @@ local suits = {
   C = { symbol = '♣', class = 'club' },
 }
 
--- `!` and a suit letter, not followed by another letter (`!Stayman` is prose).
-local explicit_suit = '!([SHDCshdc])%f[^A-Za-z]'
--- A level and a suit letter as a word: no word character before the level
--- (`15S` is not a bid), no letter or digit after the strain (`1ST` is not
--- `1S`, and run-together shape shorthand like `5S4H` stays prose whole
--- rather than half-styling).
-local suit_bid = '%f[A-Za-z0-9]([1-7])([SHDC])%f[^A-Za-z0-9]'
--- A level and `NT` as a word.
-local notrump_bid = '%f[A-Za-z0-9]([1-7])(NT)%f[^A-Za-z0-9]'
 -- A level and any notrump spelling, for the error check below: only `NT`
 -- itself is legal.
 local notrump_spelling = '()%f[A-Za-z0-9][1-7]([Nn][Tt]?)%f[^A-Za-z]'
@@ -87,63 +78,61 @@ local function strain_span(strain)
   return pandoc.Span({ pandoc.Str('NT') }, { class = 'strain notrump' })
 end
 
--- The earliest bid or explicit suit at or after `position`, as
--- (start, finish, level or nil, strain), or nil when there is none. A bid
--- and an explicit suit can never start at the same place: one opens with a
--- level digit, the other with `!`.
-local function next_match(text, position)
-  local best_start, best_finish, best_level, best_strain
-  for _, bid in ipairs({ suit_bid, notrump_bid }) do
-    local start, finish, level, strain = text:find(bid, position)
-    if start and (not best_start or start < best_start) then
-      best_start, best_finish, best_level, best_strain =
-        start, finish, level, strain
-    end
-  end
-  local start, finish, letter = text:find(explicit_suit, position)
-  if start and (not best_start or start < best_start) then
-    return start, finish, nil, letter
-  end
-  return best_start, best_finish, best_level, best_strain
-end
+-- The notation as a grammar: each rule names one piece, `/` tries the
+-- alternatives in order, and `!` means "not followed by". The grammar reads
+-- the text a whole word at a time, so a bid can only begin where a word
+-- begins: `15S` and `5S4H` stay prose.
+local notation_grammar = [[
+  pieces         <- {| (notation / prose)* |}
+  notation       <- bid / explicit_suit
+
+  -- A level and a strain forming a whole word: `1ST` is not `1S`.
+  bid            <- ({level} {strain} !word_character) -> render_bid
+  level          <- [1-7]
+  strain         <- [SHDC] / 'NT'
+
+  -- `!` and a suit letter, not followed by another letter: `!Stayman` is
+  -- prose.
+  explicit_suit  <- ('!' {[SHDCshdc]} !letter) -> render_suit
+
+  prose          <- { (!notation (word / !word_character .))+ } -> render_prose
+  word           <- word_character+
+  word_character <- [A-Za-z0-9]
+  letter         <- [A-Za-z]
+]]
+
+-- What each piece of notation becomes, for the styled renderings.
+local styled_rendering = {
+  render_bid = function(level, strain)
+    return pandoc.Span(
+      { pandoc.Str(level), strain_span(strain) }, { class = 'bid' })
+  end,
+  render_suit = strain_span,
+  render_prose = pandoc.Str,
+}
+
+-- What each piece of notation becomes in plain text: a bid stays as typed,
+-- and an explicit suit drops its `!`.
+local plain_text_rendering = {
+  render_bid = function(level, strain)
+    return pandoc.Str(level .. strain)
+  end,
+  render_suit = function(letter)
+    return pandoc.Str(letter:upper())
+  end,
+  render_prose = pandoc.Str,
+}
+
+local notation_parser = re.compile(
+  notation_grammar,
+  FORMAT == 'plain' and plain_text_rendering or styled_rendering)
 
 local function render_bids_and_suits(element)
-  local text = element.text
-  check_notrump(text)
-  if FORMAT == 'plain' then
-    -- Bids stay as typed; only the `!` of explicit shorthand comes off.
-    local replaced = text:gsub(explicit_suit, function(letter)
-      return letter:upper()
-    end)
-    if replaced == text then
-      return nil
-    end
-    return pandoc.Str(replaced)
-  end
-  if not next_match(text, 1) then
+  check_notrump(element.text)
+  local inlines = pandoc.Inlines(notation_parser:match(element.text))
+  -- Text without notation comes back as one piece, equal to the original.
+  if #inlines == 1 and inlines[1] == element then
     return nil
-  end
-
-  local inlines = pandoc.Inlines({})
-  local position = 1
-  while true do
-    local start, finish, level, strain = next_match(text, position)
-    if not start then
-      break
-    end
-    if start > position then
-      inlines:insert(pandoc.Str(text:sub(position, start - 1)))
-    end
-    if level then
-      inlines:insert(pandoc.Span(
-        { pandoc.Str(level), strain_span(strain) }, { class = 'bid' }))
-    else
-      inlines:insert(strain_span(strain))
-    end
-    position = finish + 1
-  end
-  if position <= #text then
-    inlines:insert(pandoc.Str(text:sub(position)))
   end
   return inlines
 end
