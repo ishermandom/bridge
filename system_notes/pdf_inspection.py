@@ -77,7 +77,7 @@ def page_text_heights(pdf: Path) -> Sequence[float]:
   Read from `pdftotext -bbox` word boxes, in points from the page's top. A page
   with no words measures 0. Text bounds miss any trailing margin or padding; a
   caller that needs such spacing counted must make it visible, as
-  `print_layout`'s probe does with a sentinel line after each atom.
+  `print_layout`'s probe does with a sentinel line after each section.
   """
   xml = _run_poppler(['pdftotext', '-bbox', str(pdf), '-'])
   bottom_edge = re.compile(r'yMax="(?P<y>[0-9.]+)"')

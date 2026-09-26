@@ -32,9 +32,11 @@ XREF_CLASS = re.compile(r'class="[^"]*\bxref\b[^"]*"')
 # A heading in the rendered HTML, by id and title. A reference's text is the
 # author's own words, so its page has to be looked up through the heading it
 # targets; the bookmarks that carry pages are keyed by title, and this joins the
-# two.
+# two. The id sits on the <section> that `--section-divs` opens with the
+# heading.
 HEADING = re.compile(
-  r'<h(?P<level>[123]) id="(?P<id>[^"]+)"[^>]*>(?P<title>.*?)</h(?P=level)>',
+  r'<section id="(?P<id>[^"]+)"[^>]*>\s*'
+  r'<h(?P<level>[123])[^>]*>(?P<title>.*?)</h(?P=level)>',
   re.DOTALL,
 )
 HTML_TAG = re.compile(r'<[^>]+>')
@@ -126,8 +128,10 @@ def test_list_markers_follow_depth() -> None:
 def test_a_weasyprint_warning_fails_the_render(tmp_path: Path) -> None:
   """WeasyPrint only warns about an undecodable image and lays it out anyway."""
   html = tmp_path / 'notes.html'
+  # The <main> stands in for the template's, which the packer requires.
   html.write_text(
-    '<img src="data:image/png;base64,not-base64">', encoding='utf-8'
+    '<main><img src="data:image/png;base64,not-base64"></main>',
+    encoding='utf-8',
   )
   pdf = tmp_path / 'notes.pdf'
 
@@ -288,14 +292,14 @@ def test_print_geometry_tracks_the_stylesheet() -> None:
   )
   assert column, 'no .print-column width in the stylesheet'
   probe_width = re.search(
-    r'> \.section \{\s*width: (?P<width>[\d.]+)in',
+    r'main > section \{\s*width: (?P<width>[\d.]+)in',
     print_layout.PROBE_STYLESHEET,
   )
-  assert probe_width, 'no .section width in the probe stylesheet'
+  assert probe_width, 'no section width in the probe stylesheet'
   assert probe_width['width'] == column['width']
 
   # The probe pins reference text to a two-digit stand-in; it must track the
-  # real reference format, or every atom carrying references measures short.
+  # real reference format, or every section carrying references measures short.
   reference = re.search(
     r'a\.xref::after \{\s*content: "(?P<prefix>[^"]*)" '
     r'target-counter\(attr\(href\), page\) "(?P<suffix>[^"]*)";',

@@ -5,37 +5,41 @@
 The print design treats a section as an atom: it renders whole on one page,
 ideally within a single column, and two columns exist so that short sections can
 sit side by side. WeasyPrint cannot be told this in CSS (spec.md
-#section-packing carries the why), so the renderer packs sections itself:
+#section-packing carries the why), so the renderer packs sections itself. The
+sections it packs are the `<section>` elements directly inside the template's
+`<main>`: the table of contents, then one per top-level heading, as pandoc's
+`--section-divs` writes them.
 
-- **Atomize**: the table of contents moves into the run of sections as its first
-  atom, so it packs like a section instead of reflowing across the page.
-- **Measure**: a probe render lays every atom out at column width, one per very
-  tall page, and the header block (the title lines) at full width; `pdftotext`
-  reads back each page's used height.
+- **Flatten**: each section's nested `<section>` elements give way to their
+  contents, leaving a flat run of blocks, which WeasyPrint's columns balance
+  well.
+- **Measure**: a probe render lays every section out at column width, one per
+  very tall page, and the header block (the title lines) at full width;
+  `pdftotext` reads back each page's used height.
 - **Pack**: a greedy pass in document order fills page one's shortened columns,
   then full pages, column by column. A section taller than a full column gets a
   page of its own, its heading spanning the page and its body flowing in two
   columns beneath — and onto further pages when even that page cannot hold it.
   As each page closes, its sections are rebalanced between the two columns, so
   the two come out as near the same height as reading order allows.
-- **Rewrite**: the flat run of section divs becomes explicit page and column
-  boxes that WeasyPrint lays out exactly as written. The screen rendering keeps
-  the original flat HTML.
+- **Rewrite**: the flat run of sections becomes explicit page and column boxes
+  that WeasyPrint lays out exactly as written. The screen rendering keeps the
+  original flat HTML.
 
-Atomizing and rewriting move elements around a parsed document rather than
-splice markup: `_parse_html` reads the HTML with WeasyPrint's own parser and
-`_document_html` writes the tree back out, so the packer works on the document
-WeasyPrint will lay out.
+Rewriting moves elements around a parsed document rather than splicing markup:
+`_parse_html` reads the HTML with WeasyPrint's own parser and `_document_html`
+writes the tree back out, so the packer works on the document WeasyPrint will
+lay out.
 
 The page geometry mirrors the print rules in `notes.css`, which owns the values.
 """
 
 import copy
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.etree.ElementTree import Comment, Element, SubElement, tostring
 
 import tinyhtml5
 import weasyprint
@@ -46,15 +50,8 @@ from system_notes import pdf_inspection
 # bottom), in points.
 PAGE_CONTENT_HEIGHT = (11 - 0.6 - 0.75) * 72
 
-# The classes sections.lua writes around the run of sections and around each
-# section in it, and the path that finds the run in a parsed document.
-SECTIONS_CLASS = 'sections'
-SECTION_CLASS = 'section'
-SECTIONS_WRAPPER_PATH = f'.//div[@class="{SECTIONS_CLASS}"]'
-
 # The id the HTML template gives the table of contents pandoc's `--toc` fills,
-# and the id pandoc gives the endnotes it writes for footnotes — those after the
-# sections wrapper, where the packer can neither measure nor place them.
+# and the id pandoc gives the endnotes it writes for footnotes.
 TABLE_OF_CONTENTS_ID = 'TOC'
 FOOTNOTES_ID = 'footnotes'
 
@@ -68,9 +65,7 @@ DOCTYPE = '<!DOCTYPE html>\n'
 # - Pages tall enough that nothing fragments, vertical margins of zero so the
 #   running margin boxes vanish, and the real horizontal margins so the header
 #   keeps its true width.
-# - Each section on a page of its own, at the print columns' width. The rules
-#   scope to the wrapper's own children, so an author element that happens to
-#   carry the class `section` gets no probe page.
+# - Each section on a page of its own, at the print columns' width.
 # - A sentinel line after each section, so that a section's height includes the
 #   bottom margin of its last block. The probe reads a page's height off its
 #   lowest text, and a margin holds no text, but in a real column the next
@@ -82,9 +77,8 @@ DOCTYPE = '<!DOCTYPE html>\n'
 #
 #   With the sentinel, the lowest text sits below the margin. Its own line makes
 #   every section measure one line too tall, which is the safe direction: a
-#   section measured short could overflow its column. A sentinel also opens the
-#   wrapper, so the header and any preamble above the sections measure to their
-#   true bottom too.
+#   section measured short could overflow its column. A sentinel also opens
+#   `<main>`, so the header above the sections measures to its true bottom too.
 # - Every page number replaced by `88`, a stand-in at least as wide as any real
 #   one. Left alone, a number would show its page in the probe, which has
 #   nothing to do with its page on paper. IBM Plex Serif gives every digit the
@@ -99,11 +93,11 @@ PROBE_STYLESHEET = """
   size: 8.5in 100in;
   margin: 0 0.6in;
 }
-.sections > .section {
+main > section {
   width: 3.5in;
   break-before: page;
 }
-.sections::before, .sections > .section::after {
+main::before, main > section::after {
   content: 'x';
   display: block;
 }
@@ -117,7 +111,7 @@ a.xref::after {
 
 
 # A top-level section's place in document order. A page plan names the sections
-# on it by this index, and `_SectionRun.sections` holds them in the same order.
+# on it by this index.
 type SectionIndex = int
 
 # A vertical measurement in points, as the probe render reported it.
@@ -174,27 +168,12 @@ type PrintPage = ColumnPage | WidePage
 
 
 @dataclass(frozen=True)
-class _SectionRun:
-  """The run of top-level sections, and where it sits in the document.
-
-  `wrapper` is the div sections.lua wrote around the whole run, and `parent` the
-  element holding that div: the packed pages take the wrapper's place inside
-  `parent`. `sections` are the wrapper's own children, in document order.
-  """
-
-  parent: Element
-  wrapper: Element
-  sections: tuple[Element, ...]
-
-
-@dataclass(frozen=True)
 class ProbeHeights:
   """What the probe render measured.
 
-  `height_above_sections` is the room on page one taken by everything above the
-  first section: the title block, and any preamble the author wrote. Page one's
-  columns get what remains. `section_heights` gives each section's own height,
-  in document order.
+  `height_above_sections` is the room on page one taken by the title block above
+  the first section. Page one's columns get what remains. `section_heights`
+  gives each section's own height, in document order.
   """
 
   height_above_sections: Points
@@ -342,90 +321,147 @@ def _document_html(document: Element) -> str:
   return DOCTYPE + _element_html(document)
 
 
-def _parents(document: Element) -> Mapping[Element, Element]:
-  """Every element in the document, mapped to the element holding it.
+def _is_top_level_section(element: Element) -> bool:
+  """Whether an element of `<main>` is a section to pack whole.
 
-  A parsed element carries no link back to its parent, so finding one takes this
-  map.
+  Two kinds are: the table of contents, and a section of the notes, which opens
+  with its h1. A `<section>` opening with anything else holds a subsection cut
+  off from its top-level section.
   """
-  return {child: parent for parent in document.iter() for child in parent}
+  if element.tag != 'section':
+    return False
+  if element.get('id') == TABLE_OF_CONTENTS_ID:
+    return True
+  return len(element) > 0 and element[0].tag == 'h1'
 
 
-def _reject_content_outside_sections(wrapper: Element) -> None:
-  """Fail the render if anything in the wrapper sits outside every section.
+def _is_comment(element: Element) -> bool:
+  """Whether `element` is an HTML comment.
 
-  Only the wrapper's own children count as sections, so an author div classed
-  `section` nested inside a section stays part of that section.
+  The parser keeps each comment as an element whose tag is ElementTree's
+  `Comment` factory rather than a name.
   """
-  texts = (wrapper.text, *(child.tail for child in wrapper))
+  # Widened to `object` to work around inaccurate upstream types. typeshed, the
+  # standard library's type stubs, which mypy bundles and a project cannot
+  # override, declares every element reached through a tree to have a string
+  # tag, even though a comment's tag is the `Comment` factory. Compared as a
+  # string, the tag would look like it could never be the factory, and mypy
+  # would reject the check.
+  tag: object = element.tag
+  return tag is Comment
+
+
+def _reject_stranded_content(main: Element) -> None:
+  """Fail the render if anything in `<main>` stands outside every section.
+
+  Print moves only the top-level sections onto pages, so anything else in
+  `<main>` would print after them, out of reading order. Comments render as
+  nothing, so they may stand anywhere. See print_layout_test.py's
+  `test_a_heading_inside_a_fenced_div_strands_what_follows` and
+  `test_a_stray_closing_tag_strands_what_follows` for the repro cases.
+  """
+  texts = (main.text, *(child.tail for child in main))
   strays = [text.strip() for text in texts if text and text.strip()]
   strays += [
     _element_html(child)
-    for child in wrapper
-    if child.tag != 'div' or child.get('class') != SECTION_CLASS
+    for child in main
+    if not _is_comment(child) and not _is_top_level_section(child)
   ]
   if strays:
     raise ValueError(
-      'content inside the sections wrapper sits outside every section, where '
-      'print would drop it; the usual cause is a stray closing tag in author '
-      f'HTML. Near: {strays[0][:80]!r}'
+      'content in <main> stands outside every top-level section, where print '
+      'would move it out of reading order; the usual causes are a top-level '
+      'heading inside a fenced div and a stray closing tag in raw HTML. '
+      f'Near: {strays[0][:80]!r}'
     )
 
 
-def _find_section_run(document: Element) -> _SectionRun | None:
-  """Locate the sections wrapper and the sections it holds.
+def _unwrap(parent: Element, index: int) -> int:
+  """Replace `parent[index]` with its own children, keeping every bit of text.
 
-  Returns None when the document has no sections wrapper. Whatever the wrapper
-  holds besides sections fails the render: a stray closing tag in author HTML
-  leaves content there, which print would otherwise drop without a word.
+  Returns how many children took its place.
   """
-  wrapper = document.find(SECTIONS_WRAPPER_PATH)
-  if wrapper is None:
-    return None
-  _reject_content_outside_sections(wrapper)
-  if not len(wrapper):
-    raise ValueError(
-      f'a div classed {SECTIONS_CLASS!r} holds no sections; sections.lua '
-      'writes that class only around a run of sections, so this div came from '
-      'author markup'
-    )
-  return _SectionRun(_parents(document)[wrapper], wrapper, tuple(wrapper))
+  child = parent[index]
+  # The elements inside the child, which take its place.
+  grandchildren = list(child)
+  # The child can border text in two places, and unwrapping keeps both in
+  # reading order. This markup:
+  #
+  #     <p>a</p><section>b<h2>c</h2></section>d
+  #
+  # becomes:
+  #
+  #     <p>a</p>b<h2>c</h2>d
+  #
+  # `b` sits inside the child, ahead of its first element: ElementTree keeps it
+  # as the child's `text`. It moves onto the tail of the element before the
+  # child, or onto the parent's own `text` when the child comes first. `d`
+  # follows the child: it is the child's `tail`. It moves onto the tail of the
+  # child's last element, or, in a child with no elements, right after `b`.
+  if grandchildren:
+    last = grandchildren[-1]
+    last.tail = (last.tail or '') + (child.tail or '')
+    leading = child.text or ''
+  else:
+    leading = (child.text or '') + (child.tail or '')
+  if index == 0:
+    parent.text = (parent.text or '') + leading
+  else:
+    previous = parent[index - 1]
+    previous.tail = (previous.tail or '') + leading
+  del parent[index]
+  parent[index:index] = grandchildren
+  return len(grandchildren)
 
 
-def _heading_parent(atom: Element) -> Element:
-  """The element whose first child is the atom's heading.
+def _flatten_subsections(element: Element) -> None:
+  """Replace every `<section>` inside `element` with its own children.
 
-  An atom takes one of two shapes. A section of the notes opens with its own h1,
-  so the atom itself is the heading's parent. The table of contents atom holds
-  the `<section>` pandoc writes for the table, which opens with the h2 title one
-  level in:
-
-      <div class="section"><h1>…</h1>…</div>
-      <div class="section"><section id="TOC"><h2>…</h2>…</section></div>
+  pandoc nests a `<section>` for each subheading, and WeasyPrint balances a wide
+  section's two columns badly when the body sits inside such a box: one column
+  runs to the foot of the page while the other stays short. So the print copy
+  keeps each top-level section a flat run of blocks. An unwrapped section's id
+  moves onto the heading that opens it, where links and page references still
+  find it.
   """
-  if len(atom) and atom[0].tag == 'h1':
-    return atom
-  if len(atom) and atom[0].get('id') == TABLE_OF_CONTENTS_ID:
-    table_of_contents = atom[0]
-    if len(table_of_contents) and table_of_contents[0].tag == 'h2':
-      return table_of_contents
-  raise ValueError(
-    f'wide section does not open with a heading: {_element_html(atom)[:100]!r}'
-  )
+  # TODO: an author's fenced div that opens with a heading also arrives as a
+  # <section>, so unwrapping it drops the div's classes from the print copy.
+  # This Markdown, for example:
+  #
+  #     ::: note
+  #     ## Aside
+  #
+  #     Text.
+  #     :::
+  #
+  # arrives as `<section id="aside" class="level2 note">`, and the print copy
+  # keeps only its contents: `note` is gone. Keep the classes if the stylesheet
+  # ever styles one.
+  index = 0
+  while index < len(element):
+    child = element[index]
+    _flatten_subsections(child)
+    if child.tag != 'section':
+      index += 1
+      continue
+    section_id = child.get('id')
+    if section_id and len(child):
+      child[0].set('id', section_id)
+    index += _unwrap(element, index)
 
 
-def _widened(atom: Element) -> Element:
-  """A wide atom: heading across the page, body in two columns beneath.
+def _widened(section: Element) -> Element:
+  """A wide section: heading across the page, body in two columns beneath.
 
-  The heading's later siblings move into a `wide-body` div, so the heading's
-  parent still closes around them.
+  Every top-level section opens with its heading: its h1, or the h2 title the
+  template gives the table of contents. The heading's later siblings move into a
+  `wide-body` div inside the section.
   """
-  heading_parent = _heading_parent(atom)
   body = Element('div', {'class': 'wide-body'})
-  body.extend(heading_parent[1:])
-  del heading_parent[1:]
-  heading_parent.append(body)
-  return atom
+  body.extend(section[1:])
+  del section[1:]
+  section.append(body)
+  return section
 
 
 def _page_element(
@@ -453,43 +489,20 @@ def _page_element(
 
 
 def _rewrite_into_pages(
-  section_run: _SectionRun, pages: Sequence[PrintPage]
+  main: Element, sections: Sequence[Element], pages: Sequence[PrintPage]
 ) -> None:
-  """Put the packed pages where the sections wrapper stood."""
-  for section in section_run.sections:
-    # _find_section_run proved that nothing but whitespace stood between the
-    # sections, and no column has any use for that whitespace.
+  """Put the packed pages where the top-level sections stood in `<main>`."""
+  insertion_point = list(main).index(sections[0])
+  for section in sections:
+    main.remove(section)
+    # _reject_stranded_content proved that nothing but whitespace stood between
+    # the sections, and no column has any use for that whitespace.
     section.tail = None
-  insertion_point = list(section_run.parent).index(section_run.wrapper)
-  section_run.parent.remove(section_run.wrapper)
   for offset, page in enumerate(pages):
-    section_run.parent.insert(
+    main.insert(
       insertion_point + offset,
-      _page_element(page, section_run.sections, is_first=offset == 0),
+      _page_element(page, sections, is_first=offset == 0),
     )
-
-
-def _atomize_table_of_contents(document: Element) -> None:
-  """Move the table of contents into the sections run as its first atom.
-
-  Packed like a section, the table of contents keeps to a single column instead
-  of reflowing across the page. A document without a table of contents, or
-  without sections, is left as it stands.
-  """
-  table_of_contents = document.find(f'.//*[@id="{TABLE_OF_CONTENTS_ID}"]')
-  wrapper = document.find(SECTIONS_WRAPPER_PATH)
-  if table_of_contents is None or wrapper is None:
-    return
-  if wrapper in table_of_contents.iter():
-    raise ValueError(
-      'the sections wrapper sits inside the table of contents, so the table '
-      'of contents cannot be moved in beside the sections'
-    )
-  _parents(document)[table_of_contents].remove(table_of_contents)
-  table_of_contents.tail = None
-  atom = Element('div', {'class': SECTION_CLASS})
-  atom.append(table_of_contents)
-  wrapper.insert(0, atom)
 
 
 def _measure(document: Element, section_count: int) -> ProbeHeights:
@@ -519,27 +532,36 @@ def paged_document(
 ) -> PagedDocument:
   """Rewrite the HTML's sections into explicitly packed printed pages.
 
-  A document with no sections comes back unchanged, with an empty plan.
-  `measure` reports the heights the packing works from, given the parsed
-  document and its section count. It defaults to the probe render; the parameter
-  exists so that tests can supply chosen heights and skip rendering.
+  A document with no sections comes back unchanged, with an empty plan; one
+  without the template's `<main>` fails. `measure` reports the heights the
+  packing works from, given the parsed document and its section count. It
+  defaults to the probe render; the parameter exists so that tests can supply
+  chosen heights and skip rendering.
   """
   document = _parse_html(html)
-  _atomize_table_of_contents(document)
-  section_run = _find_section_run(document)
-  if section_run is None:
-    return PagedDocument(_document_html(document), ())
   if document.find(f'.//*[@id="{FOOTNOTES_ID}"]') is not None:
     raise NotImplementedError(
-      'the document has footnotes, whose endnotes pandoc appends outside the '
-      'sections run; the packer cannot yet place them on any page (tasks.md '
+      'the document has footnotes, whose endnotes pandoc writes as a section '
+      'after the notes; the packer does not place them yet (tasks.md '
       '#pack-footnotes)'
     )
-  measured = measure(document, len(section_run.sections))
+  main = document.find('.//main')
+  if main is None:
+    raise ValueError(
+      'the document has no <main>, where the template puts the notes, so the '
+      'packer cannot find their sections'
+    )
+  sections = [child for child in main if _is_top_level_section(child)]
+  if not sections:
+    return PagedDocument(_document_html(document), ())
+  _reject_stranded_content(main)
+  for section in sections:
+    _flatten_subsections(section)
+  measured = measure(document, len(sections))
   pages = pack(
     section_heights=measured.section_heights,
     first_column_height=PAGE_CONTENT_HEIGHT - measured.height_above_sections,
     column_height=PAGE_CONTENT_HEIGHT,
   )
-  _rewrite_into_pages(section_run, pages)
+  _rewrite_into_pages(main, sections, pages)
   return PagedDocument(_document_html(document), tuple(pages))

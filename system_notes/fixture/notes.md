@@ -12,6 +12,8 @@ Maintainer notes — editing this fixture:
   it, the plain text drops it, and the print layout must let it pass.
 -->
 
+# Disclaimer {#disclaimer}
+
 > **This is AI-drafted sample content, not a real partnership agreement.** It
 > was written to exercise the renderer — nesting, cross-references, suit symbols
 > — from public descriptions of standard conventions. No human has reviewed or

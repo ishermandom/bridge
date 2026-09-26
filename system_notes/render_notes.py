@@ -39,9 +39,8 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 # - `headings.lua` runs last, because it copies titles into cross-references,
 #   and every copy should carry the spans the earlier filters put there.
 #
-# `bids.lua` and `sections.lua` may run at any point in the order. `bids.lua`
-# rewrites only inline text that no other filter touches, and `sections.lua`
-# only wraps each top-level section in a div.
+# `bids.lua` may run at any point in the order: it rewrites only inline text
+# that no other filter touches.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
@@ -49,7 +48,6 @@ FILTERS = tuple(
     'bids.lua',
     'nowrap.lua',
     'shorthand.lua',
-    'sections.lua',
     'headings.lua',
   )
 )
@@ -149,6 +147,9 @@ def render_html(source: Path, output: Path) -> None:
       str(TEMPLATE),
       '--css',
       str(STYLESHEET),
+      # Each heading and everything under it becomes a <section>, so the
+      # top-level ones stand as whole elements for print_layout.py to pack.
+      '--section-divs',
       # The table of contents fills the template's `$toc$`, listing top-level
       # sections only: subheadings would crowd it. `render_text` passes neither
       # flag, and no template either, so the email text carries no table of
@@ -192,21 +193,21 @@ def verify_page_count(
   """Fail if the rendered page count departs from the packer's plan.
 
   Packing rests on probe measurements, so only the real render can confirm that
-  every atom fit its page. The plan is exact for column pages, but a wide atom
-  taller than even its own page flows onto further pages — whether that should
-  instead fail is an open question (tasks.md #wide-overflow) — so extra pages
-  pass when a wide atom exists.
+  every section fit its page. The plan is exact for column pages, but a wide
+  section taller than even its own page flows onto further pages — whether that
+  should instead fail is an open question (tasks.md #wide-overflow) — so extra
+  pages pass when a wide section exists.
   """
   planned_pages = len(paged.pages)
-  has_wide_atom = any(
+  has_wide_section = any(
     isinstance(page, print_layout.WidePage) for page in paged.pages
   )
-  overflow_is_wide = has_wide_atom and rendered_pages > planned_pages
+  overflow_is_wide = has_wide_section and rendered_pages > planned_pages
   if planned_pages and rendered_pages != planned_pages and not overflow_is_wide:
     raise RuntimeError(
       f'{output} has {rendered_pages} pages where the packer planned '
-      f'{planned_pages}: an atom overflowed its page — most likely a section '
-      'too tall even for a page of its own, which no packing can honor '
+      f'{planned_pages}: a section overflowed its page — most likely one too '
+      'tall even for a page of its own, which no packing can honor '
       '(spec.md #section-packing)'
     )
 

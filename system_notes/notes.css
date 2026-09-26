@@ -285,10 +285,8 @@ a.xref {
     break-after: avoid;
   }
 
-  /* The table of contents packs like any section: print_layout.py moves it into
-     the section run as its first atom, as the .print-page rules below describe.
-     So it needs no columns of its own, and a margin below sets it off from what
-     follows it. */
+  /* The table of contents packs into a column like any section, so it needs no
+     columns of its own; a margin below sets it off from the section after it. */
   #TOC {
     margin-bottom: 1em;
   }

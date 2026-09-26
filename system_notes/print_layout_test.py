@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: MIT
 """The section packer and the page rewrite, on hand-built inputs."""
 
+import subprocess
+import textwrap
 from collections.abc import Sequence
 from xml.etree.ElementTree import Element
 
 import pytest
 
-from system_notes import print_layout
+from system_notes import print_layout, render_notes
 from system_notes.print_layout import (
   ColumnPage,
   PagedDocument,
@@ -101,16 +103,31 @@ COLUMN = print_layout.PAGE_CONTENT_HEIGHT
 ONE_PER_COLUMN = COLUMN * 0.6
 TALLER_THAN_A_COLUMN = COLUMN * 1.5
 
-SECTION_A = '<div class="section"><h1 id="a">A</h1><p>x</p></div>'
-# Nests an author div, and the <section> pandoc writes for any div that opens
-# with a heading.
-SECTION_B = (
-  '<div class="section"><h1 id="b">B</h1>'
-  '<div class="note"><section><p>nested</p></section></div></div>'
-)
+
+def _one_line(markup: str) -> str:
+  """`markup` laid out across lines for reading, joined back into one line.
+
+  Tests lay nested markup out one element to a line, indented by depth, so its
+  structure shows at a glance. The packer writes no whitespace between tags, so
+  each line sheds its indentation and line break. Where whitespace matters to a
+  test, the test writes it outside the laid-out markup.
+  """
+  return ''.join(line.strip() for line in markup.splitlines())
+
+
+SECTION_A = '<section id="a"><h1>A</h1><p>x</p></section>'
+# Nests the <section> pandoc writes for a subheading, which the packer unwraps
+# into the top-level section around it.
+SECTION_B = _one_line("""
+  <section id="b">
+    <h1>B</h1>
+    <section id="b1"><h2>B1</h2><p>nested</p></section>
+  </section>
+""")
+# The line breaks around the sections stand in for the ones pandoc writes, which
+# the packer must not carry into its columns.
 DOCUMENT = (
-  '<body><p>intro</p>'
-  f'<div class="sections">\n{SECTION_A}\n{SECTION_B}\n</div>'
+  f'<body><p>intro</p><main>\n{SECTION_A}\n{SECTION_B}\n</main>'
   '<p>after</p></body>'
 )
 
@@ -134,28 +151,190 @@ def _paged(
   return print_layout.paged_document(html, measure=measure)
 
 
+def _html_from_markdown(markdown: str) -> str:
+  """`markdown` as pandoc writes it into the notes' template, sections and all.
+
+  The Markdown is dedented first, so a test can write it indented in a
+  triple-quoted string. No filters run, so the packer sees exactly the structure
+  pandoc gives the Markdown.
+
+  Each call starts a pandoc process, far slower than handing the packer HTML
+  directly. Reserve it for tests whose point is what pandoc writes, such as
+  reproducing an authoring slip; where hand-built HTML shows the behavior just
+  as well, write the HTML instead.
+  """
+  return subprocess.run(
+    [
+      'pandoc',
+      '--standalone',
+      '--template',
+      str(render_notes.TEMPLATE),
+      '--section-divs',
+      '--metadata',
+      'title=Notes',
+    ],
+    input=textwrap.dedent(markdown),
+    capture_output=True,
+    text=True,
+    encoding='utf-8',
+    check=True,
+  ).stdout
+
+
 def test_packed_columns_become_column_boxes() -> None:
   paged = _paged(DOCUMENT, [ONE_PER_COLUMN, ONE_PER_COLUMN])
 
   assert paged.pages == (ColumnPage(first_column=(0,), second_column=(1,)),)
   # Parsing supplies the <html> and <head> the fragment left implicit, and
-  # serializing puts the doctype back.
+  # serializing puts the doctype back. The line break opening <main> stays; the
+  # ones between the sections are gone.
+  page = _one_line(f"""
+    <div class="print-page">
+      <div class="print-column first">{SECTION_A}</div>
+      <div class="print-column second">
+        <section id="b">
+          <h1>B</h1>
+          <h2 id="b1">B1</h2>
+          <p>nested</p>
+        </section>
+      </div>
+    </div>
+  """)
   assert paged.html == (
-    '<!DOCTYPE html>\n<html><head></head><body><p>intro</p>'
-    '<div class="print-page">'
-    f'<div class="print-column first">{SECTION_A}</div>'
-    f'<div class="print-column second">{SECTION_B}</div>'
-    '</div>'
-    '<p>after</p></body></html>'
+    '<!DOCTYPE html>\n<html><head></head><body><p>intro</p><main>\n'
+    f'{page}</main><p>after</p></body></html>'
   )
 
 
+def test_subsections_unwrap_into_their_top_level_section() -> None:
+  # WeasyPrint balances a wide section's columns badly around a nested box, so
+  # print keeps each section flat. Each subsection's id moves onto its heading.
+  section = _one_line("""
+    <section id="a">
+      <h1>A</h1>
+      <section id="a1">
+        <h2>A1</h2>
+        <p>x</p>
+        <section id="a1i"><h3>A1i</h3><p>y</p></section>
+      </section>
+    </section>
+  """)
+  paged = _paged(f'<main>{section}</main>', [ONE_PER_COLUMN])
+
+  flattened = _one_line("""
+    <section id="a">
+      <h1>A</h1>
+      <h2 id="a1">A1</h2>
+      <p>x</p>
+      <h3 id="a1i">A1i</h3>
+      <p>y</p>
+    </section>
+  """)
+  assert flattened in paged.html
+
+
+# pandoc writes only whitespace in these places, but raw HTML in the notes could
+# put text there, and print must neither drop nor reorder it.
+@pytest.mark.parametrize(
+  ('section', 'flattened'),
+  [
+    pytest.param(
+      """
+        <section id="a">
+          <h1>A</h1>
+          <section id="a1">
+            lead
+            <h2>A1</h2>
+          </section>
+        </section>
+      """,
+      """
+        <section id="a">
+          <h1>A</h1>
+          lead
+          <h2 id="a1">A1</h2>
+        </section>
+      """,
+      id='before-its-first-element',
+    ),
+    pytest.param(
+      """
+        <section id="a">
+          <h1>A</h1>
+          <section id="a1">
+            <h2>A1</h2>
+          </section>
+          trail
+        </section>
+      """,
+      """
+        <section id="a">
+          <h1>A</h1>
+          <h2 id="a1">A1</h2>
+          trail
+        </section>
+      """,
+      id='after-it',
+    ),
+    pytest.param(
+      """
+        <section id="a">
+          <h1>A</h1>
+          <section>only</section>
+          after
+        </section>
+      """,
+      """
+        <section id="a">
+          <h1>A</h1>
+          only
+          after
+        </section>
+      """,
+      id='with-no-elements',
+    ),
+    pytest.param(
+      """
+        <section id="a">
+          <h1>A</h1>
+          <div>
+            before
+            <section id="a1">
+              inside
+              <h2>A1</h2>
+            </section>
+          </div>
+        </section>
+      """,
+      """
+        <section id="a">
+          <h1>A</h1>
+          <div>
+            before
+            inside
+            <h2 id="a1">A1</h2>
+          </div>
+        </section>
+      """,
+      id='first-in-its-parent',
+    ),
+  ],
+)
+def test_text_around_an_unwrapped_subsection_keeps_its_place(
+  section: str, flattened: str
+) -> None:
+  paged = _paged(f'<main>{_one_line(section)}</main>', [ONE_PER_COLUMN])
+
+  assert _one_line(flattened) in paged.html
+
+
 def test_a_document_without_sections_comes_back_unchanged() -> None:
-  paged = _paged('<body><p>prose</p></body>')
+  paged = _paged('<body><main><p>prose</p></main></body>')
 
   assert paged.pages == ()
   assert paged.html == (
-    '<!DOCTYPE html>\n<html><head></head><body><p>prose</p></body></html>'
+    '<!DOCTYPE html>\n<html><head></head><body><main><p>prose</p></main>'
+    '</body></html>'
   )
 
 
@@ -175,11 +354,9 @@ def test_what_stands_above_the_sections_shortens_page_one() -> None:
 
 def test_every_page_after_the_first_breaks_to_a_fresh_sheet() -> None:
   sections = ''.join(
-    f'<div class="section"><h1 id="s{index}">S</h1></div>' for index in range(3)
+    f'<section id="s{index}"><h1>S</h1></section>' for index in range(3)
   )
-  paged = _paged(
-    f'<div class="sections">{sections}</div>', [ONE_PER_COLUMN] * 3
-  )
+  paged = _paged(f'<main>{sections}</main>', [ONE_PER_COLUMN] * 3)
 
   assert len(paged.pages) == 2
   assert paged.html.count('<div class="print-page">') == 1
@@ -187,112 +364,125 @@ def test_every_page_after_the_first_breaks_to_a_fresh_sheet() -> None:
 
 
 def test_a_wide_section_keeps_its_heading_above_its_columns() -> None:
-  paged = _paged(
-    f'<div class="sections">{SECTION_A}</div>', [TALLER_THAN_A_COLUMN]
-  )
+  paged = _paged(f'<main>{SECTION_A}</main>', [TALLER_THAN_A_COLUMN])
 
   # Page one stays with the header, empty, and the wide section follows it.
   assert paged.pages == (
     ColumnPage(first_column=(), second_column=()),
     WidePage(section=0),
   )
-  assert (
-    '<div class="print-page fresh">'
-    '<div class="section"><h1 id="a">A</h1>'
-    '<div class="wide-body"><p>x</p></div></div>'
-    '</div>'
-  ) in paged.html
+  wide_page = _one_line("""
+    <div class="print-page fresh">
+      <section id="a">
+        <h1>A</h1>
+        <div class="wide-body"><p>x</p></div>
+      </section>
+    </div>
+  """)
+  assert wide_page in paged.html
 
 
-TOC = '<section id="TOC"><h2 id="toc-title">Contents</h2><ul></ul></section>'
-TABLE_OF_CONTENTS_DOCUMENT = (
-  f'<body>{TOC}<blockquote>keep</blockquote>'
-  f'<div class="sections">{SECTION_A}</div></body>'
-)
+TOC = _one_line("""
+  <section id="TOC">
+    <h2 id="toc-title">Contents</h2>
+    <ul></ul>
+  </section>
+""")
+TABLE_OF_CONTENTS_DOCUMENT = f'<main>{TOC}{SECTION_A}</main>'
 
 
-def test_the_table_of_contents_becomes_the_first_atom() -> None:
+def test_the_table_of_contents_packs_as_the_first_section() -> None:
   paged = _paged(TABLE_OF_CONTENTS_DOCUMENT, [ONE_PER_COLUMN, ONE_PER_COLUMN])
 
-  assert (
-    f'<div class="print-column first"><div class="section">{TOC}</div></div>'
-    f'<div class="print-column second">{SECTION_A}</div>'
-  ) in paged.html
+  columns = _one_line(f"""
+    <div class="print-column first">{TOC}</div>
+    <div class="print-column second">{SECTION_A}</div>
+  """)
+  assert columns in paged.html
 
 
-def test_content_after_the_table_of_contents_stays_in_place() -> None:
-  paged = _paged(TABLE_OF_CONTENTS_DOCUMENT, [ONE_PER_COLUMN, ONE_PER_COLUMN])
-
-  assert paged.html.startswith(
-    '<!DOCTYPE html>\n<html><head></head><body><blockquote>keep</blockquote>'
-    '<div class="print-page">'
-  )
-
-
-def test_a_wide_atom_may_open_with_the_table_of_contents_title() -> None:
+def test_a_wide_table_of_contents_keeps_its_title_above_its_columns() -> None:
   paged = _paged(
     TABLE_OF_CONTENTS_DOCUMENT, [TALLER_THAN_A_COLUMN, ONE_PER_COLUMN]
   )
 
-  # The wide body goes inside the heading's parent: here the table of contents'
-  # own <section>, not the atom wrapper.
-  assert (
-    '<div class="section"><section id="TOC">'
-    '<h2 id="toc-title">Contents</h2>'
-    '<div class="wide-body"><ul></ul></div></section></div>'
-  ) in paged.html
+  wide_table_of_contents = _one_line("""
+    <section id="TOC">
+      <h2 id="toc-title">Contents</h2>
+      <div class="wide-body"><ul></ul></div>
+    </section>
+  """)
+  assert wide_table_of_contents in paged.html
+
+
+def test_a_comment_in_main_stays_and_packs_nothing() -> None:
+  # Notes may open with a comment of maintainer notes, ahead of every section.
+  paged = _paged(f'<main><!-- notes -->{SECTION_A}</main>', [ONE_PER_COLUMN])
+
+  assert paged.pages == (ColumnPage(first_column=(0,), second_column=()),)
+  assert '<!-- notes -->' in paged.html
 
 
 # --- refusals ---
 
 
-def test_an_empty_wrapper_fails_the_render() -> None:
-  # sections.lua writes `class="sections"` only around a run of at least one
-  # section, so an empty wrapper means author markup used the same class.
-  with pytest.raises(ValueError, match='holds no sections'):
-    _paged('<div class="sections"></div>')
+def test_a_heading_inside_a_fenced_div_strands_what_follows() -> None:
+  # pandoc ends the heading's section where the div ends, so the subsection
+  # after the div lands in <main> as a section of its own, cut off from the
+  # top-level section it belongs to.
+  html = _html_from_markdown("""
+    # Openings
+
+    ::: note
+    # Defense
+    :::
+
+    ## Stayman
+
+    Relay.
+  """)
+  with pytest.raises(ValueError, match='outside every top-level section'):
+    _paged(html)
 
 
-def test_content_outside_every_section_fails_the_render() -> None:
-  # Author markdown can carry raw HTML, which pandoc passes through unchecked. A
-  # stray </div> there closes its section early, so the paragraphs after it land
-  # inside the wrapper but outside every section, as <p>stray</p> does here.
-  # Print moves only sections onto pages, so those paragraphs would vanish.
-  document = (
-    '<div class="sections">'
-    '<div class="section"><h1 id="a">A</h1></div><p>stray</p>'
-    '</div>'
-  )
-  with pytest.raises(ValueError, match='outside every section'):
-    _paged(document)
+def test_a_stray_closing_tag_strands_what_follows() -> None:
+  # pandoc passes raw HTML through untouched, so a stray </section> closes the
+  # section around it early, and the paragraph after it lands in <main>.
+  html = _html_from_markdown("""
+    # Openings
+
+    Text.
+
+    </section>
+
+    More.
+  """)
+  with pytest.raises(ValueError, match='outside every top-level section'):
+    _paged(html)
 
 
-def test_stray_text_inside_the_wrapper_fails_the_render() -> None:
+def test_a_document_without_main_fails_the_render() -> None:
+  # The template always writes a <main>, so a document without one means the
+  # template changed underneath the packer.
+  with pytest.raises(ValueError, match='no <main>'):
+    _paged('<body><p>prose</p></body>')
+
+
+def test_stray_text_in_main_fails_the_render() -> None:
   # Content outside every section can be bare text rather than an element, and
-  # it would vanish from print just as quietly.
-  document = (
-    '<div class="sections">'
-    'stray<div class="section"><h1 id="a">A</h1></div>'
-    '</div>'
-  )
-  with pytest.raises(ValueError, match='outside every section'):
-    _paged(document)
-
-
-def test_a_wide_section_without_a_heading_fails_the_render() -> None:
-  with pytest.raises(ValueError, match='heading'):
-    _paged(
-      '<div class="sections"><div class="section"><p>x</p></div></div>',
-      [TALLER_THAN_A_COLUMN],
-    )
+  # it would print out of order just as quietly.
+  with pytest.raises(ValueError, match='outside every top-level section'):
+    _paged(f'<main>stray{SECTION_A}</main>')
 
 
 def test_a_document_with_footnotes_is_refused() -> None:
-  # pandoc appends the endnotes after the sections wrapper, where the packer can
-  # neither measure nor place them.
-  document = (
-    '<div class="sections"><div class="section"><h1 id="a">A</h1></div></div>'
-    '<section id="footnotes"><ol><li>note</li></ol></section>'
-  )
+  # pandoc writes the endnotes as one more section after the notes, which the
+  # packer does not place yet.
+  document = _one_line(f"""
+    <main>
+      {SECTION_A}
+      <section id="footnotes"><ol><li>note</li></ol></section>
+    </main>
+  """)
   with pytest.raises(NotImplementedError, match='footnotes'):
     _paged(document)

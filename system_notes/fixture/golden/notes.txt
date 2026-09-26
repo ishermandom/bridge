@@ -1,3 +1,5 @@
+Disclaimer
+
   This is AI-drafted sample content, not a real partnership agreement.
   It was written to exercise the renderer — nesting, cross-references,
   suit symbols — from public descriptions of standard conventions. No

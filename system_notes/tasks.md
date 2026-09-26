@@ -12,7 +12,7 @@ Design decisions live in `spec.md`; this file tracks the work.
   page flow onto following pages (today's behavior — three fixture sections do)
   or fail the render, forcing the author to split the section? Surfaced
   2026-09-12 by the render's new page-count guard, which tolerates the flow
-  whenever a wide atom exists.
+  whenever a wide section exists.
 
 - [ ] **Explore serif alternatives to IBM Plex Serif** {#serif-alternatives} —
       render the fixture in a few more open-licensed serifs and compare on paper
@@ -39,11 +39,14 @@ Design decisions live in `spec.md`; this file tracks the work.
     limitation engineered around (after `column-span: all`). Escape hatch if
     quirks keep accumulating; switching costs a second styling system beside the
     CSS, plus Typst branches in the notation filters.
-- [ ] **Pack pandoc's footnote endnotes** {#pack-footnotes} — pandoc appends a
-      `<section id="footnotes">` after the sections wrapper, where the packer
-      can neither measure nor place it, so `paged_document` now refuses
-      documents with footnotes. Fold the endnotes into the packed run to lift
-      the refusal.
+- [ ] **Pack pandoc's footnote endnotes** {#pack-footnotes} — pandoc writes the
+      endnotes as a `<section id="footnotes">` after the last section, so they
+      already stand in `<main>` beside the other sections, but `paged_document`
+      refuses documents with footnotes. Pack the endnotes as the last section to
+      lift the refusal.
+  - Note: the endnotes open with a rule rather than a heading, so a block of
+    them taller than a column needs its own answer for a wide page, which sets
+    the heading across the page.
 - [ ] **Per-level list markers in the source** {#source-list-markers} — an
       autoformatter giving each indentation depth its own list marker, so the
       Markdown source reads like the rendered page.
@@ -59,7 +62,8 @@ Design decisions live in `spec.md`; this file tracks the work.
   - Worktree: `lua-readability`
   - Open question: keep the filters in Lua or port them to Python. Pandoc's
     Python libraries lag its releases. A Python comparison of `sections.lua`
-    showed its difficulty was structure rather than language (2026-09-25).
+    showed its difficulty was structure rather than language; the filter has
+    since given way to pandoc's own sections (2026-09-25).
   - Open question: keep the grammar version of `bids.lua`, the commit "Match
     bids and explicit suits with an LPeg grammar", or drop that commit. Ilya
     deferred the call (2026-09-25).

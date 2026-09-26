@@ -205,15 +205,21 @@ wants something different.
   the two columns, so the two come out near the same height rather than filling
   the first to the brim and leaving the second bare.
   - CSS cannot express this fitting in any engine — no multicol does page-level
-    fitting of column-spanning atoms — and WeasyPrint additionally ignores break
-    properties on a multicol's children and pushes a fragmenting multicol
+    fitting of column-spanning sections — and WeasyPrint additionally ignores
+    break properties on a multicol's children and pushes a fragmenting multicol
     container to a fresh page. So the renderer packs sections itself, from a
     measuring probe render; `print_layout.py` carries the mechanism.
   - `column-span: all` is never used: with a spanning heading inside one
     document-wide column flow, WeasyPrint silently dropped everything after the
     first section in one render (12pt body; the exact trigger was not isolated).
-  - The section wrappers the packer keys on are raw markup rather than pandoc
-    divs; `sections.lua`'s header says why.
+  - The packer takes pandoc's own sections. With `--section-divs`, pandoc wraps
+    each top-level heading and everything under it in a `<section>`, beside the
+    table of contents' `<section>` in the template's `<main>`. Grouping sections
+    in a filter of our own was rejected: it reproduced what pandoc already does,
+    and it had to write raw wrapper markup, since pandoc's HTML writer turns a
+    div that opens with a heading into a `<section>` anyway. Anything else in
+    `<main>` fails the render rather than printing out of reading order;
+    comments, which render as nothing, may stand anywhere.
   - The packer works on a parsed document rather than on the markup text, and
     parses with `tinyhtml5`, the parser WeasyPrint itself uses — so no second
     reading of the markup can disagree with the reading that gets laid out.
