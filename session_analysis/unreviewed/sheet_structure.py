@@ -246,8 +246,8 @@ def _check_fits(structure: SheetStructure, width: int, height: int) -> None:
   that puts the grid nowhere near the printed rules. A small rescaling passes
   `sheet_geometry` as well. Each row still snaps to its printed rule, but
   `sheet_geometry` looks for a border's printed line only near where the model
-  put it, so a border pulled in too far stays short of the rule — spec.md
-  #image-limits measures one such case.
+  put it, so a border pulled in too far stays short of the rule —
+  measurements.md #image-limits measures one such case.
 
   The API has a guard for exactly that — an image block marked `transformations:
   {"oversized_image": "error"}` is refused rather than rescaled — but it is not

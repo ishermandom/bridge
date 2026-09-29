@@ -3,20 +3,19 @@
 No harness here is a test. Each needs something the test suite deliberately does
 without — a paid model call, or the private captures on disk — so each is run by
 hand when there is a reason to. Where a harness measures something, the
-measurement is recorded wherever the decision it supports lives.
+measurement is recorded in measurements.md, under the decision it supports.
 
 ## Extraction model comparison
 
 A harness for re-running the live comparison behind the extraction model choice.
-The measurements it produces are recorded in spec.md #extraction — the model
-bullet's quality and cost figures — and in spec.md #extraction-voting, which
-rests on how consistent the chosen model is with itself.
+The measurements it produces are recorded in measurements.md, chiefly under
+#model-choice, #effort, and #voting.
 
 **Re-run it when `vision_model_invocation.DEFAULT_MODEL` or `DEFAULT_EFFORT`
-moves.** Those spec figures are measurements of one setting against one
-alternative, so a change to either silently invalidates them; the whole point of
-keeping the harness is that refreshing them should take a few commands rather
-than a rebuild.
+moves.** Those figures are measurements of one setting against one alternative,
+so a change to either silently invalidates them; the whole point of keeping the
+harness is that refreshing them should take a few commands rather than a
+rebuild.
 
 `DEFAULT_MODEL` names an alias rather than a release, so it can also move
 without an edit here — the alias follows the family forward whenever the CLI
@@ -69,7 +68,29 @@ PYTHONPATH=. uv run --project . python \
   --run-directory /tmp/strips-comparison
 ```
 
-### Five things to know before trusting the numbers
+The vote shows how often a model disagrees with itself, not how often it is
+right. A settled session — one reconciled against the travellers and reviewed
+with the user — has a record in `bridge-private` that serves as an answer key,
+and `settled_session_comparison.py` judges every run's every board cell against
+it. For each setting, it reports how many cells all of that setting's runs read
+right, and how many cell readings across those runs were wrong. It then lists
+each cell any run missed, with how many runs read that cell correctly and what
+the others read instead. It takes any number of run directories, so every sweep
+over one strip set is judged together.
+
+It refuses runs whose strips were cut from a different scan than the one the
+session was ingested from. Ingest moves each scan into `scoresheets/archive/`,
+so `cut` from that copy. The record itself sits in `sessions/pending/` whether
+or not it has been settled.
+
+```sh
+PYTHONPATH=. uv run --project . python \
+  session_analysis/scratch/settled_session_comparison.py \
+  --run-directories /tmp/strips-9-24-sweep-1 /tmp/strips-9-24-sweep-2 \
+  --settled-session ../bridge-private/session_analysis/sessions/pending/<session>.json
+```
+
+### What to know before trusting the numbers
 
 - **Cost is per sheet, not per run.** A sheet takes two transcription runs for
   the vote, plus the layout reading that cuts its strips, so a per-run figure
@@ -87,38 +108,34 @@ PYTHONPATH=. uv run --project . python \
   cells of 84 — so a difference of that size between two arms is noise until a
   second sweep repeats it. Across different cuttings the differences run larger,
   which is why the set stays fixed.
-- **Which model cuts matters less than cutting once** {#cutter-choice}. Three
-  cuttings of the 6/29 sheet per model all found 28 rows and a footer. How far
-  each edge moved across a model's three, in pixels, against a 73-pixel row
-  pitch:
-
-  | Edge                      | Opus 5 | Opus 5.5 |
-  | ------------------------- | -----: | -------: |
-  | Row edges, all four sides |      0 |        0 |
-  | Footer left edge          |      0 |        0 |
-  | Footer top                |     17 |        3 |
-  | Footer bottom             |     39 |       13 |
-  | Footer right edge         |    395 |       13 |
-
-  Row edges hold because `sheet_geometry` snaps each one to a printed line. The
-  footer is measured against nothing, so its box is the model's reading as
-  given, and Opus 5.5 reads it far more steadily. Opus 5's wide right-edge
-  figure is one reading that stopped just past the date where the other two ran
-  nearly to the table's border; all six footer strips keep the handwriting.
-  Cuttings still differ — in the footer, and in row tops by a pixel between the
-  two models — so keep a set fixed across sweeps; the default cutter serves.
-  These figures hold only for a page sized to fit; spec.md #image-limits
-  measures what an oversized one did.
+- **Which model cuts matters less than cutting once** {#cutter-choice}. Row
+  edges come out the same from every cutting, since `sheet_geometry` snaps each
+  one to a printed line, but the footer's box is the model's reading as given
+  and shifts between cuttings; measurements.md #cutter-choice has the figures.
+  So keep a set fixed across sweeps; the default cutter serves.
 
 - **Raw-string diffs mislead in both directions.** Some differences vanish in
   parsing (`X` and `*` are the same call) and some spacing differences are fatal
-  (`1N2C2D3N` has no seam for the parser to split on). This is why the second
-  script exists — judge on its output, not on eyeballed transcriptions.
+  (`1N2C2D3N` has no seam for the parser to split on). This is why both scoring
+  scripts compare parsed values — judge on their output, not on eyeballed
+  transcriptions.
+- **The answer key vouches only for what was checked.** A settled session is the
+  pipeline's own reading with review's corrections applied. Reconciliation
+  checks contracts, declarers, results, and leads against the travellers, but an
+  alert, a circle, or a note is checked only if a reviewer happened to look. On
+  those cells the key holds the reading of whichever model ingested the sheet,
+  so it leans toward that model and can share its misreadings. The 9/24 sheet's
+  board 22 note, `forcing?`, was settled as `boring!`, the reading Opus 5.5 gave
+  in 8 runs of 10. Before crediting a model with such a cell, confirm the answer
+  with the user. Having Claude view the crop is no substitute: checking this
+  one, it read `boring!` too. And when every run reads a cell the same way and
+  the key disagrees, the ink itself may be wrong: a sheet error corrected in
+  review, which every run read faithfully.
 
 Real scans carry other club members' names and results, so they live in
 `bridge-private` and the output directory belongs outside this repo — see
-spec.md #captures-and-pii, which also names the sheet the figures were measured
-on.
+spec.md #captures-and-pii. measurements.md #sheets names the sheets the figures
+were measured on.
 
 ## Reconciliation against the stored captures
 

@@ -37,8 +37,8 @@ def main() -> None:
   parser.add_argument('--run-directory', type=pathlib.Path, required=True)
   # Scoresheet footers often write a month/day with no year, which the parser
   # resolves against a date known to fall after the session. Anything later than
-  # the sheet works; the default suits the 6/29 sheet the spec's figures came
-  # from, and a sheet from another year needs its own.
+  # the sheet works; the default suits the 6/29 sheet (measurements.md #sheets),
+  # and a sheet from another year needs its own.
   parser.add_argument(
     '--reference-date',
     type=datetime.date.fromisoformat,

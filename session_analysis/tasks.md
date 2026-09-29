@@ -179,6 +179,15 @@ output, parsed into the canonical model.
     board 7 had a 2S bid written in late as a small superscript beside 2D. The
     record carried `2D^` followed by a separate `2S` call, until review removed
     the empty mark.
+- [ ] Show a reviewer what a voting disagreement actually differs on.
+  - Rationale: `voting.py` quotes each candidate's `raw` text, but parsing moves
+    a board's circle and a call's parentheses (which mark it as the opponents')
+    out of `raw` into their own fields. Two runs that differ only there read as
+    identical: a circled board against an uncircled one prints `'9' vs '9'`, and
+    an opponent's call against ours prints `'3N' vs '3N'`. The reviewer is told
+    to resolve a difference the message hides.
+  - Note: seen in the Sonnet 5.5 comparison on the 9/24 sheet's boards 9 and 15.
+    The same gap holds for anything the vote compares that `raw` leaves out.
 
 ---
 
@@ -597,8 +606,6 @@ lane settles the sheet with the user in chat:
   - Note: `models.SheetImage` already records how a session's scan was read, so
     the release belongs there — for the layout reading and for the transcription
     runs, which are separate calls.
-- [ ] Compare how well Sonnet 5.5 and Opus 5.5 read scoresheets.
-  - Worktree: sonnet-opus-comparison
 
 ---
 

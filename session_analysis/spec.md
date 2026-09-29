@@ -164,66 +164,40 @@ The sheet's handwriting is read by a vision model via **Claude Code in headless
 mode**, on the existing Claude subscription — no separate API billing.
 
 - **Model**: Based on experimentation, Opus appears to provide the best balance
-  between reliable quality and cost.
+  between reliable quality and cost (measurements.md #model-choice).
   - **Why an alias rather than a release** {#model-alias}: this task is happy to
     automatically pick up periodic improvements by tracking an evergreen target.
     The risk of quality or cost regressions due to automatic updates is
     considered an acceptable tradeoff.
-  - **Quality**: scored through the pipeline's own voting pass, Opus 5 left zero
-    review flags where Sonnet 5 left 33 — 23 disagreements between its own two
-    runs, and 10 calls the parser could not resolve. Most of that is instability
-    rather than misreading: Sonnet spaces an auction's calls apart in one run
-    and runs them together in the next, and a token like `1N2C2D3N` gives the
-    parser no seam to split on. Against the sheet itself, Opus omits a
-    scratched-out call that Sonnet transcribes, and marks both subscript
-    announcements that Sonnet flattens away (though it misreads the bid letter
-    under one of them); Sonnet's one edge is two small alert ticks on board 13
-    that Opus misses in both runs.
-  - **Quality on Opus 5.5** (2026-09-24, the 6/29 sheet, 20 runs of each
-    release): Opus 5.5 closes Sonnet's one edge. It read both of board 13's
-    alert ticks in every run, where Opus 5 read one of them in 6 runs of 20 and
-    the other in none. It was steadier on two more alerts as well, reading board
-    3's `[2D!]` and board 11's `4C!` in every run against Opus 5's 16 and 12.
-    Otherwise the two releases read the sheet alike, down to the same misreads
-    of board 1's declarer and board 17's bid letter.
-  - **Cost**: On Opus 5.5: about \$0.34 for the vote's two transcription runs at
-    `high` effort, \$0.32 at `medium`; plus about \$0.05 to read the sheet
-    layout.
-- **`high` effort** {#extraction-effort}: Across ~10 runs, Opus 5.5 behaves very
-  similarly at `medium` vs. `high` effort, with `high` having a slight quality
-  edge. `medium` saves only about $0.02 a sheet, a dollar or two a year at 1–2
-  sheets a week. The small quality gain currently seems worth the small
-  increased cost.
+- **`high` effort** {#extraction-effort}: Opus 5.5 reads a sheet slightly better
+  at `high` effort than at `medium`, and `medium` would save only a dollar or
+  two a year at 1–2 sheets a week (measurements.md #effort). The small quality
+  gain currently seems worth that small increased cost.
 - **Checked against the sheet's own arithmetic** {#extraction-accuracy}: a teams
   sheet fills a `Score` column that extraction deliberately drops, and a score
   follows from the contract, the result and the board's vulnerability — so
   scoring what was transcribed and comparing it to what was written checks the
-  reading without a second model. Run over the first two real teams sheets, all
-  48 boards reconciled exactly: every level, strain, declarer, penalty and trick
-  count. Not a blind check, since the model saw the column it was told not to
-  transcribe, but a strong one — nothing downstream carries that column, so a
-  misread contract has nothing to hide behind. It is also the only check of this
-  kind available: a pairs sheet leaves `Score` blank.
+  reading without a second model. Not a blind check, since the model saw the
+  column it was told not to transcribe, but a strong one — nothing downstream
+  carries that column, so a misread contract has nothing to hide behind. It is
+  also the only check of this kind available: a pairs sheet leaves `Score`
+  blank. On the first real teams sheets, every board reconciled (measurements.md
+  #arithmetic-check).
 - **Voting, not escalation** {#extraction-voting}: each scan is read by two
   independent Opus calls over its cut strips (`transcribe_sheet`), compared cell
   by cell and merged (`voting.vote_sessions`) — a cell both runs agree on is
   trusted, one they disagree on is flagged for review rather than guessed at.
   Chosen over a second, stronger-model tier for low-confidence rows, at a
-  fraction of the cost and complexity that tier would add. On Opus 4.8 the pass
-  paid for itself on the 6/29 sheet: the two runs' one disagreement, an
-  announcement letter misread, was the sheet's one real remaining error, and it
-  was correctly flagged. On Opus 5.5 it paid for itself again, on board 1's
-  declarer: every 4S on the game's travellers was declared by West, but most
-  runs read North. On strips cut from a correct layout reading, Opus 5.5's two
-  runs split between the two in three pairs of four, and the vote flagged each
-  split. On an earlier cutting, whose layout reading lost the table's right edge
-  (#image-limits), all 24 runs of both releases read North, and the vote had
-  nothing to flag. Which cells two runs split on shifts with the crop, so the
-  vote earns its place across sheets even where one sheet's pair happens to
-  agree. Voting bounds a model's inconsistency, not its accuracy: a cell both
-  runs misread identically passes unflagged. See `voting.py` for the comparison
-  rules — parsed values, not raw transcription, so equivalent notations (`x` vs
-  `X`, a range's marker order) don't false-flag.
+  fraction of the cost and complexity that tier would add. Voting catches real
+  misreads that the model makes inconsistently. The cells two runs disagree on
+  change with how the strips are cropped, so the vote earns its place across
+  sheets even on a sheet where its two runs happen to agree. measurements.md
+  #voting records one misread that the vote flagged on one cropping and missed
+  on another. Voting catches inconsistency, not every misread: a cell both runs
+  misread identically passes unflagged. See `voting.py` for the comparison rules
+  — parsed values, not raw transcription, so equivalent notations (`x` against
+  `X`, or a notrump-range announcement's two halves in either order) aren't
+  flagged as disagreements.
 - **Invocation**: `claude -p` (non-interactive); see
   `vision_model_invocation.py`. The default agentic-coding system prompt is
   **fully replaced** via `--system-prompt` with a prompt scoped to scoresheet
@@ -243,28 +217,27 @@ mode**, on the existing Claude subscription — no separate API billing.
   parsed out of a JSON-lines stream rather than a single `--output-format json`
   envelope; `--json-schema` keeps that event's payload schema-conformant JSON.
 - **Input format: labeled per-row strips, at native resolution where
-  #image-limits allows.** A full 12MP scan reaches the model at ~56% linear, and
-  a live comparison on the 6/29 sheet showed every resolution-class error (a
-  misread contract digit, dropped announcements, box-vs-circle swaps on dense
-  rows) vanishing when the sheet arrives as native-resolution crops instead — at
-  lower cost than the full-sheet run ($0.21 vs $0.29 — one run each, on Sonnet 5
-  before the switch to Opus, so neither figure lines up with the per-sheet ones
-  above). The request is an ordered sequence of labeled parts: one crop per
-  printed board row, each preceded by a text label naming its printed row, then
-  the footer crop. Three details are load-bearing, found by live experiment:
-  each crop includes the printed `Bd` column (without it the model substitutes
-  the adjacent `Vs` number), the labels fix board identity, and the prompt says
-  explicitly to emit blank rows. Per-row is the tile size because the review UI
-  needs per-row crops regardless, so row-precision geometry exists either way;
-  coarser bands would save only the labeling machinery.
+  #image-limits allows.** A whole phone photo reaches the model far below its
+  native resolution. When one sheet was sent both ways, the errors caused by low
+  resolution — a misread contract digit, dropped announcements,
+  box-against-circle swaps on dense rows — vanished from the native-resolution
+  crops, and the crops cost less (measurements.md #input-format). The request is
+  an ordered sequence of labeled parts: one crop per printed board row, each
+  preceded by a text label naming its printed row, then the footer crop. Three
+  details are load-bearing, found by live experiment: each crop includes the
+  printed `Bd` column (without it the model substitutes the adjacent `Vs`
+  number), the labels fix board identity, and the prompt says explicitly to emit
+  blank rows. Per-row is the tile size because the review UI needs per-row crops
+  regardless, so row-precision geometry exists either way; coarser bands would
+  save only the labeling machinery.
 
-  The ~56% figure is a property of a raw photo, where most of the frame is not
-  sheet. A scanner app that rectifies and crops writes files that are all sheet,
-  and they reach the model at 78-98% linear — so the gap the strips work around
+  The resolution loss is a property of a raw photo, where most of the frame is
+  not sheet. A scanner app that rectifies and crops writes files that are all
+  sheet, and those files reach the model at nearly native resolution
+  (measurements.md #input-format), so the resolution gap the strips work around
   has largely closed for scanned input. The strips earn their place even so: a
-  whole-page read comes close but never better, and the geometry they are cut
-  from is needed for the review UI regardless. Reading the layout from the sheet
-  changed where the cut lines come from, not whether to cut.
+  whole-page read of a scan comes close to the strips but never beats them, and
+  the geometry they are cut from is needed for the review UI regardless.
 
 - **Every image is sized to what the model receives unresized** {#image-limits}:
   the API's own high-resolution tier allows 2576 pixels a side, but ingestion
@@ -272,26 +245,10 @@ mode**, on the existing Claude subscription — no separate API billing.
   to the model. Nothing reports the shrinking, so it has to be avoided rather
   than detected. Each caller sizes its images to fit, and `invoke_vision_model`
   refuses any image over the limits kept beside
-  `vision_model_invocation.MAX_IMAGE_EDGE`.
-  - **What it cost the layout reading**: the page went out 2044 pixels wide, and
-    every coordinate the model reported came back about 2% short, pulled toward
-    the top-left corner. Four of six readings of the 6/29 sheet placed the
-    table's right border at 2497–2505, against a printed border at 2553; a
-    2000/2044 shrink predicts 2498. That gap is past the reach of
-    `sheet_geometry`'s search for a border's printed line, so every strip lost
-    the table's last 50 pixels. The footer came back high, and two footer strips
-    cleared the handwritten date by only 2 pixels. Sized to fit, six readings of
-    six put the right border on the printed one, and every footer strip clears
-    the date by at least 20 pixels.
-  - **What it costs the strips**: a row strip spans the table's full width,
-    about 2500 pixels on a phone scan, so fitting it keeps about 80% of the
-    scan's resolution rather than all of it. That cost nothing measurable. Opus
-    5.5 read fitted and full-width strips cut from the same geometry differently
-    in at most one cell of 84, on board 17, which flips between identical sweeps
-    anyway. The fitted strips also cost about 6% fewer input tokens. The
-    comparison may not isolate the lost resolution, though: if the CLI was
-    already shrinking the full-width strips, both sets reached the model at the
-    same size. Whether the CLI was doing so is not settled.
+  `vision_model_invocation.MAX_IMAGE_EDGE`. An oversized page shifted the
+  model's reading of the sheet's layout enough to cut the table's right edge off
+  every strip, while fitting the strips cost no measurable accuracy
+  (measurements.md #image-limits).
 
 - **The scan is dewarped from its own printed grid before anything else reads
   it.** {#dewarp-from-the-grid} The live 6/29 scan (a raw phone photo) showed
@@ -530,10 +487,9 @@ never fed from; the traveller captures and their parsed records under
 scans they came from because a record outlives the staging that produced it.
 Storage layout, size handling, provenance, and the structured-JSON-now /
 queryable-store-later split are specified in
-[travellers.md](travellers.md#storage-and-pii). The live-test fixture tasks.md
-refers to as "the 6/29 sheet" is
-`bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg`
-— that directory's only real (non-blank, non-synthetic) photo.
+[travellers.md](travellers.md#storage-and-pii). Where the docs cite a real sheet
+by its date, as in "the 6/29 sheet", measurements.md #sheets gives its file in
+`bridge-private`.
 
 ## Testing strategy
 

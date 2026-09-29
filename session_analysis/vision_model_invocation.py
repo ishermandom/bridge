@@ -55,7 +55,7 @@ class Effort(enum.StrEnum):
   between releases — Opus 5 thinks at `HIGH` where Opus 5.5 thinks at `MEDIUM`.
   Naming the model by alias means not knowing which entry a run would inherit,
   so the level is passed on every invocation rather than left to the CLI.
-  spec.md #extraction-effort records what the chosen level was measured against.
+  measurements.md #effort records what the chosen level was measured against.
   """
 
   LOW = 'low'
@@ -72,8 +72,8 @@ DEFAULT_EFFORT = Effort.HIGH
 # budget the API does. Either way the model then reads a copy the caller never
 # saw, and any pixel position the model reports is in that copy's frame. So each
 # caller sizes its own images to fit, and `invoke_vision_model` refuses any
-# image that does not fit. spec.md #image-limits measures what an unfitted image
-# costs.
+# image that does not fit. measurements.md #image-limits measures what an
+# unfitted image costs.
 #
 # - `MAX_IMAGE_EDGE`: the CLI's cap on either side — tighter than the API's
 #   own 2576. The figure comes from reading the CLI's source, not from a
