@@ -294,18 +294,18 @@ mode**, on the existing Claude subscription — no separate API billing.
     same size. Whether the CLI was doing so is not settled.
 
 - **The scan is dewarped from its own printed grid before anything else reads
-  it.** The live 6/29 scan (a raw phone photo) showed why: perspective slants
-  the top rules ~1.5 row pitches across the sheet's width, tapering to flat at
-  the bottom — no straight horizontal profile or straight crop survives that,
-  and the prototype's straight strips worked only because the transcribed
-  columns cluster where the drift is small. Narrow column slices each resolve
-  the rules sharply; the fitted top/bottom rule lines and side border lines
-  intersect into the grid's corner quad; and a true perspective transform (not
-  PIL's bilinear `QUAD`, which measurably under-corrects mid-grid) maps the
-  quad, extended with margins for footer and padding, to an upright rectangle at
-  native scale. This supersedes the earlier reliance on the scanner app's
-  perspective correction (see Ingest): good capture still helps, but correctness
-  no longer depends on it.
+  it.** {#dewarp-from-the-grid} The live 6/29 scan (a raw phone photo) showed
+  why: perspective slants the top rules ~1.5 row pitches across the sheet's
+  width, tapering to flat at the bottom — no straight horizontal profile or
+  straight crop survives that, and the prototype's straight strips worked only
+  because the transcribed columns cluster where the drift is small. Narrow
+  column slices each resolve the rules sharply; the fitted top/bottom rule lines
+  and side border lines intersect into the grid's corner quad; and a true
+  perspective transform (not PIL's bilinear `QUAD`, which measurably
+  under-corrects mid-grid) maps the quad, extended with margins for footer and
+  padding, to an upright rectangle at native scale. This supersedes the earlier
+  reliance on the scanner app's perspective correction (see Ingest): good
+  capture still helps, but correctness no longer depends on it.
 - **Row geometry is resolved per scan in dewarped space, from two readings of
   the sheet, and padding is the consumer's job.** The model reads the sheet's
   layout first (`sheet_structure`): how many ruled rows each panel has, roughly

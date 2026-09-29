@@ -75,7 +75,7 @@ _DEWARP_TOP_MARGIN_IN_PITCHES = 0.5
 # footer the margin is blank paper, which the stages below simply find nothing
 # in.
 # TODO: a footer sitting further down than this is cropped away before the model
-# can read it. See tasks.md `#dewarp-needs-the-reading`.
+# can read it. See tasks.md `#dewarp-without-the-vote`.
 _FOOTER_HEIGHT_IN_ROW_PITCHES = 2.5
 _DEWARP_BOTTOM_MARGIN_IN_PITCHES = _FOOTER_HEIGHT_IN_ROW_PITCHES + 0.5
 _DEWARP_SIDE_MARGIN_IN_PITCHES = 0.5

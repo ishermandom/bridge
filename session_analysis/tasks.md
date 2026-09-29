@@ -344,35 +344,32 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
-- [ ] Give the dewarp the row count too, rather than voting for it.
-      {#dewarp-needs-the-reading}
-  - Rationale: `dewarp_sheet` still calls `resolve_grid_consensus`, which is the
-    row-count vote the geometry stage stopped using. It runs before
-    `read_sheet_structure`, so a sheet the vote refuses never reaches the model
-    at all — and a two-panel form whose panels differ in height is exactly what
-    it refuses, since the slices then split between two counts and the tie-break
-    wants both readings to share a bottom rule. Bridge Buddy dewarps (its panels
-    are the same height); Baron Barclay does not.
-  - Note: the dewarp's bottom margin is the same assumption in another place. It
-    keeps three row pitches below the grid's last rule, which is where the
-    footer sits on the forms in hand — but `read_sheet_structure` reads the
-    dewarped frame, so a form printing a chart between the table and its footer
-    has that footer cropped away before the model can report it. The sheet then
-    digitizes, files unnamed, and says only that the footer was unreadable.
-    Reading the raw scan closes this too.
-  - Note: the quad itself should stay measured. It comes from four least-squares
-    line fits over ~40 observations, and a homography is exactly determined by
-    its corners, so a reported corner's error would bend the whole page — the
-    opposite of the row count, where the reading is the reliable half.
-  - Note: removing `resolve_grid_consensus` takes three test files with it.
-    `extraction_test`, `ingest_test`, and `sheet_dewarp_test` each call it to
-    work out where a drawn grid lands in the dewarped frame, standing in for the
-    reading a real run gets from the model. They want a replacement stand-in
-    before the function goes.
-  - Note: the reading would have to run on the raw scan, before dewarping, and
-    its coordinates be carried through the homography the dewarp computes. The
-    row count itself transfers unchanged, and the model reads a raw 12MP photo's
-    row count correctly at 55% linear, so the input is there.
+- [ ] Straighten a scan by the direction its printed lines run, not by a
+      row-count vote. {#dewarp-without-the-vote}
+  - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
+    `resolve_grid_consensus`, a vote on the grid's row count. Lines outside the
+    grid — chart lines, the footer underline, the photo's own edge — chain onto
+    those runs, so the vote either refuses the sheet (two panels of different
+    heights, as on Baron Barclay's form) or passes with a count built from
+    different lines in different slices, and tilts a level page. Straightening
+    needs only the direction the printed lines run, which every horizontal line
+    on the form shares, so there is nothing to vote on.
+  - Rationale: this replaces a plan to give the dewarp the model's row count,
+    which would have moved the layout reading onto the uncorrected scan.
+  - Note: the tilt is live. A sweep of the archive's 15 scan pages found every
+    photo level to within 0.6°, but the dewarp tilted two of them by 2–3°. The
+    2026-09-28 sheet then failed geometry and was ingested with the dewarp
+    skipped. The 2026-09-21 sheet passed with its row strips cut diagonally
+    across two rows, and the model still read the right ones.
+  - Note: stage one is rotation only, which covers the scanner app, the default
+    capture path. Rotate by the angle that makes the row profile sharpest, and
+    keep the whole page rather than a crop around the grid, which also retires
+    the fixed footer margin (the TODO on `_FOOTER_HEIGHT_IN_ROW_PITCHES`).
+    spec.md `#dewarp-from-the-grid`, which says correctness no longer depends on
+    the scanner app, changes when stage one lands.
+  - Note: stage two, perspective for raw phone photos, is a nice-to-have. The
+    same measure sees perspective band by band, but the photo's own edges throw
+    it off, so it needs confining to the printed area.
   - Note: a two-panel sheet also doubles the strip count — 36 row strips plus a
     footer, against 29 for a single-panel sheet. Above 20 image blocks in one
     request a stricter per-image limit applies, documented as 2000px a side.
@@ -893,8 +890,8 @@ rationale lives in the design docs' open-question sections —
     spec.md `#scope`.
   - Note: the samples are in
     `bridge-private/session_analysis/scoresheets/samples`. Getting Baron Barclay
-    as far as the cut needs #dewarp-needs-the-reading first: its panels differ
-    in height, so the dewarp's own row-count vote refuses the sheet before the
+    as far as the cut needs #dewarp-without-the-vote first: its panels differ in
+    height, so the dewarp's own row-count vote refuses the sheet before the
     model is ever called.
 - [ ] Maybe: grid-extent cross-check in `transcribe_sheet` — compare the
       detected `grid_left`/`grid_right` against where the dewarp placed the
