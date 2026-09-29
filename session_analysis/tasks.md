@@ -165,6 +165,15 @@ output, parsed into the canonical model.
     - **The footer is measured against nothing.** On the fitted 6/29 cuttings
       its top sat at the handwriting's top edge, and the strip padding supplied
       the whole 20-pixel margin above it.
+- [ ] Raise an issue for an announcement marker that carries no text.
+      {#empty-announcement-marker}
+  - Rationale: `parsing._parse_announcement` turns any form it does not
+    recognize into an `OTHER` announcement holding the raw text, so a novel form
+    never fails. A bare `^` or `_` is not a novel form but an empty one, and it
+    passes as a real announcement with nothing flagged. On the 2026-09-28 sheet,
+    board 7 had a 2S bid written in late as a small superscript beside 2D. The
+    record carried `2D^` followed by a separate `2S` call, until review removed
+    the empty mark.
 
 ---
 
