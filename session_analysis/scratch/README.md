@@ -31,12 +31,14 @@ cuttings of one image are never byte-identical. So the strips are cut once and
 saved, and every sweep after that reads the saved set rather than cutting its
 own.
 
-First, `cut` a strip set from a scan and save it.
+First, `cut` a strip set from a scan and save it. The scan is read the way
+ingest reads one, so it can be a photo or a scanner app's PDF, as long as it
+holds a single sheet.
 
 ```sh
 PYTHONPATH=. uv run --project . python \
   session_analysis/scratch/strips_model_comparison.py cut \
-  --image ../bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg \
+  --scan ../bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg \
   --output-directory /tmp/strips-6-29
 ```
 

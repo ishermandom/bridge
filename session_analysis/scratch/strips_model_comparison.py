@@ -7,11 +7,11 @@ README.md for what the comparison is for and how to run every step.
 
 Every run reads the same strips, so the only variables are the two the command
 line sweeps: which model reads them and how much thinking it spends. The strips
-are a saved artifact rather than something each sweep cuts afresh. Cutting
-rests on the sheet's layout reading, a model call whose answer varies from run
-to run, so two sweeps that each cut their own strips compare their arms over
-different crops. Instead `cut` saves a set once and every `transcribe` reads a
-saved one, letting arms from separate invocations share a single cutting.
+are a saved artifact rather than something each sweep cuts afresh. Cutting rests
+on the sheet's layout reading, a model call whose answer varies from run to run,
+so two sweeps that each cut their own strips compare their arms over different
+crops. Instead `cut` saves a set once and every `transcribe` reads a saved one,
+letting arms from separate invocations share a single cutting.
 
 Each run's raw transcription, cost, and token counts are written to the output
 directory as one JSON file per run, alongside the strip set — judging a
@@ -36,6 +36,7 @@ from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
 from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.strip_cutting import cut_strips
+from session_analysis.unreviewed.scan_decoding import DecodedScan, decode_scan
 from session_analysis.unreviewed.sheet_geometry import (
   SheetGeometry,
   resolve_sheet_geometry,
@@ -86,10 +87,28 @@ class StripSet:
     return hasher.hexdigest()[:16]
 
 
-def cut_strip_set(image_path: pathlib.Path, layout_model: str) -> StripSet:
+def read_single_sheet(scan_path: pathlib.Path) -> Image.Image:
+  """Decode a one-sheet scan — a photo or a PDF — the way ingest does.
+
+  Raises:
+    SystemExit: the scan is not a single readable page, so there is no one
+      image to cut.
+  """
+  pages = decode_scan(scan_path).value
+  # A page `decode_scan` could not read comes back as an `UndecodedPage`.
+  sheets = [page for page in pages if isinstance(page, DecodedScan)]
+  if len(pages) != 1 or len(sheets) != 1:
+    raise SystemExit(
+      f'{scan_path} holds {len(pages)} pages, {len(sheets)} of them'
+      ' readable; the comparison cuts a scan holding exactly one sheet'
+    )
+  return sheets[0].image
+
+
+def cut_strip_set(scan_path: pathlib.Path, layout_model: str) -> StripSet:
   """Dewarp a scan, read its layout with one model, and cut its strips."""
   runner = _CostRecordingRunner()
-  dewarped = dewarp_sheet(Image.open(image_path))
+  dewarped = dewarp_sheet(read_single_sheet(scan_path))
   structure = read_sheet_structure(
     dewarped.image, model=layout_model, run_command=runner
   )
@@ -99,7 +118,7 @@ def cut_strip_set(image_path: pathlib.Path, layout_model: str) -> StripSet:
   event = _result_event(runner.last_stdout)
   cost = event.get('total_cost_usd')
   return StripSet(
-    source_image=str(image_path),
+    source_image=str(scan_path),
     layout_model=layout_model,
     layout_resolved_model=_resolved_model(runner.last_stdout),
     # `read_sheet_structure` takes no effort of its own, so the layout reading
@@ -291,7 +310,7 @@ def _describe(strip_set: StripSet) -> str:
 
 
 def cut_command(
-  image_path: pathlib.Path,
+  scan_path: pathlib.Path,
   layout_model: str,
   output_directory: pathlib.Path,
 ) -> None:
@@ -304,7 +323,7 @@ def cut_command(
       f'{strips_directory} already holds a strip set; choose another'
       ' --output-directory'
     )
-  strip_set = cut_strip_set(image_path, layout_model)
+  strip_set = cut_strip_set(scan_path, layout_model)
   write_strip_set(strip_set, strips_directory)
   print(_describe(strip_set))
 
@@ -360,7 +379,12 @@ def main() -> None:
   cut_parser = commands.add_parser(
     'cut', help='cut a new strip set from a scan and save it'
   )
-  cut_parser.add_argument('--image', type=pathlib.Path, required=True)
+  cut_parser.add_argument(
+    '--scan',
+    type=pathlib.Path,
+    required=True,
+    help='a one-sheet scan: a photo or a PDF',
+  )
   cut_parser.add_argument(
     '--layout-model',
     default=DEFAULT_MODEL,
@@ -396,7 +420,7 @@ def main() -> None:
 
   if arguments.command == 'cut':
     cut_command(
-      arguments.image, arguments.layout_model, arguments.output_directory
+      arguments.scan, arguments.layout_model, arguments.output_directory
     )
   else:
     transcribe_command(
