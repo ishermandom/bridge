@@ -1,9 +1,9 @@
 # Harnesses that run against live models and real captures
 
-Neither harness here is a test. Both need something the test suite deliberately
-does without — a paid model call, or the private captures on disk — so they are
-run by hand when there is a reason to, and what they measure is recorded
-wherever the decision it supports lives.
+No harness here is a test. Each needs something the test suite deliberately does
+without — a paid model call, or the private captures on disk — so each is run by
+hand when there is a reason to. Where a harness measures something, the
+measurement is recorded wherever the decision it supports lives.
 
 ## Extraction model comparison
 
@@ -137,3 +137,29 @@ is the thing fixtures cannot show: that two publishers of one real session merge
 without losing a field, and that a seeded swap is found without dragging its
 neighbours in with it. The faithful pass agrees by construction — the sheet is
 built from the traveller — so read it as a floor, not as evidence.
+
+## Fixture analysis solved from its deals
+
+`published_analysis.py` writes the analysis each traveller fixture publishes:
+its double-dummy table, its par, and its opening-lead notes. It derives all
+three from the fixture's own deals and writes them in that capture format's
+notation; travellers.md `#fixture-analysis` says why.
+
+```sh
+PYTHONPATH=. uv run --project . python \
+  session_analysis/scratch/published_analysis.py check
+PYTHONPATH=. uv run --project . python \
+  session_analysis/scratch/published_analysis.py rewrite
+```
+
+**Run `check` before trusting `rewrite`.** No source documents its notation, so
+every rule the generator follows was inferred from real captures: the order of a
+table's cells, its spacing, when two seats are written apart, which leads a note
+names. `check` regenerates the analysis of every capture in the private tree and
+reports each place it differs from what the source published. Re-run it as
+captures accumulate: one unlike any seen so far can break a rule that nothing on
+hand has exercised.
+
+**Re-run `rewrite` when a fixture's deal changes.** A new fixture first needs an
+entry in the script's table of fixtures, which names each fixture's format. The
+rewrite touches the analysis alone and leaves every other byte as it was.

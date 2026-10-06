@@ -40,50 +40,50 @@ Pair    Pct   Score      Section Rank      MPs
 [Contract ""]
 [Result ""]
 [BCFlags "4103f"]
-[OptimumScore "NS 450"]
-[ParContract "N 4H+1"]
-[OptimumOpeningLeadTable "Leader;Denomination\2R;Result\2R;S\4;H\5;D\4;C"]
-N NT  - KT9  QJ87  KJ75 Q3
-N  S  - KT9  QJ87  KJ75 Q3
-N  H  - KT9  QJ87  KJ75 Q3
-N  D  - KT9  QJ87  KJ75 Q3
-N  C  - KT9  QJ87  KJ75 Q3
-S NT  - J    A93   AQ43 AK972
-S  S  - J    A93   AQ43 AK972
-S  H  - J    A93   AQ43 AK972
-S  D  - J    A93   AQ43 AK972
-S  C  - J    A93   AQ43 AK972
-E NT  - 8432 T654  982  J6
-E  S  - 8432 T654  982  J6
-E  H  - 8432 T654  982  J6
-E  D  - 8432 T654  982  J6
-E  C  - 8432 T654  982  J6
-W NT  - AQ765 K2    T6   T854
-W  S  - AQ765 K2    T6   T854
-W  H  - AQ765 K2    T6   T854
-W  D  - AQ765 K2    T6   T854
-W  C  - AQ765 K2    T6   T854
+[OptimumScore "NS 460"]
+[ParContract "NS 3N+2"]
+[OptimumOpeningLeadTable "Leader;Denomination\2R;Result\2R;S\5;H\4;D\4;C"]
+N NT 11 -     QJ87 KJ75 Q3
+N  S  8 -     -    KJ75 Q3
+N  H 11 KT9   QJ87 KJ75 Q3
+N  D 12 -     -    KJ75 Q3
+N  C 11 -     -    KJ75 Q3
+S NT 11 J     A93  AQ43 AK972
+S  S  8 -     -    AQ43 AK972
+S  H 11 J     A93  AQ43 AK972
+S  D 12 -     -    AQ43 AK972
+S  C 11 J     -    AQ43 AK972
+E NT  2 8432  T654 982  J6
+E  S  6 8432  T654 -    -
+E  H  2 8432  T654 982  J6
+E  D  2 8432  T654 -    -
+E  C  3 -     T654 -    -
+W NT  2 AQ765 -    T6   854
+W  S  6 A     -    -    -
+W  H  2 A     K2   T6   T854
+W  D  2 A     -    -    -
+W  C  2 AQ765 K2   T6   854
 [OptimumResultTable "Declarer;Denomination\2R;Result\2R"]
-N NT  9
-N  S  8
+N NT 11
+N  S  7
 N  H 11
-N  D  7
-N  C  6
-S NT  8
+N  D 11
+N  C 10
+S NT 11
 S  S  7
-S  H 10
-S  D  6
-S  C  5
-E NT  4
+S  H 11
+S  D 11
+S  C 11
+E NT  2
 E  S  5
 E  H  2
-E  D  6
-E  C  7
-W NT  3
-W  S  4
-W  H  1
-W  D  5
-W  C  6
+E  D  1
+E  C  2
+W NT  2
+W  S  5
+W  H  2
+W  D  1
+W  C  2
 [ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\3L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\5R;Percentage_NS\1R;Percentage_EW\1R;Multiplicity\1R;Names_NS\17;Names_EW"]
 - A  1  1 4H  N - 11 450   - 3.00  0.00 - - - Alfa-Bravo        Charlie-Delta
 - A  2  2 4H  S - 10 420   - 2.00  1.00 - - - Echo-Foxtrot      Golf-Hotel
@@ -104,50 +104,50 @@ W  C  6
 [Contract ""]
 [Result ""]
 [BCFlags "4103f"]
-[OptimumScore "EW -1100"]
-[ParContract "EW 6DX-5"]
-[OptimumOpeningLeadTable "Leader;Denomination\2R;Result\2R;S\4;H\5;D\4;C"]
-N NT  - 732  T952  3    A7532
-N  S  - 732  T952  3    A7532
-N  H  - 732  T952  3    A7532
-N  D  - 732  T952  3    A7532
-N  C  - 732  T952  3    A7532
-S NT  - AJ6  43    AQT765 J8
-S  S  - AJ6  43    AQT765 J8
-S  H  - AJ6  43    AQT765 J8
-S  D  - AJ6  43    AQT765 J8
-S  C  - AJ6  43    AQT765 J8
-E NT  - 94   KJ    KJ42 KQT64
-E  S  - 94   KJ    KJ42 KQT64
-E  H  - 94   KJ    KJ42 KQT64
-E  D  - 94   KJ    KJ42 KQT64
-E  C  - 94   KJ    KJ42 KQT64
-W NT  - KQT85 AQ876 98   9
-W  S  - KQT85 AQ876 98   9
-W  H  - KQT85 AQ876 98   9
-W  D  - KQT85 AQ876 98   9
-W  C  - KQT85 AQ876 98   9
-[OptimumResultTable "Declarer;Denomination\2R;Result\2R"]
-N NT  5
-N  S  4
-N  H  6
-N  D  6
-N  C  8
-S NT  4
-S  S  3
-S  H  5
-S  D  5
-S  C  7
-E NT  8
-E  S  9
-E  H  7
-E  D  7
-E  C  5
-W NT  7
-W  S  8
-W  H  6
-W  D  6
-W  C  4
+[OptimumScore "EW 140"]
+[ParContract "EW 1S+2"]
+[OptimumOpeningLeadTable "Leader;Denomination\2R;Result\1R;S\3;H\5;D\4;C"]
+N NT 5 -   T952  3    -
+N  S 4 732 T952  3    A
+N  H 5 732 T952  3    A
+N  D 6 732 T952  3    A
+N  C 6 -   T952  3    A
+S NT 5 -   43    -    -
+S  S 4 AJ6 43    A    J8
+S  H 5 AJ6 43    -    J8
+S  D 6 AJ6 43    AQT  J8
+S  C 6 -   43    -    J8
+E NT 9 94  -     -    KQ
+E  S 9 94  KJ    KJ42 KQT64
+E  H 8 94  KJ    KJ42 KQT64
+E  D 7 94  KJ    42   KQ
+E  C 8 94  -     -    -
+W NT 9 KQ  -     -    9
+W  S 9 KQ  876   98   9
+W  H 8 KQ  AQ876 98   9
+W  D 7 KQ  AQ876 98   9
+W  C 7 KQ  AQ876 98   9
+[OptimumResultTable "Declarer;Denomination\2R;Result\1R"]
+N NT 4
+N  S 4
+N  H 5
+N  D 6
+N  C 5
+S NT 4
+S  S 4
+S  H 5
+S  D 6
+S  C 6
+E NT 8
+E  S 9
+E  H 8
+E  D 7
+E  C 7
+W NT 8
+W  S 9
+W  H 8
+W  D 7
+W  C 7
 [ScoreTable "Rank\1R;Section;PairId_NS\2R;PairId_EW\2R;Contract\3L;Declarer;Lead;Result\2R;Score_NS\3R;Score_EW\3R;MP_NS\4R;MP_EW\5R;Percentage_NS\1R;Percentage_EW\1R;Multiplicity\1R;Names_NS\17;Names_EW"]
 - A  1  1 6DX W -  7 1100   - 3.00  0.00 - - - Alfa-Bravo        Charlie-Delta
 - A  2  2 4S  E - 10   - 620 1.00  2.00 - - - Echo-Foxtrot      Golf-Hotel

@@ -606,6 +606,10 @@ the public repo.
   domain values and serialize themselves, so a test never spells out markup or
   JSON it is not about. Surnames come from the NATO alphabet in its own
   spellings — `Alfa`, `Juliett` — so a name reads as a placeholder on sight.
+- **Fixture analysis is what the fixture's deals solve to** {#fixture-analysis}:
+  the double-dummy table, the par, and the opening-lead notes, each written in
+  its source's own notation. Only the names are placeholders. When a fixture's
+  deal changes, solve its analysis again with `scratch/published_analysis.py`.
 - **Fixture markup keeps the source's shape** — BridgeComposer emits one line
   per table row, so a club HTML fixture carries lines of several hundred columns
   and the real captures run past two thousand. Wrapping them for readability
