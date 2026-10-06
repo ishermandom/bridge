@@ -56,6 +56,7 @@ from session_analysis.models import (
   PlayedContract,
   Resolution,
   Session,
+  SolvedDoubleDummyTricks,
 )
 from session_analysis.travellers import (
   Traveller,
@@ -275,6 +276,8 @@ class BoardEnrichment:
   """
 
   deal: Deal | None = None
+  # The agreed deal's table, as solved when its capture was stored.
+  solved_double_dummy_tricks: SolvedDoubleDummyTricks | None = None
   our_pair: PairIdentity | None = None
   opponents: PairIdentity | None = None
   matchpoints: float | None = None
@@ -488,6 +491,7 @@ class _SourceView:
   """What one traveller says about one board."""
 
   deal: Deal | None
+  solved_double_dummy_tricks: SolvedDoubleDummyTricks | None
   our_row: _OurRow | None
   # Whether this source recorded any play of the board at all. It tells a board
   # nobody reached from one we simply could not be found on, which read from
@@ -541,6 +545,19 @@ def _merge_board(
   deal = _agreed(
     deals, field='deal', board_number=board_number, describe=_describe_deal
   )
+  # A solved table follows from its deal alone, so it is taken from a source
+  # whose deal was agreed on rather than merged in its own right — a merge would
+  # report every disagreement over the deal a second time.
+  solved_double_dummy_tricks = next(
+    (
+      view.solved_double_dummy_tricks
+      for view in views.values()
+      if deal.value
+      and view.deal == deal.value
+      and view.solved_double_dummy_tricks
+    ),
+    None,
+  )
   our_pair = _agreed_pair(
     {capture: row.our_pair for capture, row in rows.items()},
     field='our pair',
@@ -593,6 +610,7 @@ def _merge_board(
 
   return BoardEnrichment(
     deal=deal.value,
+    solved_double_dummy_tricks=solved_double_dummy_tricks,
     our_pair=our_pair.value,
     opponents=opponents.value,
     matchpoints=our_matchpoints.value,
@@ -632,6 +650,7 @@ def build_enrichments(
       names_us_anywhere = names_us_anywhere or row_match.value.names_us
       views.setdefault(board.number, {})[capture] = _SourceView(
         deal=board.deal,
+        solved_double_dummy_tricks=board.solved_double_dummy_tricks,
         our_row=row_match.value.row,
         has_results=bool(board.results),
         names_us=row_match.value.names_us,
@@ -952,6 +971,7 @@ def _enrich(board: Board, enrichment: BoardEnrichment) -> Board:
   return board.model_copy(
     update={
       'deal': enrichment.deal,
+      'solved_double_dummy_tricks': enrichment.solved_double_dummy_tricks,
       'our_pair': enrichment.our_pair,
       'opponents': enrichment.opponents,
       'matchpoints': enrichment.matchpoints,
@@ -978,6 +998,7 @@ def _without_enrichment(session: Session) -> Session:
     board.model_copy(
       update={
         'deal': None,
+        'solved_double_dummy_tricks': None,
         'our_pair': None,
         'opponents': None,
         'matchpoints': None,

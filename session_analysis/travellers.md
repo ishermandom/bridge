@@ -473,13 +473,13 @@ fixed (see [Acquisition](#acquisition)).
   among the compared fields: the sheet has no matchpoint field at all, by
   design, because our own estimate of them is not worth storing (see
   [models.md](models.md#vision-output)) — so they are enrichment only.
-- **Enrichment**: the reconciled subset — deal, matchpoints, and both pair
-  identities — is copied onto our `Board`, so the per-session record stays
-  self-contained for the analysis stage; the par stays in the traveller record,
-  read from there by the analysis stage. When two sources disagree on a copied
-  field, the field is left unfilled and an issue names what each source said,
-  rather than taking a silent tiebreak — a record that asserts nothing is honest
-  where one that picks a winner is not.
+- **Enrichment**: the reconciled subset — deal, its solved double-dummy table,
+  matchpoints, and both pair identities — is copied onto our `Board`, so the
+  per-session record stays self-contained for the analysis stage; the par stays
+  in the traveller record, read from there by the analysis stage. When two
+  sources disagree on a copied field, the field is left unfilled and an issue
+  names what each source said, rather than taking a silent tiebreak — a record
+  that asserts nothing is honest where one that picks a winner is not.
 - **Detail is not disagreement.** Two sources routinely describe one thing at
   different depths: `Last & Person` and `First Last & Second Person` are one
   pair written twice. A pair merges when its seat — number, side, and section —

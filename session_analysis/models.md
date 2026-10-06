@@ -298,6 +298,8 @@ travellers at reconciliation, not read from the sheet (see
   and for no-traveller sessions.
 - `deal` — the four hands, a `Deal`; traveller-sourced like `matchpoints`, null
   until reconciliation and for no-traveller sessions.
+- `solved_double_dummy_tricks` — the deal's double-dummy table, every declarer
+  in every strain; traveller-sourced like `deal`, and null wherever `deal` is.
 - `our_pair` and `opponents` — the two `PairIdentity`s at our table, recovered
   at reconciliation, null until then. The sheet records neither (see
   [Vision model output](#vision-output)).

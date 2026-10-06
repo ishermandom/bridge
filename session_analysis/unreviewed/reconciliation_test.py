@@ -65,6 +65,11 @@ _DEAL = Deal(
   }
 )
 
+# A solved table a test can recognize when it arrives on a board. Its counts are
+# arbitrary: what a deal solves to is `double_dummy_solving`'s subject, and the
+# join only carries the table.
+_SOLVED_TABLE = {seat: dict.fromkeys(Strain, 7) for seat in Direction}
+
 
 def _played(
   level: int = 4,
@@ -461,6 +466,65 @@ def test_a_hand_record_supplies_the_deal_a_recap_lacks() -> None:
   assert read.value[1].issues == ()
 
 
+def test_the_solved_table_comes_with_the_deal_it_was_solved_from() -> None:
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[
+        TravellerBoard(
+          number=1, deal=_DEAL, solved_double_dummy_tricks=_SOLVED_TABLE
+        )
+      ],
+    ),
+    _make_traveller(TravellerSource.CLUB_HTML, boards=[_our_board()]),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  assert read.value[1].solved_double_dummy_tricks == _SOLVED_TABLE
+
+
+def test_sources_disagreeing_on_the_deal_supply_no_solved_table() -> None:
+  # North and South's cards swapped: a different deal, so a different table.
+  other_deal = Deal(
+    hands={
+      Direction.NORTH: Hand(cards=(_SOUTH_CARD,)),
+      Direction.EAST: Hand(cards=(_EAST_CARD,)),
+      Direction.SOUTH: Hand(cards=(_NORTH_CARD,)),
+      Direction.WEST: Hand(cards=(_WEST_CARD,)),
+    }
+  )
+  other_table = {seat: dict.fromkeys(Strain, 6) for seat in Direction}
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/first.pbn',
+      boards=[
+        TravellerBoard(
+          number=1, deal=_DEAL, solved_double_dummy_tricks=_SOLVED_TABLE
+        )
+      ],
+    ),
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/second.pbn',
+      boards=[
+        TravellerBoard(
+          number=1, deal=other_deal, solved_double_dummy_tricks=other_table
+        )
+      ],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  assert read.value[1].solved_double_dummy_tricks is None
+  # The disagreement is the deal's, reported once; the tables that follow from
+  # the two deals add no second report.
+  assert _codes(read.value[1].issues) == ['traveller_sources_disagree']
+
+
 def test_two_captures_of_one_source_both_contribute() -> None:
   # The club's PBNs come in two kinds — a hand record with no play, and one
   # carrying every table's results — and both parse as the same source. Merging
@@ -581,6 +645,20 @@ def test_the_reconciled_subset_is_copied_onto_the_board() -> None:
   assert board.matchpoints == 6.0
   assert board.our_pair is not None
   assert board.opponents is not None
+
+
+def test_the_solved_table_is_copied_onto_the_board() -> None:
+  traveller_board = _our_board(deal=_DEAL).model_copy(
+    update={'solved_double_dummy_tricks': _SOLVED_TABLE}
+  )
+
+  session = reconcile_session(
+    _make_session([_sheet_board()]),
+    [_make_traveller(boards=[traveller_board])],
+    our_name=OUR_NAME,
+  )
+
+  assert session.boards[0].solved_double_dummy_tricks == _SOLVED_TABLE
 
 
 def test_the_captures_consulted_are_recorded_on_the_session() -> None:
@@ -750,12 +828,16 @@ def test_withdrawing_the_last_traveller_takes_its_enrichment_with_it() -> None:
   # What it supplied has to go with it, or the record keeps asserting a deal and
   # an opponent nothing now supports.
   sheet = _make_session([_sheet_board()])
+  traveller_board = _our_board(deal=_DEAL).model_copy(
+    update={'solved_double_dummy_tricks': _SOLVED_TABLE}
+  )
   enriched = reconcile_session(
     sheet,
-    [_make_traveller(boards=[_our_board(deal=_DEAL)])],
+    [_make_traveller(boards=[traveller_board])],
     our_name=OUR_NAME,
   )
   assert enriched.boards[0].deal == _DEAL
+  assert enriched.boards[0].solved_double_dummy_tricks == _SOLVED_TABLE
 
   withdrawn = reconcile_session(enriched, [], our_name=OUR_NAME)
 

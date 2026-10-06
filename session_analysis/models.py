@@ -281,6 +281,9 @@ class Board(FrozenModel):
   # Traveller-sourced like `matchpoints`. The deal is what the whole downstream
   # analysis rests on, and no sheet records it.
   deal: Deal | None = None
+  # The deal's double-dummy table, traveller-sourced like `deal`: solved when
+  # the capture was stored, so that nothing downstream solves it again.
+  solved_double_dummy_tricks: SolvedDoubleDummyTricks | None = None
   # The two pairs at our table, traveller-sourced like `matchpoints`. Both are
   # per-board rather than per-session: a one-winner movement sits our pair in
   # both directions over a session, so even our own identity varies by board.
