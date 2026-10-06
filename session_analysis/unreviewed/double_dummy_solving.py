@@ -1,12 +1,14 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Solving a deal for the tricks one particular opening lead leaves behind.
+"""Solving a deal double-dummy: whole, and from one particular opening lead.
 
-A published double-dummy table states what best play by both sides yields, and
-best play by the defense includes its choice of lead — so a table answers what
-the *best* lead holds declarer to and nothing about any other. The lead actually
-made leaves a different position, and finding what that position yields is a
-search rather than a lookup. That search is what this module runs.
+A double-dummy table states what best play by both sides yields, and best play
+by the defense includes its choice of lead — so a table answers what the *best*
+lead holds declarer to and nothing about any other. A source may publish that
+table, but not always in full, so `solve_table` solves all twenty cells from the
+deal. The lead actually made leaves a different position, and finding what that
+position yields is a search no table can stand in for. `tricks_after_lead` runs
+that search.
 
 It is the project's only seam onto a double-dummy solver. Everything else states
 the question in this project's own terms — a `Deal`, a `Direction`, a `Strain`,
@@ -27,7 +29,12 @@ import endplay.dds
 import endplay.types
 
 from session_analysis.enums import Direction, Rank, Strain, Suit
-from session_analysis.models import Card, Deal, Hand
+from session_analysis.models import (
+  Card,
+  Deal,
+  Hand,
+  SolvedDoubleDummyTricks,
+)
 
 _SOLVER_SEATS: Mapping[Direction, endplay.types.Player] = {
   Direction.NORTH: endplay.types.Player.north,
@@ -61,6 +68,37 @@ _WRITTEN_SUITS = (Suit.SPADES, Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS)
 _RANK_ORDER: Mapping[Rank, int] = {
   rank: position for position, rank in enumerate(reversed(list(Rank)))
 }
+
+
+def solve_table(deal: Deal) -> SolvedDoubleDummyTricks:
+  """Every declarer's tricks in every strain, with best play by both sides.
+
+  Args:
+    deal: the four hands, which must be well formed — four seats, thirteen
+      cards each, no card twice.
+
+  Returns:
+    All twenty cells, keyed by declarer and then by strain. Each assumes the
+    defense's best opening lead, as a published table's cells do, so the two
+    compare cell for cell.
+
+  Raises:
+    KeyError: if the deal states no hand for some seat.
+    endplay._dds.DDSError: if the deal is malformed.
+
+  `deal_checks.find_deal_issues` establishes the precondition and reports why it
+  fails, which is why this raises rather than repeating the check.
+  """
+  table = endplay.dds.calc_dd_table(endplay.types.Deal(_written_deal(deal)))
+  # The solver's table, like its play analysis, comes back untyped, so each
+  # count is converted at this boundary rather than travelling on unchecked.
+  return {
+    seat: {
+      strain: int(table[solver_strain, solver_seat])
+      for strain, solver_strain in _SOLVER_STRAINS.items()
+    }
+    for seat, solver_seat in _SOLVER_SEATS.items()
+  }
 
 
 def tricks_after_lead(

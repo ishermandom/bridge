@@ -100,6 +100,13 @@ class Deal(FrozenModel):
   hands: Mapping[Direction, Hand]
 
 
+# How many tricks each declarer takes in each strain with best play by both
+# sides — twenty cells, keyed by seat and then by strain, as solved from a deal.
+# Unlike a published table (`travellers.DoubleDummyTricks`), a solved one states
+# every cell.
+SolvedDoubleDummyTricks = Mapping[Direction, Mapping[Strain, int]]
+
+
 class PairIdentity(FrozenModel):
   """Who a traveller says a pair was, on one board.
 
