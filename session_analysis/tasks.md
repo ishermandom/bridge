@@ -342,6 +342,9 @@ rather than a fault.
   - Open question: a flag on `fetch_travellers`, or a command of its own? The
     flag is the smaller change, but the command's date argument means every run
     fetches, where a re-parse wants no fetch at all.
+  - Note: a change to what the store writes needs the same re-read. Adding the
+    solved double-dummy tables to every stored record took a hand-written
+    `store_travellers(tree, refresh=True)` script again.
 
 ---
 
@@ -949,6 +952,22 @@ rationale lives in the design docs' open-question sections —
       [models.md](models.md#open-questions-and-todos) as their triggering work
       lands — each is a design decision deferred to the phase that resolves it.
       Resolve or re-defer each rather than letting the section rot.
+- [ ] Clear a board's enrichment when no traveller covers it any longer.
+  - Rationale: `reconcile_session` rewrites only the issues of a board no
+    traveller covers, so a board an earlier run enriched keeps its deal, solved
+    table, matchpoints and pairs after the capture that covered it is withdrawn.
+    `_without_enrichment` clears all of them, but only when no traveller remains
+    for the whole session.
+  - Note: found by reading the code, not seen in a stored record. It bites only
+    when one capture of several is withdrawn, which has not happened yet.
+- [ ] Maybe: check a club recap's blank double-dummy cells against the solved
+      table too.
+  - Rationale: `traveller_store` skips every cell a source left unstated, but on
+    the club's HTML recap a blank means fewer than seven tricks, so a solved
+    count of seven or more there contradicts the recap.
+  - Open question: an unreadable row also leaves its cells blank, and those say
+    nothing about the count. Telling the two kinds of blank apart would need the
+    parser to mark which cells it failed to read.
 
 ---
 
@@ -956,6 +975,11 @@ rationale lives in the design docs' open-question sections —
 
 **Goal:** tidy-ups that only make sense once the work they trail has landed.
 
+- [ ] Delete or regenerate `transcripts/unnamed-29d1a35e5cfb.txt` in
+      `bridge-private`.
+  - Note: no session record carries that name, so regenerating every transcript
+    left it alone. It is probably a scan's transcript from before its session
+    took a footer key.
 - [ ] Look for a shared shape between the two commands. {#shared-command-shape}
   - Rationale: `unreviewed.fetch_travellers` and `ingest` are both
     `python -m session_analysis.<module>` entry points that find the private
