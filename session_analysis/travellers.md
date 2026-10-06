@@ -38,9 +38,8 @@ Beyond the recoverable fields the traveller already owned as source of truth
   `Deal`/`Hand` types live in [models.md](models.md#deal).
 - **The double-dummy par** — the makeable-tricks table and par contract,
   board-level, carried by both sources. This is analysis-stage data, captured
-  here because it rides free in the captures and gives the eventual double-dummy
-  comparison a reference to check our own solver against — a partial reference,
-  for the reason given under [Double-dummy par](#double-dummy-par).
+  here because it rides free in the captures. Each cell a source publishes is
+  checked against the table solved from the deal.
 - **Every table's row**, not just ours — the whole traveller, which is what
   makes the capture a game database rather than a per-board lookup.
 
@@ -295,6 +294,18 @@ explain:
   sections: it would only restate what the rows already say. If a use appears —
   telling a half-saved capture from a whole one is the plausible one — it can be
   derived then, or added back with a caller that needs it.
+- **A board with a deal carries the table solved from it**, beside the table its
+  source published rather than in place of it. Comparing a played result with
+  declarer's double-dummy count needs that count on every board, and a published
+  table cannot always supply it: the club's HTML states no cell below seven
+  tricks, so a board whose declarer could take fewer than seven in the strain
+  played has no count to compare with. The solved table states all twenty cells,
+  so it is the one reconciliation copies onto a session. The table is solved
+  once, when the capture is stored, rather than in reconciliation, which
+  re-joins every pending session on each run. The published table stays beside
+  the solved one so that the two check each other: a disagreement means a parser
+  misread the table or the deal, or the source printed analysis of some other
+  deal.
 - **Nothing a capture says is discarded for being unreadable.** A parser that
   cannot read a row keeps the rest and records an `Issue` on the row or board,
   so reconciliation surfaces it; the public parse entry points do not raise for
@@ -608,8 +619,10 @@ the public repo.
   spellings — `Alfa`, `Juliett` — so a name reads as a placeholder on sight.
 - **Fixture analysis is what the fixture's deals solve to** {#fixture-analysis}:
   the double-dummy table, the par, and the opening-lead notes, each written in
-  its source's own notation. Only the names are placeholders. When a fixture's
-  deal changes, solve its analysis again with `scratch/published_analysis.py`.
+  its source's own notation. Only the names are placeholders. Each board's table
+  is checked against its deal whenever a capture is stored, but nothing checks
+  the par or the notes. When a fixture's deal changes, solve its analysis again
+  with `scratch/published_analysis.py`.
 - **Fixture markup keeps the source's shape** — BridgeComposer emits one line
   per table row, so a club HTML fixture carries lines of several hundred columns
   and the real captures run past two thousand. Wrapping them for readability

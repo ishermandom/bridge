@@ -37,6 +37,7 @@ from session_analysis.models import (
   Issue,
   PairIdentity,
   Resolution,
+  SolvedDoubleDummyTricks,
 )
 
 
@@ -63,7 +64,9 @@ class TravellerSource(enum.StrEnum):
 # A cell is None only where its source declined to say. The club's HTML lists
 # makeable contracts alone, so it leaves every cell below seven tricks unstated
 # — None there is the honest value, since "fewer than seven" is all it said. The
-# club's PBN and both ACBL surfaces state all twenty exactly.
+# club's PBN and both ACBL surfaces state all twenty exactly. A board with a
+# deal also carries a solved table, which states every cell whatever its source
+# published.
 DoubleDummyTricks = Mapping[Direction, Mapping[Strain, int | None]]
 
 
@@ -128,7 +131,12 @@ class TravellerBoard(FrozenModel):
   number: int
   # None for a source that publishes results without hands.
   deal: Deal | None = None
+  # The table as the source published it, kept beside the solved one so the two
+  # can be checked against each other.
   double_dummy_tricks: DoubleDummyTricks | None = None
+  # Solved from `deal` when the capture is stored (`traveller_store`), so every
+  # cell is stated. None where there is no deal, or one too malformed to solve.
+  solved_double_dummy_tricks: SolvedDoubleDummyTricks | None = None
   par: Par | None = None
   results: tuple[TravellerResult, ...] = ()
   # Board-level findings: what could not be read from the deal or the analysis,

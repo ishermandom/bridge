@@ -20,18 +20,25 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from session_analysis import capture_urls
+from session_analysis.enums import Direction, Rank, Strain, Suit
+from session_analysis.models import Card, Deal, Hand
 from session_analysis.private_paths import (
   ACBL_CLUB_CAPTURE_DIRECTORY,
   ACBL_TOURNAMENT_CAPTURE_DIRECTORY,
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
+from session_analysis.testing.deals import a_suit_to_each_seat, whole_suit
 from session_analysis.traveller_store import (
   Capture,
   parse_captures,
   store_travellers,
 )
-from session_analysis.travellers import Traveller, TravellerSource
+from session_analysis.travellers import (
+  DoubleDummyTricks,
+  Traveller,
+  TravellerSource,
+)
 
 TESTDATA = Path(__file__).parent / 'testdata/travellers'
 
@@ -345,6 +352,127 @@ def test_an_unchanged_tree_reports_nothing_at_all(tmp_path: Path) -> None:
 
   assert not read.value
   assert not read.issues
+
+
+# --- the double-dummy table solved onto each board ---
+
+
+def _make_club_pbn(
+  *, deal: Deal, published: DoubleDummyTricks | None = None
+) -> str:
+  """A one-board club PBN capture of `deal`, publishing the cells `published`."""
+  # `Direction` lists the seats clockwise from North, the order `N:` promises.
+  hands = ' '.join(_pbn_hand(deal.hands[seat]) for seat in Direction)
+  lines = ['[Board "1"]', f'[Deal "N:{hands}"]']
+  if published:
+    lines.append('[OptimumResultTable "Declarer;Denomination;Result"]')
+    lines.extend(
+      f'{seat} {strain} {tricks}'
+      for seat, row in published.items()
+      for strain, tricks in row.items()
+    )
+  return '\n'.join(lines) + '\n'
+
+
+def _pbn_hand(hand: Hand) -> str:
+  """A hand as PBN writes it: spades to clubs, each suit's ranks top down."""
+  return '.'.join(
+    ''.join(
+      rank.value
+      for rank in reversed(Rank)
+      if Card(rank=rank, suit=suit) in hand.cards
+    )
+    for suit in reversed(Suit)
+  )
+
+
+def test_a_board_with_a_deal_carries_the_table_its_deal_solves_to() -> None:
+  # North holds every spade, so North declaring spades takes all thirteen tricks
+  # and East declaring them takes none.
+  capture = _make_club_pbn(deal=a_suit_to_each_seat())
+
+  parsed = parse_captures(_make_captures({_CLUB_PBN: capture}))
+
+  [traveller] = parsed.value.values()
+  table = traveller.boards[0].solved_double_dummy_tricks
+  assert table
+  assert table[Direction.NORTH][Strain.SPADES] == 13
+  assert table[Direction.EAST][Strain.SPADES] == 0
+
+
+def test_a_published_cell_the_deal_bears_out_draws_no_report() -> None:
+  # North holds every spade, so takes all thirteen tricks in spades.
+  capture = _make_club_pbn(
+    deal=a_suit_to_each_seat(),
+    published={Direction.NORTH: {Strain.SPADES: 13}},
+  )
+
+  parsed = parse_captures(_make_captures({_CLUB_PBN: capture}))
+
+  assert not parsed.issues
+
+
+def test_a_club_recaps_blank_cells_contradict_nothing() -> None:
+  # The club's HTML leaves every cell below seven tricks blank, and each of this
+  # recap's deals has such cells.
+  captures = _make_captures({_CLUB_HTML: _fixture('club_game_r.htm')})
+
+  parsed = parse_captures(captures)
+
+  assert not parsed.issues
+
+
+def test_a_published_cell_the_deal_contradicts_is_reported() -> None:
+  # North holds every spade, so takes thirteen tricks in spades, not twelve.
+  capture = _make_club_pbn(
+    deal=a_suit_to_each_seat(),
+    published={Direction.NORTH: {Strain.SPADES: 12}},
+  )
+
+  parsed = parse_captures(_make_captures({_CLUB_PBN: capture}))
+
+  assert [issue.code for issue in parsed.issues] == [
+    'published_double_dummy_disagrees'
+  ]
+  assert 'north in spades published 12, solved 13' in parsed.issues[0].message
+
+
+def test_a_contradicted_cell_is_also_kept_on_its_board() -> None:
+  """The record keeps the report after the run that printed it is over."""
+  # North holds every spade, so takes thirteen tricks in spades, not twelve.
+  capture = _make_club_pbn(
+    deal=a_suit_to_each_seat(),
+    published={Direction.NORTH: {Strain.SPADES: 12}},
+  )
+
+  parsed = parse_captures(_make_captures({_CLUB_PBN: capture}))
+
+  [traveller] = parsed.value.values()
+  assert [issue.code for issue in traveller.boards[0].issues] == [
+    'published_double_dummy_disagrees'
+  ]
+
+
+def test_a_malformed_deal_goes_unsolved_and_unreported() -> None:
+  """Reconciliation reports the deal itself; here it simply goes unsolved."""
+  # North is short the two of spades, which no hand holds.
+  short_of_a_spade = Hand(
+    cards=tuple(
+      card for card in whole_suit(Suit.SPADES).cards if card.rank != Rank.TWO
+    )
+  )
+  capture = _make_club_pbn(
+    deal=Deal(
+      hands={**a_suit_to_each_seat().hands, Direction.NORTH: short_of_a_spade}
+    )
+  )
+
+  parsed = parse_captures(_make_captures({_CLUB_PBN: capture}))
+
+  [traveller] = parsed.value.values()
+  assert traveller.boards[0].deal
+  assert traveller.boards[0].solved_double_dummy_tricks is None
+  assert not parsed.issues
 
 
 # --- a tree that is not there ---

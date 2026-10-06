@@ -9,6 +9,12 @@ covers that shape. This module is the step between: it walks the capture root,
 hands each capture to the parser that reads its format, and writes the parsed
 traveller beneath the records root.
 
+The module also solves each deal's double-dummy table for its record. A source
+may publish that table only in part, so the record gains all twenty cells —
+solved once, here, rather than by each reader that needs them. Every cell the
+source did publish is checked against the solved one, and any disagreement is
+reported.
+
 Parsing reads captures off disk rather than running as part of each fetch,
 because two things that need it involve no fetch at all. A capture saved by hand
 is the acquisition fallback for whatever the fetchers cannot reach, and never
@@ -54,14 +60,19 @@ from session_analysis import (
   issue_reporting,
 )
 from session_analysis.enums import IssueSeverity
-from session_analysis.models import CaptureReference, Issue
+from session_analysis.models import (
+  CaptureReference,
+  Issue,
+  SolvedDoubleDummyTricks,
+)
 from session_analysis.private_paths import (
   ACBL_CLUB_CAPTURE_DIRECTORY,
   ACBL_TOURNAMENT_CAPTURE_DIRECTORY,
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
-from session_analysis.travellers import Traveller
+from session_analysis.travellers import Traveller, TravellerBoard
+from session_analysis.unreviewed import deal_checks, double_dummy_solving
 
 # A capture that yielded no record. Both are worth a person's attention rather
 # than a log line nothing reads: the first says a file is filed where no parser
@@ -72,6 +83,16 @@ _UNRECOGNIZED_CAPTURE = issue_reporting.Failure(
 )
 _CAPTURE_HELD_NO_BOARDS = issue_reporting.Failure(
   'capture_held_no_boards', IssueSeverity.MEDIUM, 'capture'
+)
+
+# A published double-dummy cell that the deal published beside it does not bear
+# out. Either a parser misread the table or the deal, or the source printed a
+# table for some other deal. Since the solved table that sessions carry rests on
+# that same deal, the disagreement deserves a person's attention.
+_PUBLISHED_TABLE_DISAGREES = issue_reporting.Failure(
+  'published_double_dummy_disagrees',
+  IssueSeverity.MEDIUM,
+  'double_dummy_tricks',
 )
 
 _PBN_SUFFIX = '.pbn'
@@ -240,8 +261,10 @@ def parse_captures(
       path's first directory names the site that published the capture.
 
   Returns:
-    The traveller each capture parses to, keyed by the same path, alongside an
-    issue for every capture that yielded nothing.
+    The traveller each capture parses to, with every well-formed deal's
+    double-dummy table solved, keyed by the same path. Alongside it, an issue
+    for every capture that yielded nothing, and for every board whose published
+    double-dummy table its deal does not bear out.
   """
   travellers: dict[PurePosixPath, Traveller] = {}
   issues: list[Issue] = []
@@ -264,7 +287,9 @@ def parse_captures(
       )
       continue
 
-    travellers[path] = traveller
+    solved = _with_solved_tables(traveller)
+    issues.extend(solved.issues)
+    travellers[path] = solved.value
 
   return issue_reporting.Read(travellers, tuple(issues))
 
@@ -279,3 +304,69 @@ def _decoded(content: bytes) -> str:
   # Every capture on hand reads clean, and one that did not would raise rather
   # than mislead, so this waits on a capture that exercises it.
   return content.decode().replace('\r\n', '\n').replace('\r', '\n')
+
+
+def _with_solved_tables(
+  traveller: Traveller,
+) -> issue_reporting.Read[Traveller]:
+  """The traveller, with each well-formed deal's double-dummy table solved.
+
+  Each cell the source published is checked against the solved one. A
+  disagreement goes two places: into the issues returned beside the traveller,
+  and onto the board, where the stored record keeps it.
+  """
+  boards: list[TravellerBoard] = []
+  issues: list[Issue] = []
+  for board in traveller.boards:
+    # A malformed deal goes unsolved, and unreported here: wherever
+    # reconciliation joins it to a sheet, the same
+    # `deal_checks.find_deal_issues` reports what is wrong with it.
+    if not board.deal or deal_checks.find_deal_issues(board.deal):
+      boards.append(board)
+      continue
+
+    solved = double_dummy_solving.solve_table(board.deal)
+    disagreement = _published_disagreement(
+      board, solved, capture=traveller.reference.path
+    )
+    board_issues = board.issues
+    if disagreement:
+      issues.append(disagreement)
+      board_issues = (*board_issues, disagreement)
+    boards.append(
+      board.model_copy(
+        update={'solved_double_dummy_tricks': solved, 'issues': board_issues}
+      )
+    )
+
+  return issue_reporting.Read(
+    traveller.model_copy(update={'boards': tuple(boards)}), tuple(issues)
+  )
+
+
+def _published_disagreement(
+  board: TravellerBoard, solved: SolvedDoubleDummyTricks, *, capture: str
+) -> Issue | None:
+  """One report naming every published cell the solved table contradicts.
+
+  None where the two agree, and where nothing was published to check.
+  """
+  if not board.double_dummy_tricks:
+    return None
+
+  cells = [
+    f'{seat.name.lower()} in {strain.name.lower()} published {published}, '
+    f'solved {solved[seat][strain]}'
+    for seat, row in board.double_dummy_tricks.items()
+    for strain, published in row.items()
+    # A cell the source left unstated contradicts nothing; zero tricks is a
+    # stated count, so the test is for None rather than for falsiness.
+    if published is not None and published != solved[seat][strain]
+  ]
+  if not cells:
+    return None
+
+  return _PUBLISHED_TABLE_DISAGREES.issue(
+    f'{capture} board {board.number}: the published double-dummy table '
+    f'disagrees with the deal beside it — {"; ".join(cells)}'
+  )
