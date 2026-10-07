@@ -665,6 +665,10 @@ under them; `python -m session_analysis.unreviewed.transcript` prints the
 records it is given, or every stored one. The comparisons themselves, and what
 their silences mean, are argued in `unreviewed.double_dummy_comparison`.
 
+- [ ] Update the transcript format to parameters the user gives in the lane.
+  - Worktree: transcript-format
+  - Note: the user specifies the parameters once the lane opens, so ask for them
+    before changing anything.
 - [ ] Score each board in its game's own unit — matchpoints or IMPs — with a
       single unit shared by every board in a session. {#score-in-game-units}
   - Note: only matchpoints exist today, so a board from an IMP game scores
