@@ -74,7 +74,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 
 from session_analysis import notation
-from session_analysis.enums import CallKind, Penalty, Rank, Strain
+from session_analysis.enums import CallKind, Direction, Penalty, Rank, Strain
 from session_analysis.models import (
   AuctionEntry,
   Board,
@@ -88,7 +88,7 @@ from session_analysis.models import (
 )
 from session_analysis.private_paths import PrivateTree, discover_private_tree
 from session_analysis.travellers import Traveller
-from session_analysis.unreviewed import double_dummy_comparison
+from session_analysis.unreviewed import double_dummy_comparison, session_summary
 
 # How a call that is not a bid is written. A bid is spelled from its own level
 # and strain instead, by `_spell_strain` below.
@@ -127,9 +127,10 @@ def render_session(
   """
   recorded = [board for board in session.boards if _holds_a_record(board)]
   comparisons = double_dummy_comparison.compare_boards(session, travellers)
+  summary = session_summary.summarize(recorded, travellers, comparisons)
   yield from _header_lines(session, has_recorded_boards=bool(recorded))
   yield from _board_lines(recorded, comparisons)
-  yield from _recap_lines(double_dummy_comparison.recap_of(comparisons))
+  yield from _recap_lines(summary)
 
 
 def _header_lines(
@@ -170,36 +171,44 @@ def _board_lines(
   )
 
 
-def _recap_lines(recap: double_dummy_comparison.SessionRecap) -> Iterator[str]:
+def _recap_lines(summary: session_summary.SessionSummary) -> Iterator[str]:
   """The session's comparisons totalled, as a small table under the boards.
 
   Every row is one of our own seats, because both halves are organized by our
   position: which of us declared, and which of us led. A session nothing could
   be compared for gets no recap at all — the header has already said why.
   """
-  if not recap.whole_session.boards:
+  whole = summary.whole_session
+  if not whole.compared:
     return
 
   yield ''
   rows: list[Sequence[str]] = [('', 'boards', 'DD', 'PLAY')]
-  rows.extend(_half_rows('declaring', recap.declaring))
-  rows.extend(_half_rows('defending', recap.defending))
-  rows.append(_recap_row('whole session', recap.whole_session))
+  rows.extend(
+    _half_rows('declaring', summary.declaring, summary.declaring_total)
+  )
+  rows.extend(
+    _half_rows('defending', summary.defending, summary.defending_total)
+  )
+  rows.append(_recap_row('whole session', whole))
   yield from _laid_out(rows)
 
   # Totalling the two columns over different boards would leave them
-  # incomparable, so a board carrying only one count sits out — worth saying,
-  # since the totals then no longer add up the column printed above.
-  if recap.partly_compared:
-    board_or_boards = 'board' if recap.partly_compared == 1 else 'boards'
+  # incomparable, so a board carrying fewer than both counts sits out — worth
+  # saying, since the totals then no longer add up the column printed above.
+  uncompared = whole.boards - whole.compared
+  if uncompared:
+    board_or_boards = 'board' if uncompared == 1 else 'boards'
     yield (
-      f'({recap.partly_compared} {board_or_boards} carried only one of the two '
-      f'counts, and so sat out of these totals.)'
+      f'({uncompared} {board_or_boards} carried fewer than both counts, and '
+      f'so sat out of these totals.)'
     )
 
 
 def _half_rows(
-  role: str, half: double_dummy_comparison.RecapHalf
+  role: str,
+  by_seat: Mapping[Direction, session_summary.Totals],
+  total: session_summary.Totals,
 ) -> Iterator[Sequence[str]]:
   """One half of the recap: its own total, then the seats we sat it from.
 
@@ -207,24 +216,22 @@ def _half_rows(
   they divide it — the rows below any total add up to it. A half we played no
   board in is left out entirely instead of printing a row of zeroes.
   """
-  if not half.by_seat:
+  if not by_seat:
     return
 
-  yield _recap_row(role, half.total)
-  for seat, totals in half.by_seat.items():
+  yield _recap_row(role, total)
+  for seat, totals in by_seat.items():
     # `as E` reads under either heading: the seat we declared from, or the seat
     # we led from. Naming the seat alone is what keeps the table organized by
     # our own position rather than by the table's.
     yield _recap_row(f'  as {seat}', totals)
 
 
-def _recap_row(
-  label: str, totals: double_dummy_comparison.ComparisonTotals
-) -> Sequence[str]:
+def _recap_row(label: str, totals: session_summary.Totals) -> Sequence[str]:
   """One recap row's cells: what it covers, how many boards, and the totals."""
   return (
     label,
-    str(totals.boards),
+    str(totals.compared),
     f'{totals.whole_deal:+d}',
     f'{totals.after_lead:+d}',
   )

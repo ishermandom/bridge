@@ -48,10 +48,8 @@ from session_analysis.travellers import (
   TravellerSource,
 )
 from session_analysis.unreviewed.double_dummy_comparison import (
-  ComparisonTotals,
   compare_boards,
   read_referenced_travellers,
-  recap_of,
 )
 
 _CLUB_CAPTURE = 'club/D260629M.pbn'
@@ -667,137 +665,6 @@ def test_a_malformed_deal_is_not_compared() -> None:
   # Three seats hold no hand at all, which `deal_checks` reports; solving it
   # would only raise.
   assert _after_lead(session) == {}
-
-
-# --- the session recap ---
-
-# North holds every spade, so a spade contract declared by North or South takes
-# all thirteen whatever is led, and one declared by East or West takes none.
-# `testing.deals` argues both.
-_A_DIAMOND = Card(rank=Rank.TWO, suit=Suit.DIAMONDS)
-_A_CLUB = Card(rank=Rank.TWO, suit=Suit.CLUBS)
-_A_SPADE = Card(rank=Rank.TWO, suit=Suit.SPADES)
-
-
-def _spades_board(
-  number: int,
-  *,
-  declarer: Direction,
-  tricks_taken: int,
-  opening_lead: Card,
-) -> Board:
-  """A board of the reasoned deal, played in spades, with us North-South."""
-  return _make_board(
-    number,
-    declarer=declarer,
-    our_side=Side.NORTH_SOUTH,
-    strain=Strain.SPADES,
-    tricks_taken=tricks_taken,
-    deal=a_suit_to_each_seat(),
-    opening_lead=opening_lead,
-  )
-
-
-def test_our_declared_boards_group_by_which_of_us_declared() -> None:
-  session = _make_session(
-    # East leads a heart against North; West leads a club against South. Either
-    # way the count after the lead is all thirteen.
-    _spades_board(
-      1, declarer=Direction.NORTH, tricks_taken=11, opening_lead=_A_HEART
-    ),
-    _spades_board(
-      2, declarer=Direction.SOUTH, tricks_taken=13, opening_lead=_A_CLUB
-    ),
-  )
-  travellers = [
-    _make_traveller(
-      1, declarer=Direction.NORTH, strain=Strain.SPADES, tricks=9
-    ),
-    _make_traveller(
-      2, declarer=Direction.SOUTH, strain=Strain.SPADES, tricks=9
-    ),
-  ]
-
-  recap = recap_of(compare_boards(session, travellers))
-
-  # North took eleven against a published nine and a solved thirteen; South
-  # took thirteen against the same nine and thirteen.
-  assert recap.declaring.by_seat == {
-    Direction.NORTH: ComparisonTotals(boards=1, whole_deal=2, after_lead=-2),
-    Direction.SOUTH: ComparisonTotals(boards=1, whole_deal=4, after_lead=0),
-  }
-  assert not recap.defending.by_seat
-
-
-def test_our_defended_boards_group_by_which_of_us_led() -> None:
-  session = _make_session(
-    # East declaring puts South on lead, holding the diamonds; West declaring
-    # puts North on lead, holding the spades.
-    _spades_board(
-      1, declarer=Direction.EAST, tricks_taken=2, opening_lead=_A_DIAMOND
-    ),
-    _spades_board(
-      2, declarer=Direction.WEST, tricks_taken=1, opening_lead=_A_SPADE
-    ),
-  )
-  travellers = [
-    _make_traveller(1, declarer=Direction.EAST, strain=Strain.SPADES, tricks=1),
-    _make_traveller(2, declarer=Direction.WEST, strain=Strain.SPADES, tricks=1),
-  ]
-
-  recap = recap_of(compare_boards(session, travellers))
-
-  # Neither opponent can reach a trump, so the solved count is none for both,
-  # and each took more than that, which runs against us. Against the published
-  # count, the board we led from North came out even and the one from South a
-  # trick down.
-  assert recap.defending.by_seat == {
-    Direction.NORTH: ComparisonTotals(boards=1, whole_deal=0, after_lead=-1),
-    Direction.SOUTH: ComparisonTotals(boards=1, whole_deal=-1, after_lead=-2),
-  }
-  assert not recap.declaring.by_seat
-
-
-def test_the_whole_session_totals_every_row() -> None:
-  session = _make_session(
-    _spades_board(
-      1, declarer=Direction.NORTH, tricks_taken=11, opening_lead=_A_HEART
-    ),
-    _spades_board(
-      2, declarer=Direction.EAST, tricks_taken=2, opening_lead=_A_DIAMOND
-    ),
-  )
-  travellers = [
-    _make_traveller(
-      1, declarer=Direction.NORTH, strain=Strain.SPADES, tricks=9
-    ),
-    _make_traveller(2, declarer=Direction.EAST, strain=Strain.SPADES, tricks=1),
-  ]
-
-  recap = recap_of(compare_boards(session, travellers))
-
-  # One board declared and one defended, added across both halves.
-  assert recap.whole_session == ComparisonTotals(
-    boards=2, whole_deal=1, after_lead=-4
-  )
-
-
-def test_a_board_carrying_only_one_count_sits_out_of_the_recap() -> None:
-  session = _make_session(
-    _spades_board(
-      1, declarer=Direction.NORTH, tricks_taken=11, opening_lead=_A_HEART
-    )
-  )
-
-  recap = recap_of(compare_boards(session, []))
-
-  # The deal solves, but no traveller states a cell, so the two totals would
-  # cover different boards. The board sits out rather than making them
-  # incomparable.
-  assert recap.whole_session == ComparisonTotals(
-    boards=0, whole_deal=0, after_lead=0
-  )
-  assert recap.partly_compared == 1
 
 
 # --- reading the records a session names ---

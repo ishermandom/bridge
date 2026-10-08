@@ -39,7 +39,8 @@ difference is what our own lead cost. A defense that found the killing lead
 leaves nothing between them, so the two come back equal however the play then
 went.
 
-`SessionRecap` totals both over a whole session, split across our own seats.
+`session_summary` totals both over a whole session, split across our own seats
+by `placement_of`.
 
 Standing caveat on both: double-dummy play sees all four hands and nobody at the
 table did, so a trick lost against a count has usually gone to a guess no one
@@ -51,7 +52,7 @@ leaving it to read as a session whose every board came out even.
 """
 
 import dataclasses
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 from session_analysis import issue_reporting, traveller_store
 from session_analysis.enums import Direction, IssueSeverity, Strain
@@ -85,15 +86,42 @@ class BoardComparison:
   at all.
   """
 
-  declared_by_us: bool
-  # The seat of ours the board turned on: the one that declared where we
-  # declared, the one that led where we defended. Either way it is one of the
-  # two seats our pair sat in on that board, since the lead comes from
-  # declarer's left — so a recap split by it is always a split across our own
-  # partnership.
-  our_seat: Direction
   whole_deal: int | None
   after_lead: int | None
+
+
+@dataclasses.dataclass(frozen=True)
+class Placement:
+  """Which side of a board we were on, and the seat of ours it turned on."""
+
+  declared_by_us: bool
+  # The one that declared where we declared, the one that led where we defended.
+  # Either way it is one of the two seats our pair sat in on that board, since
+  # the lead comes from declarer's left — so a total split by it is always a
+  # split across our own partnership.
+  our_seat: Direction
+
+
+def placement_of(board: Board) -> Placement | None:
+  """Where the board puts us, or None where the record cannot say.
+
+  A board passed out, or whose contract cell did not parse, names no declarer to
+  place us against. Which side we sat is what reconciliation records, so a board
+  it never placed us on is left unplaced rather than read from declarer's point
+  of view — half of those would read backwards.
+  """
+  played = _played_contract(board)
+  if not played or not board.our_pair:
+    return None
+
+  declarer = played.contract.declarer
+  declared_by_us = declarer in board.our_pair.side.seats
+  return Placement(
+    declared_by_us=declared_by_us,
+    # Defending, the seat of ours in play is the one on lead, which is the seat
+    # to declarer's left.
+    our_seat=declarer if declared_by_us else declarer.left_hand_opponent,
+  )
 
 
 def compare_boards(
@@ -129,124 +157,10 @@ def compare_boards(
       continue
 
     comparisons[comparable.number] = BoardComparison(
-      declared_by_us=comparable.declared_by_us,
-      our_seat=comparable.our_seat,
       whole_deal=None if published is None else comparable.gain_on(published),
       after_lead=None if solved is None else comparable.gain_on(solved),
     )
   return comparisons
-
-
-@dataclasses.dataclass(frozen=True)
-class ComparisonTotals:
-  """What the two comparisons came to over one group of boards."""
-
-  boards: int
-  whole_deal: int
-  after_lead: int
-
-  @staticmethod
-  def summed(groups: Iterable['ComparisonTotals']) -> 'ComparisonTotals':
-    """Several groups of boards added into one."""
-    gathered = list(groups)
-    return ComparisonTotals(
-      boards=sum(totals.boards for totals in gathered),
-      whole_deal=sum(totals.whole_deal for totals in gathered),
-      after_lead=sum(totals.after_lead for totals in gathered),
-    )
-
-
-@dataclasses.dataclass(frozen=True)
-class RecapHalf:
-  """The boards we played in one role, split across the seats we sat in it.
-
-  A pair does not always keep one direction for a whole session, so `by_seat`
-  can hold more than the two seats of a single partnership: a pair that changed
-  direction mid-session may have declared from three seats over an evening, and
-  each seat is its own row.
-  """
-
-  by_seat: Mapping[Direction, ComparisonTotals]
-
-  @property
-  def total(self) -> ComparisonTotals:
-    """Every seat in this half together."""
-    return ComparisonTotals.summed(self.by_seat.values())
-
-
-@dataclasses.dataclass(frozen=True)
-class SessionRecap:
-  """The session's comparisons totalled, always split across our own seats.
-
-  Both halves are organized by our position rather than by the table's. Where we
-  declared, the boards are grouped by which of us declared; where we defended,
-  by which of us led. The opponents' seats never appear, and they do not need
-  to: the lead comes from declarer's left, so a board they declared is one we
-  led, and every board therefore lands under one of our own two seats.
-
-  Read across a row, the gap between the two totals is what the opening leads
-  were worth. Defending, `whole_deal` below `after_lead` is the cost of that
-  seat's leads; declaring, `whole_deal` above `after_lead` is what the
-  opponents' leads handed that declarer. Either way the difference runs the same
-  way round as the totals do — our side's gain.
-  """
-
-  # Split by the seat of ours that declared, and that led, respectively.
-  declaring: RecapHalf
-  defending: RecapHalf
-  # Boards carrying one count but not the other, and so left out of every row.
-  # Totalling the two columns over different boards would leave the totals
-  # incomparable, and comparing them is the one thing a row of this table is
-  # read for.
-  partly_compared: int
-
-  @property
-  def whole_session(self) -> ComparisonTotals:
-    """Both halves together — all the boards the recap could count."""
-    return ComparisonTotals.summed([self.declaring.total, self.defending.total])
-
-
-def recap_of(comparisons: Mapping[int, BoardComparison]) -> SessionRecap:
-  """Total a session's comparisons into the rows a recap prints.
-
-  Each row's seats come out in the order `Direction` declares them, so a recap
-  reads round the table however the boards happened to fall.
-  """
-  declaring: dict[Direction, list[tuple[int, int]]] = {}
-  defending: dict[Direction, list[tuple[int, int]]] = {}
-  partly_compared = 0
-
-  for comparison in comparisons.values():
-    whole_deal, after_lead = comparison.whole_deal, comparison.after_lead
-    if whole_deal is None or after_lead is None:
-      partly_compared += 1
-      continue
-    group = declaring if comparison.declared_by_us else defending
-    group.setdefault(comparison.our_seat, []).append((whole_deal, after_lead))
-
-  return SessionRecap(
-    declaring=_by_seat(declaring),
-    defending=_by_seat(defending),
-    partly_compared=partly_compared,
-  )
-
-
-def _by_seat(
-  grouped: Mapping[Direction, Sequence[tuple[int, int]]],
-) -> RecapHalf:
-  """Each seat's boards totalled, the seats in the order they sit round."""
-  return RecapHalf(
-    {seat: _totals(grouped[seat]) for seat in Direction if seat in grouped}
-  )
-
-
-def _totals(counts: Sequence[tuple[int, int]]) -> ComparisonTotals:
-  """One group of boards totalled, each board a pair of the two counts."""
-  return ComparisonTotals(
-    boards=len(counts),
-    whole_deal=sum(whole_deal for whole_deal, _ in counts),
-    after_lead=sum(after_lead for _, after_lead in counts),
-  )
 
 
 def read_referenced_travellers(
@@ -299,9 +213,6 @@ class _ComparableBoard:
   contract: Contract
   tricks_taken: int
   declared_by_us: bool
-  # The seat of ours the board turned on; `BoardComparison.our_seat` says why
-  # one seat of ours always answers, whichever side declared.
-  our_seat: Direction
 
   def gain_on(self, available: int) -> int:
     """The tricks our side gained on a count, from our own point of view.
@@ -321,24 +232,18 @@ def _comparable(board: Board) -> _ComparableBoard | None:
   strain and its declarer — that has a double-dummy count to compare with.
   """
   played = _played_contract(board)
-  # A board is found by the number the sheet gave it, so one whose number could
-  # not be read reaches no traveller row. Which side we sat is what orients the
-  # sign, and reconciliation is what records it, so a board that reconciliation
-  # never placed us on is left uncompared rather than compared from declarer's
-  # point of view — half of those would read backwards.
-  if not board.number.schedule or not played or not board.our_pair:
+  # Which side we sat is what orients the sign, so an unplaced board has no
+  # comparison to offer. A board is found by the number the sheet gave it, so
+  # one whose number could not be read reaches no traveller row.
+  placement = placement_of(board)
+  if not board.number.schedule or not played or not placement:
     return None
 
-  declarer = played.contract.declarer
-  declared_by_us = declarer in board.our_pair.side.seats
   return _ComparableBoard(
     number=board.number.schedule.number,
     contract=played.contract,
     tricks_taken=played.result.tricks_taken,
-    declared_by_us=declared_by_us,
-    # Defending, the seat of ours in play is the one on lead, which is the seat
-    # to declarer's left.
-    our_seat=declarer if declared_by_us else declarer.left_hand_opponent,
+    declared_by_us=placement.declared_by_us,
   )
 
 
