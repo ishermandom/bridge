@@ -109,12 +109,13 @@ Design decisions live in `spec.md`; this file tracks the work.
     differently though both render "Stayman", and it fired on all 26 links in
     the Callahan notes, none of which is empty.
 
-- [ ] **Stop the test run crashing in Pango's font cleanup**
-      {#pango-cleanup-crash} — the repo's test run intermittently dies of a
-      segmentation fault when Python's garbage collector frees a Pango font map
-      that WeasyPrint created, and Pango's cleanup crashes inside HarfBuzz.
-      Every test may have passed by then, so the Stop hook halts a turn over a
-      run with no failing test in it.
+- [~] **Stop the test run crashing in Pango's font cleanup**
+  {#pango-cleanup-crash} — the repo's test run intermittently dies of a
+  segmentation fault when Python's garbage collector frees a Pango font map that
+  WeasyPrint created, and Pango's cleanup crashes inside HarfBuzz. Every test
+  may have passed by then, so the Stop hook halts a turn over a run with no
+  failing test in it.
+  - Worktree: `pango-cleanup-crash`
   - Rationale: hit twice on 2026-10-07, in the bridge transcript-format lane.
     The first run stopped right after `render_notes_test.py`, the run's last
     file, with every test passed and neither a summary line nor a trace — likely
