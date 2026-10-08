@@ -114,6 +114,11 @@ unread.
     problem. Merging the sources apart from joining them to the sheet is the
     seam that was considered and left alone while the two were being written
     together; review is the moment to settle it.
+  - Open question: whether `transcript.py` wants splitting too. It carries three
+    concerns — assembling the transcript, spelling the sheet's notation, and the
+    command that finds records and opens the page — and the edits queued next
+    for it, #recap-by-player and #score-in-game-units, touch only the summary
+    and the spelling.
 
 ---
 
