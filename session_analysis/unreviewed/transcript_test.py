@@ -52,12 +52,6 @@ from session_analysis.models import (
 )
 from session_analysis.testing import provenance
 from session_analysis.testing.deals import a_deal_the_lead_decides
-from session_analysis.travellers import (
-  Traveller,
-  TravellerBoard,
-  TravellerResult,
-  TravellerSource,
-)
 from session_analysis.unreviewed.transcript import main, render_session
 
 
@@ -164,6 +158,7 @@ def _make_board(
   outcome: Outcome | None = None,
   opening_lead: Lead | None = None,
   matchpoints: float | None = None,
+  top: float | None = None,
   our_side: Side | None = None,
   deal: Deal | None = None,
   table: SolvedDoubleDummyTricks | None = None,
@@ -180,6 +175,7 @@ def _make_board(
     outcome=outcome,
     opening_lead=opening_lead,
     matchpoints=matchpoints,
+    matchpoint_top=top,
     our_pair=PairIdentity(number='3', side=our_side) if our_side else None,
     deal=deal,
     solved_double_dummy_tricks=table,
@@ -251,9 +247,9 @@ def _board_line_of(lines: Iterable[str]) -> str:
   return next(from_rule)
 
 
-def _lines_of(session: Session, travellers: Sequence[Traveller] = ()) -> str:
+def _lines_of(session: Session) -> str:
   """The whole transcript, as one string, for asserting on a run of lines."""
-  return '\n'.join(render_session(session, travellers))
+  return '\n'.join(render_session(session))
 
 
 # --- the auction, in the sheet's own marks ---
@@ -883,29 +879,8 @@ def test_a_session_that_recorded_nothing_carries_no_caveat() -> None:
 # --- the summary ---
 
 
-def _make_scored_traveller(top: float, *board_numbers: int) -> Traveller:
-  """A traveller scoring each board on `top`, from one row apiece.
-
-  A row's two scores add up to the board's top, so one row is all a top needs.
-  """
-  row = TravellerResult(
-    north_south=PairIdentity(number='1', side=Side.NORTH_SOUTH),
-    east_west=PairIdentity(number='2', side=Side.EAST_WEST),
-    north_south_matchpoints=top,
-    east_west_matchpoints=0,
-  )
-  return Traveller(
-    source=TravellerSource.CLUB_HTML,
-    reference=CaptureReference(path='club/260629.html'),
-    event='Monday Pairs',
-    boards=tuple(
-      TravellerBoard(number=number, results=(row,)) for number in board_numbers
-    ),
-  )
-
-
 def _make_scored_board(
-  number: int, *, declarer: Direction, matchpoints: float | None
+  number: int, *, declarer: Direction, matchpoints: float | None, top: float
 ) -> Board:
   """A board we sat East-West on, played in four spades by `declarer`."""
   return _make_board(
@@ -914,19 +889,20 @@ def _make_scored_board(
       level=4, strain=Strain.SPADES, declarer=declarer, tricks_taken=10
     ),
     matchpoints=matchpoints,
+    top=top,
     our_side=Side.EAST_WEST,
   )
 
 
 def test_the_summary_totals_each_role_then_each_seat_within_it() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8),
     # North declaring puts East on lead.
-    _make_scored_board(2, declarer=Direction.NORTH, matchpoints=2),
-    _make_scored_board(3, declarer=Direction.WEST, matchpoints=4),
+    _make_scored_board(2, declarer=Direction.NORTH, matchpoints=2, top=8),
+    _make_scored_board(3, declarer=Direction.WEST, matchpoints=4, top=8),
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2, 3)])
+  lines = _lines_of(session)
 
   # Each board is scored out of eight: East declared six, led against two, and
   # West declared four.
@@ -944,29 +920,29 @@ def test_the_summary_totals_each_role_then_each_seat_within_it() -> None:
 
 def test_each_seat_of_ours_gets_a_line_for_its_errors() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
-    _make_scored_board(2, declarer=Direction.WEST, matchpoints=2),
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8),
+    _make_scored_board(2, declarer=Direction.WEST, matchpoints=2, top=8),
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2)])
+  lines = _lines_of(session)
 
   assert 'E error =\nW error =' in lines
 
 
 def test_the_summary_names_the_top() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6)
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8)
   )
 
-  assert 'TOP=8' in _lines_of(session, [_make_scored_traveller(8, 1)])
+  assert 'TOP=8' in _lines_of(session)
 
 
 def test_a_percentage_rounds_a_half_up() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=17)
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=17, top=32)
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(32, 1)])
+  lines = _lines_of(session)
 
   # 17 of 32 is exactly 53.125%, which a reader rounding by hand calls 53.13%.
   assert '53.13%\tNet, across 1 hand' in lines
@@ -1003,11 +979,11 @@ def test_a_session_without_matchpoints_has_no_matchpoint_column() -> None:
 
 def test_a_board_left_out_of_the_matchpoints_is_noted() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
-    _make_scored_board(2, declarer=Direction.EAST, matchpoints=None),
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8),
+    _make_scored_board(2, declarer=Direction.EAST, matchpoints=None, top=8),
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2)])
+  lines = _lines_of(session)
 
   assert (
     '(1 hand had no matchpoints, or no top to score them against, and sat out '
@@ -1020,10 +996,10 @@ def test_a_board_left_out_of_the_matchpoints_is_noted() -> None:
 
 def test_the_could_have_table_starts_each_board_at_its_actual_score() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6)
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8)
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(8, 1)])
+  lines = _lines_of(session)
 
   assert 'Board\t\tActual\tCan Do\tAction\n1\t4♠E+4\t6.00\t6.00' in lines
 
@@ -1039,21 +1015,22 @@ def test_the_could_have_table_keeps_a_doubled_contract_s_mark() -> None:
       penalty=Penalty.DOUBLED,
     ),
     matchpoints=0,
+    top=8,
     our_side=Side.EAST_WEST,
   )
 
-  lines = _lines_of(_make_session(board), [_make_scored_traveller(8, 1)])
+  lines = _lines_of(_make_session(board))
 
   assert '1\t4♣*E-4\t0.00\t0.00' in lines
 
 
 def test_the_could_have_table_closes_on_the_session_average() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
-    _make_scored_board(2, declarer=Direction.EAST, matchpoints=2),
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8),
+    _make_scored_board(2, declarer=Direction.EAST, matchpoints=2, top=8),
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2)])
+  lines = _lines_of(session)
 
   # Both columns start equal, so the two averages do too.
   assert lines.endswith('\tAVERAGE\t50.00%\t50.00%')
@@ -1061,10 +1038,10 @@ def test_the_could_have_table_closes_on_the_session_average() -> None:
 
 def test_the_could_have_table_leaves_its_standing_for_the_reader() -> None:
   session = _make_session(
-    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6)
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6, top=8)
   )
 
-  lines = _lines_of(session, [_make_scored_traveller(8, 1)])
+  lines = _lines_of(session)
 
   assert (
     '[place overall] and [place in strat] earning [points] masterpoints'

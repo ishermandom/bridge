@@ -7,7 +7,6 @@ tests build their sessions in memory.
 """
 
 from collections.abc import Mapping
-from pathlib import Path
 
 from session_analysis.enums import (
   Direction,
@@ -22,7 +21,6 @@ from session_analysis.enums import (
 from session_analysis.models import (
   Board,
   BoardNumber,
-  CaptureReference,
   Card,
   Contract,
   Deal,
@@ -37,22 +35,9 @@ from session_analysis.models import (
   Session,
   SolvedDoubleDummyTricks,
 )
-from session_analysis.notation import STRAINS_LOW_TO_HIGH
-from session_analysis.private_paths import PrivateTree
 from session_analysis.testing import provenance
 from session_analysis.testing.deals import a_suit_to_each_seat, whole_suit
-from session_analysis.travellers import (
-  Traveller,
-  TravellerBoard,
-  TravellerSource,
-)
-from session_analysis.unreviewed.double_dummy_comparison import (
-  compare_boards,
-  read_referenced_travellers,
-)
-
-_CLUB_CAPTURE = 'club/D260629M.pbn'
-_ACBL_CAPTURE = 'acbl_club/12345.html'
+from session_analysis.unreviewed.double_dummy_comparison import compare_boards
 
 
 def _make_number(number: int) -> BoardNumber:
@@ -124,48 +109,10 @@ def _make_board(
   )
 
 
-def _make_session(*boards: Board, travellers: tuple[str, ...] = ()) -> Session:
-  """A digitized session naming the captures reconciliation consulted."""
+def _make_session(*boards: Board) -> Session:
+  """A digitized session holding the boards a test cares about."""
   return Session(
-    event='Monday Pairs',
-    source=provenance.sheet_source(
-      travellers=tuple(CaptureReference(path=path) for path in travellers)
-    ),
-    boards=boards,
-  )
-
-
-def _make_traveller_from(path: str, *boards: TravellerBoard) -> Traveller:
-  """A traveller carrying whatever boards a test hands it."""
-  return Traveller(
-    source=TravellerSource.CLUB_PBN,
-    reference=CaptureReference(path=path),
-    event='Monday Pairs',
-    boards=boards,
-  )
-
-
-def _make_traveller(
-  board_number: int,
-  *,
-  declarer: Direction,
-  strain: Strain,
-  tricks: int | None,
-  path: str = _CLUB_CAPTURE,
-) -> Traveller:
-  """A traveller stating one cell of its table and leaving the other nineteen.
-
-  A published table holds all twenty cells and writes as `None` any it has
-  nothing to say about, so the nineteen no test asserts on are built that way
-  rather than left out. Passing `tricks=None` leaves all twenty unstated, which
-  is how a source listing only its makeable contracts reads.
-  """
-  table: dict[Direction, dict[Strain, int | None]] = {
-    seat: dict.fromkeys(STRAINS_LOW_TO_HIGH) for seat in Direction
-  }
-  table[declarer][strain] = tricks
-  return _make_traveller_from(
-    path, TravellerBoard(number=board_number, double_dummy_tricks=table)
+    event='Monday Pairs', source=provenance.sheet_source(), boards=boards
   )
 
 
@@ -527,95 +474,3 @@ def test_a_malformed_deal_is_not_compared() -> None:
   # Three seats hold no hand at all, which `deal_checks` reports; solving it
   # would only raise.
   assert _after_lead(session) == {}
-
-
-# --- reading the records a session names ---
-
-
-def _store(tree: PrivateTree, path: str, traveller: Traveller) -> None:
-  """Write a traveller's record where the store files one."""
-  record = tree.traveller_records / f'{path}.json'
-  record.parent.mkdir(parents=True, exist_ok=True)
-  record.write_text(traveller.model_dump_json())
-
-
-def test_only_the_travellers_a_session_names_are_read(tmp_path: Path) -> None:
-  tree = PrivateTree(tmp_path)
-  _store(
-    tree,
-    _CLUB_CAPTURE,
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=9,
-      path=_CLUB_CAPTURE,
-    ),
-  )
-  _store(
-    tree,
-    'club/D260706M.pbn',
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=9,
-      path='club/D260706M.pbn',
-    ),
-  )
-  session = _make_session(travellers=(_CLUB_CAPTURE,))
-
-  read = read_referenced_travellers(tree, session)
-
-  # The other week's capture is stored too, and numbers its boards the same way;
-  # naming the captures is what keeps it out of this session's comparison.
-  assert [one.reference.path for one in read.value] == [_CLUB_CAPTURE]
-  assert not read.issues
-
-
-def test_a_session_naming_no_travellers_reads_nothing(tmp_path: Path) -> None:
-  read = read_referenced_travellers(PrivateTree(tmp_path), _make_session())
-
-  assert not read.value
-  assert not read.issues
-
-
-def test_a_record_a_session_names_but_nothing_stored_is_reported(
-  tmp_path: Path,
-) -> None:
-  session = _make_session(travellers=(_CLUB_CAPTURE,))
-
-  read = read_referenced_travellers(PrivateTree(tmp_path), session)
-
-  assert not read.value
-  assert [issue.code for issue in read.issues] == [
-    'unreadable_traveller_record'
-  ]
-
-
-def test_a_record_that_no_longer_parses_is_reported_and_stepped_over(
-  tmp_path: Path,
-) -> None:
-  tree = PrivateTree(tmp_path)
-  stale = tree.traveller_records / f'{_ACBL_CAPTURE}.json'
-  stale.parent.mkdir(parents=True)
-  stale.write_text('{"source": "who knows"}')
-  _store(
-    tree,
-    _CLUB_CAPTURE,
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=9,
-      path=_CLUB_CAPTURE,
-    ),
-  )
-  session = _make_session(travellers=(_ACBL_CAPTURE, _CLUB_CAPTURE))
-
-  read = read_referenced_travellers(tree, session)
-
-  # The readable record still supplies its comparisons; only the stale one is
-  # set aside.
-  assert [one.reference.path for one in read.value] == [_CLUB_CAPTURE]
-  assert 'holds no traveller record' in read.issues[0].message

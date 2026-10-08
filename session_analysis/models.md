@@ -296,6 +296,7 @@ travellers at reconciliation, not read from the sheet (see
 - `outcome` — an `Outcome` envelope (the contract cell), or null.
 - `matchpoints` — traveller-sourced, filled at reconciliation; null until then
   and for no-traveller sessions.
+- `matchpoint_top` — the most a pair in our section could score on the board.
 - `deal` — the four hands, a `Deal`; traveller-sourced like `matchpoints`, null
   until reconciliation and for no-traveller sessions.
 - `solved_double_dummy_tricks` — the deal's double-dummy table, every declarer

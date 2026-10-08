@@ -17,20 +17,18 @@ The groups follow our own position rather than the table's, through
 of ours that declared it, and a board we defended to the seat of ours that led.
 
 The measures need different inputs, so they can cover different boards. A
-percentage needs the board's matchpoints and its top, and the counts need a
-published table or a deal to solve. Each group therefore counts, beside its
-boards, how many of them each measure covered, and a reader can be told when a
-total leaves some out.
+percentage needs the board's matchpoints and top; of the double-dummy counts,
+`whole_deal` needs the board's solved table and `after_lead` its deal and lead.
+Each group therefore counts, beside its boards, how many of them each measure
+covered, and a reader can be told when a total leaves some out.
 """
 
-import collections
 import dataclasses
 from collections.abc import Iterable, Mapping, Sequence
 from decimal import Decimal
 
 from session_analysis.enums import Direction
 from session_analysis.models import Board
-from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import double_dummy_comparison
 
 
@@ -131,15 +129,13 @@ class SessionSummary:
 
 def summarize(
   boards: Sequence[Board],
-  travellers: Sequence[Traveller],
   comparisons: Mapping[int, double_dummy_comparison.BoardComparison],
 ) -> SessionSummary:
   """Total the given boards into a session's groups.
 
   `comparisons` are the double-dummy counts `double_dummy_comparison` made of
   these boards, passed in rather than made here because solving is slow and the
-  transcript already needs them for its board lines. The travellers supply each
-  board's top.
+  transcript already needs them for its board lines.
   """
   declaring: dict[Direction, list[Totals]] = {}
   defending: dict[Direction, list[Totals]] = {}
@@ -148,9 +144,9 @@ def summarize(
   tops: set[Decimal] = set()
 
   for board in boards:
-    top = _top_of(board, travellers)
+    top = board.matchpoint_top
     if top is not None:
-      tops.add(top)
+      tops.add(_exact_matchpoints(top))
     schedule = board.number.schedule
     compared = comparisons.get(schedule.number) if schedule else None
     totals = _board_totals(
@@ -179,7 +175,7 @@ def summarize(
 def _board_totals(
   *,
   matchpoints: float | None,
-  top: Decimal | None,
+  top: float | None,
   comparison: double_dummy_comparison.BoardComparison | None,
 ) -> Totals:
   """One board as a group of its own, carrying whichever measures it can."""
@@ -189,8 +185,8 @@ def _board_totals(
     totals = dataclasses.replace(
       totals,
       scored=1,
-      matchpoints=_exact_score(matchpoints),
-      tops=top,
+      matchpoints=_exact_matchpoints(matchpoints),
+      tops=_exact_matchpoints(top),
     )
   if (
     comparison
@@ -215,57 +211,12 @@ def _by_seat(
   }
 
 
-def _top_of(board: Board, travellers: Sequence[Traveller]) -> Decimal | None:
-  """The most a pair in our section could score on this board, if known.
+def _exact_matchpoints(matchpoints: float) -> Decimal:
+  """A score or top as an exact decimal, rather than a binary fraction.
 
-  No source states a top, but every row states one implicitly: the two sides'
-  matchpoints on a row add up to it. Two things keep that from being as simple
-  as reading one row.
-
-  - **Sections.** A club traveller can list every section's rows together, and
-    each section is scored on its own top. Only rows in our own section count.
-  - **Adjusted scores.** A row the director scored as average-plus for both
-    sides adds up to more than the top. Such rows are rare, so the total most
-    rows share is the top; a tie between two totals names none.
-
-  None where the board went unnumbered, where reconciliation never placed us, or
-  where no row in our section was scored.
-  """
-  schedule = board.number.schedule
-  if not schedule or not board.our_pair:
-    return None
-
-  # Every source's rows are pooled: two captures of one session repeat the same
-  # rows, which leaves the most common total unchanged.
-  row_totals: collections.Counter[Decimal] = collections.Counter()
-  for traveller in travellers:
-    for traveller_board in traveller.boards:
-      if traveller_board.number != schedule.number:
-        continue
-      for row in traveller_board.results:
-        north_south = row.north_south_matchpoints
-        east_west = row.east_west_matchpoints
-        if (
-          row.north_south.section != board.our_pair.section
-          or north_south is None
-          or east_west is None
-        ):
-          continue
-        row_totals[_exact_score(north_south) + _exact_score(east_west)] += 1
-
-  ranked = row_totals.most_common(2)
-  if not ranked:
-    return None
-  top, row_count = ranked[0]
-  is_tied = len(ranked) == 2 and ranked[1][1] == row_count
-  return None if is_tied else top
-
-
-def _exact_score(matchpoints: float) -> Decimal:
-  """A score as the decimal its source printed, rather than a binary fraction.
-
-  Sources print matchpoints to at most two places, so the shortest spelling of
-  the float is that printed value. Summing those exactly keeps a total such as
-  `4.17 + 2.33` from drifting off the hundredth it should land on.
+  Sources print a score to at most two places, and reconciliation rounds a top
+  to two places as well, so the float's shortest spelling is the two-place value
+  it stands for. Summing scores and tops as decimals keeps a total such as `4.17
+  + 2.33` from drifting off the hundredth it should land on.
   """
   return Decimal(str(matchpoints))

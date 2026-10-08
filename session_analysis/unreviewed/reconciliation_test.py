@@ -571,6 +571,89 @@ def test_a_disagreement_names_the_capture_not_just_its_source() -> None:
   assert 'club/second.pbn' in message
 
 
+# --- the matchpoint top ---
+
+
+def _our_row(
+  our_matchpoints: float,
+  their_matchpoints: float,
+  *,
+  section: str | None = None,
+) -> TravellerResult:
+  """Our table's row, with us North-South, scoring `our_matchpoints` to our
+  opponents' `their_matchpoints`.
+  """
+  return TravellerResult(
+    north_south=_pair(
+      '6', Side.NORTH_SOUTH, 'First Last', 'Partner Name', section=section
+    ),
+    east_west=_pair(
+      '4', Side.EAST_WEST, 'Other Player', 'Their Partner', section=section
+    ),
+    resolution=_played(),
+    north_south_matchpoints=our_matchpoints,
+    east_west_matchpoints=their_matchpoints,
+  )
+
+
+def _other_row(
+  north_south: float, east_west: float, *, section: str | None = None
+) -> TravellerResult:
+  """Another table's row, naming nobody we know."""
+  return TravellerResult(
+    north_south=_pair('1', Side.NORTH_SOUTH, section=section),
+    east_west=_pair('2', Side.EAST_WEST, section=section),
+    resolution=_played(),
+    north_south_matchpoints=north_south,
+    east_west_matchpoints=east_west,
+  )
+
+
+def _top_from(*rows: TravellerResult) -> float | None:
+  """The top reconciliation works out for a board holding `rows`."""
+  traveller = _make_traveller(boards=[TravellerBoard(number=1, results=rows)])
+  enrichments = build_enrichments([traveller], our_name=OUR_NAME).value
+  return enrichments[1].matchpoint_top
+
+
+def test_the_top_is_what_a_row_s_two_scores_add_up_to() -> None:
+  assert _top_from(_our_row(5, 3)) == 8
+
+
+def test_float_error_does_not_split_one_total_in_two() -> None:
+  # Summed as floats, 2.1 and 3.2 come to 5.300000000000001, which would tie
+  # with the other table's 5.3 and leave the board no top at all.
+  assert _top_from(_our_row(2.1, 3.2), _other_row(5.3, 0)) == 5.3
+
+
+def test_only_the_rows_in_our_section_set_the_top() -> None:
+  # Section B's tables outnumber ours here, so a top read from every row alike
+  # would be B's three rather than our eight.
+  top = _top_from(
+    _our_row(6, 2, section='A'),
+    _other_row(3, 0, section='B'),
+    _other_row(2, 1, section='B'),
+  )
+
+  assert top == 8
+
+
+def test_an_adjusted_row_does_not_move_the_top() -> None:
+  # Average-plus to both sides adds up to more than the top.
+  top = _top_from(_our_row(8, 0), _other_row(4, 4), _other_row(4.8, 4.8))
+
+  assert top == 8
+
+
+def test_a_tie_for_the_most_common_total_gives_no_top() -> None:
+  assert _top_from(_our_row(8, 0), _other_row(4.8, 4.8)) is None
+
+
+def test_a_board_no_row_places_us_on_has_no_top() -> None:
+  # Without a row of ours there is no telling which section's top applies.
+  assert _top_from(_other_row(8, 0)) is None
+
+
 # --- cross-checks against the sheet ---
 
 
@@ -643,6 +726,9 @@ def test_the_reconciled_subset_is_copied_onto_the_board() -> None:
   board = session.boards[0]
   assert board.deal == _DEAL
   assert board.matchpoints == 6.0
+  # Our row is the board's only one, and its two scores, six and nought, add up
+  # to six.
+  assert board.matchpoint_top == 6.0
   assert board.our_pair is not None
   assert board.opponents is not None
 
@@ -838,6 +924,7 @@ def test_withdrawing_the_last_traveller_takes_its_enrichment_with_it() -> None:
   )
   assert enriched.boards[0].deal == _DEAL
   assert enriched.boards[0].solved_double_dummy_tricks == _SOLVED_TABLE
+  assert enriched.boards[0].matchpoint_top == 6.0
 
   withdrawn = reconcile_session(enriched, [], our_name=OUR_NAME)
 

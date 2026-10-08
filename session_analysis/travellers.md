@@ -476,10 +476,12 @@ fixed (see [Acquisition](#acquisition)).
 - **Enrichment**: the reconciled subset — deal, its solved double-dummy table,
   matchpoints, and both pair identities — is copied onto our `Board`, so the
   per-session record stays self-contained for the analysis stage; the par stays
-  in the traveller record, read from there by the analysis stage. When two
-  sources disagree on a copied field, the field is left unfilled and an issue
-  names what each source said, rather than taking a silent tiebreak — a record
-  that asserts nothing is honest where one that picks a winner is not.
+  in the traveller record, read from there by the analysis stage. The board also
+  gets its matchpoint top, which no source states: it is worked out from every
+  source's rows pooled together (`reconciliation._top_of`). When two sources
+  disagree on a copied field, the field is left unfilled and an issue names what
+  each source said, rather than taking a silent tiebreak — a record that asserts
+  nothing is honest where one that picks a winner is not.
 - **Detail is not disagreement.** Two sources routinely describe one thing at
   different depths: `Last & Person` and `First Last & Second Person` are one
   pair written twice. A pair merges when its seat — number, side, and section —

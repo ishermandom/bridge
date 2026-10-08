@@ -4,9 +4,9 @@
 
 The sheet is our own account of the boards we played; a traveller is the
 official account of every table's play of every board. Joining them enriches the
-sheet with what it never recorded — the deal, the matchpoints, and who we and
-our opponents were — and turns every field both records into a cross-check.
-travellers.md `#reconciliation` carries the design.
+sheet with what it never recorded — the deal, the matchpoints with each board's
+top, and who we and our opponents were — and turns every field both records into
+a cross-check. travellers.md `#reconciliation` carries the design.
 
 A traveller arrives after the session and sometimes days later, so the join runs
 over every pending session on every ingest pass rather than once, when a session
@@ -35,6 +35,7 @@ to its session reads the event and date out of the capture, and belongs to
 acquisition rather than here.
 """
 
+import collections
 import dataclasses
 import itertools
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -281,6 +282,10 @@ class BoardEnrichment:
   our_pair: PairIdentity | None = None
   opponents: PairIdentity | None = None
   matchpoints: float | None = None
+  # Unlike the fields above, worked out from every source's rows pooled together
+  # rather than merged source by source, so it is never contradicted, and a None
+  # here comes with no issue. `_top_of` says when it is None.
+  matchpoint_top: float | None = None
   # What the travellers say we played, for cross-checking against the sheet.
   resolution: Resolution | None = None
   issues: tuple[Issue, ...] = ()
@@ -493,10 +498,11 @@ class _SourceView:
   deal: Deal | None
   solved_double_dummy_tricks: SolvedDoubleDummyTricks | None
   our_row: _OurRow | None
-  # Whether this source recorded any play of the board at all. It tells a board
-  # nobody reached from one we simply could not be found on, which read from
-  # `our_row` alone look identical.
-  has_results: bool
+  # Every table's row of the board, ours among them. An empty `results` marks a
+  # board nobody reached, which `our_row` alone cannot tell from one we could
+  # not be found on. The rows of our section also give the board its matchpoint
+  # top.
+  results: tuple[TravellerResult, ...]
   # Whether any row named us, whether or not one could be singled out. A board
   # naming us twice yields no row and yet is not a board that failed to name us,
   # and reporting it as one would state the opposite of what happened.
@@ -580,6 +586,7 @@ def _merge_board(
     board_number=board_number,
     describe=_describe_resolution,
   )
+  matchpoint_top = _top_of(views.values(), our_pair=our_pair.value)
 
   merged = (deal, our_pair, opponents, our_matchpoints, resolution)
   issues = [issue for field in merged for issue in field.issues]
@@ -588,11 +595,11 @@ def _merge_board(
   # A board that was played and yet yields no row of ours is the shape a
   # misspelled name takes, and the shape a traveller from the wrong session
   # takes on a board number the two sessions happen to share. A board nobody
-  # reached yields no row either and is not worth remarking on, which is what
-  # `has_results` separates. The finding rides on the enrichment rather than
-  # being raised here, so it reaches a reviewer only if the sheet claims to have
-  # played the board.
-  if not rows and any(view.has_results for view in views.values()):
+  # reached yields no row either and is not worth remarking on, so the check
+  # below also asks that some source recorded results for the board. The finding
+  # rides on the enrichment rather than being raised here, so it reaches a
+  # reviewer only if the sheet claims to have played the board.
+  if not rows and any(view.results for view in views.values()):
     # Named-but-ambiguous and never-named cost the board the same enrichment and
     # want different words: saying no row names us where several do would send a
     # reviewer looking for a misspelling that is not there.
@@ -614,9 +621,58 @@ def _merge_board(
     our_pair=our_pair.value,
     opponents=opponents.value,
     matchpoints=our_matchpoints.value,
+    matchpoint_top=matchpoint_top,
     resolution=resolution.value,
     issues=tuple(issues),
   )
+
+
+def _top_of(
+  views: Iterable[_SourceView], *, our_pair: PairIdentity | None
+) -> float | None:
+  """The most a pair in our section could score on the board, if known.
+
+  No source states a top, but every row states one implicitly: the two sides'
+  matchpoints on a row add up to it. Two things keep that from being as simple
+  as reading one row.
+
+  - **Sections.** A club traveller can list every section's rows together, and
+    each section is scored on its own top. Only rows in our own section count.
+  - **Adjusted scores.** A row the director scored as average-plus for both
+    sides adds up to more than the top. Such rows are rare, so the total most
+    rows share is the top.
+
+  None in three cases: where our section is unknown, because no row placed us or
+  the sources disagreed over which pair we were; where no row in our section was
+  scored; and where two totals tie for most common.
+  """
+  if not our_pair:
+    return None
+
+  # Every source's rows are pooled: two captures of one session repeat the same
+  # rows, which leaves the most common total unchanged.
+  row_totals: collections.Counter[float] = collections.Counter()
+  for view in views:
+    for row in view.results:
+      north_south = row.north_south_matchpoints
+      east_west = row.east_west_matchpoints
+      if (
+        row.north_south.section != our_pair.section
+        or north_south is None
+        or east_west is None
+      ):
+        continue
+      # Sources print matchpoints to at most two places, so rounding a total to
+      # two places recovers the sum as printed. Unrounded, `2.1 + 3.2` would
+      # count toward a different total than `5.3 + 0` does.
+      row_totals[round(north_south + east_west, 2)] += 1
+
+  ranked = row_totals.most_common(2)
+  if not ranked:
+    return None
+  top, row_count = ranked[0]
+  is_tied = len(ranked) == 2 and ranked[1][1] == row_count
+  return None if is_tied else top
 
 
 def build_enrichments(
@@ -652,7 +708,7 @@ def build_enrichments(
         deal=board.deal,
         solved_double_dummy_tricks=board.solved_double_dummy_tricks,
         our_row=row_match.value.row,
-        has_results=bool(board.results),
+        results=board.results,
         names_us=row_match.value.names_us,
         issues=tuple(row_match.issues),
       )
@@ -975,6 +1031,7 @@ def _enrich(board: Board, enrichment: BoardEnrichment) -> Board:
       'our_pair': enrichment.our_pair,
       'opponents': enrichment.opponents,
       'matchpoints': enrichment.matchpoints,
+      'matchpoint_top': enrichment.matchpoint_top,
       'issues': tuple(issues),
     }
   )
@@ -1002,6 +1059,7 @@ def _without_enrichment(session: Session) -> Session:
         'our_pair': None,
         'opponents': None,
         'matchpoints': None,
+        'matchpoint_top': None,
         'issues': _findings_of_other_stages(board.issues),
       }
     )

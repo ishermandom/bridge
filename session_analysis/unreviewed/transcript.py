@@ -104,7 +104,6 @@ from session_analysis.models import (
   Session,
 )
 from session_analysis.private_paths import PrivateTree, discover_private_tree
-from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import (
   double_dummy_comparison,
   session_summary,
@@ -171,16 +170,12 @@ _PENALTY_MARKS: Mapping[Penalty, str] = {
 _HUNDREDTHS = Decimal('0.01')
 
 
-def transcript_of(
-  session: Session, travellers: Sequence[Traveller] = ()
-) -> Sequence[Block]:
+def transcript_of(session: Session) -> Sequence[Block]:
   """The whole of one session, as blocks `transcript_layout` lays out.
 
-  `travellers` are the captures reconciliation joined to this session, and carry
-  the matchpoint tops. They are passed in rather than read here so that
-  rendering stays a pure function of what it is handed;
-  `double_dummy_comparison.read_referenced_travellers` is what reads them off
-  disk.
+  Everything a transcript shows is worked out from the session alone:
+  reconciliation has already written the travellers' contribution onto each
+  board, so rendering reads no other record.
   """
   played = [board for board in session.boards if _was_played(board)]
   header = _header(session, has_played_boards=bool(played))
@@ -188,7 +183,7 @@ def transcript_of(
     return (header, Paragraph(('This session recorded no boards.',)))
 
   comparisons = double_dummy_comparison.compare_boards(session)
-  summary = session_summary.summarize(played, travellers, comparisons)
+  summary = session_summary.summarize(played, comparisons)
   return (
     header,
     *_error_lines(summary),
@@ -200,11 +195,9 @@ def transcript_of(
   )
 
 
-def render_session(
-  session: Session, travellers: Sequence[Traveller] = ()
-) -> Iterator[str]:
+def render_session(session: Session) -> Iterator[str]:
   """The transcript of one session as plain text, a line at a time."""
-  return as_plain_text(transcript_of(session, travellers))
+  return as_plain_text(transcript_of(session))
 
 
 def _header(session: Session, *, has_played_boards: bool) -> Paragraph:
@@ -750,10 +743,7 @@ def main(
   """
   arguments = _parse_args(argv)
   records: Sequence[Path] = arguments.records
-  tree: PrivateTree | None
-  if records:
-    tree = _private_tree_if_any()
-  else:
+  if not records:
     try:
       tree = discover_private_tree()
     except (FileNotFoundError, RuntimeError) as error:
@@ -770,10 +760,7 @@ def main(
   status = 0 if len(sessions) == len(records) else 1
   # Built lazily, so that plain text prints each session as soon as it is
   # transcribed, rather than all of them at the end.
-  transcripts = (
-    transcript_of(session, _travellers_for(session, tree))
-    for session in sessions
-  )
+  transcripts = (transcript_of(session) for session in sessions)
   if not arguments.page:
     _print_transcripts(transcripts)
   elif sessions:
@@ -789,47 +776,6 @@ def _print_transcripts(transcripts: Iterable[Sequence[Block]]) -> None:
       print()
     for line in as_plain_text(transcript):
       print(line)
-
-
-def _private_tree_if_any() -> PrivateTree | None:
-  """The private tree beside this checkout, or None where there is none.
-
-  A record named on the command line is transcribed wherever it sits, so having
-  no tree is not fatal on that path. It costs only the double-dummy comparison,
-  and `_travellers_for` says so on standard error when a session named
-  travellers.
-  """
-  try:
-    return discover_private_tree()
-  except (FileNotFoundError, RuntimeError):
-    return None
-
-
-def _travellers_for(
-  session: Session, tree: PrivateTree | None
-) -> Sequence[Traveller]:
-  """The stored travellers a session names, with any trouble on standard error.
-
-  A session naming none needs no tree at all, which is what lets a record handed
-  over by path be transcribed outside the private tree entirely. One that does
-  name travellers and has no tree to read them from is complained about rather
-  than left to print as a session nothing could be compared for.
-  """
-  if not session.source.travellers:
-    return ()
-
-  if not tree:
-    print(
-      f'{session.event}: no private tree beside this checkout, so the '
-      f'travellers this session names went unread',
-      file=sys.stderr,
-    )
-    return ()
-
-  read = double_dummy_comparison.read_referenced_travellers(tree, session)
-  for issue in read.issues:
-    print(issue.message, file=sys.stderr)
-  return read.value
 
 
 def _read_session(record: Path) -> Session | None:

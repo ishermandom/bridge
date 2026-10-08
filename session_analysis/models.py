@@ -278,6 +278,10 @@ class Board(FrozenModel):
   # Traveller-sourced; filled at reconciliation, `None` until then and for
   # no-traveller sessions. Our side's matchpoints on this board.
   matchpoints: float | None = None
+  # The most a pair in our section could score on this board. Traveller-sourced
+  # like `matchpoints`, and also `None` where the rows leave it unclear, as when
+  # two totals tie for most common; `reconciliation._top_of` gives every case.
+  matchpoint_top: float | None = None
   # Traveller-sourced like `matchpoints`. The deal is what the whole downstream
   # analysis rests on, and no sheet records it.
   deal: Deal | None = None

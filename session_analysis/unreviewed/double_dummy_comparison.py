@@ -54,27 +54,16 @@ leaving it to read as a session whose every board came out even.
 """
 
 import dataclasses
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
-from session_analysis import issue_reporting, traveller_store
-from session_analysis.enums import Direction, IssueSeverity
+from session_analysis.enums import Direction
 from session_analysis.models import (
   Board,
   Contract,
   PlayedContract,
   Session,
 )
-from session_analysis.private_paths import PrivateTree
-from session_analysis.travellers import Traveller
 from session_analysis.unreviewed import deal_checks, double_dummy_solving
-
-# A traveller that a session names but that cannot be read back. Worth reporting
-# rather than passing over: the session says the capture was consulted, so a
-# record either never stored or no longer parsing leaves the comparisons that
-# capture would have supplied quietly missing.
-_UNREADABLE_TRAVELLER = issue_reporting.Failure(
-  'unreadable_traveller_record', IssueSeverity.LOW, 'traveller'
-)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -168,43 +157,6 @@ def compare_boards(session: Session) -> Mapping[int, BoardComparison]:
       ),
     )
   return comparisons
-
-
-def read_referenced_travellers(
-  tree: PrivateTree, session: Session
-) -> issue_reporting.Read[Sequence[Traveller]]:
-  """Read back the stored travellers a session's provenance names.
-
-  Reconciliation records which captures it consulted, so a session names its own
-  travellers and nothing has to search the whole record root for them. That
-  keeps the comparison honest as well as cheap: a capture of some other session
-  that happens to number its boards the same way is never consulted here.
-
-  A record that is missing or no longer parses costs only the comparisons it
-  would have supplied, not the rest of the run, and is reported rather than
-  passed over.
-  """
-  travellers = []
-  issues = []
-  for reference in session.source.travellers:
-    record = traveller_store.record_for(tree, reference.path)
-    try:
-      text = record.read_text()
-    except OSError as error:
-      issues.append(
-        _UNREADABLE_TRAVELLER.issue(f'could not read {record}: {error}')
-      )
-      continue
-
-    try:
-      travellers.append(Traveller.model_validate_json(text))
-    except ValueError as error:
-      issues.append(
-        _UNREADABLE_TRAVELLER.issue(
-          f'{record} holds no traveller record: {error}'
-        )
-      )
-  return issue_reporting.Read(tuple(travellers), tuple(issues))
 
 
 @dataclasses.dataclass(frozen=True)

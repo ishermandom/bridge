@@ -947,9 +947,9 @@ rationale lives in the design docs' open-question sections —
 - [ ] Clear a board's enrichment when no traveller covers it any longer.
   - Rationale: `reconcile_session` rewrites only the issues of a board no
     traveller covers, so a board an earlier run enriched keeps its deal, solved
-    table, matchpoints and pairs after the capture that covered it is withdrawn.
-    `_without_enrichment` clears all of them, but only when no traveller remains
-    for the whole session.
+    table, matchpoints, top and pairs after the capture that covered it is
+    withdrawn. `_without_enrichment` clears all of them, but only when no
+    traveller remains for the whole session.
   - Note: found by reading the code, not seen in a stored record. It bites only
     when one capture of several is withdrawn, which has not happened yet.
 - [ ] Maybe: check a club recap's blank double-dummy cells against the solved
