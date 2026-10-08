@@ -4,9 +4,9 @@
 
 Rendering is pure, so every test here builds its session in memory and asserts
 on the lines that come out. Most assert on one board's line alone, which
-`_board_line` pulls off the end of a one-board transcript — the marks a call or
-a contract cell carries are what those tests are about, not the table around
-them.
+`_board_line` picks out of a one-board transcript — the marks a call or a
+contract cell carries are what those tests are about, not the summary or the
+tables around them.
 
 The command is the exception, and it reads real files under `tmp_path`: what it
 is for is finding records on disk, so a stream would test something else.
@@ -55,6 +55,7 @@ from session_analysis.testing.deals import a_deal_the_lead_decides
 from session_analysis.travellers import (
   Traveller,
   TravellerBoard,
+  TravellerResult,
   TravellerSource,
 )
 from session_analysis.unreviewed.transcript import main, render_session
@@ -233,22 +234,32 @@ def _board_line(board: Board) -> str:
   return _board_line_of(render_session(_make_session(board)))
 
 
+# The line separating the summary from the boards.
+_RULE = '_____________'
+
+
 def _board_line_of(lines: Iterable[str]) -> str:
   """The first board's line — the only one, in the sessions built here.
 
   Every test that reaches for this builds a single-board session, so the first
   board line is the only one.
 
-  A transcript runs header, blank, boards, and then — where anything could be
-  compared — a second blank and the recap. The line just past the header's blank
-  is therefore the first board. Neither end of the transcript would do: the
-  header sits above the boards and the recap below them. Nor would matching the
+  A transcript runs its header and summary, then a rule of underscores and a
+  blank, then the boards. The line just past the rule's blank is therefore the
+  first board. Neither end of the transcript would do, since the summary sits
+  above the boards and the could-have table below them. Nor would matching the
   `#` a board line usually opens with — a board number that did not parse writes
   its transcription there instead.
   """
-  past_header = itertools.dropwhile(bool, lines)
-  next(past_header)  # the blank line that closes the header
-  return next(past_header)
+  from_rule = itertools.dropwhile(lambda line: line != _RULE, lines)
+  next(from_rule)  # the rule itself
+  next(from_rule)  # the blank line under it
+  return next(from_rule)
+
+
+def _lines_of(session: Session, travellers: Sequence[Traveller] = ()) -> str:
+  """The whole transcript, as one string, for asserting on a run of lines."""
+  return '\n'.join(render_session(session, travellers))
 
 
 # --- the auction, in the sheet's own marks ---
@@ -264,7 +275,7 @@ def test_a_notrump_bid_writes_its_strain_as_one_letter() -> None:
   board = _make_board(auction=[_make_bid(1, Strain.NOTRUMP)])
 
   # The canonical strain is `NT`; the sheet writes the `N` alone.
-  assert _board_line(board) == '#5    1N'
+  assert _board_line(board) == '#5\t1N'
 
 
 def test_a_circled_call_is_written_in_parentheses() -> None:
@@ -430,6 +441,107 @@ def test_a_contract_cell_that_did_not_parse_shows_its_transcription() -> None:
   assert '?4H W?' in _board_line(board)
 
 
+# --- the auction running into the contract cell ---
+
+
+def test_an_auction_ending_in_the_contract_runs_into_it() -> None:
+  board = _make_board(
+    auction=[_make_bid(1, Strain.NOTRUMP), _make_bid(3, Strain.NOTRUMP)],
+    outcome=_make_outcome(
+      level=3, strain=Strain.NOTRUMP, declarer=Direction.SOUTH, tricks_taken=9
+    ),
+  )
+
+  # The final bid already says `3N`, so the cell adds only declarer and result.
+  assert _board_line(board) == '#5\t1N 3NS+3'
+
+
+def test_an_opponents_final_bid_keeps_its_parentheses() -> None:
+  board = _make_board(
+    auction=[
+      _make_bid(4, Strain.SPADES),
+      _make_bid(5, Strain.CLUBS, by_opponents=True),
+    ],
+    outcome=_make_outcome(
+      level=5, strain=Strain.CLUBS, declarer=Direction.NORTH, tricks_taken=10
+    ),
+  )
+
+  assert _board_line(board) == '#5\t4S (5C)N-1'
+
+
+def test_a_final_double_is_carried_by_the_contract_s_mark() -> None:
+  board = _make_board(
+    auction=[
+      _make_bid(4, Strain.CLUBS),
+      _make_call(CallKind.DOUBLE, by_opponents=True),
+    ],
+    outcome=_make_outcome(
+      level=4,
+      strain=Strain.CLUBS,
+      declarer=Direction.EAST,
+      tricks_taken=6,
+      penalty=Penalty.DOUBLED,
+    ),
+  )
+
+  assert _board_line(board) == '#5\t4C*E-4'
+
+
+def test_a_double_the_auction_left_unwritten_still_runs_in() -> None:
+  board = _make_board(
+    auction=[_make_bid(4, Strain.CLUBS)],
+    outcome=_make_outcome(
+      level=4,
+      strain=Strain.CLUBS,
+      declarer=Direction.EAST,
+      tricks_taken=6,
+      penalty=Penalty.DOUBLED,
+    ),
+  )
+
+  assert _board_line(board) == '#5\t4C*E-4'
+
+
+def test_a_double_contradicting_the_contract_cell_writes_both_out() -> None:
+  board = _make_board(
+    auction=[
+      _make_bid(4, Strain.CLUBS),
+      _make_call(CallKind.DOUBLE, by_opponents=True),
+    ],
+    outcome=_make_outcome(
+      level=4, strain=Strain.CLUBS, declarer=Direction.EAST, tricks_taken=10
+    ),
+  )
+
+  # The auction shows a double the contract cell does not, and folding the two
+  # together would hide which of them is wrong.
+  assert _board_line(board) == '#5\t4C (DBL) 4CE+4'
+
+
+def test_an_auction_ending_short_of_the_contract_writes_both_out() -> None:
+  board = _make_board(
+    auction=[_make_bid(1, Strain.CLUBS)],
+    outcome=_make_outcome(
+      level=4, strain=Strain.CLUBS, declarer=Direction.WEST, tricks_taken=10
+    ),
+  )
+
+  assert _board_line(board) == '#5\t1C 4CW+4'
+
+
+def test_an_unread_final_call_writes_both_out() -> None:
+  board = _make_board(
+    auction=[_make_bid(4, Strain.CLUBS), _make_unread_call('x?')],
+    outcome=_make_outcome(
+      level=4, strain=Strain.CLUBS, declarer=Direction.WEST, tricks_taken=10
+    ),
+  )
+
+  # The unread call could itself have been a higher bid.
+  assert _board_line(board) == '#5\t4C ?x?? 4CW+4'
+
+
 # --- the opening lead ---
 
 
@@ -491,9 +603,9 @@ def test_a_board_with_no_lead_recorded_shows_none() -> None:
 
 
 def test_a_board_number_leads_the_line() -> None:
-  board = _make_board(7)
+  board = _make_board(7, auction=[_make_bid(1, Strain.CLUBS)])
 
-  assert _board_line(board).startswith('#7')
+  assert _board_line(board).startswith('#7\t')
 
 
 def test_a_board_number_that_did_not_parse_shows_its_transcription() -> None:
@@ -532,7 +644,7 @@ def test_a_bottom_board_shows_its_zero() -> None:
 
 
 def test_a_board_no_traveller_has_reached_shows_no_matchpoints() -> None:
-  board = _make_board(matchpoints=None)
+  board = _make_board(auction=[_make_bid(1, Strain.CLUBS)], matchpoints=None)
 
   assert 'MP=' not in _board_line(board)
 
@@ -541,26 +653,26 @@ def test_a_board_no_traveller_has_reached_shows_no_matchpoints() -> None:
 
 
 def test_the_header_names_the_session_and_its_date() -> None:
-  session = _make_session(_make_board())
+  session = _make_session(_make_board(auction=[_make_bid(1, Strain.CLUBS)]))
 
   assert next(iter(render_session(session))) == 'Monday Pairs — 2026-06-29'
 
 
-def test_the_header_carries_the_stored_session_key() -> None:
-  session = _make_session(_make_board(), session_key='pabc-mon-2026-06-29')
+def test_the_header_is_a_single_line() -> None:
+  session = _make_session(
+    _make_board(auction=[_make_bid(1, Strain.CLUBS)]),
+    session_key='pabc-mon-2026-06-29',
+  )
 
-  assert list(render_session(session))[1] == 'pabc-mon-2026-06-29'
-
-
-def test_a_session_not_yet_ingested_has_no_key_to_name() -> None:
-  session = _make_session(_make_board(), session_key=None)
-
-  # The blank separating line takes the key's place.
+  # The stored key names the same session as the event and date, so it is left
+  # out of a header kept to one line.
   assert list(render_session(session))[1] == ''
 
 
 def test_a_date_the_footer_did_not_yield_says_so() -> None:
-  session = _make_session(_make_board(), date=None)
+  session = _make_session(
+    _make_board(auction=[_make_bid(1, Strain.CLUBS)]), date=None
+  )
 
   assert next(iter(render_session(session))) == 'Monday Pairs — date not read'
 
@@ -568,30 +680,29 @@ def test_a_date_the_footer_did_not_yield_says_so() -> None:
 # --- laying the boards out ---
 
 
-def test_a_column_is_padded_to_its_widest_value() -> None:
+def test_the_board_lines_run_with_nothing_between_them() -> None:
   session = _make_session(
-    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)], matchpoints=6),
-    _make_board(
-      6,
-      auction=[_make_bid(1, Strain.NOTRUMP), _make_bid(3, Strain.NOTRUMP)],
-      matchpoints=4.5,
-    ),
+    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+    _make_board(6, auction=[_make_bid(1, Strain.HEARTS)]),
   )
 
-  short_auction, long_auction = list(render_session(session))[-2:]
-
-  # The shorter auction is padded out to the longer one, so both boards'
-  # matchpoints start at the same column.
-  assert short_auction.index('MP=') == long_auction.index('MP=')
+  # A solid block of rows is what pastes cleanly into a spreadsheet.
+  assert '#5\t1C\n#6\t1H' in _lines_of(session)
 
 
-def test_a_row_the_sheet_left_blank_is_not_transcribed() -> None:
+def test_a_row_carrying_only_its_number_is_not_transcribed() -> None:
+  # The last rows of a sheet are often numbered and never reached.
   played = _make_board(5, auction=[_make_bid(1, Strain.CLUBS)])
-  unused = Board(number=BoardNumber(raw=''))
-  session = _make_session(played, unused)
+  unreached = _make_board(6)
+  session = _make_session(played, unreached)
 
-  # The header's three lines plus the one board that recorded something.
-  assert len(list(render_session(session))) == 4
+  assert '#6' not in _lines_of(session)
+
+
+def test_a_board_scored_but_otherwise_unrecorded_is_transcribed() -> None:
+  session = _make_session(_make_board(6, matchpoints=4.5))
+
+  assert '#6\t\t\tMP=4.5' in _lines_of(session)
 
 
 def test_a_session_whose_every_row_was_blank_says_so() -> None:
@@ -779,6 +890,203 @@ def test_a_session_that_recorded_nothing_carries_no_caveat() -> None:
   ]
 
 
+# --- the summary ---
+
+
+def _make_scored_traveller(top: float, *board_numbers: int) -> Traveller:
+  """A traveller scoring each board on `top`, from one row apiece.
+
+  A row's two scores add up to the board's top, so one row is all a top needs.
+  """
+  row = TravellerResult(
+    north_south=PairIdentity(number='1', side=Side.NORTH_SOUTH),
+    east_west=PairIdentity(number='2', side=Side.EAST_WEST),
+    north_south_matchpoints=top,
+    east_west_matchpoints=0,
+  )
+  return Traveller(
+    source=TravellerSource.CLUB_HTML,
+    reference=CaptureReference(path='club/260629.html'),
+    event='Monday Pairs',
+    boards=tuple(
+      TravellerBoard(number=number, results=(row,)) for number in board_numbers
+    ),
+  )
+
+
+def _make_scored_board(
+  number: int, *, declarer: Direction, matchpoints: float | None
+) -> Board:
+  """A board we sat East-West on, played in four spades by `declarer`."""
+  return _make_board(
+    number,
+    outcome=_make_outcome(
+      level=4, strain=Strain.SPADES, declarer=declarer, tricks_taken=10
+    ),
+    matchpoints=matchpoints,
+    our_side=Side.EAST_WEST,
+  )
+
+
+def test_the_summary_totals_each_role_then_each_seat_within_it() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
+    # North declaring puts East on lead.
+    _make_scored_board(2, declarer=Direction.NORTH, matchpoints=2),
+    _make_scored_board(3, declarer=Direction.WEST, matchpoints=4),
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2, 3)])
+
+  # Each board is scored out of eight: East declared six, led against two, and
+  # West declared four.
+  assert (
+    '62.50%\tWe declared 2 hands\n'
+    '  75.00%\t· E played 1\n'
+    '  50.00%\t· W played 1\n'
+    '\n'
+    '25.00%\tWe defended 1 hand\n'
+    '  25.00%\t· E on lead for 1\n'
+    '\n'
+    '50.00%\tNet, across 3 hands'
+  ) in lines
+
+
+def test_each_seat_of_ours_gets_a_line_for_its_errors() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
+    _make_scored_board(2, declarer=Direction.WEST, matchpoints=2),
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2)])
+
+  assert 'E error =\nW error =' in lines
+
+
+def test_the_summary_names_the_top() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6)
+  )
+
+  assert 'TOP=8' in _lines_of(session, [_make_scored_traveller(8, 1)])
+
+
+def test_a_percentage_rounds_a_half_up() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=17)
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(32, 1)])
+
+  # 17 of 32 is exactly 53.125%, which a reader rounding by hand calls 53.13%.
+  assert '53.13%\tNet, across 1 hand' in lines
+
+
+def test_a_session_without_matchpoints_has_no_matchpoint_column() -> None:
+  # The deal and the traveller give the board both double-dummy counts, as a
+  # teams game's traveller does, and nothing scores it in matchpoints.
+  session = _make_session(
+    _make_board(
+      5,
+      outcome=_make_outcome(
+        level=3,
+        strain=Strain.NOTRUMP,
+        declarer=Direction.SOUTH,
+        tricks_taken=11,
+      ),
+      opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
+      our_side=Side.NORTH_SOUTH,
+      deal=a_deal_the_lead_decides(),
+    )
+  )
+  traveller = _make_traveller(
+    5, declarer=Direction.SOUTH, strain=Strain.NOTRUMP, tricks=9
+  )
+
+  lines = _lines_of(session, [traveller])
+
+  # Eleven tricks against the table's nine, and against the thirteen the spade
+  # lead left standing.
+  assert 'DD+2\tPLAY-2\tNet, across 1 hand' in lines
+  assert '%' not in lines
+
+
+def test_a_board_left_out_of_the_matchpoints_is_noted() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
+    _make_scored_board(2, declarer=Direction.EAST, matchpoints=None),
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2)])
+
+  assert (
+    '(1 hand had no matchpoints, or no top to score them against, and sat out '
+    'of the percentages.)'
+  ) in lines
+
+
+# --- what the session could have scored ---
+
+
+def test_the_could_have_table_starts_each_board_at_its_actual_score() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6)
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(8, 1)])
+
+  assert 'Board\t\tActual\tCan Do\tAction\n1\t4♠E+4\t6.00\t6.00' in lines
+
+
+def test_the_could_have_table_keeps_a_doubled_contract_s_mark() -> None:
+  board = _make_board(
+    1,
+    outcome=_make_outcome(
+      level=4,
+      strain=Strain.CLUBS,
+      declarer=Direction.EAST,
+      tricks_taken=6,
+      penalty=Penalty.DOUBLED,
+    ),
+    matchpoints=0,
+    our_side=Side.EAST_WEST,
+  )
+
+  lines = _lines_of(_make_session(board), [_make_scored_traveller(8, 1)])
+
+  assert '1\t4♣*E-4\t0.00\t0.00' in lines
+
+
+def test_the_could_have_table_closes_on_the_session_average() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6),
+    _make_scored_board(2, declarer=Direction.EAST, matchpoints=2),
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(8, 1, 2)])
+
+  # Both columns start equal, so the two averages do too.
+  assert lines.endswith('\tAVERAGE\t50.00%\t50.00%')
+
+
+def test_the_could_have_table_leaves_its_standing_for_the_reader() -> None:
+  session = _make_session(
+    _make_scored_board(1, declarer=Direction.EAST, matchpoints=6)
+  )
+
+  lines = _lines_of(session, [_make_scored_traveller(8, 1)])
+
+  assert (
+    '[place overall] and [place in strat] earning [points] masterpoints'
+  ) in lines
+
+
+def test_a_session_without_matchpoints_has_no_could_have_table() -> None:
+  session = _make_session(_make_board(5, auction=[_make_bid(1, Strain.CLUBS)]))
+
+  assert 'Can Do' not in _lines_of(session)
+
+
 # --- the command ---
 
 
@@ -795,7 +1103,7 @@ def test_the_command_transcribes_a_record_it_is_given(
   session = _make_session(
     _make_board(
       5,
-      auction=[_make_bid(1, Strain.CLUBS)],
+      auction=[_make_bid(4, Strain.CLUBS)],
       outcome=_make_outcome(
         level=4, strain=Strain.CLUBS, declarer=Direction.WEST, tricks_taken=10
       ),
@@ -806,7 +1114,7 @@ def test_the_command_transcribes_a_record_it_is_given(
   status = main([str(record)])
 
   assert status == 0
-  assert '#5    1C    4CW+4' in capsys.readouterr().out
+  assert '#5\t4CW+4' in capsys.readouterr().out
 
 
 def test_the_command_separates_two_records_with_a_blank_line(
@@ -843,7 +1151,10 @@ def test_the_command_transcribes_the_records_it_can_read(
 ) -> None:
   broken = tmp_path / 'broken.json'
   broken.write_text('{"event": "Monday Pairs"}')
-  readable = _write_record(tmp_path, _make_session(_make_board(5)))
+  readable = _write_record(
+    tmp_path,
+    _make_session(_make_board(5, auction=[_make_bid(1, Strain.CLUBS)])),
+  )
 
   status = main([str(broken), str(readable)])
 
@@ -851,3 +1162,22 @@ def test_the_command_transcribes_the_records_it_can_read(
   # One unreadable record costs its own transcript, not the run's.
   assert status == 1
   assert '#5' in captured.out
+
+
+def test_the_command_hands_over_a_page_rather_than_printing(
+  tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+  record = _write_record(
+    tmp_path,
+    _make_session(_make_board(5, auction=[_make_bid(1, Strain.CLUBS)])),
+  )
+  pages: list[str] = []
+
+  status = main([str(record), '--page'], show_page=pages.append)
+
+  assert status == 0
+  assert not capsys.readouterr().out
+  # One page, titled for its one session, with the board in a table cell.
+  [page] = pages
+  assert '<title>Monday Pairs — 2026-06-29</title>' in page
+  assert '>#5</td>' in page
