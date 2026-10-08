@@ -19,10 +19,12 @@ way — instead of flipping meaning with every board we defended.
 There are two such comparisons — `BoardComparison` carries both — and the
 difference between them is the point of having both:
 
-- **Against the published table** (`whole_deal`). The table states the tricks
-  available with best play on both sides, and best play by the defense includes
-  its choice of lead — so this measures the whole board against everything the
-  deal offered. It is read from a traveller rather than solved.
+- **Against the whole deal** (`whole_deal`). The deal's double-dummy table
+  states the tricks available with best play on both sides, and best play by the
+  defense includes its choice of lead — so this measures the whole board against
+  everything the deal offered. The table is solved once, when its capture is
+  stored, and reconciliation carries it onto the board, so here it is read
+  rather than solved.
 - **Against the deal after the lead actually made** (`after_lead`). No table can
   answer this one, so it is solved; `double_dummy_solving` is the seam.
   Measuring from the position the lead left rather than from the start of the
@@ -55,7 +57,7 @@ import dataclasses
 from collections.abc import Mapping, Sequence
 
 from session_analysis import issue_reporting, traveller_store
-from session_analysis.enums import Direction, IssueSeverity, Strain
+from session_analysis.enums import Direction, IssueSeverity
 from session_analysis.models import (
   Board,
   Contract,
@@ -80,10 +82,9 @@ class BoardComparison:
   """What the two comparisons made of one board, in tricks our side gained.
 
   Either count is None where that comparison could not be made, and the two fail
-  independently: a source listing only its makeable contracts states no cell for
-  a declarer held under seven tricks and yet gives the deal, so `after_lead` can
-  answer where `whole_deal` cannot. A board neither reached is not represented
-  at all.
+  independently: a board whose lead went unrecorded can still be set against its
+  table, and one carrying a deal but no table can still be solved after its
+  lead. A board neither reached is not represented at all.
   """
 
   whole_deal: int | None
@@ -124,9 +125,7 @@ def placement_of(board: Board) -> Placement | None:
   )
 
 
-def compare_boards(
-  session: Session, travellers: Sequence[Traveller]
-) -> Mapping[int, BoardComparison]:
+def compare_boards(session: Session) -> Mapping[int, BoardComparison]:
   """Both comparisons for every board either of them could be made for.
 
   Keyed by board number. A board that `_comparable` turns away is absent, and so
@@ -144,21 +143,29 @@ def compare_boards(
     if not comparable:
       continue
 
-    published = _published_tricks(
-      travellers,
-      board_number=comparable.number,
-      declarer=comparable.contract.declarer,
-      strain=comparable.contract.strain,
+    table = board.solved_double_dummy_tricks
+    whole_deal_tricks = (
+      table[comparable.contract.declarer][comparable.contract.strain]
+      if table
+      else None
     )
-    solved = _solved_tricks(board, comparable.contract)
+    after_lead_tricks = _solved_tricks(board, comparable.contract)
     # Tested for stated values rather than truthy ones: a declarer holding no
-    # trick at all is a count of zero, which a source does state.
-    if published is None and solved is None:
+    # trick at all is a count of zero.
+    if whole_deal_tricks is None and after_lead_tricks is None:
       continue
 
     comparisons[comparable.number] = BoardComparison(
-      whole_deal=None if published is None else comparable.gain_on(published),
-      after_lead=None if solved is None else comparable.gain_on(solved),
+      whole_deal=(
+        None
+        if whole_deal_tricks is None
+        else comparable.gain_on(whole_deal_tricks)
+      ),
+      after_lead=(
+        None
+        if after_lead_tricks is None
+        else comparable.gain_on(after_lead_tricks)
+      ),
     )
   return comparisons
 
@@ -233,8 +240,9 @@ def _comparable(board: Board) -> _ComparableBoard | None:
   """
   played = _played_contract(board)
   # Which side we sat is what orients the sign, so an unplaced board has no
-  # comparison to offer. A board is found by the number the sheet gave it, so
-  # one whose number could not be read reaches no traveller row.
+  # comparison to offer. A board is matched to its traveller row by the number
+  # the sheet gave it, so one whose number could not be read carries nothing
+  # from a traveller to compare against, and nothing to key its comparison by.
   placement = placement_of(board)
   if not board.number.schedule or not played or not placement:
     return None
@@ -283,55 +291,3 @@ def _solved_tricks(board: Board, contract: Contract) -> int | None:
     strain=contract.strain,
     opening_lead=lead,
   )
-
-
-def _published_tricks(
-  travellers: Sequence[Traveller],
-  *,
-  board_number: int,
-  declarer: Direction,
-  strain: Strain,
-) -> int | None:
-  """The tricks the published tables give that declarer in that strain.
-
-  None where no source states the cell, which is an ordinary answer rather than
-  a failure: the club's HTML lists the makeable contracts alone, so it says
-  nothing at all about a declarer held under seven tricks.
-
-  None again where two sources state the cell and disagree. Nothing picks a
-  winner, for the same reason reconciliation's own merge does not: a silent
-  tiebreak between two records hides exactly the disagreement worth seeing.
-  """
-  stated: set[int] = set()
-  for traveller in travellers:
-    tricks = _stated_cell(
-      traveller, board_number=board_number, declarer=declarer, strain=strain
-    )
-    if tricks is not None:
-      stated.add(tricks)
-
-  return stated.pop() if len(stated) == 1 else None
-
-
-def _stated_cell(
-  traveller: Traveller,
-  *,
-  board_number: int,
-  declarer: Direction,
-  strain: Strain,
-) -> int | None:
-  """What one traveller's table says for one declarer and strain.
-
-  None both for a board this traveller does not record and for one it records
-  without an analysis — a source that publishes results without hands states no
-  table at all.
-  """
-  for board in traveller.boards:
-    if board.number == board_number:
-      if not board.double_dummy_tricks:
-        return None
-      # Indexed rather than looked up defensively: a table holds all twenty
-      # cells by construction, and states a cell it has nothing to say about as
-      # None. See `travellers.DoubleDummyTricks`.
-      return board.double_dummy_tricks[declarer][strain]
-  return None

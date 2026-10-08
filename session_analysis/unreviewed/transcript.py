@@ -65,10 +65,11 @@ back. Defending, `PLAY` never falls below `DD`, so `DD-1 PLAY+1` is a lead of
 ours that cost two tricks, of which the defense won one back — still a trick
 down on what the deal offered, not recovered from.
 
-The published cell comes from a traveller, and the deal the solved count needs
-is written onto the board from one at reconciliation. So both columns stand
-empty for a board no traveller reached, and are absent altogether from a session
-none has reached — `double_dummy_comparison` carries what their silences mean.
+Both counts rest on what reconciliation writes onto a board from its travellers:
+the deal, and the double-dummy table solved from it when the capture was stored.
+So both columns stand empty for a board no traveller reached, and are absent
+altogether from a session none has reached — `double_dummy_comparison` carries
+what their silences mean.
 
 The summary above the boards totals the matchpoints and both columns over the
 groups `session_summary` defines. The table below them lists each board's
@@ -176,9 +177,8 @@ def transcript_of(
   """The whole of one session, as blocks `transcript_layout` lays out.
 
   `travellers` are the captures reconciliation joined to this session, and carry
-  the matchpoint tops and the analysis the double-dummy columns compare each
-  result with. They are passed in rather than read here so that rendering stays
-  a pure function of what it is handed;
+  the matchpoint tops. They are passed in rather than read here so that
+  rendering stays a pure function of what it is handed;
   `double_dummy_comparison.read_referenced_travellers` is what reads them off
   disk.
   """
@@ -187,7 +187,7 @@ def transcript_of(
   if not played:
     return (header, Paragraph(('This session recorded no boards.',)))
 
-  comparisons = double_dummy_comparison.compare_boards(session, travellers)
+  comparisons = double_dummy_comparison.compare_boards(session)
   summary = session_summary.summarize(played, travellers, comparisons)
   return (
     header,

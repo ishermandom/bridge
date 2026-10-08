@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from session_analysis import notation
 from session_analysis.enums import (
   CallKind,
   Direction,
@@ -49,6 +48,7 @@ from session_analysis.models import (
   Result,
   Schedule,
   Session,
+  SolvedDoubleDummyTricks,
 )
 from session_analysis.testing import provenance
 from session_analysis.testing.deals import a_deal_the_lead_decides
@@ -166,6 +166,7 @@ def _make_board(
   matchpoints: float | None = None,
   our_side: Side | None = None,
   deal: Deal | None = None,
+  table: SolvedDoubleDummyTricks | None = None,
 ) -> Board:
   """A board carrying only the cells a test is asserting on.
 
@@ -181,6 +182,7 @@ def _make_board(
     matchpoints=matchpoints,
     our_pair=PairIdentity(number='3', side=our_side) if our_side else None,
     deal=deal,
+    solved_double_dummy_tricks=table,
   )
 
 
@@ -208,25 +210,17 @@ def _make_session(
   )
 
 
-def _make_traveller(
-  board_number: int, *, declarer: Direction, strain: Strain, tricks: int
-) -> Traveller:
-  """A traveller stating one cell of its table and leaving the other nineteen.
+def _make_table(
+  *, declarer: Direction, strain: Strain, tricks: int
+) -> SolvedDoubleDummyTricks:
+  """A solved table whose one cell under test holds `tricks`.
 
-  A published table holds all twenty cells and writes as `None` any it has
-  nothing to say about, so the nineteen no test asserts on are built that way
-  rather than left out.
+  A solved table states all twenty cells, so the nineteen no test asserts on are
+  filled with zero rather than left out.
   """
-  table: dict[Direction, dict[Strain, int | None]] = {
-    seat: dict.fromkeys(notation.STRAINS_LOW_TO_HIGH) for seat in Direction
-  }
+  table = {seat: dict.fromkeys(Strain, 0) for seat in Direction}
   table[declarer][strain] = tricks
-  return Traveller(
-    source=TravellerSource.CLUB_PBN,
-    reference=CaptureReference(path='club/D260629M.pbn'),
-    event='Monday Pairs',
-    boards=(TravellerBoard(number=board_number, double_dummy_tricks=table),),
-  )
+  return table
 
 
 def _board_line(board: Board) -> str:
@@ -740,8 +734,8 @@ def _comparison_line(
   solves for a particular declarer in a particular strain, so those three go
   together.
 
-  `deal` and `opening_lead` are what the solved `PLAY` column needs. Given no
-  deal, only the published `DD` column can answer.
+  `deal` and `opening_lead` are what the `PLAY` column needs. Given no deal,
+  only the `DD` column, read from the board's table, can answer.
   """
   declaring_side = (
     Side.NORTH_SOUTH if declarer in Side.NORTH_SOUTH.seats else Side.EAST_WEST
@@ -761,12 +755,12 @@ def _comparison_line(
       opening_lead=opening_lead,
       our_side=declaring_side if we_declared else defending_side,
       deal=deal,
+      table=_make_table(
+        declarer=declarer, strain=strain, tricks=double_dummy_tricks
+      ),
     )
   )
-  traveller = _make_traveller(
-    5, declarer=declarer, strain=strain, tricks=double_dummy_tricks
-  )
-  return _board_line_of(render_session(session, [traveller]))
+  return _board_line_of(render_session(session))
 
 
 def test_a_board_that_went_our_way_shows_a_positive_count() -> None:
@@ -806,7 +800,8 @@ def test_a_result_matching_the_double_dummy_carries_a_signed_zero() -> None:
   assert 'DD+0' in line
 
 
-def test_a_board_the_traveller_does_not_record_is_not_compared() -> None:
+def test_a_board_carrying_no_table_is_not_compared() -> None:
+  # No traveller reached the board, so reconciliation wrote no table onto it.
   session = _make_session(
     _make_board(
       5,
@@ -816,13 +811,8 @@ def test_a_board_the_traveller_does_not_record_is_not_compared() -> None:
       our_side=Side.EAST_WEST,
     )
   )
-  # The sheet played board five; this traveller records board six and nothing
-  # else, so it has nothing to say about the board in hand.
-  traveller = _make_traveller(
-    6, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
-  )
 
-  assert 'DD' not in _board_line_of(render_session(session, [traveller]))
+  assert 'DD' not in _board_line_of(render_session(session))
 
 
 def test_the_play_column_is_solved_rather_than_read_from_the_table() -> None:
@@ -856,8 +846,8 @@ def test_the_play_column_stands_empty_without_a_deal_to_solve() -> None:
     opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
   )
 
-  # The table still answers, being read from the traveller; the solved count
-  # cannot, since a board that reconciliation has not reached carries no deal.
+  # The board's table still answers; the count after the lead cannot, with no
+  # deal on the board to solve.
   assert 'DD+2' in line
   assert 'PLAY' not in line
 
@@ -983,7 +973,7 @@ def test_a_percentage_rounds_a_half_up() -> None:
 
 
 def test_a_session_without_matchpoints_has_no_matchpoint_column() -> None:
-  # The deal and the traveller give the board both double-dummy counts, as a
+  # The deal and its solved table give the board both double-dummy counts, as a
   # teams game's traveller does, and nothing scores it in matchpoints.
   session = _make_session(
     _make_board(
@@ -997,13 +987,13 @@ def test_a_session_without_matchpoints_has_no_matchpoint_column() -> None:
       opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
       our_side=Side.NORTH_SOUTH,
       deal=a_deal_the_lead_decides(),
+      table=_make_table(
+        declarer=Direction.SOUTH, strain=Strain.NOTRUMP, tricks=9
+      ),
     )
   )
-  traveller = _make_traveller(
-    5, declarer=Direction.SOUTH, strain=Strain.NOTRUMP, tricks=9
-  )
 
-  lines = _lines_of(session, [traveller])
+  lines = _lines_of(session)
 
   # Eleven tricks against the table's nine, and against the thirteen the spade
   # lead left standing.

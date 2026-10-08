@@ -2,13 +2,11 @@
 # SPDX-License-Identifier: MIT
 """Tests for setting a board's result beside what the deal allowed.
 
-The comparison is pure, so those tests build their sessions and travellers in
-memory. Reading the records back is the exception, and works over real files
-under `tmp_path`: finding a session's travellers on disk is what it is for, so a
-stream would test something else.
+The comparison is pure, reading nothing but the session it is handed, so these
+tests build their sessions in memory.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
 
 from session_analysis.enums import (
@@ -37,6 +35,7 @@ from session_analysis.models import (
   Result,
   Schedule,
   Session,
+  SolvedDoubleDummyTricks,
 )
 from session_analysis.notation import STRAINS_LOW_TO_HIGH
 from session_analysis.private_paths import PrivateTree
@@ -72,6 +71,19 @@ def _make_number(number: int) -> BoardNumber:
   )
 
 
+def _make_table(
+  *, declarer: Direction, strain: Strain, tricks: int
+) -> SolvedDoubleDummyTricks:
+  """A solved table whose one cell under test holds `tricks`.
+
+  A solved table states all twenty cells, so the nineteen no test asserts on are
+  filled with zero rather than left out.
+  """
+  table = {seat: dict.fromkeys(Strain, 0) for seat in Direction}
+  table[declarer][strain] = tricks
+  return table
+
+
 def _make_board(
   number: int,
   *,
@@ -79,6 +91,7 @@ def _make_board(
   our_side: Side,
   strain: Strain,
   tricks_taken: int,
+  table: SolvedDoubleDummyTricks | None = None,
   deal: Deal | None = None,
   opening_lead: Card | None = None,
 ) -> Board:
@@ -102,6 +115,7 @@ def _make_board(
     ),
     our_pair=PairIdentity(number='3', side=our_side),
     deal=deal,
+    solved_double_dummy_tricks=table,
     opening_lead=(
       Lead(raw=f'{opening_lead.rank}{opening_lead.suit}', card=opening_lead)
       if opening_lead
@@ -155,13 +169,11 @@ def _make_traveller(
   )
 
 
-def _whole_deal(
-  session: Session, travellers: Sequence[Traveller] = ()
-) -> Mapping[int, int]:
-  """What each board came to against the published table, where it could."""
+def _whole_deal(session: Session) -> Mapping[int, int]:
+  """What each board came to against its solved table, where it could."""
   return {
     number: comparison.whole_deal
-    for number, comparison in compare_boards(session, travellers).items()
+    for number, comparison in compare_boards(session).items()
     if comparison.whole_deal is not None
   }
 
@@ -170,12 +182,12 @@ def _after_lead(session: Session) -> Mapping[int, int]:
   """What each board came to against the deal after its lead, where it could."""
   return {
     number: comparison.after_lead
-    for number, comparison in compare_boards(session, ()).items()
+    for number, comparison in compare_boards(session).items()
     if comparison.after_lead is not None
   }
 
 
-# --- reading the published cell ---
+# --- reading the board's table ---
 
 
 def test_a_result_is_compared_with_the_cell_for_its_declarer_and_strain() -> (
@@ -188,14 +200,12 @@ def test_a_result_is_compared_with_the_cell_for_its_declarer_and_strain() -> (
       our_side=Side.EAST_WEST,
       strain=Strain.CLUBS,
       tricks_taken=10,
+      table=_make_table(declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9),
     )
-  )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
   )
 
   # Ten tricks taken where best play by both sides yields nine.
-  assert _whole_deal(session, [traveller]) == {5: 1}
+  assert _whole_deal(session) == {5: 1}
 
 
 def test_a_result_short_of_the_double_dummy_compares_as_a_negative() -> None:
@@ -206,16 +216,21 @@ def test_a_result_short_of_the_double_dummy_compares_as_a_negative() -> None:
       our_side=Side.NORTH_SOUTH,
       strain=Strain.NOTRUMP,
       tricks_taken=7,
+      table=_make_table(
+        declarer=Direction.NORTH, strain=Strain.NOTRUMP, tricks=9
+      ),
     )
   )
-  traveller = _make_traveller(
-    5, declarer=Direction.NORTH, strain=Strain.NOTRUMP, tricks=9
-  )
 
-  assert _whole_deal(session, [traveller]) == {5: -2}
+  assert _whole_deal(session) == {5: -2}
 
 
-def test_a_cell_for_another_seat_is_not_read_for_this_declarer() -> None:
+def test_the_cell_read_is_the_declarers_and_not_the_partners() -> None:
+  table = {seat: dict.fromkeys(Strain, 0) for seat in Direction}
+  table[Direction.WEST][Strain.CLUBS] = 9
+  # The same strain across the table yields a different count, as it can when
+  # the opening lead comes from the other side.
+  table[Direction.EAST][Strain.CLUBS] = 5
   session = _make_session(
     _make_board(
       5,
@@ -223,70 +238,14 @@ def test_a_cell_for_another_seat_is_not_read_for_this_declarer() -> None:
       our_side=Side.EAST_WEST,
       strain=Strain.CLUBS,
       tricks_taken=10,
+      table=table,
     )
   )
-  # The same strain, stated for the seat across the table rather than for ours.
-  traveller = _make_traveller(
-    5, declarer=Direction.EAST, strain=Strain.CLUBS, tricks=9
-  )
 
-  assert _whole_deal(session, [traveller]) == {}
+  assert _whole_deal(session) == {5: 1}
 
 
-def test_a_cell_the_source_left_unstated_is_not_compared() -> None:
-  session = _make_session(
-    _make_board(
-      5,
-      declarer=Direction.WEST,
-      our_side=Side.EAST_WEST,
-      strain=Strain.CLUBS,
-      tricks_taken=5,
-    )
-  )
-  # The club's HTML lists the makeable contracts alone, so it says nothing at
-  # all about a declarer held under seven tricks.
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=None
-  )
-
-  assert _whole_deal(session, [traveller]) == {}
-
-
-def test_a_traveller_publishing_no_analysis_leaves_a_board_uncompared() -> None:
-  session = _make_session(
-    _make_board(
-      5,
-      declarer=Direction.WEST,
-      our_side=Side.EAST_WEST,
-      strain=Strain.CLUBS,
-      tricks_taken=10,
-    )
-  )
-  traveller = _make_traveller_from(
-    _CLUB_CAPTURE, TravellerBoard(number=5, double_dummy_tricks=None)
-  )
-
-  assert _whole_deal(session, [traveller]) == {}
-
-
-def test_a_board_no_traveller_records_is_not_compared() -> None:
-  session = _make_session(
-    _make_board(
-      5,
-      declarer=Direction.WEST,
-      our_side=Side.EAST_WEST,
-      strain=Strain.CLUBS,
-      tricks_taken=10,
-    )
-  )
-  traveller = _make_traveller(
-    6, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
-  )
-
-  assert _whole_deal(session, [traveller]) == {}
-
-
-def test_a_session_with_no_travellers_compares_nothing() -> None:
+def test_a_board_carrying_no_table_is_not_compared_with_one() -> None:
   session = _make_session(
     _make_board(
       5,
@@ -297,6 +256,7 @@ def test_a_session_with_no_travellers_compares_nothing() -> None:
     )
   )
 
+  # No traveller reached the board, or its deal was too malformed to solve.
   assert _whole_deal(session) == {}
 
 
@@ -311,15 +271,15 @@ def test_the_opponents_falling_short_of_the_count_is_our_gain() -> None:
       our_side=Side.NORTH_SOUTH,
       strain=Strain.CLUBS,
       tricks_taken=8,
+      table=_make_table(
+        declarer=Direction.WEST, strain=Strain.CLUBS, tricks=10
+      ),
     )
-  )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=10
   )
 
   # West declared against us and took two tricks fewer than best play allows.
   # That is two tricks our way, so it counts up rather than down.
-  assert _whole_deal(session, [traveller]) == {5: 2}
+  assert _whole_deal(session) == {5: 2}
 
 
 def test_the_opponents_beating_the_count_runs_against_us() -> None:
@@ -330,15 +290,15 @@ def test_the_opponents_beating_the_count_runs_against_us() -> None:
       our_side=Side.NORTH_SOUTH,
       strain=Strain.CLUBS,
       tricks_taken=11,
+      table=_make_table(
+        declarer=Direction.WEST, strain=Strain.CLUBS, tricks=10
+      ),
     )
-  )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=10
   )
 
   # The overtrick is theirs, so the same surplus that would read as our gain
   # when we declare reads as our loss when we defend.
-  assert _whole_deal(session, [traveller]) == {5: -1}
+  assert _whole_deal(session) == {5: -1}
 
 
 def test_a_board_reconciliation_never_placed_us_on_is_not_compared() -> None:
@@ -357,15 +317,15 @@ def test_a_board_reconciliation_never_placed_us_on_is_not_compared() -> None:
           result=Result(tricks_taken=10),
         ),
       ),
+      solved_double_dummy_tricks=_make_table(
+        declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
+      ),
     )
-  )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
   )
 
   # Without our pair there is no telling whether West was us, and so no telling
   # which way the sign runs — half of those would read backwards.
-  assert _whole_deal(session, [traveller]) == {}
+  assert _whole_deal(session) == {}
 
 
 # --- what leaves the comparison nothing to work from ---
@@ -377,14 +337,14 @@ def test_a_board_passed_out_is_not_compared() -> None:
       number=_make_number(5),
       outcome=Outcome(raw='PASSED OUT', resolution=Passout()),
       our_pair=PairIdentity(number='3', side=Side.EAST_WEST),
+      solved_double_dummy_tricks=_make_table(
+        declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
+      ),
     )
-  )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
   )
 
   # A board nobody played has no declarer and no strain to look a cell up by.
-  assert _whole_deal(session, [traveller]) == {}
+  assert _whole_deal(session) == {}
 
 
 def test_a_contract_cell_that_did_not_parse_is_not_compared() -> None:
@@ -402,13 +362,13 @@ def test_a_contract_cell_that_did_not_parse_is_not_compared() -> None:
         ),
       ),
       our_pair=PairIdentity(number='3', side=Side.EAST_WEST),
+      solved_double_dummy_tricks=_make_table(
+        declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
+      ),
     )
   )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
-  )
 
-  assert _whole_deal(session, [traveller]) == {}
+  assert _whole_deal(session) == {}
 
 
 def test_a_board_whose_number_went_unread_is_not_compared() -> None:
@@ -428,112 +388,15 @@ def test_a_board_whose_number_went_unread_is_not_compared() -> None:
         ),
       ),
       our_pair=PairIdentity(number='3', side=Side.EAST_WEST),
+      solved_double_dummy_tricks=_make_table(
+        declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
+      ),
     )
   )
-  traveller = _make_traveller(
-    5, declarer=Direction.WEST, strain=Strain.CLUBS, tricks=9
-  )
 
-  # Without a number there is no traveller row the board could be matched to.
-  assert _whole_deal(session, [traveller]) == {}
-
-
-# --- more than one source ---
-
-
-def test_two_sources_stating_the_same_cell_compare_the_board() -> None:
-  session = _make_session(
-    _make_board(
-      5,
-      declarer=Direction.WEST,
-      our_side=Side.EAST_WEST,
-      strain=Strain.CLUBS,
-      tricks_taken=10,
-    )
-  )
-  travellers = [
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=9,
-      path=_CLUB_CAPTURE,
-    ),
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=9,
-      path=_ACBL_CAPTURE,
-    ),
-  ]
-
-  assert _whole_deal(session, travellers) == {5: 1}
-
-
-def test_a_source_stating_the_cell_answers_where_another_is_silent() -> None:
-  session = _make_session(
-    _make_board(
-      5,
-      declarer=Direction.WEST,
-      our_side=Side.EAST_WEST,
-      strain=Strain.CLUBS,
-      tricks_taken=6,
-    )
-  )
-  travellers = [
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=None,
-      path=_CLUB_CAPTURE,
-    ),
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=5,
-      path=_ACBL_CAPTURE,
-    ),
-  ]
-
-  # Silence is not a disagreement: a source that declined to state the cell
-  # leaves the one that stated it to answer.
-  assert _whole_deal(session, travellers) == {5: 1}
-
-
-def test_two_sources_contradicting_each_other_leave_a_board_uncompared() -> (
-  None
-):
-  session = _make_session(
-    _make_board(
-      5,
-      declarer=Direction.WEST,
-      our_side=Side.EAST_WEST,
-      strain=Strain.CLUBS,
-      tricks_taken=10,
-    )
-  )
-  travellers = [
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=9,
-      path=_CLUB_CAPTURE,
-    ),
-    _make_traveller(
-      5,
-      declarer=Direction.WEST,
-      strain=Strain.CLUBS,
-      tricks=10,
-      path=_ACBL_CAPTURE,
-    ),
-  ]
-
-  # Nothing picks a winner between two records, so the board goes uncompared.
-  assert _whole_deal(session, travellers) == {}
+  # Comparisons are keyed by board number, so a board without one has nowhere to
+  # file its comparison.
+  assert _whole_deal(session) == {}
 
 
 # --- the count after the lead actually made ---
@@ -556,8 +419,8 @@ def test_the_play_is_counted_from_the_position_the_lead_left() -> None:
     )
   )
 
-  # We declared and took eleven where the position after the lead still held
-  # all thirteen, so the play cost us two.
+  # We declared and took eleven where the position after the lead still held all
+  # thirteen, so the play cost us two.
   assert _after_lead(session) == {5: -2}
 
 
@@ -579,7 +442,7 @@ def test_the_same_board_defended_counts_the_shortfall_our_way() -> None:
   assert _after_lead(session) == {5: 2}
 
 
-def test_this_comparison_needs_no_traveller_of_its_own() -> None:
+def test_the_count_after_the_lead_needs_no_table() -> None:
   session = _make_session(
     _make_board(
       5,
@@ -592,9 +455,8 @@ def test_this_comparison_needs_no_traveller_of_its_own() -> None:
     )
   )
 
-  # Reconciliation wrote the deal onto the board, so the solved count is
-  # available where the published table's cell might not be — and this takes no
-  # travellers at all, unlike the comparison against that table.
+  # The deal alone is solved from the lead on, so a board carrying no table
+  # still gets this count.
   assert _after_lead(session) == {5: 0}
 
 
