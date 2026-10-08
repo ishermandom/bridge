@@ -659,22 +659,20 @@ parsed value.
 **Goal:** turn a digitized session into something a person reads — the boards as
 text, and how the table's result compares with what the deal allowed.
 
-`unreviewed.transcript` reads a stored session back as plain text, a line per
-board in the sheet's own shorthand, and totals the two double-dummy comparisons
-under them; `python -m session_analysis.unreviewed.transcript` prints the
-records it is given, or every stored one. The comparisons themselves, and what
-their silences mean, are argued in `unreviewed.double_dummy_comparison`.
+`unreviewed.transcript` reads a stored session back: a summary by role and seat,
+a line per board in the sheet's own shorthand, and a table for working out what
+the session could have scored.
+`python -m session_analysis.unreviewed.transcript` prints the records it is
+given, or every stored one, and `--page` opens them as a web page for pasting
+into an email. The comparisons themselves, and what their silences mean, are
+argued in `unreviewed.double_dummy_comparison`.
 
-- [ ] Update the transcript format to parameters the user gives in the lane.
-  - Worktree: transcript-format
-  - Note: the user specifies the parameters once the lane opens, so ask for them
-    before changing anything.
 - [ ] Score each board in its game's own unit — matchpoints or IMPs — with a
       single unit shared by every board in a session. {#score-in-game-units}
   - Note: only matchpoints exist today, so a board from an IMP game scores
     nothing. They live in `Board.matchpoints`, a traveller row's
-    `north_south_matchpoints` and `east_west_matchpoints`, and the transcript's
-    `MP=` cell.
+    `north_south_matchpoints` and `east_west_matchpoints`, the transcript's
+    `MP=` cell and `MP%` column, and its could-have table.
   - Note: the unit belongs to a section, not to a capture. The club's 2026-09-14
     files hold the IMP-scored Swiss beside a matchpointed pairs game and label
     both alike: the PBN's `[Scoring]` tag reads `MatchPoints` for the whole
@@ -698,14 +696,16 @@ their silences mean, are argued in `unreviewed.double_dummy_comparison`.
     the field swing is published, while the team swing is computed from the
     match's two tables. The row numbering identifies those tables even where the
     names are wrong.
-- [ ] Label the recap's rows by player rather than by seat, if a seat can be
-      tied to a player at all. {#recap-by-player}
-  - Note: the recap groups by seat because no source on hand says who sat where.
-    The club's PBN carries `[North]`, `[South]`, `[East]` and `[West]` tags for
-    every board and leaves all of them empty; its names arrive instead from the
-    `ScoreTable`'s `Names_NS` and `Names_EW` columns, one field per pair. The
-    club's HTML recap has no per-seat markup at all, and an ACBL player entry
-    hangs off a `pair_summary_id` with no direction on it. So
+- [ ] Name players rather than seats in the transcript's summary rows and error
+      lines, if a seat can be tied to a player at all. {#recap-by-player}
+  - Note: the user wants each partner named by initials there, in place of the
+    seat in lines such as `· E played 5` and `E error =`.
+  - Note: the summary groups by seat because no source on hand says who sat
+    where. The club's PBN carries `[North]`, `[South]`, `[East]` and `[West]`
+    tags for every board and leaves all of them empty; its names arrive instead
+    from the `ScoreTable`'s `Names_NS` and `Names_EW` columns, one field per
+    pair. The club's HTML recap has no per-seat markup at all, and an ACBL
+    player entry hangs off a `pair_summary_id` with no direction on it. So
     `PairIdentity.names` is the partnership's two players in whatever order the
     source printed, which is why the same tuple comes back for our pair whether
     it sat East-West or North-South on 2026-08-31.
@@ -729,16 +729,6 @@ their silences mean, are argued in `unreviewed.double_dummy_comparison`.
     down. Reading the scoring file is real data too and changes nothing on the
     sheet, but it settles seats only up to a switch, and it needs a fetch for
     the file plus a dependency that reads Access databases.
-- [ ] Leave a printed row the sheet never filled out of the transcript.
-      {#blank-printed-rows}
-  - Rationale: a form prints more rows than a session fills, and every real
-    sheet so far ends in a few. `transcript._holds_a_record` counts a row as
-    recorded when its number cell was read, so those rows transcribe as a bare
-    `#25` through `#28` — a line naming a board and nothing about it, which is
-    what that function's own docstring says is worth less than no line at all.
-  - Note: the number alone cannot settle it. A board played and left otherwise
-    unrecorded looks identical to a row nobody reached, so this wants a rule
-    about what else the row holds rather than a tighter reading of the number.
 - [ ] Decide whether the transcript should be able to show the sheet's marks on
       demand.
   - Open question: that the transcript leaves out boxes, alert marks, circled
