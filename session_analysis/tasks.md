@@ -638,10 +638,10 @@ parsed value.
     triage order either way; `Issue.severity` is the real priority signal, so
     triage should rank by severity, not by a count.
   - Note: not every issue belongs to a board or a field. `store_travellers`
-    reports run-level ones — a capture no parser claims, a page that held no
-    boards — which have no board to hang on and no image to crop beside, since
-    they are about a file rather than a scoresheet row. Triage needs somewhere
-    to show them, or they reach nobody.
+    reports run-level ones — an unrecognized capture, a page that held no boards
+    — which have no board to hang on and no image to crop beside, since they are
+    about a file rather than a scoresheet row. Triage needs somewhere to show
+    them, or they reach nobody.
 - [ ] Row-level fixups (swap, renumber, reorder) as first-class operations.
   - Worktree: review-ui
 - [ ] Re-validate after edits; auto-open or notify after a sheet is processed.
@@ -960,6 +960,13 @@ rationale lives in the design docs' open-question sections —
   - Open question: an unreadable row also leaves its cells blank, and those say
     nothing about the count. Telling the two kinds of blank apart would need the
     parser to mark which cells it failed to read.
+- [ ] Trim models.md's Canonical model section to what the code does not say.
+  - Rationale: the section gives every field of every model a bullet, and most
+    restate the field's comment in models.py, so the two drift apart (CLAUDE.md
+    `#canonical-location`). Keep at most a one-sentence definition of each
+    field, plus why it exists where the code cannot say; leave the detail —
+    where a value comes from, when it is null — to the comment in models.py.
+  - Note: `matchpoint_top`'s bullet already has that shape.
 
 ---
 
