@@ -34,9 +34,14 @@ which lets a run tell at a glance which captures still need processing.
 A run does only that work: a capture whose record already postdates it is left
 alone. Parsing everything again is only needed for a parser change, not for a
 routine run, so it waits to be asked for through `refresh`.
+
+`store_travellers` does only the file handling: walking the capture root,
+reading captures, and writing records. `parse_captures` makes every decision
+about a capture's content, so those decisions can be exercised without a disk.
 """
 
-from collections.abc import Sequence
+import dataclasses
+from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
@@ -49,7 +54,7 @@ from session_analysis import (
   issue_reporting,
 )
 from session_analysis.enums import IssueSeverity
-from session_analysis.models import CaptureReference
+from session_analysis.models import CaptureReference, Issue
 from session_analysis.private_paths import (
   ACBL_CLUB_CAPTURE_DIRECTORY,
   ACBL_TOURNAMENT_CAPTURE_DIRECTORY,
@@ -73,6 +78,18 @@ _PBN_SUFFIX = '.pbn'
 _HTML_SUFFIXES = frozenset({'.htm', '.html'})
 
 
+@dataclasses.dataclass(frozen=True)
+class Capture:
+  """One capture as its site published it, and where it was fetched from."""
+
+  # Bytes rather than text, because a capture is decoded only once a parser
+  # recognizes it: a misfiled PDF is reported as unrecognized rather than
+  # failing to decode.
+  content: bytes
+  # None for a capture saved by hand.
+  url: str | None = None
+
+
 class _CaptureParser(Protocol):
   """Reads one capture's whole text into the traveller it records."""
 
@@ -82,7 +99,7 @@ class _CaptureParser(Protocol):
 
 
 def _parser_for(site: str, suffix: str) -> _CaptureParser | None:
-  """The parser that reads a capture, or None for a file no parser claims.
+  """The parser for a capture's site and extension, or None if there is none.
 
   Args:
     site: the capture root subdirectory the capture sits in, naming the site
@@ -157,10 +174,8 @@ def store_travellers(
 ) -> issue_reporting.Read[Sequence[PurePosixPath]]:
   """Parse the captures under `tree` that need it, and write their records.
 
-  A capture no parser claims, and one that parses to no boards at all, are both
-  left unstored and reported as issues rather than raising: a run over a whole
-  tree should not stop at one odd file, and the same discipline the parsers hold
-  to inside a capture holds here across them (travellers.md `#issue-reporting`).
+  `parse_captures` decides what each capture yields and what is reported about
+  it; this function only reads and writes.
 
   Args:
     tree: the private tree whose capture root is read and whose records root is
@@ -169,12 +184,13 @@ def store_travellers(
       postdates it. Used to validate parser changes.
 
   Returns:
-    The captures this run parsed, by their path relative to the capture root,
-    alongside an issue for every capture that yielded nothing. A capture left
-    alone as current is neither, so a routine run over an unchanged tree
-    reports nothing at all. The travellers themselves are not handed back —
-    the records on disk are the durable copy, and anything wanting one reads
-    it there whether this run wrote it or an earlier one did.
+    The captures this run stored, by their path relative to the capture root,
+    alongside the issues from `parse_captures` and one for each URL sidecar
+    that could not be read. A capture left alone as current appears in
+    neither, so a routine run over an unchanged tree reports nothing at all.
+    The travellers themselves are not handed back — the records on disk are
+    the durable copy, and anything wanting one reads it there whether this run
+    wrote it or an earlier one did.
 
   Raises:
     FileNotFoundError: if the capture root does not exist.
@@ -183,49 +199,83 @@ def store_travellers(
   if not captures_root.is_dir():
     raise FileNotFoundError(f'no traveller capture root at {captures_root}')
 
-  stored: list[PurePosixPath] = []
-  issues = []
+  captures: dict[PurePosixPath, Capture] = {}
+  issues: list[Issue] = []
   for site_directory in sorted(
     path for path in captures_root.iterdir() if path.is_dir()
   ):
-    site = site_directory.name
-
-    for capture in _captures_in(site_directory):
-      relative_to_root = PurePosixPath(capture.relative_to(captures_root))
+    for capture_file in _captures_in(site_directory):
+      relative_to_root = PurePosixPath(capture_file.relative_to(captures_root))
       record = record_for(tree, relative_to_root)
-
-      parse = _parser_for(site, capture.suffix)
-      if not parse:
-        issues.append(
-          _UNRECOGNIZED_CAPTURE.issue(f'no parser reads {relative_to_root}')
-        )
+      if not refresh and _is_current(record, capture_file):
         continue
 
-      if not refresh and _is_current(record, capture):
-        continue
-
-      # TODO: decode by the charset a capture declares rather than assuming
-      # UTF-8. Every capture on hand reads clean, and one that did not would
-      # raise rather than mislead, so this waits on a capture that exercises it.
-      recorded_url = capture_urls.read_url(capture)
+      recorded_url = capture_urls.read_url(capture_file)
       issues.extend(recorded_url.issues)
-      traveller = parse(
-        capture.read_text(),
-        reference=CaptureReference(
-          path=str(relative_to_root), url=recorded_url.value
-        ),
+      captures[relative_to_root] = Capture(
+        capture_file.read_bytes(), url=recorded_url.value
       )
-      if not traveller.boards:
-        issues.append(
-          _CAPTURE_HELD_NO_BOARDS.issue(
-            f'{relative_to_root} parsed as {traveller.source} but holds no '
-            f'boards, so nothing was stored for it: {traveller.event!r}'
-          )
+
+  parsed = parse_captures(captures)
+  for relative_to_root, traveller in parsed.value.items():
+    record = record_for(tree, relative_to_root)
+    record.parent.mkdir(parents=True, exist_ok=True)
+    record.write_text(traveller.model_dump_json(indent=2) + '\n')
+
+  return issue_reporting.Read(tuple(parsed.value), (*issues, *parsed.issues))
+
+
+def parse_captures(
+  captures: Mapping[PurePosixPath, Capture],
+) -> issue_reporting.Read[Mapping[PurePosixPath, Traveller]]:
+  """Parse captures held in memory into the travellers they record.
+
+  Two kinds of capture are left out and reported as issues rather than raising:
+  one whose site and extension match no parser, and one that parses to no boards
+  at all. A run over a whole tree should not stop at one odd file, any more than
+  a parser stops at one odd row (travellers.md `#issue-reporting`).
+
+  Args:
+    captures: keyed by each capture's path relative to the capture root. The
+      path's first directory names the site that published the capture.
+
+  Returns:
+    The traveller each capture parses to, keyed by the same path, alongside an
+    issue for every capture that yielded nothing.
+  """
+  travellers: dict[PurePosixPath, Traveller] = {}
+  issues: list[Issue] = []
+  for path, capture in captures.items():
+    parse = _parser_for(path.parts[0], path.suffix)
+    if not parse:
+      issues.append(_UNRECOGNIZED_CAPTURE.issue(f'no parser reads {path}'))
+      continue
+
+    traveller = parse(
+      _decoded(capture.content),
+      reference=CaptureReference(path=str(path), url=capture.url),
+    )
+    if not traveller.boards:
+      issues.append(
+        _CAPTURE_HELD_NO_BOARDS.issue(
+          f'{path} parsed as {traveller.source} but holds no boards, so '
+          f'nothing was stored for it: {traveller.event!r}'
         )
-        continue
+      )
+      continue
 
-      record.parent.mkdir(parents=True, exist_ok=True)
-      record.write_text(traveller.model_dump_json(indent=2) + '\n')
-      stored.append(relative_to_root)
+    travellers[path] = traveller
 
-  return issue_reporting.Read(tuple(stored), tuple(issues))
+  return issue_reporting.Read(travellers, tuple(issues))
+
+
+def _decoded(content: bytes) -> str:
+  """A capture's text, decoded as UTF-8 with every line ending in `\\n`.
+
+  Many captures end their lines in `\\r\\n`; converting those endings means no
+  parser ever sees a carriage return.
+  """
+  # TODO: decode by the charset a capture declares rather than assuming UTF-8.
+  # Every capture on hand reads clean, and one that did not would raise rather
+  # than mislead, so this waits on a capture that exercises it.
+  return content.decode().replace('\r\n', '\n').replace('\r', '\n')

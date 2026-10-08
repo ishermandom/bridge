@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: MIT
 """Tests for turning the captures on disk into stored travellers.
 
-The captures are the committed placeholder-name fixtures the parser tests use,
-filed into a temporary capture root. What is under test here is the filing —
-which parser a capture's directory and extension pick, where a record lands, and
-what provenance it carries — not the parsing, which each parser's own tests
-cover.
+The captures are the committed placeholder-name fixtures the parser tests use.
+What is under test here is the filing — which parser a capture's directory and
+extension pick, where a record lands, and what provenance it carries — not the
+parsing, which each parser's own tests cover.
+
+Every decision about a capture's content is tested by handing `parse_captures`
+the capture in memory. Only the tests of walking the tree, comparing timestamps,
+reading sidecars, and writing records put captures on disk, in a temporary
+capture root.
 """
 
 import json
@@ -22,7 +26,11 @@ from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
-from session_analysis.traveller_store import store_travellers
+from session_analysis.traveller_store import (
+  Capture,
+  parse_captures,
+  store_travellers,
+)
 from session_analysis.travellers import Traveller, TravellerSource
 
 TESTDATA = Path(__file__).parent / 'testdata/travellers'
@@ -67,6 +75,16 @@ def _tree_holding(tmp_path: Path, captures: Mapping[str, str]) -> PrivateTree:
   return tree
 
 
+def _make_captures(
+  captures: Mapping[str, str],
+) -> Mapping[PurePosixPath, Capture]:
+  """Captures as `parse_captures` takes them, from each one's path and text."""
+  return {
+    PurePosixPath(path): Capture(text.encode())
+    for path, text in captures.items()
+  }
+
+
 def _one_capture_tree(tmp_path: Path) -> PrivateTree:
   """A tree holding a single ACBL club capture, for the provenance tests."""
   return _tree_holding(tmp_path, {_ACBL_CLUB: _fixture('acbl_club_game.html')})
@@ -75,22 +93,20 @@ def _one_capture_tree(tmp_path: Path) -> PrivateTree:
 # --- which parser reads a capture ---
 
 
-def test_every_site_and_format_reaches_its_own_parser(tmp_path: Path) -> None:
-  tree = _tree_holding(
-    tmp_path,
+def test_every_site_and_format_reaches_its_own_parser() -> None:
+  captures = _make_captures(
     {
       _CLUB_PBN: _fixture('club_game.pbn'),
       _CLUB_HTML: _fixture('club_game_r.htm'),
       _ACBL_CLUB: _fixture('acbl_club_game.html'),
       _ACBL_TOURNAMENT: _fixture('acbl_tournament_session.html'),
-    },
+    }
   )
 
-  store_travellers(tree)
+  parsed = parse_captures(captures)
 
   assert {
-    capture: _stored_traveller(tree, capture).source
-    for capture in (_CLUB_PBN, _CLUB_HTML, _ACBL_CLUB, _ACBL_TOURNAMENT)
+    str(path): traveller.source for path, traveller in parsed.value.items()
   } == {
     _CLUB_PBN: TravellerSource.CLUB_PBN,
     _CLUB_HTML: TravellerSource.CLUB_HTML,
@@ -99,22 +115,23 @@ def test_every_site_and_format_reaches_its_own_parser(tmp_path: Path) -> None:
   }
 
 
-def test_the_clubs_two_formats_are_told_apart_by_extension(
-  tmp_path: Path,
-) -> None:
+def test_the_clubs_two_formats_are_told_apart_by_extension() -> None:
   """Both sit in one directory, because the club publishes both per game."""
-  tree = _tree_holding(
-    tmp_path,
+  captures = _make_captures(
     {
       _CLUB_PBN: _fixture('club_game.pbn'),
       _CLUB_HTML: _fixture('club_game_r.htm'),
-    },
+    }
   )
 
-  store_travellers(tree)
+  parsed = parse_captures(captures)
 
-  assert _stored_traveller(tree, _CLUB_PBN).source == TravellerSource.CLUB_PBN
-  assert _stored_traveller(tree, _CLUB_HTML).source == TravellerSource.CLUB_HTML
+  assert {
+    str(path): traveller.source for path, traveller in parsed.value.items()
+  } == {
+    _CLUB_PBN: TravellerSource.CLUB_PBN,
+    _CLUB_HTML: TravellerSource.CLUB_HTML,
+  }
 
 
 # --- where a record lands ---
@@ -249,13 +266,14 @@ def test_the_written_record_holds_the_same_reference(tmp_path: Path) -> None:
 # --- what is left alone ---
 
 
-def test_a_file_no_parser_claims_is_reported_and_skipped(
+def test_an_unrecognized_file_is_reported_and_skipped(
   tmp_path: Path,
 ) -> None:
   hand_record = f'{CLUB_CAPTURE_DIRECTORY}/gameresults2/vi/260714A.pdf'
-  tree = _tree_holding(
-    tmp_path,
-    {_CLUB_PBN: _fixture('club_game.pbn'), hand_record: 'not a capture'},
+  tree = _tree_holding(tmp_path, {_CLUB_PBN: _fixture('club_game.pbn')})
+  # A PDF's opening bytes, which do not decode as text.
+  (tree.traveller_captures / hand_record).write_bytes(
+    b'%PDF-1.7\n\xe2\xe3\xcf\xd3'
   )
 
   read = store_travellers(tree)
@@ -265,19 +283,15 @@ def test_a_file_no_parser_claims_is_reported_and_skipped(
   assert hand_record in read.issues[0].message
 
 
-def test_a_capture_holding_no_boards_is_reported_and_skipped(
-  tmp_path: Path,
-) -> None:
+def test_a_capture_holding_no_boards_is_reported_and_skipped() -> None:
   """The saved ACBL login page, and a team game's page, both land here."""
   login_page = f'{ACBL_CLUB_CAPTURE_DIRECTORY}/my.acbl.org/details/1430431.html'
-  tree = _tree_holding(tmp_path, {login_page: '<html></html>'})
 
-  read = store_travellers(tree)
+  parsed = parse_captures(_make_captures({login_page: '<html></html>'}))
 
-  assert not read.value
-  assert not (tree.traveller_records / f'{login_page}.json').exists()
-  assert [issue.code for issue in read.issues] == ['capture_held_no_boards']
-  assert login_page in read.issues[0].message
+  assert not parsed.value
+  assert [issue.code for issue in parsed.issues] == ['capture_held_no_boards']
+  assert login_page in parsed.issues[0].message
 
 
 def test_a_url_sidecar_is_not_itself_read_as_a_capture(
