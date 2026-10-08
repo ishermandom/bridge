@@ -10,7 +10,10 @@ dependencies = [
   # WeasyPrint's own HTML parser, which print_layout.py parses the rendered
   # HTML with; spec.md #section-packing says why that matters.
   "tinyhtml5",
-  "weasyprint>=69",
+  # Releases before 70 free their Fontconfig config twice, so Python's garbage
+  # collector can crash the process while freeing a Pango font map (WeasyPrint
+  # issue #2843).
+  "weasyprint>=70",
 ]
 
 [dependency-groups]
