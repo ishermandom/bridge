@@ -58,13 +58,17 @@ Three artifacts derive from the hub:
 | `flashcards/` (this dir) | Published card text + built package; CC-BY                | Public          |
 | `anki/`                  | Python tooling: note types, generators, sync scripts; MIT | Public          |
 | Backup repository        | Full-collection JSON dump + `.apkg` snapshot              | Private         |
-| Local spreadsheets       | Inputs to sheet-driven generators; may hold private data  | Local only      |
+| Spreadsheet exports      | Inputs to sheet-driven generators                         | Per category    |
 
 The split follows the README's project boundary: `anki/` is code, `flashcards/`
 is content. Note types are code (genanki model definitions) and live in `anki/`;
-the expanded public card text lives in `flashcards/`. Spreadsheets that drive
-generators may contain private partnership data and so stay out of every public
-repository — local only, or in the private backup repository.
+the expanded public card text lives in `flashcards/`. A spreadsheet export that
+drives a generator follows its category's publish label. A category that
+publishes in full, such as suit combinations, commits its export to this
+repository; withholding one of its cards later means moving that card's row to a
+private export. A category that may hold private data, such as partnership
+agreements, keeps its export out of every public repository — local only, or in
+a private repository such as `bridge-private`.
 
 ## Organization: decks and tags
 
@@ -235,16 +239,16 @@ value for hand-authored cards; both are per-card tags and can be overridden per
 card. The publish label is never inferred — an unlabeled card is an error (see
 [Publish marking](#publish-marking)).
 
-| Category               | Note type           | Default origin     | Publish label              | guid natural key        |
-| ---------------------- | ------------------- | ------------------ | -------------------------- | ----------------------- |
-| BWS bidding agreement  | `Bidding agreement` | Authored           | `publish::yes`             | Auction string          |
-| Partnership agreement  | `Bidding agreement` | Authored           | `publish::no::partnership` | Partner + auction       |
-| Shapes                 | `Shape`             | Generated (script) | `publish::yes`             | The known suit lengths  |
-| Probabilities          | `Basic` (built-in)  | Generated (script) | `publish::yes`             | The structured question |
-| Suit combination       | `Suit combination`  | Generated (sheet)  | `publish::yes`             | Both holdings           |
-| Opening lead agreement | `Opening lead`      | Generated (script) | `publish::yes`             | Holding + context       |
-| Opening lead problem   | `Lead problem`      | Generated (sheet)  | `publish::no::copyright`   | Full deal + auction     |
-| Defense problem        | `Defense problem`   | Generated (sheet)  | `publish::no::copyright`   | Full deal + auction     |
+| Category               | Note type           | Default origin     | Publish label              | guid natural key              |
+| ---------------------- | ------------------- | ------------------ | -------------------------- | ----------------------------- |
+| BWS bidding agreement  | `Bidding agreement` | Authored           | `publish::yes`             | Auction string                |
+| Partnership agreement  | `Bidding agreement` | Authored           | `publish::no::partnership` | Partner + auction             |
+| Shapes                 | `Shape`             | Generated (script) | `publish::yes`             | The known suit lengths        |
+| Probabilities          | `Basic` (built-in)  | Generated (script) | `publish::yes`             | The structured question       |
+| Suit combination       | `Suit combination`  | Generated (sheet)  | `publish::yes`             | Both holdings + tricks target |
+| Opening lead agreement | `Opening lead`      | Generated (script) | `publish::yes`             | Holding + context             |
+| Opening lead problem   | `Lead problem`      | Generated (sheet)  | `publish::no::copyright`   | Full deal + auction           |
+| Defense problem        | `Defense problem`   | Generated (sheet)  | `publish::no::copyright`   | Full deal + auction           |
 
 The category set is open; new categories add a row, a note type, and (if
 generated) a generator. The `Bidding agreement` note type is shared by the BWS
@@ -260,14 +264,23 @@ history. Identity is a **deterministic GUID derived from the card's natural
 key**, via `genanki.guid_for(...)` over the key in the table above. On import,
 Anki matches by GUID: a changed field updates the existing note in place and
 preserves its scheduling; an unchanged card is a no-op. Because identity is the
-hidden GUID rather than a visible field, any field — including the card's front
-— can change without breaking the match. This is strictly more robust than
-Anki's default first-field matching, where editing the primary field orphans the
-old note and creates a duplicate.
+hidden GUID rather than a visible field, any field outside the natural key can
+change without breaking the match. This is strictly more robust than Anki's
+default first-field matching, where editing the primary field orphans the old
+note and creates a duplicate.
 
 The natural-key formula for each category is therefore a **frozen contract**:
 changing how a key is computed re-mints GUIDs and produces duplicates on the
-next import. Keys are recorded above and must be treated as stable.
+next import. Keys are recorded above and must be treated as stable. Two rules
+keep a key stable while a generator's inputs evolve:
+
+- **Key on cleaned-up values, not raw cells.** For suit combinations, the key
+  uses the normalized holding, so a cosmetic edit — spacing, card order, `10`
+  versus `T` — never re-mints a card. The normalized form is part of the frozen
+  contract.
+- **Leave blank optional columns out of the key.** A column added to a
+  generator's input later enters the key only where it is filled, so existing
+  rows keep their keys and only rows that use the new column get new ones.
 
 Hand-authored cards keep the GUID Anki assigns at creation; the export flow
 reads that GUID rather than minting one.
