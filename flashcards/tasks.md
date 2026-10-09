@@ -11,13 +11,10 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 by hand, ahead of the backup and the automated import. Design in
 [`anki/spec.md`](../anki/spec.md).
 
-- [ ] Scaffold the `anki/` package: module layout, Python project config, and
-      wire its tests into `run_tests.sh`.
-- [ ] Holding parser: the notation in `anki/spec.md` #holding-notation,
-      normalizing each accepted spelling and rejecting a malformed holding with
-      its row named.
 - [ ] Sheet reader for `flashcards/input/suit_combinations.csv`: every row
       complete and every value validated, with errors naming the row.
+  - Note: row validation includes checks across the two hands: no named card in
+    both, at most 13 cards together, and not both void.
 - [ ] `Suit combination` note type with a frozen model ID: the card in
       `anki/spec.md` #suit-combination-card, with the best line and remarks
       rendered per #text-formatting there.

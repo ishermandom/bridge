@@ -68,6 +68,7 @@ fi
 # `exec` replaces this shell with pytest, so pytest's exit status becomes the
 # script's directly — safe as the last step, since nothing follows it here.
 exec uv run --project "$repo_root" pytest \
+  "$repo_root/anki" \
   "$repo_root/convention_cards" \
   "$repo_root/practice/squeezes/scratch" \
   "$repo_root/session_analysis" \

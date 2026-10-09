@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -12,6 +12,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "anki-tooling",
     "convention-cards",
     "pabc-reservations-helper",
     "session-analysis",
@@ -41,6 +42,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/06/a1/5e6cc638a66da48cf
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e3/99/d6031f4f146298951c46b1bf1cc160c2a63f6e44b3c13a30054add100d5f/altair-6.2.2-py3-none-any.whl", hash = "sha256:94014f8ad8617c3cb163d1137359cd6db5ba134b9b46d93cfd8b609fd245a583", size = 797613, upload-time = "2026-06-23T12:47:11.451Z" },
 ]
+
+[[package]]
+name = "anki-tooling"
+version = "0.0.0"
+source = { virtual = "anki" }
 
 [[package]]
 name = "annotated-doc"

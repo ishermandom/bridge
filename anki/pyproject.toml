@@ -1,0 +1,13 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+[project]
+# Not plain `anki`, which names Anki's own package on PyPI.
+name = "anki-tooling"
+version = "0.0.0"
+description = "Generating and syncing the bridge study deck's Anki cards."
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.uv]
+package = false
