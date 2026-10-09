@@ -5,14 +5,41 @@ Implementation queue for the design in [spec.md](spec.md). Most code lands in
 
 Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped
 
-## Backup — Flow 4
+## Suit-combination generator {#suit-combination-generator}
 
-**Goal:** stand up the automated, version-tracked full-collection backup first —
-it is the safety net that makes every later flow's writes to the collection
-recoverable.
+**Goal:** get the first generated cards, suit combinations, into the collection
+by hand, ahead of the backup and the automated import. Design in
+[`anki/spec.md`](../anki/spec.md).
 
 - [ ] Scaffold the `anki/` package: module layout, Python project config, and
       wire its tests into `run_tests.sh`.
+- [ ] Holding parser: the notation in `anki/spec.md` #holding-notation,
+      normalizing each accepted spelling and rejecting a malformed holding with
+      its row named.
+- [ ] Sheet reader for `flashcards/input/suit_combinations.csv`: every row
+      complete and every value validated, with errors naming the row.
+- [ ] `Suit combination` note type with a frozen model ID: the card in
+      `anki/spec.md` #suit-combination-card, with the best line and remarks
+      rendered per #text-formatting there.
+- [ ] Generator: build the `.apkg` with deterministic GUIDs, the deck, and the
+      tags `cat::suit-combination`, `origin::generated`, `publish::yes`. Pull
+      forward only what it needs from #identity, `tags.py`, and `decks.py`.
+- [ ] First import by hand: back up the collection in Anki (File > Create
+      Backup), import the package (File > Import), spot-check a few cards, and
+      set the deck's options preset to `Deep`.
+  - Rationale: the user chose to put this generator ahead of the backup and the
+    automated import. The collection holds no card-combination cards yet, so the
+    first import only adds cards.
+  - Note: until #dry-run exists, review the export's `git diff` before each
+    re-import — the committed export shows exactly which rows changed.
+
+---
+
+## Backup — Flow 4
+
+**Goal:** stand up the automated, version-tracked full-collection backup — the
+safety net that makes every later flow's writes to the collection recoverable.
+
 - [ ] `ankiconnect.py` — AnkiConnect client; start with the actions backup needs
       (collection read, `exportPackage`) and extend it in later phases.
       #ankiconnect
@@ -42,7 +69,7 @@ live collection and every build.
 - [ ] `styling.py` — shared suit-symbol, auction-table, and hand-diagram
       rendering.
 - [ ] Per-category note types with frozen model IDs: `bidding_agreement`,
-      `shape`, `suit_combination`, `opening_lead`, `defense_problem`.
+      `shape`, `opening_lead`, `defense_problem`.
 - [ ] Reuse Anki's built-in `Basic` (via genanki's Basic model) for
       probabilities.
 
@@ -58,8 +85,8 @@ overwrites.
       #ankiconnect. #dry-run
 - [ ] Import path: build a genanki `.apkg`, gate on #dry-run, `importPackage` on
       confirmation, never auto-delete removals, then post-import spot-check.
-- [ ] Generators, one per generated category (`shapes`, `probabilities`,
-      `suit_combinations`, `opening_lead_agreements`, `bidding_bws`, lead and
+- [ ] Generators, one per remaining generated category (`shapes`,
+      `probabilities`, `opening_lead_agreements`, `bidding_bws`, lead and
       defense problems). Each stamps `origin` and a `publish::*` label and emits
       its public subset as text to `flashcards/cards/`; built on #identity and
       the note types. Problem generators need full-deal data in their
@@ -79,6 +106,9 @@ package.
 - [ ] Publish-marking enforcement: only `publish::yes` ships; an unlabeled card
       is a hard build error; never-public categories are blocked; plus a
       standalone lint to audit without a full build.
+- [ ] Emit the suit-combination generator's card text to `flashcards/cards/`,
+      which #suit-combination-generator defers; until then the committed input
+      file is the public record.
 
 ---
 
@@ -104,9 +134,13 @@ Unsequenced items and open questions from the spec.
       when first making a schema change.
 - [ ] Decide whether `Shapes` and `cat::probability::hand-pattern` should merge
       — revisit when building those cards.
-- [ ] Create `anki/spec.md` when the `anki/` project formalizes; move the spec's
-      Deferred items there (card-text standardization, schema-change safety
-      tooling mechanics, full module layout).
+- [ ] Move the spec's Deferred items into `anki/spec.md` (card-text
+      standardization, schema-change safety tooling mechanics, full module
+      layout).
+- [ ] Consider further suit-combination columns: conditions such as entries or
+      bidding information, a most-tricks-on-average goal, and technique tags.
+  - Note: each can arrive later without re-keying existing cards, because blank
+    optional columns stay out of the key.
 - [ ] Settle which license covers `spec.md` and `tasks.md` in this directory.
       The README and `flashcards/LICENSE` both scope CC-BY-4.0 to the flashcard
       _content_ here, which doesn't obviously reach development docs that merely

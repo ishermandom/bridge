@@ -257,7 +257,7 @@ Shapes and `cat::probability::hand-pattern` are kept as separate categories —
 the shape-completion drill versus the odds of a shape. Whether they should merge
 is left open until those cards are built.
 
-## Card identity and idempotency
+## Card identity and idempotency {#card-identity}
 
 Generated cards must re-import without duplicating and without discarding review
 history. Identity is a **deterministic GUID derived from the card's natural
@@ -275,9 +275,9 @@ next import. Keys are recorded above and must be treated as stable. Two rules
 keep a key stable while a generator's inputs evolve:
 
 - **Key on cleaned-up values, not raw cells.** For suit combinations, the key
-  uses the normalized holding, so a cosmetic edit — spacing, card order, `10`
-  versus `T` — never re-mints a card. The normalized form is part of the frozen
-  contract.
+  uses the normalized holding, so a cosmetic edit — spacing, `10` versus `T`,
+  `-` versus `void` — never re-mints a card. The normalized form is part of the
+  frozen contract.
 - **Leave blank optional columns out of the key.** A column added to a
   generator's input later enters the key only where it is filled, so existing
   rows keep their keys and only rows that use the new column get new ones.
@@ -441,6 +441,8 @@ flashcards/
     opening_lead_agreements.csv
     bidding_bws.csv
     ...
+  input/                        # committed generator inputs, for categories that publish in full
+    suit_combinations.csv
 ```
 
 `anki/` (public tooling, MIT) — illustrative; modules are named for what they
