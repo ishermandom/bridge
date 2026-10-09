@@ -7,7 +7,26 @@ name = "anki-tooling"
 version = "0.0.0"
 description = "Generating and syncing the bridge study deck's Anki cards."
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+  "genanki",
+  "markdown-it-py",
+]
+
+[dependency-groups]
+dev = [
+  # uv installs the `dev` group by default, which brings in the type stubs below.
+  { include-group = "types" },
+]
+# Stubs for dependencies that ship no type information of their own; see
+# ../stubs/README.md.
+types = [
+  "genanki-stubs",
+]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+# Editable, so an edited stub takes effect on the next type check without a
+# reinstall — see ../stubs/README.md.
+genanki-stubs = { path = "../stubs/genanki", editable = true }

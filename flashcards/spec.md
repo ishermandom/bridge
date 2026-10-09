@@ -195,7 +195,7 @@ Two invariants make that work:
   are plain question/answer text. genanki ships a matching `Basic` model so the
   build stays consistent.
 
-### Note-type versioning and evolution
+### Note-type versioning and evolution {#note-type-evolution}
 
 A note type has two parts that evolve very differently, and each is handled
 where it is safest. The **declared definition** — fields, templates, CSS, and

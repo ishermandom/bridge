@@ -72,23 +72,52 @@ itself. Two additions keep the input file free of formatting markup:
 
 - **Line breaks**: a single line break in a cell stays a line break on the card,
   rather than merging into its paragraph.
-- **Labels**: a paragraph opening with a known label, such as `Tip:` or `Note:`,
-  shows the whole paragraph in italics, with the label also in bold. The labels
-  are a fixed list in code; the input file holds them as plain text.
+- **Callouts**: a paragraph opening with a known label, such as `Tip:` or
+  `Note:`, is a callout, shown in italics with the label also in bold. The
+  labels are a fixed list in code; the input file holds them as plain text.
+
+One departure from CommonMark: HTML typed into a cell shows as plain text rather
+than as markup, so a stray `<` can't hide the rest of a cell.
 
 Rendering uses markdown-it-py. Among the Python renderers compared, it alone
 passed every example in the CommonMark specification; it ships type information,
-has a built-in option for single line breaks, and lets the label styling act on
-parsed tokens rather than patch rendered HTML. Python-Markdown, the most common
-choice, is ruled out: it won't start a list directly after a line of text.
+has a built-in option for single line breaks, and lets the callout styling act
+on parsed tokens rather than patch rendered HTML. Python-Markdown, the most
+common choice, is ruled out: it won't start a list directly after a line of
+text.
 
 ### The card {#suit-combination-card}
 
 One card per row:
 
-- **Front**: North's holding above South's, then the target, such as "4 tricks
-  needed".
+- **Front**: a question naming the target, such as "How would you play this suit
+  combination for 3 tricks?", then the combination on a line of its own, North's
+  holding first, such as `AQTx – J9x`. The target is underlined, so it stands
+  out when scanning the card, and each holding shows in its normalized form. Any
+  constraints the line assumes, such as limited entries, follow on a line of
+  their own.
 - **Back**: the line with its percentage, then the remarks, then the source.
 
-The note type's fields mirror the input file's columns, with North and South
-storing the normalized holdings.
+The card's styling is the base meant for every note type in the collection, so
+all cards look alike:
+
+- **Size and alignment:** Anki's stock 20px, centered.
+- **Font:** each platform's own interface font (`system-ui`), such as San
+  Francisco on Apple devices.
+- **Colors:** none, so cards follow Anki's light and dark themes.
+
+The note type's fields hold the input file's columns, with the holdings stored
+in their normalized form. A summary field leads them, such as
+`AQT-xx, 2 tricks`; it serves Anki's card browser, and the card doesn't show it.
+Searching for `AQT-xx` finds every card for that pair of holdings. The browser
+sorts by a single field, so the summary also carries the target: sorting by it
+lists each pair's cards in order of target.
+
+Constraints are the exception to fields mirroring columns. The input file gives
+each kind of constraint its own column, but a single `Constraints` field holds
+them all, written as sentences. Adding an Anki field after the first import
+means adding it in Anki first, or a re-import creates a second copy of the note
+type, and adding one forces a full sync. Declaring the one field before the
+first import lets each kind of constraint arrive later without either step.
+Constraints also appear in the summary, each kind in a compact notation of its
+own, so cards that share holdings and target stay distinct there.
