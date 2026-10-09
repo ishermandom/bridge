@@ -1,0 +1,42 @@
+North,South,Tricks target,Success %,Best line,Remarks,Source,,
+# Chris's class,,,,,,,,,,,,,,,,,,,
+AQ,xx,2,50,Low to the Q,Finesse hoping the K is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AQJ,xx,3,50,"Low to the Q, then low to the J",Finesse hoping the K is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AQT,xx,3,24,"Low to the T, then low to the Q",Finesse hoping the KJ are both onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AQT,xx,2,76,"Low to the T, then low to the Q","* Finesse hoping at least one of the K or J is onside
+* If both are onside, starting with the low finesse builds an extra trick (for free!)",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AJT,xx,2,76,"Low to the J, then low to the T",Finesse hoping at least one of KQ is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AQ9,xx,2,63,"Low to the 9, then low to the Q","* Finesse hoping JT are onside. It's a free extra chance!
+* If that fails, the finesse against the K remains",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AJ9,xx,2,37,"Low to the 9, then low to the J","* Finesse hoping KT or QT are onside
+* This works in two cases and only fails in one: KQ onside, T offside
+
+Tip: When considering cases, only consider cases that could gain from something onside",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+Kx,xx,1,50,Low to the K,Finesse hoping the A is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+KQx,xxx,2,50,"Low to the K, then low to the Q",Repeated finesse hoping the A is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+KQJx,xxx,3,68,"Low to the K, then low to the Q, then low to the J","Repeated finesse hoping the A is onside
+
+Note that if the opponents' cards are split 3-3, it doesn't matter whether we take the finesse. But on any uneven split with the A onside, including either Ax or Axxx onside, the repeated finesse picks up an extra trick.",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+KQT,xxx,2,55,"Low to the K
+
+If that wins, low to the Q. If it loses, low to the T.","Repeated finesse hoping the A is onside; and hoping the J is onside if the A is offside (""six ever, seven never"")",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+KJT,xxx,2,50,"Low to the J, then low to the T",Repeated finesse hoping the Q is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+Axx,QJT,3,50,Run the Q,Repeated finesse hoping the K is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AKx,JTx,3,50,"Cash the A, then run the J","Try to drop a singleton Q, then finesse against the Q onside
+
+Note: Cashing the A first only gains a 0.48% edge!",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+K8xx,JT9,3,50,Run the J,Repeated finesse hoping the Q is onside,Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+Axx,KJT,3,50,"Either:
+* Cash the A, then low to the J
+* Cash the K, then run the J","A two-way finesse, with a small chance to drop a singleton Q
+
+When faced with a two-way finesse, consider whether there's any way (such as an endplay) to make the opponents lead the suit for you!",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+Axx,KJTx,4,51,"Cash the A, then low to the J","This combination always makes 3 tricks, but finessing toward the J (rather than trying to run the J) gives a good chance at an extra trick.
+
+Note: Even better would be to get the opponents to lead this suit for you! Then you get an extra chance at an extra trick if the suit splits 3-3. That's about 18% better than taking the natural finesse",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AQTx,J9x,4,50,"Run the 9, then run the J","Repeated finesse hoping the K is onside
+
+Note that running the 9 first is important, so that we can repeat the finesse without costing any entries",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
+AJTx,Q9x,4,50,"Run the 9, then run the Q","Repeated finesse hoping the K is onside
+
+Note that running the 9 first is important, so that we can repeat the finesse without costing any entries",Chris Chung's Card Combinations (for Sane People) - The Basics.pdf,,,,,,,,,,,,,
