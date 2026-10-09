@@ -11,37 +11,24 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
 by hand, ahead of the backup and the automated import. Design in
 [`anki/spec.md`](../anki/spec.md).
 
-- [ ] `Suit combination` note type with a frozen model ID: the card in
-      `anki/spec.md` #suit-combination-card, with the best line and remarks
-      rendered per #text-formatting there.
-  - Worktree: `card-combination-flashcards` holds this phase's commits so far,
-    not yet landed.
-  - Open question: show holdings on the card spaced (`A Q x x x`, as in the
-    layout the user picked) or as stored (`AQxxx`)?
-  - Note: the cards also display on the user's Android phone via sync, so keep
-    the layout readable at phone width and check a few there after the first
-    sync.
-- [ ] Generator: build the `.apkg` with deterministic GUIDs, the deck, and the
-      tags `cat::suit-combination`, `origin::generated`, `publish::yes`. Pull
-      forward only what it needs from #identity, `tags.py`, and `decks.py`.
-  - Note: add a genanki stub package under `stubs/`, following
-    `stubs/README.md`; genanki ships no type information.
-  - Note: leave genanki's write timestamp at its default, the build time. A
-    fixed timestamp would stop Anki's default "Update notes: if newer" from ever
-    updating a re-imported note.
-  - Open question: where the built `.apkg` is written — a gitignored folder in
-    the repo, or elsewhere.
-- [ ] First import by hand: back up the collection in Anki (File > Create
-      Backup), import the package (File > Import), spot-check a few cards, and
-      set the deck's options preset to `Deep`.
+- [ ] First import by hand:
+  1. Build the package with `anki/suit_combination_generator.py`.
+  2. In Anki, back up the collection (File > Create Backup).
+  3. Import the package (File > Import).
+  4. Spot-check a few cards.
+  5. Set the deck's options preset to `Deep`.
+  - Worktree: `card-combination-flashcards` holds this phase's commits, not yet
+    landed.
   - Rationale: the user chose to put this generator ahead of the backup and the
-    automated import. The collection holds no card-combination cards yet, so the
-    first import only adds cards.
-  - Note: until #dry-run exists, review the export's `git diff` before each
-    re-import — the committed export shows exactly which rows changed.
-  - Note: on the first re-import, confirm that an edited row updates its card in
-    place and keeps its review history. Neither was verified in Anki's code, and
-    a forum report has 24.11 applying "if newer" only once.
+    automated import. Going first is safe because the collection holds no
+    suit-combination cards yet, so the first import only adds cards.
+  - Note: the import creates the deck `Bridge::Suit combinations`, along with a
+    `Bridge` parent deck if the collection has none.
+  - Note: the cards also display on the user's Android phone via sync; check a
+    few there after the first sync.
+  - Note: until #dry-run exists, review `git diff` on
+    `flashcards/input/suit_combinations.csv` before each re-import — it shows
+    exactly which rows changed.
 
 ---
 
@@ -63,6 +50,10 @@ safety net that makes every later flow's writes to the collection recoverable.
 ## Card foundations
 
 **Goal:** the shared primitives the note types and generators depend on.
+
+Note: the suit-combination generator keeps its own tags, deck, and identity key
+for now; move them into `tags.py`, `decks.py`, and `identity.py` once a second
+generator needs them.
 
 - [ ] `tags.py` — tag taxonomy constants: `cat::*`, `origin::*`, `publish::*`.
 - [ ] `decks.py` — per-category deck constants and the `Quick` / `Deep` cadence

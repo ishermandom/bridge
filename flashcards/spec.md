@@ -114,7 +114,7 @@ strongest for confusable material and thin for unrelated skills. When it is
 wanted — a mixed rapid-fire of all `Quick` cards, say — a **filtered deck**
 built from a tag search provides it on demand without disturbing the home decks.
 
-### Tag taxonomy
+### Tag taxonomy {#tag-taxonomy}
 
 Tags encode the refined hierarchy that decks deliberately omit. Three orthogonal
 families:
@@ -209,22 +209,23 @@ their authoring surface. An edit reaches the live collection either through
 AnkiConnect (`updateModelTemplates` / `updateModelStyling`) or by re-importing a
 package: from Anki 23.10, a re-import updates an existing note type's templates
 and CSS, provided its fields and templates keep the same names, count, and order
-(read from Anki's import code, October 2026). A package whose fields or
-templates differ instead imports as a second copy of the note type, leaving the
-matching notes un-updated — one more reason field changes go through Anki's own
-dialog, below.
+(found by reading Anki's import code, and confirmed in October 2026 by importing
+with Anki 26.09.3's own library). A package whose fields or templates differ
+from the collection's copy instead imports as a second copy of the note type,
+and the matching notes in the collection stay as they were. That is one more
+reason field changes go through Anki's own dialog, described next.
 
 **Field-schema changes** — renaming, removing, or reordering fields — are rare,
 data-bearing, and best judged interactively, with Anki's UI showing the old→new
-field mapping, confirming destructive actions, and flagging the full sync the
-change forces. So the schema edit is made by hand in Anki's Fields / Change
-Notetype dialog rather than automated: for this dimension Anki is the authoring
-surface and the repo declaration is reconciled to match. Automating it would
-mean maintaining rarely-run migration code on a high-stakes path; the UI's
-decision support is worth more than the automation. The edit is instead
-bracketed by automated safety — a snapshot before and a validation after — so
-the fragile live store is never mutated without a recoverable checkpoint and an
-after-the-fact check; see
+field mapping, confirming destructive actions, and flagging any full sync the
+change forces (a rename forces none). So the schema edit is made by hand in
+Anki's Fields / Change Notetype dialog rather than automated: for this dimension
+Anki is the authoring surface and the repo declaration is reconciled to match.
+Automating it would mean maintaining rarely-run migration code on a high-stakes
+path; the UI's decision support is worth more than the automation. The edit is
+instead bracketed by automated safety — a snapshot before and a validation after
+— so the fragile live store is never mutated without a recoverable checkpoint
+and an after-the-fact check; see
 [Schema changes: snapshot and validate](#schema-changes-snapshot-and-validate).
 
 Adding a field is the one safe schema change: it is backward-compatible (empty
@@ -236,7 +237,7 @@ Disaster recovery restores the collection from a backup snapshot, not by
 replaying a migration history, so the manual, un-replayable nature of a schema
 edit costs nothing the system depends on.
 
-### Categories
+### Categories {#categories}
 
 The origin and publish label below are what generators stamp, and the expected
 value for hand-authored cards; both are per-card tags and can be overridden per
@@ -265,11 +266,12 @@ is left open until those cards are built.
 
 Generated cards must re-import without duplicating and without discarding review
 history. Identity is a **deterministic GUID derived from the card's natural
-key**, via `genanki.guid_for(...)` over the key in the table above. On import,
-Anki matches by GUID: a changed field updates the existing note in place and
-preserves its scheduling; an unchanged card is a no-op. Because identity is the
-hidden GUID rather than a visible field, any field outside the natural key can
-change without breaking the match. This is strictly more robust than Anki's
+key**, via `genanki.guid_for(...)` over the category's name followed by the key
+in the table above, so that equal keys in two categories never collide. On
+import, Anki matches by GUID: a changed field updates the existing note in place
+and preserves its scheduling; an unchanged card is a no-op. Because identity is
+the hidden GUID rather than a visible field, any field outside the natural key
+can change without breaking the match. This is strictly more robust than Anki's
 default first-field matching, where editing the primary field orphans the old
 note and creates a duplicate.
 
