@@ -76,6 +76,12 @@ itself. Two additions keep the input file free of formatting markup:
   shows the whole paragraph in italics, with the label also in bold. The labels
   are a fixed list in code; the input file holds them as plain text.
 
+Rendering uses markdown-it-py. Among the Python renderers compared, it alone
+passed every example in the CommonMark specification; it ships type information,
+has a built-in option for single line breaks, and lets the label styling act on
+parsed tokens rather than patch rendered HTML. Python-Markdown, the most common
+choice, is ruled out: it won't start a list directly after a line of text.
+
 ### The card {#suit-combination-card}
 
 One card per row:

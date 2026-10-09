@@ -205,10 +205,14 @@ record. It is what the build reads to construct genanki models, the audit trail
 of how a type changed, and the baseline the schema validation checks against.
 
 **Templates and CSS** carry no data-migration risk and change often. The repo is
-their authoring surface; edits reach the live collection through AnkiConnect
-(`updateModelTemplates` / `updateModelStyling`). Importing a deck does _not_
-update an existing note type's templates, so this push — not a card re-import —
-is how a rendering change lands.
+their authoring surface. An edit reaches the live collection either through
+AnkiConnect (`updateModelTemplates` / `updateModelStyling`) or by re-importing a
+package: from Anki 23.10, a re-import updates an existing note type's templates
+and CSS, provided its fields and templates keep the same names, count, and order
+(read from Anki's import code, October 2026). A package whose fields or
+templates differ instead imports as a second copy of the note type, leaving the
+matching notes un-updated — one more reason field changes go through Anki's own
+dialog, below.
 
 **Field-schema changes** — renaming, removing, or reordering fields — are rare,
 data-bearing, and best judged interactively, with Anki's UI showing the old→new
@@ -415,7 +419,8 @@ above is what actually prevents silent loss.
 
 - **genanki** — builds every `.apkg` (Flow 1 import packages and the Flow 3
   public package) and mints deterministic GUIDs. Requires Anki **2.1.54+** on
-  the import side.
+  the import side. It ships no type information, so a local stub package under
+  `stubs/` types it.
 - **AnkiConnect** — the read/write bridge to the live collection: pushing
   generated packages (Flow 1), exporting hand-authored cards (Flow 2), the
   dry-run diff, and the backup dump and package export (Flow 4). Requires the
@@ -424,7 +429,9 @@ above is what actually prevents silent loss.
 CrowdAnki and headless tools (apy, the `anki` library directly) were considered
 and are not used: CrowdAnki because its export is not scriptable through
 AnkiConnect, and headless tooling because a GUI-running workflow is acceptable
-and AnkiConnect offers the simpler, more stable API.
+and AnkiConnect offers the simpler, more stable API. The `anki` library is also
+no substitute for genanki in building packages: it offers no way to fix a note
+type's ID, so each build would import as a new copy of the note type.
 
 ## Directory layout
 

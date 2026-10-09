@@ -14,9 +14,23 @@ by hand, ahead of the backup and the automated import. Design in
 - [ ] `Suit combination` note type with a frozen model ID: the card in
       `anki/spec.md` #suit-combination-card, with the best line and remarks
       rendered per #text-formatting there.
+  - Worktree: `card-combination-flashcards` holds this phase's commits so far,
+    not yet landed.
+  - Open question: show holdings on the card spaced (`A Q x x x`, as in the
+    layout the user picked) or as stored (`AQxxx`)?
+  - Note: the cards also display on the user's Android phone via sync, so keep
+    the layout readable at phone width and check a few there after the first
+    sync.
 - [ ] Generator: build the `.apkg` with deterministic GUIDs, the deck, and the
       tags `cat::suit-combination`, `origin::generated`, `publish::yes`. Pull
       forward only what it needs from #identity, `tags.py`, and `decks.py`.
+  - Note: add a genanki stub package under `stubs/`, following
+    `stubs/README.md`; genanki ships no type information.
+  - Note: leave genanki's write timestamp at its default, the build time. A
+    fixed timestamp would stop Anki's default "Update notes: if newer" from ever
+    updating a re-imported note.
+  - Open question: where the built `.apkg` is written — a gitignored folder in
+    the repo, or elsewhere.
 - [ ] First import by hand: back up the collection in Anki (File > Create
       Backup), import the package (File > Import), spot-check a few cards, and
       set the deck's options preset to `Deep`.
@@ -25,6 +39,9 @@ by hand, ahead of the backup and the automated import. Design in
     first import only adds cards.
   - Note: until #dry-run exists, review the export's `git diff` before each
     re-import — the committed export shows exactly which rows changed.
+  - Note: on the first re-import, confirm that an edited row updates its card in
+    place and keeps its review history. Neither was verified in Anki's code, and
+    a forum report has 24.11 applying "if newer" only once.
 
 ---
 
