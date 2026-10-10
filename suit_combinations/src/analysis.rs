@@ -57,6 +57,9 @@ impl Analysis {
     /// The best line in words, offering each best strategy in turn when
     /// several tie with different lines.
     pub fn line_words(&self) -> String {
+        if self.best[0].deals_by_target[0] == 0 {
+            return "No line can succeed".to_string();
+        }
         let mut lines: Vec<String> = Vec::new();
         for result in &self.best {
             let words = line_words(&result.line, &self.layouts);
@@ -145,6 +148,18 @@ mod tests {
         assert_eq!(deals.len(), 2);
         assert!((percent_of_deals(deals[0]) - 76.0).abs() < 1e-9);
         assert!((percent_of_deals(deals[1]) - 24.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn hopeless_target_says_no_line_succeeds() {
+        // Whoever holds the A and K wins both rounds with them.
+        let analysis = analyze_text("Q9-63@1");
+
+        assert_eq!(analysis.line_words(), "No line can succeed");
+        assert_eq!(
+            analysis.remark(),
+            "Best defense always holds declarer below the target"
+        );
     }
 
     #[test]

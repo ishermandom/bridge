@@ -107,6 +107,10 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
     if wins == layouts.all {
         return "This line succeeds however the cards lie".to_string();
     }
+    if wins.is_empty() {
+        return "Best defense always holds declarer below the target"
+            .to_string();
+    }
 
     let finesses: Vec<Finesse> = best[0]
         .line
