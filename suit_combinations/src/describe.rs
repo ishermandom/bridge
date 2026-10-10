@@ -340,7 +340,7 @@ fn condition_words(condition: &Condition, layouts: &Layouts) -> String {
 }
 
 /// A defender's group in words, such as "the K" or "a low card".
-pub fn group_words(layouts: &Layouts, group: usize) -> String {
+fn group_words(layouts: &Layouts, group: usize) -> String {
     let ranks = layouts.groups[group].ranks;
     if ranks.len() == 1 {
         return format!("the {}", rank_symbol(layouts.groups[group].top()));
@@ -469,6 +469,8 @@ pub struct Describer<'s, 'a> {
 }
 
 impl<'s, 'a> Describer<'s, 'a> {
+    /// A describer drawing on `solver`'s frontiers, which it asks the solver
+    /// to remember within each trick.
     pub fn new(solver: &'s mut Solver<'a>) -> Describer<'s, 'a> {
         solver.remember_tricks();
         Describer { solver }
@@ -570,8 +572,10 @@ impl<'s, 'a> Describer<'s, 'a> {
         }
     }
 
-    /// Separate lines for branches that no single play suits, grouping
-    /// together the branches that share a play.
+    /// Separate lines for the branches, grouped as `grouping` says: by a
+    /// play they share, when no single play suits them all, or by how their
+    /// last trick ended, when merging them would leave a later split
+    /// ambiguous.
     fn split(
         &mut self,
         hard: Vec<Branch>,
@@ -751,10 +755,10 @@ impl<'s, 'a> Describer<'s, 'a> {
                 })
                 .collect();
 
-            // Plans whose third card answers one of second hand's plays: the
-            // highest that stays below the card declarer means to win with.
-            // Each of second hand's plays can be checked on its own, since
-            // the defenders choose between them layout by layout.
+            // Plans whose third card answers second hand's low play: its
+            // lowest below the card declarer means to win with. Each of
+            // second hand's plays can be checked on its own, since the
+            // defenders choose between them layout by layout.
             for (index, &(low, low_layouts)) in options.iter().enumerate() {
                 let others_work = free
                     .iter()
@@ -864,11 +868,7 @@ impl<'s, 'a> Describer<'s, 'a> {
             .iter()
             .rev()
             .find(|(play, _)| matches!(play, DefenderPlay::Group(_)))?;
-        let required: Vec<LayoutSet> = branch
-            .required
-            .iter()
-            .map(|set| set.intersection(layouts))
-            .collect();
+        let required = restricted(&branch.required, layouts);
         let played = trick.with_defender_play(play);
         let mut replies = self.solver.third_hand_options(played);
         // Equivalent cards may stand in for the planned one.
@@ -981,36 +981,34 @@ impl<'s, 'a> Describer<'s, 'a> {
                 } else {
                     partner_cards
                 };
-                let preference = if matches!(
-                    self.classify(position, named, leads_low),
-                    Play::Duck(_) | Play::LeadLow(_)
-                ) {
-                    // Giving up a trick is the last resort among ties.
-                    (Rank::MAX, Rank::MAX, 0)
-                } else {
-                    (
-                        lowest(self.solver.equivalent_cards(
-                            position,
-                            winner_cards,
-                            winner,
-                            contested,
-                        )),
-                        lowest(self.solver.touching_cards(
-                            position,
-                            winner_cards,
-                            winner,
-                            contested,
-                        )),
-                        // Ranks run below 13.
-                        -(winner as i8),
-                    )
-                };
                 let play = self.classify(position, named, leads_low);
+                let preference =
+                    if matches!(play, Play::Duck(_) | Play::LeadLow(_)) {
+                        // Giving up a trick is the last resort among ties.
+                        (Rank::MAX, Rank::MAX, 0)
+                    } else {
+                        (
+                            lowest(self.solver.equivalent_cards(
+                                position,
+                                winner_cards,
+                                winner,
+                                contested,
+                            )),
+                            lowest(self.solver.touching_cards(
+                                position,
+                                winner_cards,
+                                winner,
+                                contested,
+                            )),
+                            // Ranks run below 13.
+                            -(winner as i8),
+                        )
+                    };
                 candidates.push(Candidate {
                     key,
                     play,
                     is_free_duck: is_free && matches!(play, Play::Duck(_)),
-                    finesse: self.finesse(position, named, leads_low),
+                    finesse: self.finesse(position, named, play),
                     plan: named,
                     main_line,
                     entries,
@@ -1021,14 +1019,15 @@ impl<'s, 'a> Describer<'s, 'a> {
     }
 
     /// The finesse `plan` takes, if it takes one: a lead toward a card, or
-    /// of one, that a defender's card still outranks.
+    /// of one, that a defender's card still outranks. `play` is what the
+    /// plan does, as `classify` names it.
     fn finesse(
         &self,
         position: Position,
         plan: Plan,
-        leads_low: bool,
+        play: Play,
     ) -> Option<Finesse> {
-        let is_finesse = match self.classify(position, plan, leads_low) {
+        let is_finesse = match play {
             Play::Toward { .. } | Play::Run(_) | Play::Lead(_) => true,
             Play::Cash(_)
             | Play::Duck(_)
@@ -1137,11 +1136,7 @@ impl<'s, 'a> Describer<'s, 'a> {
         if let Some(&(play, layouts)) = show_out
             && play != second
         {
-            let required: Vec<LayoutSet> = branch
-                .required
-                .iter()
-                .map(|set| set.intersection(layouts))
-                .collect();
+            let required = restricted(&branch.required, layouts);
             let shown = led.with_defender_play(play);
             for reply in self.solver.third_hand_options(shown) {
                 let after_reply =
@@ -1158,15 +1153,14 @@ impl<'s, 'a> Describer<'s, 'a> {
     }
 
     /// The branches after second hand plays `second` and the third hand
-    /// `third`, one for each play fourth hand might make. `second_set_apart`
-    /// says whether second hand showed out.
+    /// `third`, one for each play fourth hand might make.
     fn after_second(
         &mut self,
         branch: &Branch,
         led: Trick,
         second: DefenderPlay,
         third: FollowPlay,
-        second_set_apart: bool,
+        second_showed_out: bool,
     ) -> Vec<Branch> {
         let trick = led.with_defender_play(second).with_third(third);
         let layouts = self.solver.layouts;
@@ -1174,12 +1168,8 @@ impl<'s, 'a> Describer<'s, 'a> {
         for (play, _) in self.solver.defender_options(trick) {
             let done = trick.with_defender_play(play);
             let position = done.next_position(layouts);
-            let live = self.solver.live(position);
-            let required = branch
-                .required
-                .iter()
-                .map(|layouts| layouts.intersection(live))
-                .collect();
+            let required =
+                restricted(&branch.required, self.solver.live(position));
             let declarer_won = done.declarer_wins(layouts);
             let winning_hand = match third {
                 FollowPlay::Card(card) if card > led.lead => {
@@ -1195,7 +1185,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                     declarer_won,
                     defender: led.leader.last_defender(),
                     play,
-                    after_show_out: second_set_apart
+                    after_show_out: second_showed_out
                         .then_some(led.leader.next_defender()),
                 }),
             });

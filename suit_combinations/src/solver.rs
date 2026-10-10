@@ -238,7 +238,7 @@ impl Trick {
     }
 
     /// The highest card declarer has played to the trick.
-    pub fn declarer_best(self) -> Rank {
+    fn declarer_best(self) -> Rank {
         match self.third {
             Some(FollowPlay::Card(card)) => card.max(self.lead),
             _ => self.lead,
@@ -302,6 +302,7 @@ struct Signature {
 }
 
 impl Signature {
+    /// The signature of `result`.
     fn of(result: &[LayoutSet]) -> Signature {
         Signature {
             // At most 13 sets of at most 162 layouts.
@@ -328,7 +329,7 @@ impl Frontier {
     }
 
     /// A frontier holding only `result`.
-    pub fn single(result: &[LayoutSet]) -> Frontier {
+    fn single(result: &[LayoutSet]) -> Frontier {
         Frontier {
             level_count: result.len(),
             sets: result.to_vec(),
@@ -399,16 +400,13 @@ impl Frontier {
         }
     }
 
-    /// The results of following each of these strategies with one of
-    /// `child`'s, where `child` covers only the layouts outside `outside`.
+    /// Every pairing of one of these results with one of `child`'s, as at a
+    /// defender's turn: `child` is the frontier after one of the defender's
+    /// plays, and `outside` holds the layouts where that play can't happen.
     ///
     /// Each combined result succeeds in a layout only where both parts do,
     /// counting the child's part as a success wherever the child can't arise.
-    pub fn combined_with(
-        &self,
-        child: &Frontier,
-        outside: LayoutSet,
-    ) -> Frontier {
+    fn combined_with(&self, child: &Frontier, outside: LayoutSet) -> Frontier {
         let mut combined = Frontier::new(self.level_count);
         let mut candidate = vec![LayoutSet::EMPTY; self.level_count];
         for result in self.results() {
@@ -489,12 +487,6 @@ impl<'a> Solver<'a> {
         }
     }
 
-    /// The highest target tracked.
-    pub fn highest_target(&self) -> u8 {
-        // `level_count` came from a difference of two `u8` targets.
-        self.lowest_target + (self.level_count - 1) as u8
-    }
-
     /// Keep the frontier from each point within a trick from now on.
     pub fn remember_tricks(&mut self) {
         self.trick_memo.get_or_insert_with(FxHashMap::default);
@@ -517,11 +509,6 @@ impl<'a> Solver<'a> {
             memo.insert(trick, Rc::clone(&frontier));
         }
         frontier
-    }
-
-    /// How many positions the search has solved.
-    pub fn positions_solved(&self) -> usize {
-        self.memo.len()
     }
 
     /// The layouts that fit what the defenders have played in `position`.
@@ -744,7 +731,7 @@ impl<'a> Solver<'a> {
     }
 
     /// The frontier after a lead, before second hand plays.
-    pub fn after_lead(&mut self, trick: Trick) -> Rc<Frontier> {
+    fn after_lead(&mut self, trick: Trick) -> Rc<Frontier> {
         self.defender_turn(trick)
     }
 
