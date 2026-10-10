@@ -17,8 +17,6 @@ by hand, ahead of the backup and the automated import. Design in
   3. Import the package (File > Import).
   4. Spot-check a few cards.
   5. Set the deck's options preset to `Deep`.
-  - Worktree: `card-combination-flashcards` holds this phase's commits, not yet
-    landed.
   - Rationale: the user chose to put this generator ahead of the backup and the
     automated import. Going first is safe because the collection holds no
     suit-combination cards yet, so the first import only adds cards.
@@ -160,6 +158,9 @@ package.
 
 Unsequenced items and open questions from the spec.
 
+- [ ] Consider setting emphasis inside a callout upright, as print typography
+      does: a callout already shows in italics, so an `*emphasized*` word in one
+      doesn't stand out. No row of the input file does this yet.
 - [ ] Restructure the existing collection (currently roughly one deck plus a few
       side-decks) into deck-per-category with cadence presets.
 - [ ] Verify `exportPackage` covers all decks and captures scheduling (`.apkg`

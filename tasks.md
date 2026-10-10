@@ -111,6 +111,32 @@ production signatures for the tests' benefit.
     maintaining the stubs as pypdfium2 evolves. Either way `stubs/` stays until
     a published `types-pypdfium2` exists to swap in.
 
+- [ ] **Reimplement a suit-combination analyzer, with improvements**
+      {#suit-combination-analyzer}: the user analyzes combinations with
+      [CCAnalyser](https://bridge.esmarkkappel.dk/main/main.html) today and
+      would like a version of their own.
+  - Note: CCAnalyser takes the target, the hand on lead, side entries to each
+    hand, each defender's known cards in other suits, and each defender's
+    maximum HCP — the same constraints `flashcards/tasks.md`
+    #suit-combination-constraints queues for the flashcards, including the open
+    question of whether the HCP limit covers the whole hand.
+  - Note: unlike the flashcards, an analyzer must settle what a defender returns
+    after winning a trick, and which hand declarer resumes in.
+  - Note: a test case for goals. In K1084 opposite Q32, finessing the 10
+    averages the most tricks (2.12), yet a deeper finesse of the 8 beats it on
+    more layouts (22.95% to 18.33%); in K1087 opposite Q32, eight lines beat
+    each other in a circle, so the best matchpoint strategy picks one at random
+    (Wikipedia, "Suit combination").
+  - Open question: can the line that averages the most tricks differ from the
+    best line for every trick target? No verified example yet; checking K1084
+    opposite Q32's best lines for 2 and 3 tricks would answer it for that
+    holding.
+
+- [ ] Bring the older stub packages' header comments, and the `dev` group
+      comments in `convention_cards/` and `system_notes/`, into line with the
+      genanki stubs' wording: cite `stubs/README.md` by path rather than "two
+      levels up", and say that uv installs the `dev` group by default.
+
 - [ ] List the captured HTML fixtures in a `.prettierignore` at the repo root.
       {#prettier-ignores-fixtures}
   - Rationale: `session_analysis/testdata/travellers/` holds five files captured
