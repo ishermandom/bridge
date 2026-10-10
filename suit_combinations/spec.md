@@ -182,7 +182,12 @@ A line that succeeds in every layout says so instead.
 - **Hand-worked cases**: small cases whose answers follow from a short argument,
   such as a simple finesse's 50%.
 - **Published results**: `tests/published_examples.rs` pins the worked examples
-  in Wikipedia's "Suit combination" article.
+  in Wikipedia's "Suit combination" article and SuitPlay's help pages.
+- **A brute-force solver**: `tests/brute_force.rs` solves combinations with no
+  grouping of interchangeable cards at all, every missing card dealt on its own
+  and every card a play of its own, and must agree with the analyzer exactly.
+  That checks #interchangeable-cards empirically. It is too slow for some
+  combinations, such as AQ10 opposite xx, so it covers a sample.
 - **CCAnalyser**: a sample of combinations checked against it, within the limits
   in [tasks.md](tasks.md).
 

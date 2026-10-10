@@ -15,3 +15,10 @@ csv = "1"
 # A faster hash than the standard library's for the solver's memo table, whose
 # keys never come from untrusted input.
 rustc-hash = "2"
+
+# The tests solve real combinations, some by brute force, which unoptimized
+# code runs many times slower. Tests keep the overflow checks and debug
+# assertions they would otherwise have.
+[profile.test]
+# Every optimization: the level release builds use by default.
+opt-level = 3
