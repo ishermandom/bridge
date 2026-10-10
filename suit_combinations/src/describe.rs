@@ -195,13 +195,13 @@ fn push_outline(
     depth: usize,
     lines: &mut Vec<String>,
 ) {
-    let mut plays = Vec::new();
+    let mut steps = Vec::new();
     let mut rest = line;
     while let Line::Play(step, next) = rest {
-        plays.push(step.play.words());
+        steps.push(*step);
         rest = next;
     }
-    let words = plays.join(", then ");
+    let words = chain_words(&steps, layouts);
     match condition {
         None => lines.push(format!("{}.", capitalize(&words))),
         Some(condition) => {
@@ -231,23 +231,21 @@ fn push_outline(
 fn lowercase_words(line: &Line, layouts: &Layouts) -> String {
     match line {
         Line::Done => "cash the winners".to_string(),
-        Line::Play(step, rest) => match rest.as_ref() {
-            Line::Done => step.play.words(),
-            Line::Play(..) => {
-                format!(
-                    "{}, then {}",
-                    step.play.words(),
-                    lowercase_words(rest, layouts)
-                )
+        Line::Play(..) => {
+            let mut steps = Vec::new();
+            let mut rest = line;
+            while let Line::Play(step, next) = rest {
+                steps.push(*step);
+                rest = next;
             }
-            Line::Split(_) => {
-                format!(
-                    "{}. {}",
-                    step.play.words(),
-                    lowercase_words(rest, layouts)
-                )
+            let words = chain_words(&steps, layouts);
+            match rest {
+                Line::Split(_) => {
+                    format!("{words}. {}", lowercase_words(rest, layouts))
+                }
+                _ => words,
             }
-        },
+        }
         Line::Split(parts) => parts
             .iter()
             .map(|part| {
@@ -268,6 +266,48 @@ fn lowercase_words(line: &Line, layouts: &Layouts) -> String {
             .collect::<Vec<_>>()
             .join(" "),
     }
+}
+
+/// Consecutive plays in words, joined with "then", such as "low to the T,
+/// then low to the Q".
+///
+/// Running a card and then each next card down the same touching sequence
+/// reads as the first run alone, "run the Q" for QJT, since running a
+/// sequence means running it card by card.
+fn chain_words(steps: &[Step], layouts: &Layouts) -> String {
+    let mut words: Vec<String> = Vec::new();
+    let mut last_run: Option<Rank> = None;
+    for step in steps {
+        if let Play::Run(card) = step.play {
+            if last_run.is_some_and(|higher| {
+                is_next_in_sequence(layouts, higher, card)
+            }) {
+                last_run = Some(card);
+                continue;
+            }
+            last_run = Some(card);
+        } else {
+            last_run = None;
+        }
+        words.push(step.play.words());
+    }
+    words.join(", then ")
+}
+
+/// Whether `lower` sits just below `higher` in one hand's touching sequence,
+/// with no card of any other hand between them.
+fn is_next_in_sequence(layouts: &Layouts, higher: Rank, lower: Rank) -> bool {
+    let combination = layouts.combination;
+    [combination.north, combination.south]
+        .into_iter()
+        .any(|hand| {
+            lower < higher
+                && hand.contains(higher)
+                && hand.contains(lower)
+                && RankSet::strictly_between(higher, lower)
+                    .difference(hand)
+                    .is_empty()
+        })
 }
 
 /// A condition in words, such as "If that wins".

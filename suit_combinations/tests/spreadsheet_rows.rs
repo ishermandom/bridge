@@ -195,12 +195,11 @@ fn kjt_opposite_xxx_makes_2_tricks_half_the_time() {
 
 #[test]
 fn axx_opposite_qjt_makes_3_tricks_half_the_time() {
-    // The row stops after the first trick.
     assert_eq!(
         answer("Axx-QJT@3"),
         Answer {
             success_percent: "50.00".to_string(),
-            line: "Run the Q, then run the J".to_string(),
+            line: "Run the Q".to_string(),
             remark: "Repeated finesse hoping the K is onside".to_string(),
         }
     );
@@ -222,12 +221,11 @@ fn akx_opposite_jtx_adds_a_singleton_queen_to_the_finesse() {
 
 #[test]
 fn k8xx_opposite_jt9_makes_3_tricks_half_the_time() {
-    // The row stops after the first trick.
     assert_eq!(
         answer("K8xx-JT9@3"),
         Answer {
             success_percent: "50.00".to_string(),
-            line: "Run the J, then run the T, then run the 9".to_string(),
+            line: "Run the J".to_string(),
             remark: "Repeated finesse hoping the Q is onside".to_string(),
         }
     );

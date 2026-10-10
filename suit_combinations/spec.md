@@ -115,6 +115,12 @@ branches by its cards rather than its name, so "low to the Q" still matches once
 the K has gone and the Q has become a winner; the description then uses the name
 that says more.
 
+Running a card and then the next cards down the same touching sequence reads as
+the first run alone, "Run the Q" for QJT opposite Axx, since running a sequence
+means running it card by card; the input file writes them so. A run interrupted
+by the other hand's card stays spelled out: "Run the 9, then run the J" from J9x
+opposite AQTx.
+
 The line stops once its target is safe on sure winners. Overtricks shape it only
 where they come free: a branch whose target is already safe goes along with the
 other branches' play when that play suits it, which is how "Low to the T, then
