@@ -175,5 +175,11 @@ A line that succeeds in every layout says so instead.
   is right.
 - **Hand-worked cases**: small cases whose answers follow from a short argument,
   such as a simple finesse's 50%.
+- **Published results**: `tests/published_examples.rs` pins the worked examples
+  in Wikipedia's "Suit combination" article.
 - **CCAnalyser**: a sample of combinations checked against it, within the limits
   in [tasks.md](tasks.md).
+
+`suit_combinations compare FILE` runs every row of the input file through the
+analyzer and reports where the two differ, so that new rows get the same check
+before a test pins them.

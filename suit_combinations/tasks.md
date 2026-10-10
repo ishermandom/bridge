@@ -11,29 +11,39 @@ about the defenders' hands, well enough to reproduce every row of
 `flashcards/input/suit_combinations.csv`: the success %, the best line in
 English, and the intuition behind it.
 
-- [~] Solver: the best line's chance of reaching the target against best
-  defense.
-- [ ] Describe the best line in English, beyond its first trick.
-- [ ] Explain the intuition behind the line, such as "Finesse hoping the K is
-      onside".
-- [ ] Command-line tool, plus a comparison against every row of the input file.
-- [ ] Speed: 5,000 entries like the input file's within a minute.
-  - Note: the user set fallbacks if that proves impossible: first 10 minutes,
-    then "any combination within 30 seconds". A relaxed target means queueing a
-    task to cache results.
-- [ ] Once every row of the input file works, extend the tests with
-      progressively harder combinations, such as long suits and safety plays.
-- [ ] Cross-check the solver against published data, such as worked examples in
-      Wikipedia's "Suit combination" article.
-- [ ] Check results against CCAnalyser, the user's reference tool
-      (https://bridge.esmarkkappel.dk/main/main.html).
+- [~] Extend the tests with progressively harder combinations, such as long
+  suits and safety plays, pinning answers CCAnalyser confirms.
+- [~] Check results against CCAnalyser, the user's reference tool
+  (https://bridge.esmarkkappel.dk/main/main.html).
   - Note: drive a real browser (Playwright), never disguised, within the user's
     limits: at most 100 examples in all, 3 per minute, and 10 per 30 minutes.
     Stop for good at the first block or error rather than retry. A plain `curl`
-    download was refused with HTTP 455 ("ModSecurity Action").
+    download was refused with HTTP 455 ("ModSecurity Action"); a real browser
+    loads the page normally.
+  - Note: CCAnalyser computes on its server, so each analysis is one request
+    there. Its defaults match the analyzer's model: South on lead, 13 side
+    entries each, no known side cards, and a 10 HCP cap that no suit exceeds.
   - Note: the same limits cover SuitPlay's web version
     (https://jeroenwarmerdam.pythonanywhere.com/suitplay/home.html), a second
     reference.
+
+---
+
+## Line descriptions {#line-descriptions}
+
+**Goal:** describe long and safety-play lines as briefly as a teacher would, now
+that every one is complete and unambiguous.
+
+- [ ] Shorten lines that branch on every show-out, such as KJxx opposite A9xx
+      for 3 tricks, which mostly comes down to cashing the K and then leading
+      low toward the A9, inserting the 9, yet the analyzer spells out every
+      branch.
+- [ ] Name a lead from a hand whose partner is void "lead low" rather than by
+      its card, as in "Cash the A, then duck a round, then lead the 4" from
+      J10543 opposite A2.
+- [ ] Find a condition for remarks that now name only a technique, such as
+      "Finesse" for A1042 opposite 953 and AQxxx opposite J9xx: no condition
+      built from three facts comes within 10% of where the line wins.
 
 ---
 
@@ -41,6 +51,8 @@ English, and the intuition behind it.
 
 - [ ] Wire the analyzer into the card generator (`anki/`), whose input file
       holds a hand-typed success %, line, and remarks today.
+  - Note: `suit_combinations -` reads one problem per line of standard input, so
+    the generator can analyze a whole file in one process.
 - [ ] The constraints `flashcards/tasks.md` #suit-combination-constraints queues
       for the cards. CCAnalyser takes most of them: the hand on lead, side
       entries to each hand, each defender's known cards in other suits, and each
@@ -54,6 +66,7 @@ English, and the intuition behind it.
     each other in a circle, so the best matchpoint strategy picks one at random
     (Wikipedia, "Suit combination").
   - Open question: can the line that averages the most tricks differ from the
-    best line for every trick target? No verified example yet; checking K1084
-    opposite Q32's best lines for 2 and 3 tricks would answer it for that
-    holding.
+    best line for every trick target? Likely yes for K1084 opposite Q32: by
+    Wikipedia's figures, the ten finesse makes 2 tricks 83.1% of the time and 3
+    tricks 28.7%, while the analyzer's best lines reach 85.93% and 31.83%.
+    CCAnalyser's check of those two targets would settle it.
