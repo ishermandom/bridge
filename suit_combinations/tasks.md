@@ -38,9 +38,6 @@ that every one is complete and unambiguous.
       for 3 tricks, which mostly comes down to cashing the K and then leading
       low toward the A9, inserting the 9, yet the analyzer spells out every
       branch.
-- [ ] Name a lead from a hand whose partner is void "lead low" rather than by
-      its card, as in "Cash the A, then duck a round, then lead the 4" from
-      J10543 opposite A2.
 - [ ] Find a condition for remarks that now name only a technique, such as
       "Finesse" for A1042 opposite 953 and AQxxx opposite J9xx: no condition
       built from three facts comes within 10% of where the line wins.

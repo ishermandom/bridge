@@ -110,6 +110,16 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
         "Finesse"
     };
     match condition {
+        // A line with no finesse that needs only an even split is playing
+        // for that split, not for a card to drop.
+        Some(Condition::Atom(Atom::EvenSplit)) if finesses.is_empty() => {
+            let missing = layouts.missing_count();
+            format!(
+                "Play for a {}-{} split{extras_words}",
+                missing.div_ceil(2),
+                missing / 2
+            )
+        }
         Some(condition) => format!(
             "{technique} hoping {}{extras_words}",
             condition_words(layouts, &condition)

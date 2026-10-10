@@ -30,6 +30,9 @@ pub enum Play {
     Run(Rank),
     /// Lead a card with nothing to play from the other hand.
     Lead(Rank),
+    /// Lead a low card with nothing to play from the other hand, conceding
+    /// the trick unless the defenders have run out.
+    LeadLow(Rank),
     /// Play low from both hands, giving up the trick.
     Duck(Hand),
     /// Lead one card and play another, fitting none of the above.
@@ -53,6 +56,7 @@ impl Play {
             }
             Play::Run(card) => format!("run {}", name(card)),
             Play::Lead(card) => format!("lead {}", name(card)),
+            Play::LeadLow(_) => "lead low".to_string(),
             Play::Duck(_) => "duck a round".to_string(),
             Play::Other { lead, third } => {
                 format!("lead {} and play {}", name(lead), name(third))
@@ -983,7 +987,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                 };
                 let preference = if matches!(
                     self.classify(position, named, leads_low),
-                    Play::Duck(_)
+                    Play::Duck(_) | Play::LeadLow(_)
                 ) {
                     // Giving up a trick is the last resort among ties.
                     (Rank::MAX, Rank::MAX, 0)
@@ -1030,7 +1034,10 @@ impl<'s, 'a> Describer<'s, 'a> {
     ) -> Option<Finesse> {
         let is_finesse = match self.classify(position, plan, leads_low) {
             Play::Toward { .. } | Play::Run(_) | Play::Lead(_) => true,
-            Play::Cash(_) | Play::Duck(_) | Play::Other { .. } => false,
+            Play::Cash(_)
+            | Play::Duck(_)
+            | Play::LeadLow(_)
+            | Play::Other { .. } => false,
         };
         if !is_finesse {
             return None;
@@ -1058,8 +1065,23 @@ impl<'s, 'a> Describer<'s, 'a> {
         let is_top =
             |card: Rank| missing.highest().is_none_or(|high| card > high);
         let FollowPlay::Card(third) = plan.third else {
+            let leader_cards = position.hand(plan.leader);
+            let is_lowest = leader_cards.lowest().is_some_and(|lowest| {
+                self.solver
+                    .equivalent_cards(
+                        position,
+                        leader_cards,
+                        lowest,
+                        RankSet::EMPTY,
+                    )
+                    .contains(plan.lead)
+            });
             return if is_top(plan.lead) {
                 Play::Cash(plan.lead)
+            } else if is_lowest
+                && missing.lowest().is_some_and(|lowest| plan.lead < lowest)
+            {
+                Play::LeadLow(plan.lead)
             } else {
                 Play::Lead(plan.lead)
             };
@@ -1195,7 +1217,7 @@ fn naming_rank(play: Play) -> u8 {
         | Play::Run(_)
         | Play::Lead(_)
         | Play::Other { .. } => 0,
-        Play::Duck(_) => 1,
+        Play::Duck(_) | Play::LeadLow(_) => 1,
         Play::Cash(_) => 2,
     }
 }
