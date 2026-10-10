@@ -6,7 +6,7 @@ name = "suit_combinations"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "Finds and explains the best line of play for a bridge suit combination"
+description = "Finds and explains the best play of a bridge suit combination"
 publish = false
 
 [dependencies]

@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 
-use crate::cards::{Rank, RankSet};
+use crate::cards::{Rank, RankSet, SUIT_SIZE};
 use crate::layout_set::LayoutSet;
 use crate::layouts::{Defender, Layouts};
 
@@ -297,7 +297,7 @@ impl Frontier {
     }
 
     /// A frontier holding only `result`.
-    fn single(result: &[LayoutSet]) -> Frontier {
+    pub fn single(result: &[LayoutSet]) -> Frontier {
         Frontier {
             level_count: result.len(),
             sets: result.to_vec(),
@@ -357,7 +357,11 @@ impl Frontier {
     ///
     /// Each combined result succeeds in a layout only where both parts do,
     /// counting the child's part as a success wherever the child can't arise.
-    fn combined_with(&self, child: &Frontier, outside: LayoutSet) -> Frontier {
+    pub fn combined_with(
+        &self,
+        child: &Frontier,
+        outside: LayoutSet,
+    ) -> Frontier {
         let mut combined = Frontier::new(self.level_count);
         let mut candidate = vec![LayoutSet::EMPTY; self.level_count];
         for result in self.results() {
@@ -371,6 +375,29 @@ impl Frontier {
         }
         combined
     }
+}
+
+/// The cards of `cards` reachable from `card` without crossing a rank in
+/// `blockers`, including `card` itself.
+fn run_around(cards: RankSet, card: Rank, blockers: RankSet) -> RankSet {
+    let mut run = RankSet::single(card);
+    for rank in card + 1..SUIT_SIZE {
+        if blockers.contains(rank) {
+            break;
+        }
+        if cards.contains(rank) {
+            run = run.with(rank);
+        }
+    }
+    for rank in (0..card).rev() {
+        if blockers.contains(rank) {
+            break;
+        }
+        if cards.contains(rank) {
+            run = run.with(rank);
+        }
+    }
+    run
 }
 
 /// Whether `result` reaches every target wherever `required` does.
@@ -514,7 +541,7 @@ impl<'a> Solver<'a> {
     }
 
     /// How many of declarer's cards outrank every defender's card left.
-    fn sure_tricks(&self, position: Position) -> u8 {
+    pub fn sure_tricks(&self, position: Position) -> u8 {
         let declarer = position.north.union(position.south);
         match self.missing_ranks(position).highest() {
             Some(highest) => {
@@ -525,7 +552,7 @@ impl<'a> Solver<'a> {
     }
 
     /// The ranks of every defender group with a card still unplayed.
-    fn missing_ranks(&self, position: Position) -> RankSet {
+    pub fn missing_ranks(&self, position: Position) -> RankSet {
         let mut ranks = RankSet::EMPTY;
         for (index, group) in self.layouts.groups.iter().enumerate() {
             let played =
@@ -541,12 +568,14 @@ impl<'a> Solver<'a> {
     /// the ranks of any defender's card already played to this trick.
     ///
     /// Cards with no defender card left between them take the same tricks,
-    /// so one stands for all; a card already played to the trick still counts
-    /// as left, since declarer's card may yet beat it. The one chosen is the top of the lowest run of
-    /// cards that touch, with nothing at all left between them: within such
-    /// a run every card is the same in every respect, and starting from the
-    /// lowest run keeps the higher cards, which may win in the other hand's
-    /// stead, for later.
+    /// so one stands for all; a card already played to the trick still
+    /// counts as left, since declarer's card may yet beat it.
+    ///
+    /// Among equivalent cards, the one chosen is the top of the lowest
+    /// sequence, a sequence being cards with nothing at all left between
+    /// them: within a sequence every card is the same in every respect, and
+    /// starting from the lowest sequence keeps the higher cards for later,
+    /// since they may win in the other hand's stead.
     pub fn distinct_plays(
         &self,
         position: Position,
@@ -582,6 +611,38 @@ impl<'a> Solver<'a> {
         }
         plays.extend(current);
         plays
+    }
+
+    /// The cards in `cards` that take the same tricks as `card`: those with
+    /// no defender card left between them and it, counting `contested` as
+    /// left.
+    pub fn equivalent_cards(
+        &self,
+        position: Position,
+        cards: RankSet,
+        card: Rank,
+        contested: RankSet,
+    ) -> RankSet {
+        let blockers = self.missing_ranks(position).union(contested);
+        run_around(cards, card, blockers)
+    }
+
+    /// The cards in `cards` that touch `card`, with no card at all left
+    /// between them, counting `contested` as left.
+    pub fn touching_cards(
+        &self,
+        position: Position,
+        cards: RankSet,
+        card: Rank,
+        contested: RankSet,
+    ) -> RankSet {
+        let blockers = self
+            .missing_ranks(position)
+            .union(contested)
+            .union(position.north)
+            .union(position.south)
+            .difference(cards);
+        run_around(cards, card, blockers)
     }
 
     /// The frontier after a defender's turn in `trick`: second hand's, or

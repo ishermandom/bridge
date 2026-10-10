@@ -5,11 +5,9 @@
 //! command line, such as `AQT-xx@2`.
 
 use std::process::ExitCode;
-use std::time::Instant;
 
-use suit_combinations::layouts::{DEAL_COUNT, Layouts};
+use suit_combinations::analysis::analyze;
 use suit_combinations::notation::parse_problem;
-use suit_combinations::solver::{Position, Solver};
 
 fn main() -> ExitCode {
     let problems: Vec<String> = std::env::args().skip(1).collect();
@@ -25,27 +23,10 @@ fn main() -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        let started = Instant::now();
-        let layouts = Layouts::new(problem.combination);
-        let longest = problem
-            .combination
-            .north
-            .len()
-            .max(problem.combination.south.len());
-        let mut solver = Solver::new(&layouts, problem.target, longest);
-        let frontier = solver.solve(Position::start(&layouts));
-        let best = frontier
-            .results()
-            .map(|result| layouts.weight(result[0]))
-            .max()
-            .unwrap_or(0);
-        println!(
-            "{problem}: {:.2}% ({} results, {} positions, {:.1?})",
-            100.0 * best as f64 / DEAL_COUNT as f64,
-            frontier.len(),
-            solver.positions_solved(),
-            started.elapsed()
-        );
+        let analysis = analyze(problem);
+        println!("{problem}: {:.2}%", analysis.success_percent());
+        println!("{}", analysis.line_words());
+        println!();
     }
     ExitCode::SUCCESS
 }

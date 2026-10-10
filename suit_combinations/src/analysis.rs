@@ -1,14 +1,15 @@
 // Copyright 2026 Ilya Sherman (ishermandom@)
 // SPDX-License-Identifier: MIT
 
-//! The best strategies for a problem, and their chances of success.
+//! The best strategies for a problem, their chances, and their lines.
 
+use crate::describe::{Describer, Line, line_words};
 use crate::layout_set::LayoutSet;
 use crate::layouts::{DEAL_COUNT, Layouts};
 use crate::notation::Problem;
 use crate::solver::{Position, Solver};
 
-/// One best strategy's result.
+/// One best strategy: its result and its line of play.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BestResult {
     /// For each target from the problem's up to the longer hand's length, the
@@ -16,6 +17,8 @@ pub struct BestResult {
     pub layouts_by_target: Vec<LayoutSet>,
     /// For each of those targets, how many deals the strategy reaches it in.
     pub deals_by_target: Vec<u64>,
+    /// The line of play.
+    pub line: Line,
 }
 
 impl BestResult {
@@ -30,11 +33,12 @@ impl BestResult {
 pub struct Analysis {
     pub problem: Problem,
     pub layouts: Layouts,
-    /// The results of the best strategies, which tie with one another.
+    /// The best strategies, which tie with one another.
     ///
     /// A strategy is best when no other reaches the target more often; among
-    /// those that tie, the best make the most of each further trick in turn.
-    /// Strategies whose results match in every layout count once.
+    /// those that tie, the best reach one overtrick most often, then two, and
+    /// so on.
+    /// Strategies that win in the same layouts count once.
     pub best: Vec<BestResult>,
 }
 
@@ -42,6 +46,24 @@ impl Analysis {
     /// The chance, in percent, that a best strategy reaches the target.
     pub fn success_percent(&self) -> f64 {
         self.best[0].success_percent()
+    }
+
+    /// The best line in words, offering each best strategy in turn when
+    /// several tie with different lines.
+    pub fn line_words(&self) -> String {
+        let mut lines: Vec<String> = Vec::new();
+        for result in &self.best {
+            let words = line_words(&result.line, &self.layouts);
+            if !lines.contains(&words) {
+                lines.push(words);
+            }
+        }
+        if lines.len() == 1 {
+            return lines.remove(0);
+        }
+        let bullets: Vec<String> =
+            lines.iter().map(|line| format!("* {line}")).collect();
+        format!("Either:\n{}", bullets.join("\n"))
     }
 }
 
@@ -61,27 +83,34 @@ pub fn analyze(problem: Problem) -> Analysis {
     let best = {
         let mut solver = Solver::new(&layouts, problem.target, longest);
         let frontier = solver.solve(Position::start(&layouts));
-        let results: Vec<BestResult> = frontier
+        let candidates: Vec<(Vec<LayoutSet>, Vec<u64>)> = frontier
             .results()
-            .map(|result| BestResult {
-                layouts_by_target: result.to_vec(),
-                deals_by_target: result
-                    .iter()
-                    .map(|&set| layouts.weight(set))
-                    .collect(),
+            .map(|result| {
+                let deals =
+                    result.iter().map(|&set| layouts.weight(set)).collect();
+                (result.to_vec(), deals)
             })
             .collect();
         // Comparing the counts target by target, the problem's own first,
         // ranks overtricks below the target and each overtrick below the
         // one before it.
-        let top = results
+        let top = candidates
             .iter()
-            .map(|result| result.deals_by_target.clone())
+            .map(|(_, deals)| deals.clone())
             .max()
             .expect("a frontier always holds a result");
-        results
+        let mut describer = Describer::new(&mut solver);
+        candidates
             .into_iter()
-            .filter(|result| result.deals_by_target == top)
+            .filter(|(_, deals)| *deals == top)
+            .map(|(layouts_by_target, deals_by_target)| {
+                let line = describer.describe(&layouts_by_target);
+                BestResult {
+                    layouts_by_target,
+                    deals_by_target,
+                    line,
+                }
+            })
             .collect()
     };
     Analysis {

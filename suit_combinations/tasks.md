@@ -21,6 +21,10 @@ English, and the intuition behind it.
   - Note: the user set fallbacks if that proves impossible: first 10 minutes,
     then "any combination within 30 seconds". A relaxed target means queueing a
     task to cache results.
+- [ ] Once every row of the input file works, extend the tests with
+      progressively harder combinations, such as long suits and safety plays.
+- [ ] Cross-check the solver against published data, such as worked examples in
+      Wikipedia's "Suit combination" article.
 - [ ] Check results against CCAnalyser, the user's reference tool
       (https://bridge.esmarkkappel.dk/main/main.html).
   - Note: drive a real browser (Playwright), never disguised, within the user's

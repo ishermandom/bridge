@@ -90,6 +90,51 @@ keeps the higher cards, which may win the trick in the other hand's stead, for
 later. A defender's card already played to the current trick still counts as
 left, since declarer's next card may beat it.
 
+## Describing lines {#describing-lines}
+
+The description reads like a teacher's summary of the line, such as "Low to the
+T, then low to the Q", rather than a full strategy tree. It follows one main
+line and names each trick by what declarer leads and what the other hand plays
+when second hand plays low:
+
+- **Cash the A**: win with a card no defender can beat.
+- **Low to the Q**: lead low toward the Q and play it.
+- **Run the J**: lead the J and play low from the other hand.
+- **Duck a round**: play low from both hands.
+
+"Second hand plays low" means its lowest card below the card declarer means to
+win the trick with. When second hand has no such card, as when West holds only
+the A and Q against a lead of the 9, declarer's reply stays free; the play is
+still "run the 9", and declarer covers. The line also follows second hand
+showing out, since a show-out tells declarer where the rest of the suit lies.
+
+After each trick, the next is joined with "then" when one play suits every way
+the trick might have gone; otherwise the line splits, first on whether the trick
+won or lost, then into groups that share a play. A play matches across those
+branches by its cards rather than its name, so "low to the Q" still matches once
+the K has gone and the Q has become a winner; the description then uses the name
+that says more.
+
+The line stops once its target is safe on sure winners. Overtricks shape it only
+where they come free: a branch whose target is already safe goes along with the
+other branches' play when that play suits it, which is how "Low to the T, then
+low to the Q" keeps its second finesse after the T wins.
+
+Among lines that work equally well, the description prefers:
+
+1. **Fewer entries**: leading from the hand that just won the trick, with South
+   on lead at the start. That picks "Run the 9, then run the J" from AQTx
+   opposite J9x, which stays in South, and "Cash the K, then run the J" from Axx
+   opposite KJT.
+2. **Fewer tricks spelled out.**
+3. **The lower card first**, so the deeper finesse comes first, as in "Low to
+   the T, then low to the Q". Among equal cards in one hand, the lower sequence
+   comes first, and within a sequence the top card leads. A card played under a
+   winner is always the lowest of its equals, keeping the others.
+
+When tied best strategies win in different layouts, such as a two-way finesse,
+the description offers each: "Either:" and one line per strategy.
+
 ## Testing {#testing}
 
 - **The input file's rows**: `tests/spreadsheet_rows.rs` pins the analyzer's
