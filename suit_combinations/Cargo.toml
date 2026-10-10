@@ -10,6 +10,8 @@ description = "Finds and explains the best play of a bridge suit combination"
 publish = false
 
 [dependencies]
+# Reads the flashcards' input file, whose cells may hold quoted line breaks.
+csv = "1"
 # A faster hash than the standard library's for the solver's memo table, whose
 # keys never come from untrusted input.
 rustc-hash = "2"

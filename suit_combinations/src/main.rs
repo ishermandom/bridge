@@ -3,12 +3,14 @@
 
 //! Command-line entry point: analyze each suit combination named on the
 //! command line, such as `AQT-xx@2`, or, given `-`, each line of standard
-//! input.
+//! input. `compare FILE` instead compares the analyzer with each row of the
+//! flashcards' input file.
 
 use std::io::{BufRead, Write};
 use std::process::ExitCode;
 
 use suit_combinations::analysis::analyze;
+use suit_combinations::comparison::{compare_rows, report};
 use suit_combinations::notation::parse_problem;
 
 fn main() -> ExitCode {
@@ -16,9 +18,14 @@ fn main() -> ExitCode {
     if arguments.is_empty() {
         eprintln!(
             "usage: suit_combinations PROBLEM..., such as AQT-xx@2, or - to \
-             read one problem per line of standard input"
+             read one problem per line of standard input, or compare FILE"
         );
         return ExitCode::from(2);
+    }
+    if let [command, path] = arguments.as_slice()
+        && command == "compare"
+    {
+        return compare(path);
     }
     let problems: Vec<String> = if arguments == ["-"] {
         match std::io::stdin().lock().lines().collect() {
@@ -55,4 +62,26 @@ fn main() -> ExitCode {
         }
     }
     ExitCode::SUCCESS
+}
+
+/// Print how the analyzer compares with each row of the input file at
+/// `path`.
+fn compare(path: &str) -> ExitCode {
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) => {
+            eprintln!("couldn't open {path}: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    match compare_rows(file) {
+        Ok(comparisons) => {
+            print!("{}", report(&comparisons));
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("{path}: {}", error.0);
+            ExitCode::FAILURE
+        }
+    }
 }
