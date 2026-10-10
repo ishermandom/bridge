@@ -158,6 +158,12 @@ package.
 
 Unsequenced items and open questions from the spec.
 
+- [ ] Say "spreadsheet" wherever the docs and code here say just "sheet":
+      `anki/spec.md` #suit-combination-input ("downloads the sheet", "reading
+      the sheet directly"), `flashcards/spec.md` ("sheet-driven generators" and
+      the "Generated (sheet)" origins), and `anki/suit_combination_parsing.py`
+      ("the Google Sheet").
+  - Note: "Google Sheets", the product's name, stays as it is.
 - [ ] Consider setting emphasis inside a callout upright, as print typography
       does: a callout already shows in italics, so an `*emphasized*` word in one
       doesn't stand out. No row of the input file does this yet.
