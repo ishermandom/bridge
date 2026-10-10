@@ -1,0 +1,5 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# The repo wraps everything at 80 columns; rustfmt's default is 100.
+max_width = 80

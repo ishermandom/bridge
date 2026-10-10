@@ -1,0 +1,15 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+[package]
+name = "suit_combinations"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Finds and explains the best line of play for a bridge suit combination"
+publish = false
+
+[dependencies]
+# A faster hash than the standard library's for the solver's memo table, whose
+# keys never come from untrusted input.
+rustc-hash = "2"

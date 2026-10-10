@@ -11,6 +11,16 @@
 # directory is the root no matter where the caller ran it from.
 repo_root="$(dirname "$0")"
 
+# suit_combinations: a Rust crate, tested with cargo. `--manifest-path` points
+# cargo at the crate without changing directory, and `--quiet` cuts a passing
+# run down to its summary lines. It runs before the userscript's checks start in
+# the background below, so a failure here exits with nothing left running.
+cargo test --quiet --manifest-path "$repo_root/suit_combinations/Cargo.toml"
+suit_combinations_status=$?
+if [ "$suit_combinations_status" -ne 0 ]; then
+  exit "$suit_combinations_status"
+fi
+
 # club_sites/palo_alto: a Tampermonkey userscript tested with vitest + jsdom.
 package="$repo_root/club_sites/palo_alto"
 
