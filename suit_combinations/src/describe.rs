@@ -465,11 +465,6 @@ struct Candidate {
     /// The entries the plan costs: one when it leads from the hand that
     /// didn't win the last trick.
     entries: u32,
-    /// Whether the plan is a duck whose reply stays free, because second
-    /// hand has no card below it: it may stand in for a sibling branch's
-    /// play, but names no play by itself, since declarer may not duck at
-    /// all.
-    is_free_duck: bool,
     /// Ranks the candidate among ties, lowest first: the lower set of
     /// equivalent cards first, then the lower run of touching cards, then
     /// the higher card within a run.
@@ -641,13 +636,7 @@ impl<'s, 'a> Describer<'s, 'a> {
         while !remaining.is_empty() {
             let mut best_key: Option<(usize, (Rank, Rank, i8), PlanKey)> = None;
             for &index in &remaining {
-                let has_named = options[index]
-                    .iter()
-                    .any(|candidate| !candidate.is_free_duck);
                 for candidate in &options[index] {
-                    if candidate.is_free_duck && has_named {
-                        continue;
-                    }
                     let count = remaining
                         .iter()
                         .filter(|&&other| {
@@ -1015,13 +1004,28 @@ impl<'s, 'a> Describer<'s, 'a> {
                 } else {
                     main_line
                 };
-                let winner = named.winner();
-                let winner_cards = if named.winning_hand() == plan.leader {
+                // A free plan's own reply is hypothetical, since second hand
+                // never plays below it; the reply its line follows says what
+                // the play really is.
+                let followed = if is_free {
+                    Plan {
+                        third: main_line.1,
+                        ..named
+                    }
+                } else {
+                    named
+                };
+                let winner = followed.winner();
+                let winner_cards = if followed.winning_hand() == plan.leader {
                     leader_cards
                 } else {
                     partner_cards
                 };
-                let play = self.classify(position, named, leads_low);
+                let followed_leads_low = lowest_lead
+                    .is_some_and(|lowest| lead_group.contains(lowest))
+                    && followed.winning_hand() != plan.leader;
+                let play =
+                    self.classify(position, followed, followed_leads_low);
                 let preference =
                     if matches!(play, Play::Duck(_) | Play::LeadLow(_)) {
                         // Giving up a trick is the last resort among ties.
@@ -1047,8 +1051,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                 candidates.push(Candidate {
                     key,
                     play,
-                    is_free_duck: is_free && matches!(play, Play::Duck(_)),
-                    finesse: self.finesse(position, named, play),
+                    finesse: self.finesse(position, followed, play),
                     plan: named,
                     main_line,
                     entries,
@@ -1277,33 +1280,19 @@ fn restricted(required: &[LayoutSet], layouts: LayoutSet) -> Vec<LayoutSet> {
 }
 
 /// The plan keys valid in every branch, in order of preference.
-///
-/// A key that only free ducks offer counts only when no branch names any
-/// key outright.
 fn common_keys(options: &[Vec<Candidate>]) -> Vec<PlanKey> {
     let mut ordered = options[0].clone();
     ordered.sort_by_key(|candidate| candidate.preference);
-    let mut named: Vec<PlanKey> = Vec::new();
-    let mut unnamed: Vec<PlanKey> = Vec::new();
+    let mut common: Vec<PlanKey> = Vec::new();
     for candidate in &ordered {
-        let key = candidate.key;
         let is_everywhere = options[1..]
             .iter()
-            .all(|each| each.iter().any(|other| other.key == key));
-        if !is_everywhere || named.contains(&key) || unnamed.contains(&key) {
-            continue;
-        }
-        let is_named = options
-            .iter()
-            .flatten()
-            .any(|other| other.key == key && !other.is_free_duck);
-        if is_named {
-            named.push(key);
-        } else {
-            unnamed.push(key);
+            .all(|each| each.iter().any(|other| other.key == candidate.key));
+        if is_everywhere && !common.contains(&candidate.key) {
+            common.push(candidate.key);
         }
     }
-    if named.is_empty() { unnamed } else { named }
+    common
 }
 
 /// Whether `group` is exactly the branches that won, or exactly those that

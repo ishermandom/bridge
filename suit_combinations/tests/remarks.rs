@@ -43,3 +43,19 @@ fn remark_marks_where_alternatives_start() {
 fn remark_plays_for_an_even_split_without_a_finesse() {
     assert_eq!(remark("AKxxx-xxx@4"), "Play for a 3-2 split");
 }
+
+#[test]
+fn remark_says_when_a_likely_line_fails() {
+    assert_eq!(
+        remark("KQ964-A852@5"),
+        "Finesse; it fails only when East holds all four"
+    );
+}
+
+#[test]
+fn remark_names_equal_honors_on_both_sides() {
+    assert_eq!(
+        remark("AQ8x-K9xx@4"),
+        "Finesse hoping the suit splits 3-2, or the J and T are split"
+    );
+}

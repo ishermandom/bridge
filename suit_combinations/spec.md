@@ -108,9 +108,11 @@ when second hand plays low:
 
 "Second hand plays low" means its lowest card below the card declarer means to
 win the trick with. When second hand has no such card, as when West holds only
-the A and Q against a lead of the 9, declarer's reply stays free; the play is
-still "run the 9", and declarer covers. The line also follows second hand
-showing out, since a show-out tells declarer where the rest of the suit lies.
+the A and Q against a lead of the 9, declarer's reply stays free: such a play
+still matches a sibling branch's "run the 9", and on its own is named by the
+reply the line follows, here covering with the K. The line also follows second
+hand showing out, since a show-out tells declarer where the rest of the suit
+lies.
 
 After each trick, the next is joined with "then" when one play suits every way
 the trick might have gone; otherwise the line splits, first on whether the trick
@@ -167,7 +169,7 @@ the K or J is onside".
   the line's first finesse.
 - **Condition**: the simplest statement, built from up to three facts, that
   matches the layouts where the line wins. The facts are:
-  - an honor lying onside, or one or all of a run of equal honors;
+  - an honor lying onside or offside, or one or all of a run of equal honors;
   - the suit splitting evenly;
   - an honor being singleton, or at most doubleton, onside or offside (or, for a
     line without a finesse, with either defender);
@@ -177,9 +179,16 @@ the K or J is onside".
   misses by at most 5% more, which keeps "Repeated finesse hoping the A is
   onside" for KQ10 opposite xxx rather than adding a clause for a short J.
 
+  A condition that holds in every layout, or in none, says nothing and is never
+  chosen.
+
 - **Extras**: what the condition misses becomes an extra chance, such as "with a
   small chance to drop a singleton Q", or a percentage when no simple pattern
   fits; above 5% of deals it is no longer called small.
+- **Failure**: a line that succeeds more often than not may say instead when it
+  fails, when that is exact where the success condition is not, or simpler:
+  "Finesse; it fails only when East holds all four" for KQ964 opposite A852. The
+  failure condition must hold in every layout where the line fails.
 
 A line that succeeds in every layout says so instead, and so does a target that
 best defense always prevents.
