@@ -32,6 +32,39 @@ by hand, ahead of the backup and the automated import. Design in
 
 ---
 
+## Suit-combination constraints {#suit-combination-constraints}
+
+**Goal:** let a row state the constraints its best line assumes, adding one kind
+of constraint at a time, side entries first.
+
+- [ ] Side entries to each hand (default: unlimited).
+- [ ] Hand on lead (default: South).
+- [ ] Each defender's known number of cards in other suits (default: none
+      known).
+- [ ] Each defender's maximum HCP (default: no limit).
+- [ ] Cards known to be with each defender (default: none).
+
+### Notes
+
+- Each kind is an optional input column. A blank cell means the default and
+  stays out of the card's identity (`flashcards/spec.md` #card-identity); a
+  filled cell enters the identity in normalized form.
+- Each constraint that departs from the default shows on the card's front, since
+  it changes the answer.
+- The generator records constraints rather than analyzing them, so questions
+  such as what a defender returns after winning a trick don't arise here.
+- Note: settled — every kind shares the one `Constraints` field, already
+  declared; see `anki/spec.md` #suit-combination-card. Each kind still needs its
+  own sentence for that field and its own compact notation for the summary.
+- Open question: does the HCP limit cover the defender's whole hand, or only
+  this suit? CCAnalyser, the user's reference tool, limits it within the suit.
+  The user leans toward the whole hand, which is what bidding reveals, though a
+  limit within the suit has merit too: after an overcall such as `2C (2H)`, some
+  of the overcaller's HCP are surely in hearts. Settle it when building this
+  task.
+
+---
+
 ## Backup — Flow 4
 
 **Goal:** stand up the automated, version-tracked full-collection backup — the
@@ -138,10 +171,14 @@ Unsequenced items and open questions from the spec.
 - [ ] Move the spec's Deferred items into `anki/spec.md` (card-text
       standardization, schema-change safety tooling mechanics, full module
       layout).
-- [ ] Consider further suit-combination columns: conditions such as entries or
-      bidding information, a most-tricks-on-average goal, and technique tags.
+- [ ] Consider suit-combination inputs beyond #suit-combination-constraints: a
+      most-tricks-on-average goal, a cap on the tricks each defender may win
+      (covering avoidance plays and tempo), whether a defender can ruff, and
+      technique tags.
   - Note: each can arrive later without re-keying existing cards, because blank
     optional columns stay out of the key.
+  - Note: averaging the most tricks only approximates the matchpoint goal; see
+    the K1084 opposite Q32 example in Wikipedia's "Suit combination" article.
 - [ ] Settle which license covers `spec.md` and `tasks.md` in this directory.
       The README and `flashcards/LICENSE` both scope CC-BY-4.0 to the flashcard
       _content_ here, which doesn't obviously reach development docs that merely
