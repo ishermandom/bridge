@@ -13,8 +13,14 @@ English, and the intuition behind it.
 
 - [~] Extend the tests with progressively harder combinations, such as long
   suits and safety plays, pinning answers CCAnalyser confirms.
-- [~] Check results against CCAnalyser, the user's reference tool
+- [-] Check results against CCAnalyser, the user's reference tool
   (https://bridge.esmarkkappel.dk/main/main.html).
+  - Note: stopped for good, as agreed, at the first error. Six analyses all
+    matched the analyzer exactly; the seventh, KT84-Q32@3, timed out in the
+    driver waiting for a result after a reset, most likely a fault in the driver
+    rather than a block. Resuming needs the user's go-ahead. The matches:
+    KQT-xxx@2 54.84%, KJxx-A9xx@3 100%, AQxxx-J9xx@5 32.78%, AQ8xx-J9xx@4 100%,
+    KQxxx-AT9x@5 100%, and KT84-Q32@2 85.93%.
   - Note: drive a real browser (Playwright), never disguised, within the user's
     limits: at most 100 examples in all, 3 per minute, and 10 per 30 minutes.
     Stop for good at the first block or error rather than retry. A plain `curl`

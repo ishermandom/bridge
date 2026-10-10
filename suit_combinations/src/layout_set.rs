@@ -68,6 +68,13 @@ impl LayoutSet {
         self.0.iter().all(|&word| word == 0)
     }
 
+    /// The set's words folded together with `|`. A superset's fold
+    /// always contains a subset's, so comparing folds, a single word each,
+    /// rules out most non-supersets cheaply.
+    pub fn folded(self) -> u64 {
+        self.0.iter().fold(0, |folded, &word| folded | word)
+    }
+
     /// How many layouts the set holds.
     pub fn len(self) -> usize {
         self.0.iter().map(|word| word.count_ones() as usize).sum()

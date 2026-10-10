@@ -13,9 +13,7 @@
 use crate::cards::{Rank, RankSet, rank_symbol};
 use crate::layout_set::LayoutSet;
 use crate::layouts::{Defender, Layouts};
-use crate::solver::{
-    DefenderPlay, FollowPlay, Frontier, Hand, Position, Solver, Trick,
-};
+use crate::solver::{DefenderPlay, FollowPlay, Hand, Position, Solver, Trick};
 
 /// One trick of a line, as the description names it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -472,6 +470,7 @@ pub struct Describer<'s, 'a> {
 
 impl<'s, 'a> Describer<'s, 'a> {
     pub fn new(solver: &'s mut Solver<'a>) -> Describer<'s, 'a> {
+        solver.remember_tricks();
         Describer { solver }
     }
 
@@ -737,20 +736,36 @@ impl<'s, 'a> Describer<'s, 'a> {
     /// Every plan that can still achieve the branch's requirement.
     fn candidates(&mut self, branch: &Branch) -> Vec<Candidate> {
         let position = branch.position;
-        let live = self.solver.live(position);
-        let level_count = self.solver.level_count;
         let mut candidates = Vec::new();
         for (leader, lead) in self.solver.leads(position) {
             let trick = Trick::led(position, leader, lead);
             let options = self.solver.defender_options(trick);
+            // Whether declarer, answering freely, can still meet the
+            // requirement after each of second hand's plays.
+            let free: Vec<bool> = options
+                .iter()
+                .map(|&(play, layouts)| {
+                    self.solver
+                        .third_hand_turn(trick.with_defender_play(play))
+                        .achieves(&restricted(&branch.required, layouts))
+                })
+                .collect();
 
             // Plans whose third card answers one of second hand's plays: the
             // highest that stays below the card declarer means to win with.
-            for &(low, low_layouts) in &options {
+            // Each of second hand's plays can be checked on its own, since
+            // the defenders choose between them layout by layout.
+            for (index, &(low, low_layouts)) in options.iter().enumerate() {
+                let others_work = free
+                    .iter()
+                    .enumerate()
+                    .all(|(other, &works)| other == index || works);
+                if !others_work {
+                    continue;
+                }
                 let low_trick = trick.with_defender_play(low);
-                let thirds = self.solver.third_hand_options(low_trick);
-                let mut others = None;
-                for &third in &thirds {
+                let required = restricted(&branch.required, low_layouts);
+                for third in self.solver.third_hand_options(low_trick) {
                     let plan = Plan {
                         leader,
                         lead,
@@ -759,27 +774,9 @@ impl<'s, 'a> Describer<'s, 'a> {
                     if self.low_play(&options, plan) != Some(low) {
                         continue;
                     }
-                    let others = others.get_or_insert_with(|| {
-                        let mut combined =
-                            Frontier::single(&vec![live; level_count]);
-                        for &(play, layouts) in &options {
-                            if play != low {
-                                let child = self.solver.third_hand_turn(
-                                    trick.with_defender_play(play),
-                                );
-                                combined = combined.combined_with(
-                                    &child,
-                                    live.difference(layouts),
-                                );
-                            }
-                        }
-                        combined
-                    });
                     let child =
                         self.solver.defender_turn(low_trick.with_third(third));
-                    let combined = others
-                        .combined_with(&child, live.difference(low_layouts));
-                    if combined.achieves(&branch.required) {
+                    if child.achieves(&required) {
                         self.add_candidates(
                             &mut candidates,
                             branch,
@@ -794,8 +791,7 @@ impl<'s, 'a> Describer<'s, 'a> {
 
             // Plans that second hand can never play below: declarer answers
             // whatever comes freely, so only the lead is fixed.
-            let after_lead = self.solver.after_lead(trick);
-            if !after_lead.achieves(&branch.required) {
+            if !free.iter().all(|&works| works) {
                 continue;
             }
             for third in self.solver.third_hand_options(trick) {
@@ -1240,6 +1236,14 @@ enum Urgency {
     Overtricks,
     /// Nothing: its sure winners cover everything it could still make.
     Settled,
+}
+
+/// `required` cut down to the layouts in `layouts`.
+fn restricted(required: &[LayoutSet], layouts: LayoutSet) -> Vec<LayoutSet> {
+    required
+        .iter()
+        .map(|set| set.intersection(layouts))
+        .collect()
 }
 
 /// The plan keys valid in every branch, in order of preference.

@@ -285,6 +285,36 @@ pub struct Frontier {
     level_count: usize,
     /// The results, one after another.
     sets: Vec<LayoutSet>,
+    /// Each result's signature, in the same order.
+    signatures: Vec<Signature>,
+}
+
+/// What a quick test needs to know about a result: a result can only contain
+/// another when it holds at least as many layouts in all and the fold of its
+/// set at the lowest target contains the other's.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Signature {
+    /// How many layouts the result's sets hold between them.
+    size: u32,
+    /// The fold of the result's set at the lowest target; see
+    /// `LayoutSet::folded`.
+    folded: u64,
+}
+
+impl Signature {
+    fn of(result: &[LayoutSet]) -> Signature {
+        Signature {
+            // At most 13 sets of at most 162 layouts.
+            size: result.iter().map(|set| set.len() as u32).sum(),
+            folded: result[0].folded(),
+        }
+    }
+
+    /// Whether a result with this signature might contain one with
+    /// `other`.
+    fn may_contain(self, other: Signature) -> bool {
+        self.size >= other.size && self.folded & other.folded == other.folded
+    }
 }
 
 impl Frontier {
@@ -293,6 +323,7 @@ impl Frontier {
         Frontier {
             level_count,
             sets: Vec::new(),
+            signatures: Vec::new(),
         }
     }
 
@@ -301,6 +332,7 @@ impl Frontier {
         Frontier {
             level_count: result.len(),
             sets: result.to_vec(),
+            signatures: vec![Signature::of(result)],
         }
     }
 
@@ -328,21 +360,36 @@ impl Frontier {
     /// Add `result`, unless a result already here beats or equals it,
     /// dropping any result that it beats.
     fn insert(&mut self, result: &[LayoutSet]) {
-        if self.results().any(|existing| covers(existing, result)) {
+        let signature = Signature::of(result);
+        let size = self.level_count;
+        let is_beaten =
+            self.signatures.iter().enumerate().any(|(index, existing)| {
+                existing.may_contain(signature)
+                    && covers(
+                        &self.sets[index * size..(index + 1) * size],
+                        result,
+                    )
+            });
+        if is_beaten {
             return;
         }
-        let count = self.len();
-        let size = self.level_count;
         let mut kept = 0;
-        for index in 0..count {
+        for index in 0..self.signatures.len() {
             let range = index * size..(index + 1) * size;
-            if !covers(result, &self.sets[range.clone()]) {
-                self.sets.copy_within(range, kept * size);
+            let is_dropped = signature.may_contain(self.signatures[index])
+                && covers(result, &self.sets[range.clone()]);
+            if !is_dropped {
+                if kept != index {
+                    self.sets.copy_within(range, kept * size);
+                    self.signatures[kept] = self.signatures[index];
+                }
                 kept += 1;
             }
         }
         self.sets.truncate(kept * size);
+        self.signatures.truncate(kept);
         self.sets.extend_from_slice(result);
+        self.signatures.push(signature);
     }
 
     /// Add every result of `other`.
@@ -418,6 +465,10 @@ pub struct Solver<'a> {
     pub level_count: usize,
     /// The frontier from each position reached at the start of a trick.
     memo: FxHashMap<Position, Rc<Frontier>>,
+    /// The frontier from each point within a trick, kept only once
+    /// `remember_tricks` is called. The search reaches each such point once,
+    /// but describing a line asks about the same points again and again.
+    trick_memo: Option<FxHashMap<Trick, Rc<Frontier>>>,
 }
 
 impl<'a> Solver<'a> {
@@ -434,6 +485,7 @@ impl<'a> Solver<'a> {
             lowest_target,
             level_count: usize::from(highest_target - lowest_target + 1),
             memo: FxHashMap::default(),
+            trick_memo: None,
         }
     }
 
@@ -441,6 +493,30 @@ impl<'a> Solver<'a> {
     pub fn highest_target(&self) -> u8 {
         // `level_count` came from a difference of two `u8` targets.
         self.lowest_target + (self.level_count - 1) as u8
+    }
+
+    /// Keep the frontier from each point within a trick from now on.
+    pub fn remember_tricks(&mut self) {
+        self.trick_memo.get_or_insert_with(FxHashMap::default);
+    }
+
+    /// The frontier at `trick` from the trick memo, or else from `compute`,
+    /// remembered when the memo is on.
+    fn within_trick(
+        &mut self,
+        trick: Trick,
+        compute: fn(&mut Self, Trick) -> Rc<Frontier>,
+    ) -> Rc<Frontier> {
+        if let Some(frontier) =
+            self.trick_memo.as_ref().and_then(|memo| memo.get(&trick))
+        {
+            return Rc::clone(frontier);
+        }
+        let frontier = compute(self, trick);
+        if let Some(memo) = self.trick_memo.as_mut() {
+            memo.insert(trick, Rc::clone(&frontier));
+        }
+        frontier
     }
 
     /// How many positions the search has solved.
@@ -648,6 +724,11 @@ impl<'a> Solver<'a> {
     /// The frontier after a defender's turn in `trick`: second hand's, or
     /// else fourth hand's.
     pub fn defender_turn(&mut self, trick: Trick) -> Rc<Frontier> {
+        self.within_trick(trick, Self::defender_turn_uncached)
+    }
+
+    /// The frontier after a defender's turn in `trick`, computed afresh.
+    fn defender_turn_uncached(&mut self, trick: Trick) -> Rc<Frontier> {
         let live = self.live(trick.position);
         let mut combined = Frontier::single(&vec![live; self.level_count]);
         for (play, layouts) in self.defender_options(trick) {
@@ -719,6 +800,11 @@ impl<'a> Solver<'a> {
 
     /// The frontier when the third hand is due to play in `trick`.
     pub fn third_hand_turn(&mut self, trick: Trick) -> Rc<Frontier> {
+        self.within_trick(trick, Self::third_hand_turn_uncached)
+    }
+
+    /// The frontier when the third hand is due to play, computed afresh.
+    fn third_hand_turn_uncached(&mut self, trick: Trick) -> Rc<Frontier> {
         let mut frontier = Frontier::new(self.level_count);
         for play in self.third_hand_options(trick) {
             let after = self.defender_turn(trick.with_third(play));
