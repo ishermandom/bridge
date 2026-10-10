@@ -360,22 +360,25 @@ impl Frontier {
 
     /// Add `result`, unless a result already here beats or equals it,
     /// dropping any result that it beats.
+    ///
+    /// Results stay sorted from the largest down, so only those at least as
+    /// large as `result` can beat it, and only those after them can be
+    /// beaten by it.
     fn insert(&mut self, result: &[LayoutSet]) {
         let signature = Signature::of(result);
         let size = self.level_count;
-        let is_beaten =
-            self.signatures.iter().enumerate().any(|(index, existing)| {
-                existing.may_contain(signature)
-                    && covers(
-                        &self.sets[index * size..(index + 1) * size],
-                        result,
-                    )
-            });
+        let boundary = self
+            .signatures
+            .partition_point(|existing| existing.size >= signature.size);
+        let is_beaten = (0..boundary).any(|index| {
+            self.signatures[index].may_contain(signature)
+                && covers(&self.sets[index * size..(index + 1) * size], result)
+        });
         if is_beaten {
             return;
         }
-        let mut kept = 0;
-        for index in 0..self.signatures.len() {
+        let mut kept = boundary;
+        for index in boundary..self.signatures.len() {
             let range = index * size..(index + 1) * size;
             let is_dropped = signature.may_contain(self.signatures[index])
                 && covers(result, &self.sets[range.clone()]);
@@ -389,8 +392,9 @@ impl Frontier {
         }
         self.sets.truncate(kept * size);
         self.signatures.truncate(kept);
-        self.sets.extend_from_slice(result);
-        self.signatures.push(signature);
+        let at = boundary * size;
+        self.sets.splice(at..at, result.iter().copied());
+        self.signatures.insert(boundary, signature);
     }
 
     /// Add every result of `other`.

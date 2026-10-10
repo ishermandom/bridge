@@ -74,7 +74,10 @@ milliseconds, but many interleaved spot cards can leave over a thousand results
 that no other contains, as for one trick from 3 opposite QT86, which takes
 seconds. Each result therefore carries a cheap signature, its size and a folded
 word of its first set, that rules out most containment tests before the full
-one.
+one, and each frontier stays sorted by size: a result can only be contained in
+one at least as large, so a new result is checked against the results at least
+as large for whether it adds anything, and against the smaller ones for what it
+replaces.
 
 ### Interchangeable cards {#interchangeable-cards}
 
