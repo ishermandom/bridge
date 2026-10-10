@@ -69,8 +69,12 @@ keeps every result that no other strategy's result contains at every target.
   assured by declarer's top cards or out of reach in the rounds left.
 
 The combinations at a defender's turn can multiply quickly; keeping only the
-results no other contains holds them down, and suit combinations stay small
-enough that the search runs in milliseconds.
+results no other contains holds them down. Most combinations solve in
+milliseconds, but many interleaved spot cards can leave over a thousand results
+that no other contains, as for one trick from 3 opposite QT86, which takes
+seconds. Each result therefore carries a cheap signature, its size and a folded
+word of its first set, that rules out most containment tests before the full
+one.
 
 ### Interchangeable cards {#interchangeable-cards}
 
@@ -177,7 +181,8 @@ the K or J is onside".
   small chance to drop a singleton Q", or a percentage when no simple pattern
   fits; above 5% of deals it is no longer called small.
 
-A line that succeeds in every layout says so instead.
+A line that succeeds in every layout says so instead, and so does a target that
+best defense always prevents.
 
 ## Testing {#testing}
 
@@ -196,8 +201,8 @@ A line that succeeds in every layout says so instead.
   combinations, such as AQ10 opposite xx, so it covers a sample, plus 300 random
   combinations with up to six cards missing in a test that runs only when asked:
   `cargo test -- --ignored`.
-- **CCAnalyser**: a sample of combinations checked against it, within the limits
-  in [tasks.md](tasks.md).
+- **CCAnalyser**: `tests/ccanalyser_checks.rs` pins the harder combinations it
+  confirmed, checked within the limits in [tasks.md](tasks.md).
 
 `suit_combinations compare FILE` runs every row of the input file through the
 analyzer and reports where the two differ, so that new rows get the same check
