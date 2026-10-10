@@ -19,16 +19,28 @@ from "planned" to "working" as they're built.
 
 `suit_combinations/` — Rust
 
-Given a single suit held between two hands, work out the line of play that
-maximizes the expected number of tricks (or the chance of a target number of
-tricks) against best defense. This is the classic "how do I play this suit"
+Given a single suit held between two hands and a number of tricks wanted, work
+out the line of play most likely to take them against best defense, how often it
+succeeds, and why it works. This is the classic "how do I play this suit"
 question, answered exhaustively rather than from memory.
 
-The aim is both a library and a small command-line tool: describe the cards held
-in each hand, and get back the optimal line together with its trick expectation.
-Unlike existing tools such as https://bridge.esmarkkappel.dk/main/main.html, the
-goal is to provide a brief intuitive explanation alongside the best line of
-play.
+It is both a library and a small command-line tool. Name North's and South's
+cards and the tricks wanted:
+
+```sh
+cargo run --release --manifest-path suit_combinations/Cargo.toml -- AQT-xx@2
+```
+
+```text
+AQT-xx@2: 76.00%
+Low to the T, then low to the Q
+Finesse hoping the K or J is onside
+```
+
+Unlike existing tools such as https://bridge.esmarkkappel.dk/main/main.html, it
+explains the line alongside the percentage. For now it assumes unlimited entries
+and nothing known about the defenders' hands; constraints such as limited
+entries, and playing for the most tricks on average, are planned.
 
 ### Double-dummy solver
 
