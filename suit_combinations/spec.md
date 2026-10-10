@@ -187,7 +187,9 @@ A line that succeeds in every layout says so instead.
   grouping of interchangeable cards at all, every missing card dealt on its own
   and every card a play of its own, and must agree with the analyzer exactly.
   That checks #interchangeable-cards empirically. It is too slow for some
-  combinations, such as AQ10 opposite xx, so it covers a sample.
+  combinations, such as AQ10 opposite xx, so it covers a sample, plus 300 random
+  combinations with up to six cards missing in a test that runs only when asked:
+  `cargo test -- --ignored`.
 - **CCAnalyser**: a sample of combinations checked against it, within the limits
   in [tasks.md](tasks.md).
 

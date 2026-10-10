@@ -359,6 +359,57 @@ fn assert_agrees(problem: &str) {
     assert_eq!(brute, analyzer, "{problem}");
 }
 
+/// Random combinations with at most `max_missing` cards missing, as
+/// problems such as `AQ9x-K8xx@3`, from a fixed seed so that a
+/// disagreement can be found again.
+fn random_problems(count: usize, max_missing: u32, seed: u64) -> Vec<String> {
+    const SYMBOLS: &[u8] = b"23456789TJQKA";
+    let mut state = seed;
+    let mut next = move || {
+        // xorshift64.
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    let mut problems = Vec::new();
+    while problems.len() < count {
+        let mut north = String::new();
+        let mut south = String::new();
+        for rank in (0..13).rev() {
+            // Each card goes to North, to South, or to the defenders, one
+            // time in three each.
+            match next() % 3 {
+                0 => north.push(SYMBOLS[rank] as char),
+                1 => south.push(SYMBOLS[rank] as char),
+                _ => {}
+            }
+        }
+        let missing = 13 - (north.len() + south.len()) as u32;
+        if missing > max_missing || north.is_empty() || south.is_empty() {
+            continue;
+        }
+        let longest = north.len().max(south.len()) as u64;
+        let target = 1 + next() % longest;
+        problems.push(format!("{north}-{south}@{target}"));
+    }
+    problems
+}
+
+#[test]
+#[ignore = "takes a while; run with --ignored to check 300 combinations"]
+fn random_combinations_agree() {
+    let disagreements: Vec<(String, String, String)> =
+        random_problems(300, 6, 2026)
+            .into_iter()
+            .filter_map(|problem| {
+                let (brute, analyzer) = both_chances(&problem);
+                (brute != analyzer).then_some((problem, brute, analyzer))
+            })
+            .collect();
+    assert!(disagreements.is_empty(), "{disagreements:?}");
+}
+
 #[test]
 fn a_simple_finesse_agrees() {
     assert_agrees("AQ-xx@2");
