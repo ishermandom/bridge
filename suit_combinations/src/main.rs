@@ -2,21 +2,39 @@
 // SPDX-License-Identifier: MIT
 
 //! Command-line entry point: analyze each suit combination named on the
-//! command line, such as `AQT-xx@2`.
+//! command line, such as `AQT-xx@2`, or, given `-`, each line of standard
+//! input.
 
+use std::io::{BufRead, Write};
 use std::process::ExitCode;
 
 use suit_combinations::analysis::analyze;
 use suit_combinations::notation::parse_problem;
 
 fn main() -> ExitCode {
-    let problems: Vec<String> = std::env::args().skip(1).collect();
-    if problems.is_empty() {
-        eprintln!("usage: suit_combinations PROBLEM..., such as AQT-xx@2");
+    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    if arguments.is_empty() {
+        eprintln!(
+            "usage: suit_combinations PROBLEM..., such as AQT-xx@2, or - to \
+             read one problem per line of standard input"
+        );
         return ExitCode::from(2);
     }
-    for text in problems {
-        let problem = match parse_problem(&text) {
+    let problems: Vec<String> = if arguments == ["-"] {
+        match std::io::stdin().lock().lines().collect() {
+            Ok(lines) => lines,
+            Err(error) => {
+                eprintln!("couldn't read standard input: {error}");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        arguments
+    };
+
+    let mut output = std::io::stdout().lock();
+    for text in problems.iter().filter(|text| !text.trim().is_empty()) {
+        let problem = match parse_problem(text.trim()) {
             Ok(problem) => problem,
             Err(error) => {
                 eprintln!("{error}");
@@ -24,10 +42,17 @@ fn main() -> ExitCode {
             }
         };
         let analysis = analyze(problem);
-        println!("{problem}: {:.2}%", analysis.success_percent());
-        println!("{}", analysis.line_words());
-        println!("{}", analysis.remark());
-        println!();
+        let written = writeln!(
+            output,
+            "{problem}: {:.2}%\n{}\n{}\n",
+            analysis.success_percent(),
+            analysis.line_words(),
+            analysis.remark()
+        );
+        if let Err(error) = written {
+            eprintln!("couldn't write the analysis: {error}");
+            return ExitCode::FAILURE;
+        }
     }
     ExitCode::SUCCESS
 }
