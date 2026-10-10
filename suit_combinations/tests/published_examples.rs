@@ -4,7 +4,9 @@
 //! The analyzer's chances for combinations with published results.
 //!
 //! The figures come from Wikipedia's "Suit combination" article, which makes
-//! the same assumptions as the analyzer: unlimited entries and best defense.
+//! the same assumptions as the analyzer, unlimited entries and best defense,
+//! and from the help pages of SuitPlay, Jeroen Warmerdam's suit-combination
+//! program (https://jeroenwarmerdam.pythonanywhere.com/suitplay/help/).
 
 use suit_combinations::analysis::analyze;
 use suit_combinations::notation::parse_problem;
@@ -47,6 +49,24 @@ fn kq10_opposite_432_makes_2_tricks_54_84_percent_of_the_time() {
     // 0.48%, from the Official Encyclopedia of Bridge, without a total.
     // CCAnalyser also gives the best line 54.84%.
     assert_eq!(success_percent("KQT-432@2"), "54.84");
+}
+
+/// The best line's chance of success for `problem`, to four decimal places.
+fn precise_success_percent(problem: &str) -> String {
+    let analysis = analyze(parse_problem(problem).expect("a valid problem"));
+    format!("{:.4}", analysis.success_percent())
+}
+
+#[test]
+fn aq1098_opposite_5432_matches_suitplay_for_5_tricks() {
+    // SuitPlay's help gives 26.5652% for 5 tricks and 82.7826% for 4, for
+    // the combination its examples use, AQ1098 opposite 5432.
+    assert_eq!(precise_success_percent("AQT98-5432@5"), "26.5652");
+}
+
+#[test]
+fn aq1098_opposite_5432_matches_suitplay_for_4_tricks() {
+    assert_eq!(precise_success_percent("AQT98-5432@4"), "82.7826");
 }
 
 #[test]
