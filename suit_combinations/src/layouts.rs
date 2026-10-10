@@ -74,6 +74,11 @@ pub struct Layouts {
     /// `length[defender][count]`, indexed by `Defender`: the layouts where
     /// that defender holds exactly `count` cards of the suit.
     length: [Vec<LayoutSet>; 2],
+    /// `byte_weights[index][byte]`: the total weight of the layouts that
+    /// `byte` marks when it is a set's byte at `index`, which covers layouts
+    /// `8 * index` through `8 * index + 7`. Weighing a set then takes one
+    /// lookup per byte rather than one per layout.
+    byte_weights: Vec<[u64; 256]>,
 }
 
 impl Layouts {
@@ -98,7 +103,7 @@ impl Layouts {
         }
         assert!(west_counts.len() <= MAX_LAYOUTS);
 
-        let weights = west_counts
+        let weights: Vec<u64> = west_counts
             .iter()
             .map(|counts| layout_weight(&groups, counts, missing_count))
             .collect();
@@ -134,9 +139,20 @@ impl Layouts {
             length[1][usize::from(missing_count - west)].insert(layout);
         }
 
+        let byte_weights = (0..west_counts.len().div_ceil(8))
+            .map(|index| {
+                std::array::from_fn(|byte| {
+                    (0..8)
+                        .filter(|bit| byte & (1 << bit) != 0)
+                        .filter_map(|bit| weights.get(8 * index + bit))
+                        .sum()
+                })
+            })
+            .collect();
         Layouts {
             combination,
             all: LayoutSet::first(west_counts.len()),
+            byte_weights,
             groups,
             west_counts,
             weights,
@@ -166,7 +182,11 @@ impl Layouts {
 
     /// How many deals have a layout in `layouts`.
     pub fn weight(&self, layouts: LayoutSet) -> u64 {
-        layouts.indices().map(|layout| self.weights[layout]).sum()
+        self.byte_weights
+            .iter()
+            .enumerate()
+            .map(|(index, table)| table[usize::from(layouts.byte(index))])
+            .sum()
     }
 
     /// How many cards of the suit `defender` holds in the layout at `layout`.

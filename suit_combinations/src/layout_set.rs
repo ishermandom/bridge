@@ -75,6 +75,14 @@ impl LayoutSet {
         self.0.iter().fold(0, |folded, &word| folded | word)
     }
 
+    /// The set's byte at `index`: the layouts `8 * index` to
+    /// `8 * index + 7`, one bit each.
+    pub fn byte(self, index: usize) -> u8 {
+        // A u64 holds eight bytes; the shift moves the wanted one to the
+        // bottom, and the cast keeps only it.
+        (self.0[index / 8] >> (8 * (index % 8))) as u8
+    }
+
     /// How many layouts the set holds.
     pub fn len(self) -> usize {
         self.0.iter().map(|word| word.count_ones() as usize).sum()

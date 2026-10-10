@@ -6,7 +6,7 @@
 //!
 //! The approach is set out in `suit_combinations/spec.md` #remarks. In
 //! short: the line's finesses name its technique and the defender who must
-//! hold the missing honors, and the simplest condition on those honors that
+//! hold the missing honors, and the simplest condition on the layout that
 //! matches where the line wins says what it hopes for.
 
 use crate::analysis::BestResult;
@@ -14,6 +14,17 @@ use crate::cards::rank_symbol;
 use crate::describe::Finesse;
 use crate::layout_set::LayoutSet;
 use crate::layouts::{DEAL_COUNT, Defender, Layouts};
+
+/// Which defender a fact about a holding concerns.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Holder {
+    /// Either defender.
+    Either,
+    /// The defender the line's finesses need to hold the missing honors.
+    Onside,
+    /// The other defender.
+    Offside,
+}
 
 /// A simple fact about a layout, from which conditions are built.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -23,15 +34,23 @@ enum Atom {
     Onside { group: usize, all: bool },
     /// The defenders' cards split as evenly as they can.
     EvenSplit,
-    /// The group's single card lies in a holding of at most `length` cards,
-    /// so that it falls under that many top cards.
-    Short { group: usize, length: u8 },
+    /// The group's single card lies with `holder` in a holding of at most
+    /// `length` cards, so declarer's top cards drop it within `length`
+    /// rounds.
+    Short {
+        group: usize,
+        length: u8,
+        holder: Holder,
+    },
+    /// This defender holds every missing card.
+    HoldsAll(Defender),
 }
 
-/// A condition on the layout: an atom, or two conditions joined.
+/// A condition on the layout: an atom, by its index among the atoms tried,
+/// or two conditions joined.
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum Condition {
-    Atom(Atom),
+    Atom(usize),
     And(Box<Condition>, Box<Condition>),
     Or(Box<Condition>, Box<Condition>),
 }
@@ -48,6 +67,27 @@ impl Condition {
     }
 }
 
+/// The atoms a remark may use, each with the layouts where it holds.
+struct Atoms {
+    atoms: Vec<Atom>,
+    layouts: Vec<LayoutSet>,
+}
+
+impl Atoms {
+    /// The layouts where `condition` holds.
+    fn layouts_of(&self, condition: &Condition) -> LayoutSet {
+        match condition {
+            Condition::Atom(index) => self.layouts[*index],
+            Condition::And(left, right) => {
+                self.layouts_of(left).intersection(self.layouts_of(right))
+            }
+            Condition::Or(left, right) => {
+                self.layouts_of(left).union(self.layouts_of(right))
+            }
+        }
+    }
+}
+
 /// How far a condition may miss the line's real successes, as a share of all
 /// deals, and still describe them; what it misses gets a mention of its own,
 /// such as a singleton dropping.
@@ -55,7 +95,11 @@ const MAX_CONDITION_ERROR: f64 = 0.10;
 
 /// How much more a simpler condition may miss, as a share of all deals, and
 /// still be preferred over a more exact one.
-const SIMPLICITY_TOLERANCE: f64 = 0.02;
+const SIMPLICITY_TOLERANCE: f64 = 0.05;
+
+/// The largest share of deals an extra chance may add and still be called
+/// small.
+const SMALL_CHANCE: f64 = 0.05;
 
 /// The intuition behind the best lines in `best`.
 pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
@@ -72,11 +116,9 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
         .collect();
     let onside = finesses.first().map(|finesse| finesse.onside);
     let atoms = atoms(layouts, onside);
-    let condition = simplest_condition(layouts, onside, &atoms, wins);
+    let condition = simplest_condition(layouts, &atoms, wins);
     let extras = match &condition {
-        Some(condition) => {
-            wins.difference(condition_layouts(layouts, onside, condition))
-        }
+        Some(condition) => wins.difference(atoms.layouts_of(condition)),
         None => wins,
     };
     let extras_words = extras_words(layouts, extras);
@@ -112,7 +154,9 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
     match condition {
         // A line with no finesse that needs only an even split is playing
         // for that split, not for a card to drop.
-        Some(Condition::Atom(Atom::EvenSplit)) if finesses.is_empty() => {
+        Some(Condition::Atom(index))
+            if finesses.is_empty() && atoms.atoms[index] == Atom::EvenSplit =>
+        {
             let missing = layouts.missing_count();
             format!(
                 "Play for a {}-{} split{extras_words}",
@@ -122,7 +166,7 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
         }
         Some(condition) => format!(
             "{technique} hoping {}{extras_words}",
-            condition_words(layouts, &condition)
+            condition_words(layouts, &atoms.atoms, &condition)
         ),
         None => technique.to_string(),
     }
@@ -130,7 +174,7 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
 
 /// The atoms worth trying for a line whose finesses need the `onside`
 /// defender, if any, to hold the cards they play against.
-fn atoms(layouts: &Layouts, onside: Option<Defender>) -> Vec<Atom> {
+fn atoms(layouts: &Layouts, onside: Option<Defender>) -> Atoms {
     let mut atoms = Vec::new();
     // The lowest group holds the small cards, never worth naming.
     let named_groups = layouts.groups.len().saturating_sub(1);
@@ -143,34 +187,47 @@ fn atoms(layouts: &Layouts, onside: Option<Defender>) -> Vec<Atom> {
         }
     }
     atoms.push(Atom::EvenSplit);
-    // A short honor dropping is what a line without a finesse hopes for; a
-    // finesse mentions it only as a small extra chance.
-    if onside.is_some() {
-        return atoms;
-    }
+    let holders: &[Holder] = if onside.is_some() {
+        &[Holder::Onside, Holder::Offside]
+    } else {
+        &[Holder::Either]
+    };
     for group in 0..named_groups {
         if layouts.groups[group].size() == 1 {
             for length in 1..=2 {
-                atoms.push(Atom::Short { group, length });
+                for &holder in holders {
+                    atoms.push(Atom::Short {
+                        group,
+                        length,
+                        holder,
+                    });
+                }
             }
         }
     }
-    atoms
+    atoms.push(Atom::HoldsAll(Defender::West));
+    atoms.push(Atom::HoldsAll(Defender::East));
+    let sets = atoms
+        .iter()
+        .map(|&atom| atom_layouts(layouts, onside, atom))
+        .collect();
+    Atoms {
+        atoms,
+        layouts: sets,
+    }
 }
 
 /// The simplest condition matching `wins` to within `MAX_CONDITION_ERROR`,
-/// preferring a simpler one within `SIMPLICITY_TOLERANCE`, built from
-/// up to three of `atoms`, if any comes that close; `onside` is the defender
-/// the atoms' honors must lie with.
+/// preferring a simpler one within `SIMPLICITY_TOLERANCE`, built from up to
+/// three of `atoms`, if any comes that close.
 fn simplest_condition(
     layouts: &Layouts,
-    onside: Option<Defender>,
-    atoms: &[Atom],
+    atoms: &Atoms,
     wins: LayoutSet,
 ) -> Option<Condition> {
-    let mut candidates: Vec<Condition> =
-        atoms.iter().map(|&atom| Condition::Atom(atom)).collect();
-    let single = candidates.clone();
+    let single: Vec<Condition> =
+        (0..atoms.atoms.len()).map(Condition::Atom).collect();
+    let mut candidates = single.clone();
     for (index, first) in single.iter().enumerate() {
         for second in &single[index + 1..] {
             candidates.push(and(first, second));
@@ -192,7 +249,7 @@ fn simplest_condition(
     let usable = (MAX_CONDITION_ERROR * DEAL_COUNT as f64) as u64;
     let tolerance = (SIMPLICITY_TOLERANCE * DEAL_COUNT as f64) as u64;
     let error = |condition: &Condition| {
-        let matched = condition_layouts(layouts, onside, condition);
+        let matched = atoms.layouts_of(condition);
         layouts.weight(wins.difference(matched))
             + layouts.weight(matched.difference(wins))
     };
@@ -219,28 +276,17 @@ fn or(left: &Condition, right: &Condition) -> Condition {
     Condition::Or(Box::new(left.clone()), Box::new(right.clone()))
 }
 
-/// The layouts where `condition` holds, with `onside` the defender who must
-/// hold the honors.
-fn condition_layouts(
-    layouts: &Layouts,
-    onside: Option<Defender>,
-    condition: &Condition,
-) -> LayoutSet {
-    match condition {
-        Condition::Atom(atom) => atom_layouts(layouts, onside, *atom),
-        Condition::And(left, right) => condition_layouts(layouts, onside, left)
-            .intersection(condition_layouts(layouts, onside, right)),
-        Condition::Or(left, right) => condition_layouts(layouts, onside, left)
-            .union(condition_layouts(layouts, onside, right)),
-    }
-}
-
-/// The layouts where `atom` holds.
+/// The layouts where `atom` holds, with `onside` the defender the line's
+/// finesses need to hold the honors.
 fn atom_layouts(
     layouts: &Layouts,
     onside: Option<Defender>,
     atom: Atom,
 ) -> LayoutSet {
+    let other = |defender: Defender| match defender {
+        Defender::West => Defender::East,
+        Defender::East => Defender::West,
+    };
     let mut set = LayoutSet::EMPTY;
     for layout in layouts.all.indices() {
         let holds = match atom {
@@ -258,12 +304,24 @@ fn atom_layouts(
                 let east = layouts.length_of(Defender::East, layout);
                 west.abs_diff(east) <= 1
             }
-            Atom::Short { group, length } => [Defender::West, Defender::East]
-                .into_iter()
-                .any(|defender| {
+            Atom::Short {
+                group,
+                length,
+                holder,
+            } => {
+                let defenders = match (holder, onside) {
+                    (Holder::Onside, Some(onside)) => vec![onside],
+                    (Holder::Offside, Some(onside)) => vec![other(onside)],
+                    _ => vec![Defender::West, Defender::East],
+                };
+                defenders.into_iter().any(|defender| {
                     layouts.count_of(defender, group, layout) == 1
                         && layouts.length_of(defender, layout) <= length
-                }),
+                })
+            }
+            Atom::HoldsAll(defender) => {
+                layouts.length_of(defender, layout) == layouts.missing_count()
+            }
         };
         if holds {
             set.insert(layout);
@@ -273,15 +331,32 @@ fn atom_layouts(
 }
 
 /// The condition in words, such as "the K or J is onside".
-fn condition_words(layouts: &Layouts, condition: &Condition) -> String {
+fn condition_words(
+    layouts: &Layouts,
+    atoms: &[Atom],
+    condition: &Condition,
+) -> String {
     let card = |group: usize| rank_symbol(layouts.groups[group].top());
     // Honors that the onside defender must hold one by one.
     let single = |condition: &Condition| match condition {
-        Condition::Atom(Atom::Onside { group, .. })
-            if layouts.groups[*group].size() == 1 =>
-        {
-            Some(*group)
-        }
+        Condition::Atom(index) => match atoms[*index] {
+            Atom::Onside { group, .. } if layouts.groups[group].size() == 1 => {
+                Some(group)
+            }
+            _ => None,
+        },
+        _ => None,
+    };
+    // A run of equal honors, one of which the onside defender must hold.
+    let group_either = |condition: &Condition| match condition {
+        Condition::Atom(index) => match atoms[*index] {
+            Atom::Onside { group, all: false }
+                if layouts.groups[group].size() > 1 =>
+            {
+                Some(group)
+            }
+            _ => None,
+        },
         _ => None,
     };
     match condition {
@@ -307,14 +382,6 @@ fn condition_words(layouts: &Layouts, condition: &Condition) -> String {
             }
         }
         Condition::And(left, right) => {
-            let group_either = |condition: &Condition| match condition {
-                Condition::Atom(Atom::Onside { group, all: false })
-                    if layouts.groups[*group].size() > 1 =>
-                {
-                    Some(*group)
-                }
-                _ => None,
-            };
             let pairing = match (single(left), group_either(right)) {
                 (Some(first), Some(group)) => Some((first, group)),
                 _ => single(right).zip(group_either(left)),
@@ -348,18 +415,24 @@ fn condition_words(layouts: &Layouts, condition: &Condition) -> String {
         }
         Condition::Atom(_) => {}
     }
+    let words =
+        |condition: &Condition| condition_words(layouts, atoms, condition);
     match condition {
-        Condition::Atom(atom) => atom_words(layouts, *atom),
-        Condition::And(left, right) => format!(
-            "{}, and {}",
-            condition_words(layouts, left),
-            condition_words(layouts, right)
-        ),
-        Condition::Or(left, right) => format!(
-            "{}, or {}",
-            condition_words(layouts, left),
-            condition_words(layouts, right)
-        ),
+        Condition::Atom(index) => atom_words(layouts, atoms[*index]),
+        // "Either" marks where the alternatives start, which a comma alone
+        // leaves open.
+        Condition::And(left, right) => match right.as_ref() {
+            Condition::Or(first, second) => format!(
+                "{}, and either {} or {}",
+                words(left),
+                words(first),
+                words(second)
+            ),
+            _ => format!("{} and {}", words(left), words(right)),
+        },
+        Condition::Or(left, right) => {
+            format!("{}, or {}", words(left), words(right))
+        }
     }
 }
 
@@ -389,14 +462,39 @@ fn atom_words(layouts: &Layouts, atom: Atom) -> String {
             let missing = layouts.missing_count();
             format!("the suit splits {}-{}", missing.div_ceil(2), missing / 2)
         }
-        Atom::Short { group, length } => {
+        Atom::Short {
+            group,
+            length,
+            holder,
+        } => {
             let card = rank_symbol(layouts.groups[group].top());
-            match length {
-                1 => format!("the {card} is singleton"),
-                _ => format!("the {card} is singleton or doubleton"),
-            }
+            let shortness = match length {
+                1 => "singleton",
+                _ => "singleton or doubleton",
+            };
+            let place = match holder {
+                Holder::Either => "",
+                Holder::Onside => " onside",
+                Holder::Offside => " offside",
+            };
+            format!("the {card} is {shortness}{place}")
         }
+        Atom::HoldsAll(defender) => holds_all_words(layouts, defender),
     }
+}
+
+/// "West holds all four", or the like.
+fn holds_all_words(layouts: &Layouts, defender: Defender) -> String {
+    const NUMBERS: [&str; 14] = [
+        "none", "one", "two", "three", "four", "five", "six", "seven", "eight",
+        "nine", "ten", "eleven", "twelve", "thirteen",
+    ];
+    let name = match defender {
+        Defender::West => "West",
+        Defender::East => "East",
+    };
+    let count = NUMBERS[usize::from(layouts.missing_count())];
+    format!("{name} holds all {count}")
 }
 
 /// A group's cards as alternatives, such as "the K or Q".
@@ -422,9 +520,12 @@ fn extras_words(layouts: &Layouts, extras: LayoutSet) -> String {
             if layouts.groups[group].size() != 1 {
                 continue;
             }
-            let short =
-                atom_layouts(layouts, None, Atom::Short { group, length });
-            if short.is_superset(extras) {
+            let short = Atom::Short {
+                group,
+                length,
+                holder: Holder::Either,
+            };
+            if atom_layouts(layouts, None, short).is_superset(extras) {
                 let card = rank_symbol(layouts.groups[group].top());
                 return match length {
                     1 => format!(
@@ -438,6 +539,21 @@ fn extras_words(layouts: &Layouts, extras: LayoutSet) -> String {
             }
         }
     }
+    for defender in [Defender::West, Defender::East] {
+        let holds_all = atom_layouts(layouts, None, Atom::HoldsAll(defender));
+        if holds_all.is_superset(extras) {
+            return format!(
+                ", with a small extra chance when {}",
+                holds_all_words(layouts, defender)
+            );
+        }
+    }
     let percent = 100.0 * layouts.weight(extras) as f64 / DEAL_COUNT as f64;
-    format!(", plus a small extra chance ({percent:.2}%) from rarer layouts")
+    if percent < 100.0 * SMALL_CHANCE {
+        format!(
+            ", plus a small extra chance ({percent:.2}%) from rarer layouts"
+        )
+    } else {
+        format!(", plus {percent:.2}% more from other layouts")
+    }
 }

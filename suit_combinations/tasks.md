@@ -44,9 +44,14 @@ that every one is complete and unambiguous.
       for 3 tricks, which mostly comes down to cashing the K and then leading
       low toward the A9, inserting the 9, yet the analyzer spells out every
       branch.
+  - Note: dropping the parts of a split that few deals reach doesn't work: in
+    KQxxx opposite AT9x for 5 tricks, the rare 4-0 splits are the whole point of
+    the safety play, and the shortened line, "cash the K, then cash the A, then
+    cash the Q", would lose to them.
 - [ ] Find a condition for remarks that now name only a technique, such as
-      "Finesse" for A1042 opposite 953 and AQxxx opposite J9xx: no condition
-      built from three facts comes within 10% of where the line wins.
+      "Finesse" for A1042 opposite 953, or "Repeated finesse" for K1084 opposite
+      Q32 for 3 tricks: no condition built from three facts comes within 10% of
+      where the line wins.
 
 ---
 

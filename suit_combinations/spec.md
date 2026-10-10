@@ -156,14 +156,20 @@ the K or J is onside".
 - **Onside** means the defender who plays before declarer's finessing card in
   the line's first finesse.
 - **Condition**: the simplest statement, built from up to three facts, that
-  matches the layouts where the line wins. The facts are an honor lying onside
-  (or one or all of a run of equal honors), the suit splitting evenly, and, for
-  a line without a finesse, an honor being singleton or doubleton. A condition
-  may miss by up to 10% of deals; a simpler one is preferred when it misses by
-  at most 2% more.
-- **Extras**: what the condition misses becomes a small extra chance, such as
-  "with a small chance to drop a singleton Q", or a percentage when no simple
-  pattern fits.
+  matches the layouts where the line wins. The facts are:
+  - an honor lying onside, or one or all of a run of equal honors;
+  - the suit splitting evenly;
+  - an honor being singleton, or at most doubleton, onside or offside (or, for a
+    line without a finesse, with either defender);
+  - one defender holding every missing card.
+
+  A condition may miss by up to 10% of deals; a simpler one is preferred when it
+  misses by at most 5% more, which keeps "Repeated finesse hoping the A is
+  onside" for KQ10 opposite xxx rather than adding a clause for a short J.
+
+- **Extras**: what the condition misses becomes an extra chance, such as "with a
+  small chance to drop a singleton Q", or a percentage when no simple pattern
+  fits; above 5% of deals it is no longer called small.
 
 A line that succeeds in every layout says so instead.
 
