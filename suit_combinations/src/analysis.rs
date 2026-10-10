@@ -48,6 +48,12 @@ impl Analysis {
         self.best[0].success_percent()
     }
 
+    /// The intuition behind the best line, such as "Finesse hoping the K is
+    /// onside".
+    pub fn remark(&self) -> String {
+        crate::remark::remark(&self.layouts, &self.best)
+    }
+
     /// The best line in words, offering each best strategy in turn when
     /// several tie with different lines.
     pub fn line_words(&self) -> String {

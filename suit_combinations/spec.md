@@ -135,6 +135,38 @@ Among lines that work equally well, the description prefers:
 When tied best strategies win in different layouts, such as a two-way finesse,
 the description offers each: "Either:" and one line per strategy.
 
+### Long lines
+
+A line that splits within a split reads as an outline instead of run-on
+sentences, one bullet per condition, since a sentence can't show which condition
+each part answers. Each way the trick could have ended must fall under exactly
+one part's condition; where merging branches would make their later conditions
+overlap, the describer splits them earlier instead, while they can still be told
+apart.
+
+## Remarks {#remarks}
+
+A remark explains why the line works, the way a teacher would: "Finesse hoping
+the K or J is onside".
+
+- **Technique**, from the finesses along the line's likeliest path: none is
+  "Play for the drop"; two against the same single card, as KQx takes against
+  the A, is a "Repeated finesse"; anything else is a "Finesse". Tied lines that
+  finesse different defenders make "A two-way finesse".
+- **Onside** means the defender who plays before declarer's finessing card in
+  the line's first finesse.
+- **Condition**: the simplest statement, built from up to three facts, that
+  matches the layouts where the line wins. The facts are an honor lying onside
+  (or one or all of a run of equal honors), the suit splitting evenly, and, for
+  a line without a finesse, an honor being singleton or doubleton. A condition
+  may miss by up to 10% of deals; a simpler one is preferred when it misses by
+  at most 2% more.
+- **Extras**: what the condition misses becomes a small extra chance, such as
+  "with a small chance to drop a singleton Q", or a percentage when no simple
+  pattern fits.
+
+A line that succeeds in every layout says so instead.
+
 ## Testing {#testing}
 
 - **The input file's rows**: `tests/spreadsheet_rows.rs` pins the analyzer's

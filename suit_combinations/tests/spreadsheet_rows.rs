@@ -5,7 +5,7 @@
 //! `flashcards/input/suit_combinations.csv`.
 //!
 //! Each test pins the analyzer's own answer, verified by hand. Where it
-//! differs from the row, a comment says how.
+//! differs from the row beyond wording, a comment says how.
 
 use suit_combinations::analysis::analyze;
 use suit_combinations::notation::parse_problem;
@@ -17,6 +17,8 @@ struct Answer {
     success_percent: String,
     /// The best line in words.
     line: String,
+    /// The intuition behind the line.
+    remark: String,
 }
 
 /// The analyzer's answer for `problem`, such as `AQ-xx@2`.
@@ -25,6 +27,7 @@ fn answer(problem: &str) -> Answer {
     Answer {
         success_percent: format!("{:.2}", analysis.success_percent()),
         line: analysis.line_words(),
+        remark: analysis.remark(),
     }
 }
 
@@ -35,17 +38,20 @@ fn aq_opposite_xx_makes_2_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Low to the Q".to_string(),
+            remark: "Finesse hoping the K is onside".to_string(),
         }
     );
 }
 
 #[test]
 fn aqj_opposite_xx_makes_3_tricks_half_the_time() {
+    // The row calls this a finesse, not a repeated one.
     assert_eq!(
         answer("AQJ-xx@3"),
         Answer {
             success_percent: "50.00".to_string(),
             line: "Low to the Q, then low to the J".to_string(),
+            remark: "Repeated finesse hoping the K is onside".to_string(),
         }
     );
 }
@@ -57,17 +63,21 @@ fn aqt_opposite_xx_makes_3_tricks_when_both_honors_are_onside() {
         Answer {
             success_percent: "24.00".to_string(),
             line: "Low to the T, then low to the Q".to_string(),
+            remark: "Finesse hoping the K and J are both onside".to_string(),
         }
     );
 }
 
 #[test]
 fn aqt_opposite_xx_makes_2_tricks_unless_both_honors_are_offside() {
+    // The row adds that the first finesse makes a third trick when both
+    // honors are onside.
     assert_eq!(
         answer("AQT-xx@2"),
         Answer {
             success_percent: "76.00".to_string(),
             line: "Low to the T, then low to the Q".to_string(),
+            remark: "Finesse hoping the K or J is onside".to_string(),
         }
     );
 }
@@ -79,6 +89,7 @@ fn ajt_opposite_xx_makes_2_tricks_unless_both_honors_are_offside() {
         Answer {
             success_percent: "76.00".to_string(),
             line: "Low to the J, then low to the T".to_string(),
+            remark: "Finesse hoping the K or Q is onside".to_string(),
         }
     );
 }
@@ -90,17 +101,25 @@ fn aq9_opposite_xx_adds_a_chance_with_the_9() {
         Answer {
             success_percent: "63.00".to_string(),
             line: "Low to the 9, then low to the Q".to_string(),
+            remark: "Finesse hoping the K is onside, or the J and T are both \
+                    onside"
+                .to_string(),
         }
     );
 }
 
 #[test]
 fn aj9_opposite_xx_needs_the_t_and_another_honor_onside() {
+    // The extra chance is West holding the K and Q alone, which fall under
+    // the A and J. The row adds a tip on which cases to consider.
     assert_eq!(
         answer("AJ9-xx@2"),
         Answer {
             success_percent: "37.31".to_string(),
             line: "Low to the 9, then low to the J".to_string(),
+            remark: "Finesse hoping the T and either the K or Q are onside, \
+                    plus a small extra chance (0.31%) from rarer layouts"
+                .to_string(),
         }
     );
 }
@@ -112,6 +131,7 @@ fn kx_opposite_xx_makes_1_trick_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Low to the K".to_string(),
+            remark: "Finesse hoping the A is onside".to_string(),
         }
     );
 }
@@ -123,6 +143,7 @@ fn kqx_opposite_xxx_makes_2_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Low to the K, then low to the Q".to_string(),
+            remark: "Repeated finesse hoping the A is onside".to_string(),
         }
     );
 }
@@ -135,6 +156,9 @@ fn kqjx_opposite_xxx_adds_a_3_3_split_to_the_finesse() {
             success_percent: "67.76".to_string(),
             line: "Low to the K, then low to the Q, then low to the J"
                 .to_string(),
+            remark: "Repeated finesse hoping the A is onside, or the suit \
+                    splits 3-3"
+                .to_string(),
         }
     );
 }
@@ -142,12 +166,17 @@ fn kqjx_opposite_xxx_adds_a_3_3_split_to_the_finesse() {
 #[test]
 fn kqt_opposite_xxx_loses_to_a_hold_up_of_the_ace() {
     // The row finesses the T once the K loses. Cashing the Q works as well:
-    // the J only matters when it is short with West, so it falls.
+    // the J only matters when it is short with West, so it falls. The row's
+    // remark also hopes for the J with West whenever the A is with East, but
+    // East can hold up the A and leave declarer guessing.
     assert_eq!(
         answer("KQT-xxx@2"),
         Answer {
             success_percent: "54.84".to_string(),
             line: "Low to the K, then low to the Q".to_string(),
+            remark: "Repeated finesse hoping the A is onside, with a small \
+                    extra chance when the J is singleton or doubleton"
+                .to_string(),
         }
     );
 }
@@ -159,6 +188,7 @@ fn kjt_opposite_xxx_makes_2_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Low to the J, then low to the T".to_string(),
+            remark: "Repeated finesse hoping the Q is onside".to_string(),
         }
     );
 }
@@ -171,6 +201,7 @@ fn axx_opposite_qjt_makes_3_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Run the Q, then run the J".to_string(),
+            remark: "Repeated finesse hoping the K is onside".to_string(),
         }
     );
 }
@@ -182,6 +213,9 @@ fn akx_opposite_jtx_adds_a_singleton_queen_to_the_finesse() {
         Answer {
             success_percent: "50.48".to_string(),
             line: "Cash the A, then run the J".to_string(),
+            remark: "Finesse hoping the Q is onside, with a small chance to \
+                    drop a singleton Q"
+                .to_string(),
         }
     );
 }
@@ -194,19 +228,23 @@ fn k8xx_opposite_jt9_makes_3_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Run the J, then run the T, then run the 9".to_string(),
+            remark: "Repeated finesse hoping the Q is onside".to_string(),
         }
     );
 }
 
 #[test]
 fn axx_opposite_kjt_is_a_two_way_finesse() {
+    // The row adds advice on getting the defenders to lead the suit.
     assert_eq!(
         answer("Axx-KJT@3"),
         Answer {
             success_percent: "50.48".to_string(),
-            line: "Either:\n\
-                   * Cash the A, then low to the J\n\
-                   * Cash the K, then run the J"
+            line: "Either:\n* Cash the A, then low to the J\n* Cash the K, \
+                  then run the J"
+                .to_string(),
+            remark: "A two-way finesse, with a small chance to drop a \
+                    singleton Q"
                 .to_string(),
         }
     );
@@ -214,12 +252,16 @@ fn axx_opposite_kjt_is_a_two_way_finesse() {
 
 #[test]
 fn axx_opposite_kjtx_makes_4_tricks_just_over_half_the_time() {
-    // The row stops after the second trick.
+    // The row stops after the second trick, and its remark explains why
+    // finessing toward the J beats running it.
     assert_eq!(
         answer("Axx-KJTx@4"),
         Answer {
             success_percent: "51.21".to_string(),
             line: "Cash the A, then low to the J, then low to the T"
+                .to_string(),
+            remark: "Repeated finesse hoping the Q is onside, with a small \
+                    chance to drop a singleton Q"
                 .to_string(),
         }
     );
@@ -233,6 +275,7 @@ fn aqtx_opposite_j9x_makes_4_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Run the 9, then run the J, then low to the Q".to_string(),
+            remark: "Repeated finesse hoping the K is onside".to_string(),
         }
     );
 }
@@ -245,6 +288,7 @@ fn ajtx_opposite_q9x_makes_4_tricks_half_the_time() {
         Answer {
             success_percent: "50.00".to_string(),
             line: "Run the 9, then run the Q, then low to the J".to_string(),
+            remark: "Repeated finesse hoping the K is onside".to_string(),
         }
     );
 }

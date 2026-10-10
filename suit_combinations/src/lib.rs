@@ -11,4 +11,5 @@ pub mod describe;
 pub mod layout_set;
 pub mod layouts;
 pub mod notation;
+pub mod remark;
 pub mod solver;

@@ -80,10 +80,41 @@ pub struct TrickEnd {
     /// true means the condition says only what second hand played, whoever
     /// won.
     pub declarer_won: bool,
-    /// The defender whose play set this ending apart: the last to play, or
-    /// second hand when it showed out.
+    /// The defender whose play the condition names, and that play: normally
+    /// the defender who played last, but second hand for an ending merged by
+    /// `collapsed_ends`.
     pub defender: Defender,
     pub play: DefenderPlay,
+    /// The defender who showed out second hand, when one did.
+    pub after_show_out: Option<Defender>,
+}
+
+/// A finesse: a play that wins only when a defender's card lies well.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Finesse {
+    /// The defenders' group the finesse plays against: the lowest group left
+    /// that could beat declarer's card.
+    pub against: usize,
+    /// The defender who must hold that group for the finesse to work: the
+    /// one who plays before declarer's card.
+    pub onside: Defender,
+}
+
+/// One trick of a line: what it does, and the finesse it takes, if any.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Step {
+    pub play: Play,
+    pub finesse: Option<Finesse>,
+}
+
+/// One continuation of a split line.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Part {
+    /// How the last trick must have gone for this part to apply.
+    pub condition: Condition,
+    pub line: Line,
+    /// How many deals reach this part and still need it to reach the target.
+    pub weight: u64,
 }
 
 /// A line of play.
@@ -93,58 +124,135 @@ pub enum Line {
     /// can't come at all.
     Done,
     /// A trick's play, then the rest of the line.
-    Play(Play, Box<Line>),
+    Play(Step, Box<Line>),
     /// Different continuations, depending on how the last trick went.
-    Split(Vec<(Condition, Line)>),
+    Split(Vec<Part>),
 }
 
 impl Line {
-    /// The tricks the line describes along its first path, in order.
-    pub fn first_path(&self) -> Vec<Play> {
-        let mut plays = Vec::new();
+    /// The tricks along the line's likeliest path, in order: at each split,
+    /// the part that the most deals reach.
+    pub fn main_path(&self) -> Vec<Step> {
+        let mut steps = Vec::new();
         let mut line = self;
         loop {
             match line {
-                Line::Done => return plays,
-                Line::Play(play, rest) => {
-                    plays.push(*play);
+                Line::Done => return steps,
+                Line::Play(step, rest) => {
+                    steps.push(*step);
                     line = rest;
                 }
-                Line::Split(parts) => line = &parts[0].1,
+                Line::Split(parts) => {
+                    line = &parts
+                        .iter()
+                        .max_by_key(|part| part.weight)
+                        .expect("a split has parts")
+                        .line;
+                }
             }
         }
     }
 }
 
 /// The line in words, such as "Low to the T, then low to the Q".
+///
+/// A line that splits within a split reads as an outline instead, one
+/// bullet per condition, since run-on sentences would hide which condition
+/// each part answers.
 pub fn line_words(line: &Line, layouts: &Layouts) -> String {
-    capitalize(&lowercase_words(line, layouts))
+    if split_depth(line) < 2 {
+        return capitalize(&lowercase_words(line, layouts));
+    }
+    let mut lines = Vec::new();
+    push_outline(line, layouts, None, 0, &mut lines);
+    lines.join("\n")
+}
+
+/// How deeply the line's splits nest.
+fn split_depth(line: &Line) -> usize {
+    match line {
+        Line::Done => 0,
+        Line::Play(_, rest) => split_depth(rest),
+        Line::Split(parts) => {
+            1 + parts
+                .iter()
+                .map(|part| split_depth(&part.line))
+                .max()
+                .unwrap_or(0)
+        }
+    }
+}
+
+/// Add the outline of `line` to `lines`, as a bullet labeled with
+/// `condition` at `depth`, or as the opening sentence when it has no
+/// condition.
+fn push_outline(
+    line: &Line,
+    layouts: &Layouts,
+    condition: Option<&Condition>,
+    depth: usize,
+    lines: &mut Vec<String>,
+) {
+    let mut plays = Vec::new();
+    let mut rest = line;
+    while let Line::Play(step, next) = rest {
+        plays.push(step.play.words());
+        rest = next;
+    }
+    let words = plays.join(", then ");
+    match condition {
+        None => lines.push(format!("{}.", capitalize(&words))),
+        Some(condition) => {
+            let indent = "  ".repeat(depth - 1);
+            let label = condition_words(condition, layouts);
+            if words.is_empty() {
+                lines.push(format!("{indent}- {label}:"));
+            } else {
+                lines.push(format!("{indent}- {label}, {words}."));
+            }
+        }
+    }
+    if let Line::Split(parts) = rest {
+        for part in parts {
+            push_outline(
+                &part.line,
+                layouts,
+                Some(&part.condition),
+                depth + 1,
+                lines,
+            );
+        }
+    }
 }
 
 /// The line in words, starting in lowercase.
 fn lowercase_words(line: &Line, layouts: &Layouts) -> String {
     match line {
         Line::Done => "cash the winners".to_string(),
-        Line::Play(play, rest) => match rest.as_ref() {
-            Line::Done => play.words(),
+        Line::Play(step, rest) => match rest.as_ref() {
+            Line::Done => step.play.words(),
             Line::Play(..) => {
                 format!(
                     "{}, then {}",
-                    play.words(),
+                    step.play.words(),
                     lowercase_words(rest, layouts)
                 )
             }
             Line::Split(_) => {
-                format!("{}. {}", play.words(), lowercase_words(rest, layouts))
+                format!(
+                    "{}. {}",
+                    step.play.words(),
+                    lowercase_words(rest, layouts)
+                )
             }
         },
         Line::Split(parts) => parts
             .iter()
-            .map(|(condition, rest)| {
-                let words = lowercase_words(rest, layouts);
+            .map(|part| {
+                let words = lowercase_words(&part.line, layouts);
                 let sentence = format!(
                     "{}, {}",
-                    condition_words(condition, layouts),
+                    condition_words(&part.condition, layouts),
                     words
                 );
                 // A nested split already ends in a full stop.
@@ -171,50 +279,62 @@ fn condition_words(condition: &Condition, layouts: &Layouts) -> String {
         Defender::West => "West",
         Defender::East => "East",
     };
-    // When one defender plays a different card each time, name the cards
-    // together: "If East plays the T or a low card".
-    let first = ends[0];
-    let is_one_defender_following = ends.iter().all(|end| {
-        end.defender == first.defender
-            && end.declarer_won == first.declarer_won
-            && matches!(end.play, DefenderPlay::Group(_))
-    });
-    if is_one_defender_following && first.declarer_won {
-        let cards: Vec<String> = ends
-            .iter()
-            .map(|end| match end.play {
-                DefenderPlay::Group(group) => group_words(layouts, group),
-                DefenderPlay::ShowOut => unreachable!("checked above"),
+    // One phrase per defender and kind of ending, such as "East plays the T
+    // or a low card".
+    let mut phrases: Vec<String> = Vec::new();
+    let mut speakers: Vec<(Option<Defender>, Defender)> = Vec::new();
+    for end in ends {
+        if !speakers.contains(&(end.after_show_out, end.defender)) {
+            speakers.push((end.after_show_out, end.defender));
+        }
+    }
+    for (after_show_out, defender) in speakers {
+        let start = phrases.len();
+        let mine = ends.iter().filter(|end| {
+            end.defender == defender && end.after_show_out == after_show_out
+        });
+        let played: Vec<String> = mine
+            .clone()
+            .filter(|end| end.declarer_won)
+            .filter_map(|end| match end.play {
+                DefenderPlay::Group(group) => Some(group_words(layouts, group)),
+                DefenderPlay::ShowOut => None,
             })
             .collect();
-        return format!(
-            "If {} plays {}",
-            defender_name(first.defender),
-            cards.join(" or ")
-        );
-    }
-    let phrases: Vec<String> = ends
-        .iter()
-        .map(|end| {
-            let defender = defender_name(end.defender);
-            match (end.declarer_won, end.play) {
-                (_, DefenderPlay::ShowOut) => format!("{defender} shows out"),
-                (false, DefenderPlay::Group(group))
-                    if layouts.groups[group].size() == 1 =>
-                {
-                    format!(
-                        "it loses to the {}",
-                        rank_symbol(layouts.groups[group].top())
-                    )
-                }
-                (false, _) => format!("{defender} wins"),
-                (true, DefenderPlay::Group(group)) => {
-                    format!("{defender} plays {}", group_words(layouts, group))
-                }
+        if !played.is_empty() {
+            phrases.push(format!(
+                "{} plays {}",
+                defender_name(defender),
+                played.join(" or ")
+            ));
+        }
+        if mine.clone().any(|end| end.play == DefenderPlay::ShowOut) {
+            phrases.push(format!("{} shows out", defender_name(defender)));
+        }
+        let winners: Vec<String> = mine
+            .filter(|end| !end.declarer_won)
+            .filter_map(|end| match end.play {
+                DefenderPlay::Group(group) => Some(group_words(layouts, group)),
+                DefenderPlay::ShowOut => None,
+            })
+            .collect();
+        if !winners.is_empty() {
+            phrases.push(format!(
+                "{} wins with {}",
+                defender_name(defender),
+                winners.join(" or ")
+            ));
+        }
+        if let Some(shown_out) = after_show_out {
+            for phrase in &mut phrases[start..] {
+                *phrase = format!(
+                    "{} shows out and {phrase}",
+                    defender_name(shown_out)
+                );
             }
-        })
-        .collect();
-    format!("If {}", phrases.join(" or "))
+        }
+    }
+    format!("If {}", phrases.join(", or "))
 }
 
 /// A defender's group in words, such as "the K" or "a low card".
@@ -294,6 +414,8 @@ struct Candidate {
     key: PlanKey,
     /// What the plan does, as named in this branch.
     play: Play,
+    /// The finesse the plan takes, if any.
+    finesse: Option<Finesse>,
     plan: Plan,
     /// The second hand's play and declarer's reply that the description
     /// follows from here.
@@ -324,6 +446,10 @@ struct Branch {
 /// How much a description costs, compared in order: the entries it needs,
 /// then the tricks it spells out.
 type Cost = (u32, u32);
+
+/// The cost added to a description whose conditions can't tell two of its
+/// continuations apart, so that any clear description wins over it.
+const AMBIGUOUS: u32 = 1_000_000;
 
 /// How many of the candidate plays common to every branch the description
 /// tries at each trick, in order of preference. Each one tried describes the
@@ -385,7 +511,7 @@ impl<'s, 'a> Describer<'s, 'a> {
         for key in common.into_iter().take(PLAYS_TRIED) {
             let mut entries = 0;
             let mut next = Vec::new();
-            let mut plays = Vec::new();
+            let mut steps = Vec::new();
             let followed = hard
                 .iter()
                 .zip(&hard_options)
@@ -399,26 +525,41 @@ impl<'s, 'a> Describer<'s, 'a> {
                     continue;
                 };
                 entries += candidate.entries;
-                plays.push(candidate.play);
+                steps.push(Step {
+                    play: candidate.play,
+                    finesse: candidate.finesse,
+                });
                 next.extend(self.after(branch, candidate));
             }
             // A play that only cashes a winner in one branch may be a finesse
             // in another, and the finesse is the one worth naming.
-            let play = plays
+            let step = steps
                 .iter()
                 .copied()
-                .find(|play| !matches!(play, Play::Cash(_)))
-                .unwrap_or(plays[0]);
+                .min_by_key(|step| naming_rank(step.play))
+                .expect("every key has a candidate in the first branch");
             let (rest_cost, rest) = self.describe_branches(next);
-            let cost = (entries + rest_cost.0, 1 + rest_cost.1);
+            let cost = (
+                rest_cost.0.saturating_add(entries),
+                rest_cost.1.saturating_add(1),
+            );
             if best.as_ref().is_none_or(|(best_cost, _)| cost < *best_cost) {
-                best = Some((cost, Line::Play(play, Box::new(rest))));
+                best = Some((cost, Line::Play(step, Box::new(rest))));
             }
         }
-        if let Some(best) = best {
-            return best;
+        // Splitting on how the last trick ended can only help when it
+        // separates the branches.
+        let endings = dedup(hard.iter().map(|branch| branch.ended));
+        let can_split_now = endings.len() > 1 && !endings.contains(&None);
+        match best {
+            Some(best) if best.0.0 < AMBIGUOUS || !can_split_now => best,
+            Some(best) => {
+                let split =
+                    self.split(hard, &hard_options, soft, Grouping::ByEnding);
+                if split.0 < best.0 { split } else { best }
+            }
+            None => self.split(hard, &hard_options, soft, Grouping::ByPlay),
         }
-        self.split(hard, &hard_options, soft)
     }
 
     /// Separate lines for branches that no single play suits, grouping
@@ -428,10 +569,23 @@ impl<'s, 'a> Describer<'s, 'a> {
         hard: Vec<Branch>,
         options: &[Vec<Candidate>],
         soft: Vec<Branch>,
+        grouping: Grouping,
     ) -> (Cost, Line) {
-        // Each group takes the play that suits the most branches left.
         let mut remaining: Vec<usize> = (0..hard.len()).collect();
         let mut groups: Vec<Vec<usize>> = Vec::new();
+        if grouping == Grouping::ByEnding {
+            for ending in dedup(hard.iter().map(|branch| branch.ended)) {
+                groups.push(
+                    remaining
+                        .iter()
+                        .copied()
+                        .filter(|&index| hard[index].ended == ending)
+                        .collect(),
+                );
+            }
+            remaining.clear();
+        }
+        // Each group takes the play that suits the most branches left.
         while !remaining.is_empty() {
             let mut best_key: Option<(usize, (Rank, Rank, i8), PlanKey)> = None;
             for &index in &remaining {
@@ -465,26 +619,13 @@ impl<'s, 'a> Describer<'s, 'a> {
             remaining = rest;
         }
 
-        let all_won: Vec<usize> = (0..hard.len())
-            .filter(|&index| {
-                hard[index].ended.is_some_and(|end| end.declarer_won)
-            })
-            .collect();
-        let mut cost = (0, 0);
-        let mut parts = Vec::new();
+        // Describe each group, merging groups whose lines read the same.
+        let mut cost: Cost = (0, 0);
+        let mut described: Vec<(Vec<usize>, Line, String)> = Vec::new();
         for group in groups {
             let ends: Vec<TrickEnd> = dedup(group.iter().map(|&index| {
                 hard[index].ended.expect("a split follows a trick")
             }));
-            let condition = if groups_by_outcome(&group, &all_won, hard.len()) {
-                if group == all_won {
-                    Condition::Wins
-                } else {
-                    Condition::Loses
-                }
-            } else {
-                Condition::Ended(ends.clone())
-            };
             let mut branches: Vec<Branch> =
                 group.iter().map(|&index| hard[index].clone()).collect();
             // A branch only making overtricks follows the group that ended
@@ -497,8 +638,62 @@ impl<'s, 'a> Describer<'s, 'a> {
                     .cloned(),
             );
             let (part_cost, line) = self.describe_branches(branches);
-            cost = (cost.0 + part_cost.0, cost.1 + part_cost.1);
-            parts.push((condition, line));
+            cost = (
+                cost.0.saturating_add(part_cost.0),
+                cost.1.saturating_add(part_cost.1),
+            );
+            let words = lowercase_words(&line, self.solver.layouts);
+            match described.iter_mut().find(|(_, _, other)| *other == words) {
+                Some((merged, _, _)) => merged.extend(group),
+                None => described.push((group, line, words)),
+            }
+        }
+
+        let all_won: Vec<usize> = (0..hard.len())
+            .filter(|&index| {
+                hard[index].ended.is_some_and(|end| end.declarer_won)
+            })
+            .collect();
+        let mut parts = Vec::new();
+        // An ending that two groups share would leave its condition naming
+        // two different continuations.
+        let mut seen_ends: Vec<TrickEnd> = Vec::new();
+        let mut is_ambiguous = false;
+        for (mut group, line, _) in described {
+            group.sort_unstable();
+            let ends = collapsed_ends(&hard, &group);
+            if ends.iter().any(|end| seen_ends.contains(end)) {
+                is_ambiguous = true;
+            }
+            seen_ends.extend(ends.iter().copied());
+            let condition = if groups_by_outcome(&group, &all_won, hard.len()) {
+                if group == all_won {
+                    Condition::Wins
+                } else {
+                    Condition::Loses
+                }
+            } else {
+                Condition::Ended(ends)
+            };
+            let weight = group
+                .iter()
+                .map(|&index| {
+                    self.solver.layouts.weight(hard[index].required[0])
+                })
+                .sum();
+            match line {
+                // A group that splits again before any play splits on this
+                // same trick, so its parts can stand beside the others.
+                Line::Split(sub_parts) => parts.extend(sub_parts),
+                line => parts.push(Part {
+                    condition,
+                    line,
+                    weight,
+                }),
+            }
+        }
+        if is_ambiguous {
+            cost.0 = cost.0.saturating_add(AMBIGUOUS);
         }
         (cost, Line::Split(parts))
     }
@@ -799,6 +994,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                 candidates.push(Candidate {
                     key,
                     play: self.classify(position, named, leads_low),
+                    finesse: self.finesse(position, named, leads_low),
                     plan: named,
                     main_line,
                     entries,
@@ -806,6 +1002,33 @@ impl<'s, 'a> Describer<'s, 'a> {
                 });
             }
         }
+    }
+
+    /// The finesse `plan` takes, if it takes one: a lead toward a card, or
+    /// of one, that a defender's card still outranks.
+    fn finesse(
+        &self,
+        position: Position,
+        plan: Plan,
+        leads_low: bool,
+    ) -> Option<Finesse> {
+        let is_finesse = match self.classify(position, plan, leads_low) {
+            Play::Toward { .. } | Play::Run(_) | Play::Lead(_) => true,
+            Play::Cash(_) | Play::Duck(_) | Play::Other { .. } => false,
+        };
+        if !is_finesse {
+            return None;
+        }
+        let groups = &self.solver.layouts.groups;
+        let against = (0..groups.len()).rev().find(|&group| {
+            let played =
+                position.played[0].get(group) + position.played[1].get(group);
+            played < groups[group].size() && groups[group].top() > plan.winner()
+        })?;
+        Some(Finesse {
+            against,
+            onside: plan.leader.next_defender(),
+        })
     }
 
     /// What `plan` does, as the description names it.
@@ -902,8 +1125,7 @@ impl<'s, 'a> Describer<'s, 'a> {
 
     /// The branches after second hand plays `second` and the third hand
     /// `third`, one for each play fourth hand might make. `second_set_apart`
-    /// says whether second hand's play, rather than fourth hand's, is what
-    /// sets these branches apart.
+    /// says whether second hand showed out.
     fn after_second(
         &mut self,
         branch: &Branch,
@@ -931,24 +1153,44 @@ impl<'s, 'a> Describer<'s, 'a> {
                 }
                 _ => led.leader,
             };
-            let (defender, setting_apart) = if second_set_apart {
-                (led.leader.next_defender(), second)
-            } else {
-                (led.leader.last_defender(), play)
-            };
             branches.push(Branch {
                 position,
                 required,
                 hand_in: declarer_won.then_some(winning_hand),
                 ended: Some(TrickEnd {
                     declarer_won,
-                    defender,
-                    play: setting_apart,
+                    defender: led.leader.last_defender(),
+                    play,
+                    after_show_out: second_set_apart
+                        .then_some(led.leader.next_defender()),
                 }),
             });
         }
         branches
     }
+}
+
+/// How well a play's name explains a trick, lower being better: a branch where
+/// the play is a finesse names it better than one where it ducks, and either
+/// better than one where it merely cashes a winner.
+fn naming_rank(play: Play) -> u8 {
+    match play {
+        Play::Toward { .. }
+        | Play::Run(_)
+        | Play::Lead(_)
+        | Play::Other { .. } => 0,
+        Play::Duck(_) => 1,
+        Play::Cash(_) => 2,
+    }
+}
+
+/// How a split groups its branches.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Grouping {
+    /// Together whenever one play suits them.
+    ByPlay,
+    /// By how the last trick ended, one group per ending.
+    ByEnding,
 }
 
 /// What a branch still has at stake.
@@ -985,6 +1227,34 @@ fn groups_by_outcome(group: &[usize], won: &[usize], count: usize) -> bool {
     let lost: Vec<usize> =
         (0..count).filter(|index| !won.contains(index)).collect();
     has_both && (group == won || group == lost)
+}
+
+/// The endings of the branches in `group`, with the endings after a
+/// show-out merged into the show-out itself when the group holds every one
+/// of them: the show-out alone then sets the group apart.
+fn collapsed_ends(hard: &[Branch], group: &[usize]) -> Vec<TrickEnd> {
+    let end_of =
+        |index: usize| hard[index].ended.expect("a split follows a trick");
+    let mut ends = dedup(group.iter().map(|&index| end_of(index)));
+    for defender in [Defender::West, Defender::East] {
+        let after = |end: &TrickEnd| end.after_show_out == Some(defender);
+        let holds_all = (0..hard.len())
+            .filter(|&index| after(&end_of(index)))
+            .all(|index| group.contains(&index));
+        let Some(first) = ends.iter().copied().find(|end| after(end)) else {
+            continue;
+        };
+        if holds_all {
+            ends.retain(|end| !after(end));
+            ends.push(TrickEnd {
+                declarer_won: first.declarer_won,
+                defender,
+                play: DefenderPlay::ShowOut,
+                after_show_out: None,
+            });
+        }
+    }
+    ends
 }
 
 /// `items` with repeats removed, keeping the first of each.

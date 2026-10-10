@@ -26,6 +26,7 @@ fn main() -> ExitCode {
         let analysis = analyze(problem);
         println!("{problem}: {:.2}%", analysis.success_percent());
         println!("{}", analysis.line_words());
+        println!("{}", analysis.remark());
         println!();
     }
     ExitCode::SUCCESS
