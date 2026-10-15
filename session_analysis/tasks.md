@@ -378,6 +378,12 @@ record waits for review, and what becomes of a scan that raises.
     2026-09-28 sheet then failed geometry and was ingested with the dewarp
     skipped. The 2026-09-21 sheet passed with its row strips cut diagonally
     across two rows, and the model still read the right ones.
+  - Note: the refusals are live too. The 2026-10-15 scan split its slices 4–4
+    between 31 and 32 rows, both counts built from lines outside the grid —
+    chart rows above it, the footer underline and the photo's bottom edge below
+    — so the vote refused it, and it was ingested with the dewarp skipped. Every
+    archived scan splits its slices across 28–32 rows and passes only on a one-
+    or two-slice plurality, so a tie can recur on any sheet.
   - Note: stage one is rotation only, which covers the scanner app, the default
     capture path. Rotate by the angle that makes the row profile sharpest, and
     keep the whole page rather than a crop around the grid, which also retires
@@ -586,19 +592,6 @@ record waits for review, and what becomes of a scan that raises.
     that needs clarifying or review in chat, and apply the user's fixes there.
   - Note: hold the sheet's transcript until every detail is settled, then give
     it to the user inline in the chat.
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-scan-oct-15
-  - Note: the scan waiting in the inbox is `Scanned_20261015-1506.pdf`.
-  - Note: run the whole path first — ingest, the traveller fetch, and
-    reconciliation.
-  - Note: while the review UI (`#review-ui`) has not landed, raise any detail
-    that needs clarifying or review in chat, and apply the user's fixes there.
-  - Note: hold the sheet's transcript until every detail is settled, then give
-    it to the user inline in the chat.
-  - Note: the October 12 ingest above was still in flight at launch, holding an
-    uncommitted fix to `club_pbn_parsing.py`. Each ingest run also reconciles
-    every pending session, the October 12 one included, so take care not to
-    disturb the record that lane is still settling.
 - [ ] Compare how well Sonnet 5.5 and Opus 5.5 read scoresheets.
   - Worktree: sonnet-opus-comparison
 
