@@ -384,6 +384,10 @@ record waits for review, and what becomes of a scan that raises.
     — so the vote refused it, and it was ingested with the dewarp skipped. Every
     archived scan splits its slices across 28–32 rows and passes only on a one-
     or two-slice plurality, so a tie can recur on any sheet.
+  - Note: until this lands, a refused scanner-app scan ingests by running the
+    ingest command with `extraction.dewarp_sheet` swapped for an identity that
+    frames the photo by its own corners — how both skipped records were made.
+    Move the scan back from `scoresheets/failed/` into the inbox first.
   - Note: stage one is rotation only, which covers the scanner app, the default
     capture path. Rotate by the angle that makes the row profile sharpest, and
     keep the whole page rather than a crop around the grid, which also retires
