@@ -597,15 +597,6 @@ lane settles the sheet with the user in chat:
   - Note: `models.SheetImage` already records how a session's scan was read, so
     the release belongs there — for the layout reading and for the transcription
     runs, which are separate calls.
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-scan-oct-12
-  - Note: the scan waiting in the inbox is `Scanned_20261012-1538.pdf`.
-  - Note: run the whole path first — ingest, the traveller fetch, and
-    reconciliation.
-  - Note: while the review UI (`#review-ui`) has not landed, raise any detail
-    that needs clarifying or review in chat, and apply the user's fixes there.
-  - Note: hold the sheet's transcript until every detail is settled, then give
-    it to the user inline in the chat.
 - [ ] Compare how well Sonnet 5.5 and Opus 5.5 read scoresheets.
   - Worktree: sonnet-opus-comparison
 
