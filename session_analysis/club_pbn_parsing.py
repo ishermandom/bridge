@@ -402,13 +402,15 @@ def _parse_table_header(value: str) -> _Table:
 def _read_row(table: _Table, row: str) -> Mapping[str, str]:
   """Split one data row into its columns.
 
-  Every value but a name is a single token, so the row splits on whitespace up
-  to the first name column. From there the declared widths take over, because a
-  name may contain a space and the two name columns sit at the end:
+  Every value but a name is a single token, so the row splits on whitespace from
+  both ends: forward to the first name column, and back from the row's end to
+  the last name column. What remains is the names, read by their declared widths
+  because a name may contain a space. A Swiss teams game, for one, prints its
+  IMPs after the names:
 
   ```
-  [ScoreTable "PairId_NS\\2R;Contract\\4L;Names_NS\\13;Names_EW"]
-   1 4S   Alfa-Bravo    Charlie-Delta
+  [ScoreTable "PairId_NS\\2R;Contract\\4L;Names_NS\\13;Names_EW\\13;IMP_NS\\5R"]
+   1 4S   Alfa-Bravo    Charlie-Delta -0.67
   ```
 
   Raises:
@@ -435,7 +437,18 @@ def _read_row(table: _Table, row: str) -> Mapping[str, str]:
     )
 
   read = dict(zip(table.columns[:leading], parts[:leading], strict=True))
-  remainder = parts[leading]
+  trailing_columns = table.columns[table.columns.index(name_columns[-1]) + 1 :]
+  # The last part holds the names, then one value per trailing column, so
+  # splitting it from the right that many times takes off exactly those values.
+  names_then_trailing = parts[leading].rsplit(maxsplit=len(trailing_columns))
+  if len(names_then_trailing) <= len(trailing_columns):
+    raise _ClubPbnFormatError(
+      'table row has too few values to fill its names and the '
+      f'{len(trailing_columns)} columns after them: {row!r}'
+    )
+  read.update(zip(trailing_columns, names_then_trailing[1:], strict=True))
+
+  remainder = names_then_trailing[0]
   for column in name_columns[:-1]:
     # A column declared with no width is printed unpadded, so it ends at its
     # first space. A width of zero does that: every value overruns it, and an

@@ -406,6 +406,23 @@ def test_a_name_column_declared_with_no_width_ends_at_its_first_space() -> None:
   assert row.east_west.names == ('Charlie', 'Delta')
 
 
+def test_columns_after_the_names_are_not_read_as_names() -> None:
+  # A Swiss teams game prints its IMPs after the names. Were the IMPs read into
+  # the last name column, a negative score's minus sign would read as the hyphen
+  # between two surnames, splitting the score off as a third player.
+  traveller = parse_lines(
+    '[Board "1"]',
+    '[ScoreTable "PairId_NS\\2R;PairId_EW\\2R;Contract\\3L;Declarer;'
+    'Result\\1R;Score_NS\\3R;Score_EW\\3R;Names_NS\\16;Names_EW\\22;'
+    'IMP_NS\\5R;IMP_EW\\5R"]',
+    ' 1  6 3S  S 8   -  50 Alfa-Bravo       Charlie-Delta          -0.67  0.67',
+  )
+
+  row = traveller.boards[0].results[0]
+  assert row.north_south.names == ('Alfa', 'Bravo')
+  assert row.east_west.names == ('Charlie', 'Delta')
+
+
 # --- what could not be read ---
 
 
