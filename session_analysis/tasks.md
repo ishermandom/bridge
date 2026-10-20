@@ -739,6 +739,11 @@ argued in `unreviewed.double_dummy_comparison`.
     before the switch, and every other pair that kept its direction. Only which
     partner took which seat after a switch stays unknown, and a guess there
     risks the silent swap of declaring records described above.
+  - Note: the transcript pages handed over for 2026-10-17 and 2026-10-19 both
+    name players, regrouped by one-off scripts outside the repo, so regenerating
+    either with the transcript command reverts it to seats. For 2026-10-19 the
+    user gave the seating in chat at review — a route the open question below
+    doesn't list: real data, per session, with nothing changed on the sheet.
   - Open question: which route to take. Seating could be configured beside
     `player_name` — but a pair changes direction mid-session, as the 2026-08-31
     session does over boards 13 to 15, so the setting would have to say which
