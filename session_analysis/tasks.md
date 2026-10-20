@@ -776,13 +776,6 @@ argued in `unreviewed.double_dummy_comparison`.
     tell those apart. The quieter alternative is to let the empty columns speak
     for themselves, as the matchpoints column already does. Two of the three
     stored sessions are teams games, so it is doing real work today.
-- [~] Make it easy to write notes between the lines of an emailed transcript.
-  - Worktree: transcript-email-notes
-  - Rationale: the user pastes the `--page` transcript into an email and adds
-    notes between its lines, but the cursor's position decides where the table's
-    lines break. Adding a note is clumsy and error-prone.
-  - Note: the shape of a fix is open. Brainstorm possible solutions and bring
-    them to the user for input before implementing anything.
 - [ ] Let `--page` save the transcript where the user's own login can open it.
       {#page-reaches-user}
   - Rationale: `_show_page` writes the page to the running account's temporary
