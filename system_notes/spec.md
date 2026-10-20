@@ -275,7 +275,11 @@ parse and does not need.
 ## Testing
 
 - **Filter unit tests** run pandoc over small Markdown snippets with one filter
-  at a time and assert the resulting HTML and plain text.
+  at a time and assert the resulting HTML and plain text. One `pandoc lua`
+  process serves every snippet, applying the filter through pandoc's Lua API,
+  because launching pandoc once per snippet cost many times the filtering
+  itself. The command line's `--lua-filter` path stays covered by the golden
+  render below.
 - **Packer unit tests** drive `print_layout.py`'s packing on hand-built lists of
   section heights, and `paged_document` on hand-built markup, with chosen
   heights standing in for the measuring render so that no render runs.
@@ -323,4 +327,5 @@ test-only Python dependency.
   expected renderings.
 - `filters_test.py`, `print_layout_test.py`, `render_notes_test.py` — the tests
   above, beside the code they cover per the repo's `*_test.py` convention;
+  `filters_test_runner.lua` is the pandoc side of the filter tests, and
   `update_goldens.py` refreshes the goldens.
