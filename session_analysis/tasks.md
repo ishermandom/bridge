@@ -716,6 +716,9 @@ argued in `unreviewed.double_dummy_comparison`.
     the field swing is published, while the team swing is computed from the
     match's two tables. The row numbering identifies those tables even where the
     names are wrong.
+  - Note: the club's PBN can carry IMPs as well. The 2026-10-12 Swiss's score
+    table prints `IMP_NS` and `IMP_EW` after the names, which `_read_row` splits
+    out of the row and `_result` does not read.
 - [ ] Name players rather than seats in the transcript's summary rows and error
       lines, if a seat can be tied to a player at all. {#recap-by-player}
   - Note: the user wants each partner named by initials there, in place of the
@@ -780,6 +783,16 @@ argued in `unreviewed.double_dummy_comparison`.
     lines break. Adding a note is clumsy and error-prone.
   - Note: the shape of a fix is open. Brainstorm possible solutions and bring
     them to the user for input before implementing anything.
+- [ ] Let `--page` save the transcript where the user's own login can open it.
+      {#page-reaches-user}
+  - Rationale: `_show_page` writes the page to the running account's temporary
+    directory and opens it with `webbrowser`. Run from a Claude session in the
+    sandbox, neither reaches the user: that directory belongs to the sandbox
+    account, and a background login has no screen to open a browser on. The
+    2026-10-12 page went into the private tree's `transcripts/` by a one-off
+    script instead.
+  - Open question: whether the page takes a path to save to, or always lands
+    beside the stored text transcripts.
 
 ---
 
