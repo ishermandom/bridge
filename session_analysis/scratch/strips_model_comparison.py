@@ -14,11 +14,13 @@ crops. Instead `cut` saves a set once and every `transcribe` reads a saved one,
 letting arms from separate invocations share a single cutting.
 
 Each run's raw transcription, cost, and token counts are written to the output
-directory as one JSON file per run, alongside the strip set — judging a
-disagreement means looking at the same crop the model was given. A run records
-the model that answered as well as the one that was asked for, since the two
-differ whenever the request names an alias, and it records which strip set it
-read, so the scoring step can refuse to vote runs over different cuttings.
+directory as one JSON file per run. Judging a disagreement means looking at the
+crop the model was given, so an output directory belongs inside the directory
+`cut` wrote, beside the one copy of its strips. A run records the model that
+answered as well as the one that was asked for, since the two differ whenever
+the request names an alias. It also records which strip set it read and under
+which prompt, so the scoring steps can refuse to judge runs over different
+cuttings or different instructions together.
 """
 
 import argparse
@@ -85,6 +87,19 @@ class StripSet:
       hasher.update(strip.label.encode())
       hasher.update(strip.image_bytes)
     return hasher.hexdigest()[:16]
+
+
+def prompt_digest() -> str:
+  """A short hash over the instructions every run reads: prompt and schema.
+
+  Stored runs stay comparable with new ones only while these hold still, so each
+  run records the hash and the scoring steps refuse to judge runs that read
+  different instructions together.
+  """
+  hasher = hashlib.sha256()
+  hasher.update(VISION_MODEL_SYSTEM_PROMPT.encode())
+  hasher.update(json.dumps(VISION_MODEL_OUTPUT_SCHEMA, sort_keys=True).encode())
+  return hasher.hexdigest()[:16]
 
 
 def read_single_sheet(scan_path: pathlib.Path) -> Image.Image:
@@ -196,6 +211,8 @@ class RunResult:
   effort: str
   # Which cutting this run read; see `StripSet.digest`.
   strips_digest: str
+  # Which instructions it read them under; see `prompt_digest`.
+  prompt_digest: str
   run_index: int
   cost_usd: float
   input_tokens: int
@@ -284,6 +301,7 @@ def run_once(
     resolved_model=_resolved_model(runner.last_stdout),
     effort=effort,
     strips_digest=strip_set.digest(),
+    prompt_digest=prompt_digest(),
     run_index=run_index,
     cost_usd=cost if isinstance(cost, (int, float)) else 0.0,
     input_tokens=_integer_field(usage, 'input_tokens'),
@@ -337,20 +355,22 @@ def transcribe_command(
 ) -> None:
   """Read a saved strip set at each setting, writing one JSON file per run."""
   strip_set = read_strip_set(strips_from / STRIPS_DIRECTORY_NAME)
+  expected_digests = {
+    'strips_digest': strip_set.digest(),
+    'prompt_digest': prompt_digest(),
+  }
 
-  # The runs keep a copy of the strips they read beside them, so an output
-  # directory's runs must all have read one set.
-  strips_directory = output_directory / STRIPS_DIRECTORY_NAME
-  if (strips_directory / _MANIFEST_NAME).exists():
-    existing_digest = read_strip_set(strips_directory).digest()
-    if existing_digest != strip_set.digest():
-      raise SystemExit(
-        f'{strips_directory} already holds strip set {existing_digest}, not'
-        f' {strip_set.digest()}; runs over two cuttings cannot share a'
-        ' directory'
-      )
-  else:
-    write_strip_set(strip_set, strips_directory)
+  # Runs over different strips or instructions cannot be judged together, so a
+  # directory already holding such runs is refused before any paid call.
+  output_directory.mkdir(parents=True, exist_ok=True)
+  for path in sorted(output_directory.glob('*.json')):
+    record = json.loads(path.read_text())
+    for field, expected in expected_digests.items():
+      if record.get(field) != expected:
+        raise SystemExit(
+          f'{path} has {field} {record.get(field)}, not {expected}; runs over'
+          ' different strips or instructions cannot share a directory'
+        )
   print(_describe(strip_set))
 
   for model in models:

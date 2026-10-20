@@ -17,69 +17,98 @@ to re-run them.
   the entry has gone stale.
 - **Prune an entry once a newer measurement answers the same question.** Delete
   it rather than keep it as history; git keeps every version. A release falling
-  out of use does not by itself retire an entry: Opus 5 against Opus 5.5 stays
-  until the `opus` alias moves again and that move is measured.
+  out of use does not by itself retire an entry: Opus 5's figures stay as the
+  baseline its successors are measured against.
 
 ## Sheets measured {#sheets}
 
 - **The 6/29 sheet**:
   `bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg`,
-  a raw phone photo, and the only real sheet among the samples.
+  a raw phone photo, and the only real sheet among the samples. It has no
+  session record, so the 2026-10-10 model comparison judged it against a key
+  assembled from runs: an Opus 5.5 run agreeing with the 40 runs of Opus 5.5 and
+  Sonnet 5.5 at `high` on every cell where most of those runs agree. The
+  exceptions are board 1's declarer, which the travellers settle as West, and
+  board 17's `2D_H`, the only reading of that call that parses.
 - **The 9/24 sheet**:
   `bridge-private/session_analysis/scoresheets/archive/862caf5b70a4-Scanned_20260924-1511.pdf`,
   a scanner app's PDF. Its session record, reconciled and reviewed with the
   user, is the answer key for `scratch/settled_session_comparison.py`.
 
+Both sheets' strip sets, every run behind the 2026-10-10 entries, and both
+answer keys are kept as the comparison's stored workload, so a later measurement
+adds only its own runs (scratch/README.md #stored-workload).
+
 ## Model choice {#model-choice}
 
 Supports the **Model** bullet in spec.md #extraction.
 
-- **Opus 5.5 against Sonnet 5.5** (2026-09-28, the 6/29 and 9/24 sheets, 10 runs
-  of each release per sheet, all at `high` effort): Opus 5.5 reads better, and
-  Sonnet 5.5 costs about half as much. Sonnet never ran calls together or
-  dropped a subscript announcement, and it read every alert tracked in the next
-  entry in every run. Judged against the 9/24 sheet's session record, Opus read
-  139 of its 140 cells right in every run and Sonnet 136. Across their ten runs,
-  Opus misread 10 readings and Sonnet 15; ten of each are board 22's note, which
-  no run read right. Every cell on both sheets read the same in all 20 runs
-  except the ones below, and on each of them Sonnet slipped at least as often as
-  Opus:
-  - **Hard cells Opus sometimes reads right**: board 1's declarer on the 6/29
-    sheet is West, which Opus read in 3 runs and Sonnet in none. Board 17's
-    `2D_H`, a transfer announced as hearts, was read in 5 Opus runs and no
-    Sonnet run. The usual misreading, `2P_H`, does not parse, so review catches
-    it whichever model makes it.
-  - **Slips only Sonnet made**: on the 6/29 sheet, a final bid contradicting its
-    own contract (board 13, 2 runs) and `50` for `5D` (board 8, 2 runs); on the
-    9/24 sheet, board 9's circle dropped (3 runs) and an opponent's call given
-    to our side (board 15, 1 run). In one sweep, both runs dropped board 9's
-    circle, so the vote let the miss through without a flag.
-  - **Handwritten notes**: every run of both releases read board 22's `forcing?`
-    on the 9/24 sheet as `boring`. Nine Sonnet runs and two Opus runs ended it
-    with the sheet's `?`, the rest with `!`. One Sonnet run read board 14's
-    `diams` as `drama`.
-  - **Cost**: a sheet's two transcription runs cost \$0.17 on Sonnet where they
-    cost \$0.35 on Opus over the 6/29 sheet, and \$0.16 where they cost \$0.31
-    over the 9/24 sheet.
-- **Opus 5 against Opus 5.5** (2026-09-24, the 6/29 sheet, 20 runs of each
-  release across `high` and `medium` effort and three strip sets): Opus 5.5 read
-  both of board 13's alert ticks in every run, where Opus 5 read one of them in
-  6 runs of 20 and the other in none. It was steadier on two more alerts as
-  well, reading board 3's `[2D!]` and board 11's `4C!` in every run against Opus
-  5's 16 and 12. Otherwise the two releases read the sheet alike, down to the
-  same misreads of board 1's declarer and board 17's bid letter.
+- **Opus 5, Opus 5.5, Sonnet 5.5 and Haiku 5.5** (2026-10-10, the 6/29 and 9/24
+  sheets, one strip set each, 10 runs of each setting per sheet; the Opus
+  releases at `high` only, Sonnet 5.5 and Haiku 5.5 at every effort from `low`
+  to `max`): each run was judged cell by cell against the sheet's answer key,
+  and each sweep's two runs were voted as ingest votes them. Per sheet of about
+  28 boards, averaged over both sheets:
+
+  | Setting                | Cost per sheet | Misread cells per run | Boards sent to review | Wrong cells past the vote |
+  | ---------------------- | -------------: | --------------------: | --------------------: | ------------------------: |
+  | Opus 5.5 at `high`     |         \$0.33 |                   1.1 |                   0.7 |                       0.6 |
+  | Sonnet 5.5 at `xhigh`  |         \$0.20 |                   1.5 |                   0.8 |                       0.8 |
+  | Sonnet 5.5 at `max`    |         \$0.80 |                   1.2 |                   0.8 |                       0.7 |
+  | Sonnet 5.5 at `high`   |         \$0.17 |                   2.0 |                   1.3 |                       1.0 |
+  | Opus 5 at `high`       |         \$0.45 |                   2.0 |                   0.8 |                       1.2 |
+  | Sonnet 5.5 at `medium` |         \$0.13 |                   7.4 |                   6.4 |                       0.9 |
+  | Sonnet 5.5 at `low`    |         \$0.14 |                   8.2 |                   9.5 |                       0.6 |
+  | Haiku 5.5, any effort  |  \$0.01–\$0.07 |               5.2–6.9 |               3.6–5.8 |                   2.6–2.7 |
+  - **Misses every setting shares**: most wrong cells past the vote, in every
+    setting, are two cells. No run read board 22's `forcing?` note on the 9/24
+    sheet. Board 1's declarer on the 6/29 sheet is West, which Opus 5 read in 4
+    runs of 10, Opus 5.5 in 3, and Sonnet 5.5 in at most 2 at any effort.
+  - **Board 17's `2D_H`**, a transfer announced as hearts, on the 6/29 sheet:
+    Opus 5 read it in 9 runs of 10, Sonnet 5.5 at `max` in 8, Opus 5.5 in 5, and
+    Sonnet 5.5 at `xhigh` and below in none. The usual misreading, `2P_H`, does
+    not parse, so review catches it.
+  - **Opus 5 against Opus 5.5**: Opus 5 dropped at least one of board 13's alert
+    ticks on the 6/29 sheet in every run, read the 9/24 sheet's `diams` note as
+    `diam` in every run, and marked board 22's `[3D]` as an opponent's call
+    in 3.
+  - **Sonnet 5.5's slips at `high`**: beyond the shared misses and board 17, a
+    final bid contradicting its own contract (board 13, 2 runs) and `50` for
+    `5D` (board 8, 2 runs) on the 6/29 sheet; board 9's circle dropped (3 runs),
+    an opponent's call given to our side (board 15, 1 run) and `diams` read as
+    `drama` (1 run) on the 9/24 sheet. At `xhigh` and `max`, only board 8's `50`
+    recurred, once at each, and `max` once read `diams` as `drains`.
+  - **Haiku 5.5's slips**: it read club bids as diamonds, board 10's `(3C)` in
+    about half its runs and board 20's in some, and dropped the parentheses that
+    mark an opponent's call. About one wrong auction a sheet passed the vote
+    unflagged, at every effort.
+  - **Speed**: a run's median time was 26 seconds on Opus 5.5, 30 on Sonnet 5.5
+    at `xhigh`, and 44 on Opus 5. Haiku 5.5 took from half a minute at `low` to
+    four minutes at `max`.
 
 ## Effort {#effort}
 
 Supports spec.md #extraction-effort.
 
+- **Sonnet 5.5 and Haiku 5.5 from `low` to `max`** (2026-10-10, from the sweeps
+  behind the four-release entry in #model-choice):
+  - **Sonnet 5.5**: at `low` and `medium` it wrote about 1,500 output tokens,
+    the transcription with next to no thinking. In 4 runs of 10 at each on the
+    6/29 sheet, it abandoned the lead notation, writing `Q₀H` or `Q♣` for `QoH`.
+    The parser rejects those, so each such run sent most of the sheet's boards
+    to review. `xhigh` read about as well as `max` at a quarter of the cost.
+    `max` cost \$0.20 a run on the 9/24 sheet and \$0.60 on the 6/29 sheet,
+    where single runs took up to 11 minutes and \$0.91.
+  - **Haiku 5.5**: effort barely moved its accuracy. Its output grew from about
+    9,000 tokens a run at `low` to about 60,000 at `max`, and its time from half
+    a minute to four minutes. A run cost about a cent below `max` and three
+    cents at `max`.
 - **Opus 5.5 at `high` against `medium`** (2026-09-24, the 6/29 sheet, 10 runs
-  at each effort, from the sweeps behind the Opus 5 against Opus 5.5 entry): the
-  two efforts read the sheet alike to within a cell or two a sweep. On the one
-  ambiguous call that was not noise, `high` read the parseable value where
-  `medium` did not. A sheet's two transcription runs cost about \$0.34 at `high`
-  and \$0.32 at `medium`, plus about \$0.05 for the layout reading that cuts its
-  strips.
+  at each effort over three strip sets): the two efforts read the sheet alike to
+  within a cell or two a sweep. On the one ambiguous call that was not noise,
+  `high` read the parseable value where `medium` did not. A sheet's two
+  transcription runs cost about \$0.34 at `high` and \$0.32 at `medium`, plus
+  about \$0.05 for the layout reading that cuts its strips.
 
 ## Arithmetic check {#arithmetic-check}
 
@@ -93,13 +122,13 @@ Supports spec.md #extraction-accuracy.
 
 Supports spec.md #extraction-voting.
 
-- **Board 1's declarer on the 6/29 sheet** (2026-09-24, Opus 5 and 5.5, from the
-  sweeps behind the Opus 5 against Opus 5.5 entry): every 4S on the game's
-  travellers was declared by West, but most runs read North. On strips cut from
-  a correct layout reading, Opus 5.5's two runs split between the two in three
-  pairs of four, and the vote flagged each split. On an earlier cutting, whose
-  layout reading lost the table's right edge (#image-limits), all 24 runs of
-  both releases read North, and the vote had nothing to flag.
+- **Board 1's declarer on the 6/29 sheet** (2026-09-24, Opus 5 and 5.5 at `high`
+  and `medium`, over three strip sets): every 4S on the game's travellers was
+  declared by West, but most runs read North. On strips cut from a correct
+  layout reading, Opus 5.5's two runs split between the two in three pairs of
+  four, and the vote flagged each split. On an earlier cutting, whose layout
+  reading lost the table's right edge (#image-limits), all 24 runs of both
+  releases read North, and the vote had nothing to flag.
 
 ## Input format {#input-format}
 

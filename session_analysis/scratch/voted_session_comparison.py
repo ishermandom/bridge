@@ -48,6 +48,7 @@ def main() -> None:
 
   by_setting: dict[str, dict[int, str]] = collections.defaultdict(dict)
   runs_by_digest: dict[str, list[str]] = collections.defaultdict(list)
+  runs_by_prompt: dict[str, list[str]] = collections.defaultdict(list)
   for path in sorted(arguments.run_directory.glob('*.json')):
     record = json.loads(path.read_text())
     # Group by what answered rather than by what was asked for: an alias and the
@@ -55,6 +56,9 @@ def main() -> None:
     label = f'{record["resolved_model"]} at {record["effort"]} effort'
     by_setting[label][record['run_index']] = record['transcription']
     runs_by_digest[record['strips_digest']].append(path.name)
+    # A record written before runs carried a prompt digest cannot say which
+    # prompt it read, so it counts as reading an unknown one.
+    runs_by_prompt[record.get('prompt_digest', 'unrecorded')].append(path.name)
 
   if not runs_by_digest:
     parser.error(f'no run records in {arguments.run_directory}')
@@ -64,6 +68,13 @@ def main() -> None:
     parser.error(
       f'runs in {arguments.run_directory} read different strip sets:'
       f' {dict(runs_by_digest)}'
+    )
+  # Likewise for the prompt: a changed prompt changes what every setting was
+  # asked to do.
+  if len(runs_by_prompt) > 1:
+    parser.error(
+      f'runs in {arguments.run_directory} read different prompts:'
+      f' {dict(runs_by_prompt)}'
     )
   print(f'all runs read strip set {next(iter(runs_by_digest))}')
 

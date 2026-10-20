@@ -10,9 +10,11 @@ another, and marks each of that run's cells correct or misread against the
 settled record.
 
 For each setting (a model at one effort level), it reports how many cells every
-run read right and how many readings its runs got wrong. It then lists each cell
-any run missed, with how many runs read that cell correctly and what the others
-read instead.
+run read right, how many readings its runs got wrong, and what a run cost. It
+then votes each sweep's two runs against each other, as ingest does, and reports
+how many boards the votes sent to review and how many wrong cells they let
+through unflagged. Last, it lists each cell any run missed, with how many runs
+read that cell correctly and what the others read instead.
 
 An optional last step of the extraction model comparison, for a sheet that has a
 settled session — see this directory's README.md for every step, and for what
@@ -28,7 +30,10 @@ import json
 import pathlib
 from collections.abc import Iterator, Mapping, Sequence
 
-from session_analysis.assembly import parse_and_assemble_session
+from session_analysis.assembly import (
+  parse_and_assemble_session,
+  parse_and_assemble_voted_session,
+)
 from session_analysis.models import Board, Session
 from session_analysis.testing import provenance
 
@@ -145,55 +150,82 @@ class CellTally:
 
 @dataclasses.dataclass(frozen=True)
 class Run:
-  """One transcription run: its setting, source file, and transcribed rows."""
+  """One transcription run: its setting, source file, rows, and cost."""
 
   setting: str
   path: pathlib.Path
+  # Which of its sweep's two runs of this setting it was: 1 or 2.
+  run_index: int
   transcription: str
   raw_rows: tuple[Mapping[str, str], ...]
+  cost_usd: float
+
+
+@dataclasses.dataclass
+class VoteTally:
+  """What one setting's votes would hand ingest, summed over its sweeps."""
+
+  vote_count: int = 0
+  boards_sent_to_review: int = 0
+  wrong_cells_let_through: int = 0
 
 
 def load_runs(
-  run_directories: Sequence[pathlib.Path], settled: Session
+  strips_from: pathlib.Path,
+  run_directories: Sequence[pathlib.Path],
+  settled: Session,
 ) -> Sequence[Run]:
-  """Read every run, checking they all read one cutting of the settled scan.
+  """Read every run, checking they all read the given cutting of the settled
+  scan.
 
   Raises:
-    SystemExit: the runs read different cuttings, or a cutting of another scan
-      than the one the settled session was ingested from, or the directories
-      hold no run records.
+    SystemExit: the strips were cut from another scan than the one the settled
+      session was ingested from, a run read other strips or a different prompt
+      than the rest, or the directories hold no run records.
   """
   settled_scan = pathlib.PurePosixPath(settled.source.image.path).name
-  directories_by_digest: dict[str, set[str]] = collections.defaultdict(set)
+  manifest = json.loads((strips_from / _MANIFEST_PATH).read_text())
+  cut_from = pathlib.Path(manifest['source_image']).name
+  if cut_from != settled_scan:
+    raise SystemExit(
+      f'{strips_from} holds strips cut from {cut_from}, but the settled'
+      f' session was ingested from {settled_scan}'
+    )
+  runs_by_prompt: dict[str, list[str]] = collections.defaultdict(list)
   runs = []
   for directory in run_directories:
-    manifest = json.loads((directory / _MANIFEST_PATH).read_text())
-    cut_from = pathlib.Path(manifest['source_image']).name
-    if cut_from != settled_scan:
-      raise SystemExit(
-        f'{directory} read strips cut from {cut_from}, but the settled'
-        f' session was ingested from {settled_scan}'
-      )
     for path in sorted(directory.glob('*.json')):
       record = json.loads(path.read_text())
-      directories_by_digest[record['strips_digest']].add(str(directory))
+      # Runs over other crops would measure the cutting as much as the setting.
+      if record['strips_digest'] != manifest['digest']:
+        raise SystemExit(
+          f'{path} read strip set {record["strips_digest"]}, not the'
+          f' {manifest["digest"]} in {strips_from}'
+        )
+      # A record written before runs carried a prompt digest cannot say which
+      # prompt it read, so it counts as reading an unknown one.
+      runs_by_prompt[record.get('prompt_digest', 'unrecorded')].append(
+        str(path)
+      )
       transcription = record['transcription']
       runs.append(
         Run(
           setting=f'{record["resolved_model"]} at {record["effort"]} effort',
           path=path,
+          run_index=record['run_index'],
           transcription=transcription,
           raw_rows=tuple(json.loads(transcription)['sheet']['boards']),
+          cost_usd=record['cost_usd'],
         )
       )
-  # Runs over different crops would measure the cutting as much as the setting,
-  # so mixed cuttings are refused, as in `voted_session_comparison.py`.
-  if len(directories_by_digest) > 1:
+  # A changed prompt changes what every setting was asked to do, so runs under
+  # different prompts would measure the change rather than the settings.
+  if len(runs_by_prompt) > 1:
     listing = '; '.join(
-      f'{digest} in {", ".join(sorted(directories))}'
-      for digest, directories in sorted(directories_by_digest.items())
+      f'{digest} in {len(paths)} runs, such as {paths[0]}'
+      for digest, paths in sorted(runs_by_prompt.items())
     )
-    raise SystemExit(f'the runs read different strip sets: {listing}')
+    raise SystemExit(f'the runs read different prompts: {listing}')
   if not runs:
     raise SystemExit('no run records in the given directories')
   return runs
@@ -247,19 +279,83 @@ def tally_cells(runs: Sequence[Run], settled: Session) -> Sequence[CellTally]:
   return tallies
 
 
+def holds_issue(value: object) -> bool:
+  """Whether a dumped board carries an issue anywhere, on it or on any cell."""
+  if isinstance(value, dict):
+    return bool(value.get('issues')) or any(
+      holds_issue(item) for item in value.values()
+    )
+  if isinstance(value, list):
+    return any(holds_issue(item) for item in value)
+  return False
+
+
+def tally_votes(
+  runs: Sequence[Run], settled: Session
+) -> Mapping[str, VoteTally]:
+  """Vote each sweep's two runs of a setting, as ingest does, and judge it.
+
+  A board left with any issue goes to a reviewer, who would see a misread there.
+  A misread on a board with no issue reaches the record unflagged.
+  """
+  # A sweep's directory holds runs 1 and 2 of each setting it ran.
+  pairs: dict[tuple[pathlib.Path, str], dict[int, Run]] = (
+    collections.defaultdict(dict)
+  )
+  for run in runs:
+    pairs[run.path.parent, run.setting][run.run_index] = run
+
+  reference_date = settled.date or datetime.date.today()
+  tallies: dict[str, VoteTally] = collections.defaultdict(VoteTally)
+  for (directory, setting), pair in sorted(pairs.items()):
+    if sorted(pair) != [1, 2]:
+      raise SystemExit(
+        f'{directory} holds runs {sorted(pair)} of {setting}, not a pair'
+      )
+    voted = parse_and_assemble_voted_session(
+      pair[1].transcription,
+      pair[2].transcription,
+      _SOURCE,
+      reference_date=reference_date,
+    )
+    tally = tallies[setting]
+    tally.vote_count += 1
+    # Each run already matched the settled row count in `tally_cells`, so the
+    # voted boards do too.
+    for board, settled_board in zip(voted.boards, settled.boards, strict=True):
+      if holds_issue(board.model_dump(mode='json')):
+        tally.boards_sent_to_review += 1
+        continue
+      tally.wrong_cells_let_through += sum(
+        1
+        for cell in Cell
+        if comparison_key(parsed_reading(board, cell))
+        != comparison_key(parsed_reading(settled_board, cell))
+      )
+  return tallies
+
+
 def report(
   tallies: Sequence[CellTally],
+  vote_tallies: Mapping[str, VoteTally],
   runs: Sequence[Run],
   settled_path: pathlib.Path,
 ) -> Iterator[str]:
-  """The comparison as lines: a summary per setting, then each missed cell."""
+  """The comparison as lines: two summaries per setting, then each missed cell."""
   run_counts = collections.Counter(run.setting for run in runs)
+  costs: dict[str, float] = collections.defaultdict(float)
+  for run in runs:
+    costs[run.setting] += run.cost_usd
   settings = sorted(run_counts)
   width = max(len(setting) for setting in settings)
 
   yield f'answer key: {settled_path.name}, {len(tallies)} cells'
   yield ''
-  yield f'{"":{width}}  runs  cells every run read right  misread readings'
+  yield 'each run read alone:'
+  yield (
+    f'{"":{width}}  runs  cells every run read right  misread readings'
+    '  cost per run'
+  )
   for setting in settings:
     always_right = sum(
       1
@@ -271,9 +367,24 @@ def report(
       for tally in tallies
       for counts in tally.misread_runs.values()
     )
+    cost_per_run = costs[setting] / run_counts[setting]
     yield (
       f'{setting:{width}}  {run_counts[setting]:4d}'
-      f'  {always_right:26d}  {misread:16d}'
+      f'  {always_right:26d}  {misread:16d}  {f"${cost_per_run:.3f}":>12}'
+    )
+
+  yield ''
+  yield "each sweep's two runs voted, as ingest does:"
+  yield (
+    f'{"":{width}}  votes  boards sent to review'
+    '  wrong cells let through unflagged'
+  )
+  for setting in settings:
+    vote = vote_tallies[setting]
+    yield (
+      f'{setting:{width}}  {vote.vote_count:5d}'
+      f'  {vote.boards_sent_to_review:21d}'
+      f'  {vote.wrong_cells_let_through:33d}'
     )
 
   for tally in tallies:
@@ -304,6 +415,12 @@ def main() -> None:
   """Judge the given runs against a settled session and print the result."""
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
+    '--strips-from',
+    type=pathlib.Path,
+    required=True,
+    help='the directory `strips_model_comparison.py cut` wrote',
+  )
+  parser.add_argument(
     '--run-directories',
     type=pathlib.Path,
     nargs='+',
@@ -314,14 +431,16 @@ def main() -> None:
     '--settled-session',
     type=pathlib.Path,
     required=True,
-    help="the sheet's session record, from bridge-private's sessions/",
+    help="the sheet's answer key, such as its record in bridge-private's"
+    ' sessions/',
   )
   arguments = parser.parse_args()
 
   settled = Session.model_validate_json(arguments.settled_session.read_text())
-  runs = load_runs(arguments.run_directories, settled)
+  runs = load_runs(arguments.strips_from, arguments.run_directories, settled)
   tallies = tally_cells(runs, settled)
-  for line in report(tallies, runs, arguments.settled_session):
+  vote_tallies = tally_votes(runs, settled)
+  for line in report(tallies, vote_tallies, runs, arguments.settled_session):
     print(line)
 
 

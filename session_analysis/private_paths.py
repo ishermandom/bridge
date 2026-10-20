@@ -24,6 +24,9 @@ bridge-private/session_analysis/
 │   └── parsed/     the travellers those captures parse into
 ├── sessions/       the reconciled records this pipeline exists to write
 │   └── pending/    digitized, still awaiting reconciliation and review
+├── model_comparison/  the extraction model comparison's stored workload: per
+│                      sheet, strips, runs, and an answer key (scratch/README.md
+│                      #stored-workload)
 └── transcripts/    sessions rendered to read back, regenerable from those
 ```
 

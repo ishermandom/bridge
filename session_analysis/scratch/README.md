@@ -42,21 +42,23 @@ PYTHONPATH=. uv run --project . python \
 ```
 
 Then `transcribe` that set at each setting, in one invocation or several. Each
-run's raw transcription and its cost and token figures are written as JSON
-beside a copy of the strips it read.
+run's raw transcription and its cost and token figures are written as one JSON
+file. Write each sweep into its own directory inside the one `cut` wrote, so the
+runs sit beside the strips they read.
 
 ```sh
 PYTHONPATH=. uv run --project . python \
   session_analysis/scratch/strips_model_comparison.py transcribe \
   --strips-from /tmp/strips-6-29 \
-  --output-directory /tmp/strips-comparison \
+  --output-directory /tmp/strips-6-29/sweep-1 \
   --models opus sonnet --efforts high --runs 2
 ```
 
 Both scripts enforce the fixing. The harness will not cut a new set into a
-directory that already holds one, and the scoring step below will not vote runs
-that read different sets. `--layout-model` names the model that cuts, defaulting
-to `DEFAULT_MODEL`; #cutter-choice says how much that choice matters.
+directory that already holds one, or add runs to a directory whose runs read
+other strips or another prompt, and the scoring steps below will not judge such
+runs together. `--layout-model` names the model that cuts, defaulting to
+`DEFAULT_MODEL`; #cutter-choice says how much that choice matters.
 
 `voted_session_comparison.py` then scores those runs the way the pipeline does —
 each model's two runs voted against each other, reporting the issues a review
@@ -65,7 +67,7 @@ queue would actually hold.
 ```sh
 PYTHONPATH=. uv run --project . python \
   session_analysis/scratch/voted_session_comparison.py \
-  --run-directory /tmp/strips-comparison
+  --run-directory /tmp/strips-6-29/sweep-1
 ```
 
 The vote shows how often a model disagrees with itself, not how often it is
@@ -73,9 +75,12 @@ right. A settled session — one reconciled against the travellers and reviewed
 with the user — has a record in `bridge-private` that serves as an answer key,
 and `settled_session_comparison.py` judges every run's every board cell against
 it. For each setting, it reports how many cells all of that setting's runs read
-right, and how many cell readings across those runs were wrong. It then lists
-each cell any run missed, with how many runs read that cell correctly and what
-the others read instead. It takes any number of run directories, so every sweep
+right, how many cell readings across those runs were wrong, and what a run cost.
+It then votes each directory's two runs of a setting against each other, as
+ingest would, and reports how many boards those votes sent to review and how
+many wrong cells they let through unflagged. Last, it lists each cell any run
+missed, with how many runs read that cell correctly and what the others read
+instead. It takes any number of run directories, one per sweep, so every sweep
 over one strip set is judged together.
 
 It refuses runs whose strips were cut from a different scan than the one the
@@ -86,9 +91,57 @@ or not it has been settled.
 ```sh
 PYTHONPATH=. uv run --project . python \
   session_analysis/scratch/settled_session_comparison.py \
-  --run-directories /tmp/strips-9-24-sweep-1 /tmp/strips-9-24-sweep-2 \
+  --strips-from /tmp/strips-9-24 \
+  --run-directories /tmp/strips-9-24/sweep-1 /tmp/strips-9-24/sweep-2 \
   --settled-session ../bridge-private/session_analysis/sessions/pending/<session>.json
 ```
+
+### Measuring a new setting against the stored workload {#stored-workload}
+
+Settings already measured never need re-running. For each sheet measured,
+`bridge-private/session_analysis/model_comparison/` keeps its strip set, five
+sweeps of two runs of every setting measured so far, and an `answer-key.json`. A
+new release or effort needs only its own runs, written beside the stored ones.
+Each sheet's directory is laid out as `cut` and `transcribe` write one, so the
+commands above take it as it is:
+
+```sh
+workload=../bridge-private/session_analysis/model_comparison
+for sheet in "$workload"/*/; do
+  for sweep in 1 2 3 4 5; do
+    PYTHONPATH=. uv run --project . python \
+      session_analysis/scratch/strips_model_comparison.py transcribe \
+      --strips-from "$sheet" --output-directory "$sheet/sweep-$sweep" \
+      --models claude-<release> --efforts high --runs 2
+  done
+done
+```
+
+Then judge each sheet's sweeps, the stored runs and the new together, one sheet
+at a time:
+
+```sh
+PYTHONPATH=. uv run --project . python \
+  session_analysis/scratch/settled_session_comparison.py \
+  --strips-from "$sheet" --run-directories "$sheet"/sweep-* \
+  --settled-session "$sheet/answer-key.json"
+```
+
+- **Name a release, not an alias.** A run's file is named for the model asked
+  for, so a run of `sonnet` after the alias moves would overwrite the runs of
+  the release it used to name.
+- **Leave out `max` effort.** It costs two to four times what `xhigh` does, for
+  little gain; measurements.md #effort has the figures.
+- **The stored runs hold only while the prompt does.** Each run records a digest
+  of the extraction prompt and output schema, and the scoring scripts refuse to
+  judge runs read under different ones together. After a prompt change, delete
+  the stored sweeps (git keeps them) and re-run the settings still in contention
+  over the same strips.
+- **A settled sheet's key is a link to its session record**, so a correction in
+  review reaches the key too. If the record moves, as it does once its session
+  graduates out of `sessions/pending/`, the scoring step fails on the broken
+  link until it is re-pointed. measurements.md #sheets says where each key comes
+  from.
 
 ### What to know before trusting the numbers
 
