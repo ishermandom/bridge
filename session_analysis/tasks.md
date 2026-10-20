@@ -899,6 +899,12 @@ rationale lives in the design docs' open-question sections —
       growing game database outgrows the repo.
 - [ ] Paper hand records as a traveller source, for sessions with no digital
       traveller — they carry the deal, too.
+  - Note: the 2026-10-17 session took this route by hand. Its deals,
+    double-dummy tables and par were transcribed into a PBN under
+    `travellers/raw/club/transcribed/` in `bridge-private`, which the club PBN
+    parser reads unchanged. The store picks a parser by site directory, so the
+    capture is filed as a club-website PBN though it came from paper; its header
+    comment records the true source.
 - [ ] Pianola as a traveller source, for club games that post only there
       (deferred: the sessions currently played don't use it).
 - [ ] Transcribe the vendor two-column forms, not only resolve their geometry.
