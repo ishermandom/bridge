@@ -484,13 +484,14 @@ fixed (see [Acquisition](#acquisition)).
   nothing is honest where one that picks a winner is not.
 - **Detail is not disagreement.** Two sources routinely describe one thing at
   different depths: `Last & Person` and `First Last & Second Person` are one
-  pair written twice. A pair merges when its seat — number, side, and section —
-  matches outright and each name abbreviates the other, and the fuller spelling
-  is kept. That is not the tiebreak above, because nothing is discarded: the
-  sparser spelling is contained in the fuller one. The same holds across formats
-  — a club PBN hand record supplies the deal for boards its HTML recap never
-  covered, and a board dealt but never reached is a board nobody played rather
-  than a source disagreeing.
+  pair written twice, and so is a club PBN row naming that pair `Last` alone. A
+  pair merges when its seat — number, side, and section — matches outright and
+  each name the sparser source printed abbreviates a different player in the
+  fuller one, and the fuller spelling is kept. That is not the tiebreak above,
+  because nothing is discarded: the sparser spelling is contained in the fuller
+  one. The same holds across formats — a club PBN hand record supplies the deal
+  for boards its HTML recap never covered, and a board dealt but never reached
+  is a board nobody played rather than a source disagreeing.
 - **The deal enables a new integrity check.** The opening lead (sheet-only) must
   be a card in the hand of declarer's left-hand opponent. A violation flags the
   lead, the declarer, or the board numbering — a check the sheet alone cannot

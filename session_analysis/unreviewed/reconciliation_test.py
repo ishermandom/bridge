@@ -371,6 +371,99 @@ def test_a_surname_source_and_a_full_name_source_merge_to_full_names() -> None:
   assert read.value[1].issues == ()
 
 
+def test_a_source_naming_one_player_merges_with_one_naming_both() -> None:
+  # A club PBN names a pair by one surname on some rows; it is silent about the
+  # other player, not contradicting the source that names both.
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[_our_board(opponent_names=('Player',))],
+    ),
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[_our_board(opponent_names=('Other Player', 'Their Partner'))],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  opponents = read.value[1].opponents
+  assert opponents
+  assert opponents.names == ('Other Player', 'Their Partner')
+  assert read.value[1].issues == ()
+
+
+def test_a_lone_full_name_never_costs_the_other_player() -> None:
+  # Two words each way, so a tie on length must not keep the lone full name and
+  # drop a player. It is listed first because the first source wins an even
+  # match.
+  travellers = [
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[_our_board(opponent_names=('Other Player',))],
+    ),
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[_our_board(opponent_names=('Player', 'Partner'))],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  opponents = read.value[1].opponents
+  assert opponents
+  # Which spelling of the first player survives is the TODO on `_fuller`.
+  assert 'Partner' in opponents.names
+
+
+def test_a_lone_surname_merges_with_a_pair_sharing_it() -> None:
+  # `Shared` could be either player; it contradicts neither, so both are named.
+  # Not `Last`, which would also match our own name and make our row ambiguous.
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[_our_board(opponent_names=('Shared',))],
+    ),
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[_our_board(opponent_names=('Alice Shared', 'Bob Shared'))],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  opponents = read.value[1].opponents
+  assert opponents
+  assert opponents.names == ('Alice Shared', 'Bob Shared')
+  assert read.value[1].issues == ()
+
+
+def test_a_lone_name_matching_neither_player_disagrees() -> None:
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[_our_board(opponent_names=('Stranger',))],
+    ),
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[_our_board(opponent_names=('Other Player', 'Their Partner'))],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  assert read.value[1].opponents is None
+  assert 'traveller_sources_disagree' in _codes(read.value[1].issues)
+
+
 def test_sources_naming_different_pair_numbers_disagree() -> None:
   travellers = [
     _make_traveller(TravellerSource.CLUB_HTML, boards=[_our_board()]),

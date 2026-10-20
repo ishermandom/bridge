@@ -351,9 +351,10 @@ def _names_one_pair(first: PairIdentity, second: PairIdentity) -> bool:
 
   The seat — number, side, and section — must match outright; nothing about it
   is a matter of detail. The players need only be compatible: a source that
-  printed no names at all said nothing to contradict, and a surname stands
-  against the full name it abbreviates. Partner order is not assumed to agree
-  between two sources, so both orders count as a match.
+  printed no names at all said nothing to contradict, a surname stands against
+  the full name it abbreviates, and a source that printed only one of the two
+  players is silent about the other. Partner order is not assumed to agree
+  between two sources, so every order counts as a match.
   """
   if (first.number, first.side, first.section) != (
     second.number,
@@ -362,20 +363,20 @@ def _names_one_pair(first: PairIdentity, second: PairIdentity) -> bool:
   ):
     return False
 
-  if not first.names or not second.names:
-    return True
-
-  if len(first.names) != len(second.names):
-    return False
+  sparser, fuller = sorted((first.names, second.names), key=len)
 
   def aligns(ordered: tuple[str, ...]) -> bool:
-    """Whether the two name lists abbreviate each other in this order."""
+    """Whether each sparser name abbreviates its counterpart, or the reverse."""
     return all(
       _abbreviates(one, other) or _abbreviates(other, one)
-      for one, other in zip(first.names, ordered, strict=True)
+      for one, other in zip(sparser, ordered, strict=True)
     )
 
-  return aligns(second.names) or aligns(tuple(reversed(second.names)))
+  # Each name the sparser source printed must stand for a different player in
+  # the fuller one. With no names at all, the one empty ordering matches.
+  return any(
+    aligns(ordered) for ordered in itertools.permutations(fuller, len(sparser))
+  )
 
 
 def _fuller(first: PairIdentity, second: PairIdentity) -> PairIdentity:
@@ -383,17 +384,22 @@ def _fuller(first: PairIdentity, second: PairIdentity) -> PairIdentity:
 
   Weighed across the pair rather than name by name, which is right where one
   source is fuller throughout — the shape every capture on hand takes, since a
-  recap either recovered its standings or did not.
+  recap either recovered its standings or did not. A source naming more of the
+  players outranks one spelling fewer of them at greater length.
   """
   # TODO: take the fuller spelling of each name rather than of the pair, so that
   # two sources each fuller in a different name keep both.
   # `Last & Second Person` against `First Last & Person` currently drops one
-  # given name whichever way it goes, which is the one case where this does
-  # discard something. No capture on hand splits that way, so it waits for one
-  # that does.
-  written = sum(len(name.split()) for name in first.names)
-  against = sum(len(name.split()) for name in second.names)
-  return first if written >= against else second
+  # given name whichever way it goes, and `First Last` alone against
+  # `Last & Person` drops `First`. Those are the cases where this does discard
+  # something. No capture on hand splits either way, so it waits for one that
+  # does.
+
+  def level_of_detail(pair: PairIdentity) -> tuple[int, int]:
+    """How many players a spelling names, then how many words it spends."""
+    return len(pair.names), sum(len(name.split()) for name in pair.names)
+
+  return first if level_of_detail(first) >= level_of_detail(second) else second
 
 
 def _agreed_pair(
@@ -405,10 +411,11 @@ def _agreed_pair(
   """The pair every source that named one agreed on, at the fullest detail.
 
   Sources name one pair at different levels of detail: both ACBL surfaces print
-  full names, a club PBN prints surnames or nothing at all, and a club HTML page
-  prints full names for the pairs its standings recap names and surnames for the
-  rest. `Last & Person` and `First Last & Second Person` are one pair written
-  twice, not two sources contradicting each other.
+  full names, a club PBN prints surnames — on some rows only one of the pair's —
+  or nothing at all, and a club HTML page prints full names for the pairs its
+  standings recap names and surnames for the rest. `Last`, `Last & Person` and
+  `First Last & Second Person` are one pair written three times, not sources
+  contradicting each other.
 
   Taking the fuller spelling is not the silent tiebreak this phase exists to
   avoid: nothing is dropped, because the sparser spelling is contained in the
