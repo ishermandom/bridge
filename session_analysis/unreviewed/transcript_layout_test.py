@@ -53,6 +53,16 @@ def test_a_full_width_row_is_its_text_alone() -> None:
   assert list(as_plain_text([table])) == ['#5\tMP=6', '-']
 
 
+def test_plain_text_keeps_the_cells_of_a_table_allowing_notes() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', '', 'MP=6'), ('#6', '1H', 'MP=2')),
+    allows_notes_between_rows=True,
+  )
+
+  assert list(as_plain_text([table])) == ['#5\t\tMP=6', '#6\t1H\tMP=2']
+
+
 def test_blocks_are_separated_by_a_blank_line() -> None:
   blocks = [Paragraph(('first', 'second')), Paragraph(('third',))]
 
@@ -81,6 +91,35 @@ def test_a_full_width_row_spans_every_column() -> None:
   )
 
   assert 'colspan="3"' in as_web_page('Monday Pairs', [[table]])
+
+
+def test_a_table_allowing_notes_is_set_as_lines_on_the_page() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', '1C'), ('#6', '1H')),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
+  # A line apiece, so that an email editor can open a new line between two.
+  assert f'>#5{gap}1C</div>' in page
+  assert f'>#6{gap}1H</div>' in page
+  assert '<table' not in page
+
+
+def test_a_line_leaves_out_an_empty_cell() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT, Alignment.LEFT),
+    rows=(('#6', '', 'MP=4.5'),),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
+  assert f'>#6{gap}MP=4.5</div>' in page
 
 
 def test_a_paragraph_keeps_its_lines_apart() -> None:

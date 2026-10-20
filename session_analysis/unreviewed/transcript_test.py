@@ -680,6 +680,35 @@ def test_the_board_lines_run_with_nothing_between_them() -> None:
   assert '#5\t1C\n#6\t1H' in _lines_of(session)
 
 
+def test_the_page_sets_the_boards_as_lines_and_the_rest_as_tables(
+  tmp_path: Path,
+) -> None:
+  # Scored against a top, so that the summary's table and the could-have table
+  # are on the page beside the boards' own.
+  record = _write_record(
+    tmp_path,
+    _make_session(
+      _make_board(
+        5, auction=[_make_bid(1, Strain.CLUBS)], matchpoints=4.5, top=8
+      ),
+      _make_board(
+        6, auction=[_make_bid(1, Strain.HEARTS)], matchpoints=2, top=8
+      ),
+    ),
+  )
+  pages: list[str] = []
+
+  main([str(record), '--page'], show_page=pages.append)
+
+  [page] = pages
+  # Lines, so that a partner replying can write notes between the boards.
+  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
+  assert f'>#5{gap}1C{gap}MP=4.5</div>' in page
+  assert f'>#6{gap}1H{gap}MP=2</div>' in page
+  # The summary's table and the could-have table.
+  assert page.count('<table') == 2
+
+
 def test_a_row_carrying_only_its_number_is_not_transcribed() -> None:
   # The last rows of a sheet are often numbered and never reached.
   played = _make_board(5, auction=[_make_bid(1, Strain.CLUBS)])
@@ -1144,7 +1173,7 @@ def test_the_command_hands_over_a_page_rather_than_printing(
 
   assert status == 0
   assert not capsys.readouterr().out
-  # One page, titled for its one session, with the board in a table cell.
+  # One page, titled for its one session, with the board's line on it.
   [page] = pages
   assert '<title>Monday Pairs — 2026-06-29</title>' in page
-  assert '>#5</td>' in page
+  assert '>#5' in page

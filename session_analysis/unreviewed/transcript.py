@@ -8,9 +8,9 @@ player: a summary of how the session went, a line per board, and a table for
 working out what the session could have scored.
 
 Its shape follows its use. The whole transcript is pasted into an email to a
-partner, with comments added under the boards they concern, and the board lines
-are pasted into a spreadsheet. Those two uses take two layouts, plain text and
-the web page `--page` opens, and `transcript_layout` lays the one transcript
+partner, who replies with comments under the boards they concern, and the board
+lines are pasted into a spreadsheet. Those two uses take two layouts, plain text
+and the web page `--page` opens, and `transcript_layout` lays the one transcript
 built here out either way.
 
 The board lines are in the sheet's own notation, rather than a canonical prose
@@ -423,13 +423,14 @@ def _board_table(
 ) -> Table:
   """The boards as one table, a line apiece.
 
-  Nothing sits between two boards, so that the lines paste into a spreadsheet as
-  a solid block of rows. A reader commenting on a board adds the lines under it
-  as they go.
+  In plain text nothing sits between two boards, so that the lines paste into a
+  spreadsheet as a solid block of rows. On the web page the table allows notes
+  between its rows.
   """
   return Table(
     alignments=(Alignment.LEFT,) * 6,
     rows=tuple(_board_cells(board, comparisons) for board in boards),
+    allows_notes_between_rows=True,
   )
 
 
