@@ -596,6 +596,19 @@ record waits for review, and what becomes of a scan that raises.
     that needs clarifying or review in chat, and apply the user's fixes there.
   - Note: hold the sheet's transcript until every detail is settled, then give
     it to the user inline in the chat.
+- [~] Ingest the latest scoresheet, settling it with the user in chat.
+  - Worktree: ingest-scan-oct-19
+  - Note: the scan waiting in the inbox is `Scanned_20261019-1524.pdf`.
+  - Note: run the whole path first — ingest, the traveller fetch, and
+    reconciliation.
+  - Note: while the review UI (`#review-ui`) has not landed, raise any detail
+    that needs clarifying or review in chat, and apply the user's fixes there.
+  - Note: hold the sheet's transcript until every detail is settled, then give
+    it to the user inline in the chat.
+  - Note: the October 12 ingest above was still in flight at launch, holding an
+    uncommitted fix to `club_pbn_parsing.py`. Each ingest run also reconciles
+    every pending session, the October 12 one included, so take care not to
+    disturb the record that lane is still settling.
 - [ ] Compare how well Sonnet 5.5 and Opus 5.5 read scoresheets.
   - Worktree: sonnet-opus-comparison
 
