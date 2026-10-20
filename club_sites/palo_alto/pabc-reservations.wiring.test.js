@@ -232,11 +232,13 @@ describe("page wiring", () => {
 
     observers = main();
 
-    expect(opacityOf(gameRow("EZ Bridge").querySelector(".nameCell"))).toBe(
+    // The name rather than its cell: the calendar view lays the cell out with
+    // `display: contents`, which draws no box for the cell's opacity to fade.
+    expect(opacityOf(gameRow("EZ Bridge").querySelector(".gameName"))).toBe(
       "0.4",
     );
     expect(
-      opacityOf(gameRow("Monday Morning Game").querySelector(".nameCell")),
+      opacityOf(gameRow("Monday Morning Game").querySelector(".gameName")),
     ).toBe("1");
   });
 
@@ -258,8 +260,8 @@ describe("page wiring", () => {
     // Confirm the row dimmed before confirming its date did not: on its own,
     // "the date is bright" also holds when nothing was dimmed at all.
     const row = gameRow("EZ Bridge");
-    expect(opacityOf(row.querySelector(".timeCell"))).toBe("0.4");
-    expect(opacityOf(row.querySelector(".dateCell"))).toBe("1");
+    expect(opacityOf(row.querySelector(".timeCell > span"))).toBe("0.4");
+    expect(opacityOf(row.querySelector(".dateCell > div"))).toBe("1");
   });
 
   test("dims the limited game's buttons but not its reservation list", () => {

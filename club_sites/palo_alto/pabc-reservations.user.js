@@ -6,7 +6,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-idle
-// @version      1.2
+// @version      1.3
 // ==/UserScript==
 
 // Copyright 2026 Ilya Sherman (ishermandom@)
@@ -365,15 +365,19 @@ function injectHelperStyles() {
        The "Limited" badge is a quiet neutral tag that labels why the row is
        dimmed rather than a bright alert that fights the dimming.
 
+       The opacity goes on each cell's contents rather than on the cell. The
+       calendar view lays out the name cell with "display: contents", which
+       draws no box of its own, so opacity on the cell itself would apply to
+       nothing there.
+
        Two parts of the row stay bright:
        - The date cell. The site shows the date on a day's first game and
          hides it on the rest, so the first game's date heads the whole day; a
          limited first game must not dim the date the open games below rely
          on.
        - The game's reservation list, which opens beneath the row from inside
-         its action cell. Opacity on the whole cell would fade that list along
-         with the buttons, so only the buttons dim. */
-    .game.pabc-limited > :not(.dateCell, .actionCell),
+         its action cell. Only the buttons beside it dim. */
+    .game.pabc-limited > :not(.dateCell, .actionCell) > *,
     .game.pabc-limited > .actionCell > :not(reservation-list) {
       opacity: 0.4;
     }

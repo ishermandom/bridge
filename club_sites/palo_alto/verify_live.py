@@ -408,23 +408,43 @@ def check_limited_games_flagged(page: Page) -> CheckResult:
   return CheckResult('limited games flagged', not unflagged, detail)
 
 
-def check_limited_rows_dimmed(page: Page) -> CheckResult:
-  """Each flagged row dims, sparing its date cell and its reservation list.
+def check_limited_rows_dimmed(page: Page, check_name: str) -> CheckResult:
+  """Each flagged row dims, sparing its date and its reservation list.
 
   The userscript's dimming CSS names the site's own classes and elements, so if
   the site renames one of them, the dimming fails quietly: the rows are still
-  flagged, but nothing dims.
+  flagged, but nothing dims. Each part is judged by the opacity it is drawn
+  with, not its computed opacity alone: an element laid out with `display:
+  contents` draws no box, so its own opacity reaches nothing.
   """
   rows_dimmed_incorrectly: list[str] = page.evaluate("""() => {
-    const opacity = (element) =>
-      element ? getComputedStyle(element).opacity : 'missing';
+    // The opacity a row's part is drawn with: its own and its ancestors' up to
+    // the row, multiplied, skipping any element that draws no box. NaN when
+    // the part is missing.
+    const drawnOpacity = (row, selector) => {
+      let node = row.querySelector(selector);
+      if (!node) {
+        return NaN;
+      }
+      let opacity = 1;
+      for (; node !== row; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.display !== 'contents') {
+          opacity *= Number(style.opacity);
+        }
+      }
+      return opacity;
+    };
+    const isDrawnAt = (row, selector, expected) =>
+      Math.abs(drawnOpacity(row, selector) - expected) < 0.01;
+
     // 0.4 is the userscript's dimming opacity; 1 is undimmed.
     return [...document.querySelectorAll('.game.pabc-limited')]
       .filter((row) =>
-        opacity(row.querySelector('.nameCell')) !== '0.4'
-        || opacity(row.querySelector('reserve-button')) !== '0.4'
-        || opacity(row.querySelector('.dateCell')) !== '1'
-        || opacity(row.querySelector('reservation-list')) !== '1')
+        !isDrawnAt(row, '.gameName', 0.4)
+        || !isDrawnAt(row, 'reserve-button', 0.4)
+        || !isDrawnAt(row, '.dateCell > div', 1)
+        || !isDrawnAt(row, 'reservation-list', 1))
       .map((row) => row.dataset.name);
   }""")
   flagged = page.locator('.game.pabc-limited').count()
@@ -437,7 +457,24 @@ def check_limited_rows_dimmed(page: Page) -> CheckResult:
     detail = (
       f'{detail}; dimmed incorrectly: {sorted(set(rows_dimmed_incorrectly))}'
     )
-  return CheckResult('limited rows dimmed', passed, detail)
+  return CheckResult(check_name, passed, detail)
+
+
+def check_calendar_rows_dimmed(page: Page) -> CheckResult:
+  """The calendar view dims flagged rows too.
+
+  The calendar view lays out the same rows differently, so dimming that holds in
+  the list view can still fail here. Leaves the page in the calendar view.
+  """
+  check_name = 'calendar rows dimmed'
+  page.get_by_text('Calendar view', exact=True).click()
+  try:
+    page.wait_for_selector('#gameList.calendar', timeout=MODAL_OPEN_TIMEOUT_MS)
+  except PlaywrightTimeoutError:
+    return CheckResult(check_name, False, 'the calendar view never opened')
+
+  page.wait_for_timeout(SCRIPT_SETTLE_MS)
+  return check_limited_rows_dimmed(page, check_name)
 
 
 def check_limited_reserve(page: Page, name: str) -> CheckResult:
@@ -517,7 +554,8 @@ def run_checks(page: Page, name: str, email: str) -> Sequence[CheckResult]:
   """Drive every convenience in turn, reporting each as it finishes.
 
   Ordered, not independent: the open-game reserve check relies on running
-  directly after the limited-game one.
+  directly after the limited-game one, and the calendar check runs last, since
+  it leaves the page in the calendar view.
 
   Each result prints as it lands rather than at the end. A check drives a live
   page over several seconds and can hang on one the site has changed, and a
@@ -528,11 +566,12 @@ def run_checks(page: Page, name: str, email: str) -> Sequence[CheckResult]:
     _reported(check_settings_panel(page)),
     _reported(check_game_list_expanded(page)),
     _reported(check_limited_games_flagged(page)),
-    _reported(check_limited_rows_dimmed(page)),
+    _reported(check_limited_rows_dimmed(page, 'limited rows dimmed')),
     _reported(check_limited_reserve(page, name)),
     _reported(check_open_reserve(page, name)),
     _reported(check_my_reservations(page, name)),
     _reported(check_cancel_email(page, email)),
+    _reported(check_calendar_rows_dimmed(page)),
   ]
 
 
