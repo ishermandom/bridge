@@ -212,13 +212,14 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
 **Presentation** flags limited games in two places:
 
 - in the games list, in both its list and calendar views, by dimming the row
-  (opacity rather than a text color, robust to the site's own cell text colors)
-  and adding a quiet "Limited" badge, so the game recedes before the user clicks
-  reserve (the primary prevention point). Dimming the rare limited game reads
-  better than emphasizing it; the badge's text labels why the row is dimmed
-  without re-brightening it, so the signal never rests on color alone. The
-  dimming spares the date cell, which heads the whole day because the site shows
-  the date only on a day's first game, and the reservation list, which the user
+  (opacity rather than a text color, robust to the site's own cell text colors;
+  in the calendar view, the game's tinted box fades too) and adding a quiet
+  "Limited" badge, so the game recedes before the user clicks reserve (the
+  primary prevention point). Dimming the rare limited game reads better than
+  emphasizing it; the badge's text labels why the row is dimmed without
+  re-brightening it, so the signal never rests on color alone. The dimming
+  spares the date cell, which heads the whole day because the site shows the
+  date only on a day's first game, and the reservation list, which the user
   opens on purpose to read; and
 - in the reservation modal, by a warning banner shown when the modal opens for a
   limited game (a second catch right before saving). The modal carries no

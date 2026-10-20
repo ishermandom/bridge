@@ -477,6 +477,33 @@ def check_calendar_rows_dimmed(page: Page) -> CheckResult:
   return check_limited_rows_dimmed(page, check_name)
 
 
+def check_calendar_boxes_dimmed(page: Page) -> CheckResult:
+  """Each flagged row's tinted box in the calendar view fades too.
+
+  The site tints each calendar box with its own `--row-alpha`, so a dimmed box
+  is drawn at 0.4 of that alpha, the userscript's dimming opacity. Expects the
+  page already in the calendar view, as `check_calendar_rows_dimmed` leaves it.
+  """
+  boxes_not_dimmed: list[str] = page.evaluate("""() =>
+    [...document.querySelectorAll('.game.pabc-limited')]
+      .filter((row) => {
+        const style = getComputedStyle(row);
+        const siteAlpha = Number(style.getPropertyValue('--row-alpha'));
+        // The computed color reads `rgba(r, g, b, a)`, alpha last.
+        const drawnAlpha = parseFloat(style.backgroundColor.split(',').at(-1));
+        return !(Math.abs(drawnAlpha - siteAlpha * 0.4) < 0.005);
+      })
+      .map((row) => row.dataset.name)""")
+  flagged = page.locator('.game.pabc-limited').count()
+
+  passed = flagged > 0 and not boxes_not_dimmed
+  dimmed = flagged - len(boxes_not_dimmed)
+  detail = f'{dimmed} of {flagged} flagged boxes dimmed'
+  if boxes_not_dimmed:
+    detail = f'{detail}; not dimmed: {sorted(set(boxes_not_dimmed))}'
+  return CheckResult('calendar boxes dimmed', passed, detail)
+
+
 def check_limited_reserve(page: Page, name: str) -> CheckResult:
   """A limited game's reserve modal warns, and still prefills the player."""
   game = _open_reserve_modal(page, '.game.pabc-limited')
@@ -554,8 +581,9 @@ def run_checks(page: Page, name: str, email: str) -> Sequence[CheckResult]:
   """Drive every convenience in turn, reporting each as it finishes.
 
   Ordered, not independent: the open-game reserve check relies on running
-  directly after the limited-game one, and the calendar check runs last, since
-  it leaves the page in the calendar view.
+  directly after the limited-game one, and the calendar checks run last, since
+  the first of them leaves the page in the calendar view, where the second
+  expects it.
 
   Each result prints as it lands rather than at the end. A check drives a live
   page over several seconds and can hang on one the site has changed, and a
@@ -572,6 +600,7 @@ def run_checks(page: Page, name: str, email: str) -> Sequence[CheckResult]:
     _reported(check_my_reservations(page, name)),
     _reported(check_cancel_email(page, email)),
     _reported(check_calendar_rows_dimmed(page)),
+    _reported(check_calendar_boxes_dimmed(page)),
   ]
 
 

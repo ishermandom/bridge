@@ -325,6 +325,10 @@ function appendDirectionField(panel, value) {
   return fieldset;
 }
 
+// How far a limited game's row fades: the opacity of its dimmed parts, and the
+// factor its calendar box's tint and border are scaled by.
+const DIMMED_OPACITY = 0.4;
+
 /**
  * The helper's own styles — the settings gear and panel, plus the limited-game
  * row dimming, badge, and reserve-dialog banner. Injected once.
@@ -379,7 +383,19 @@ function injectHelperStyles() {
          its action cell. Only the buttons beside it dim. */
     .game.pabc-limited > :not(.dateCell, .actionCell) > *,
     .game.pabc-limited > .actionCell > :not(reservation-list) {
-      opacity: 0.4;
+      opacity: ${DIMMED_OPACITY};
+    }
+    /* The calendar view also sets each game in a tinted, bordered box, which
+       fades by the same factor. The site paints the tint from its own
+       --row-rgb and --row-alpha variables, which vary by kind of game and rise
+       while a popover inside the game is open, so the dimmed tint keeps them
+       and only scales the alpha. The site's border color is fixed at
+       rgb(128 0 128 / 0.18), so its dimmed value is spelled out here. */
+    #gameList.calendar .game.pabc-limited {
+      background: rgb(
+        var(--row-rgb) / calc(var(--row-alpha) * ${DIMMED_OPACITY})
+      );
+      border-color: rgb(128 0 128 / calc(0.18 * ${DIMMED_OPACITY}));
     }
     /* align-self/fit-content keep the chip hugging its text — the name cell is
        a flex column, which would otherwise stretch the chip to the cell's
