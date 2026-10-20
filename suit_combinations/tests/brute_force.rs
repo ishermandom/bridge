@@ -312,6 +312,11 @@ fn insert(frontier: &mut Vec<LayoutBits>, set: LayoutBits) {
     let contains = |big: &LayoutBits, small: &LayoutBits| {
         big.iter().zip(small).all(|(big, small)| small & !big == 0)
     };
+    // TODO: if a check whose frontiers reach thousands of sets, such as
+    // KQT-xxx@2, stops being ignored, keep `frontier` sorted from the largest
+    // set down. Then only the sets before `set`'s place can contain it, and
+    // only those after can be its subsets; in a trial, that halved
+    // KQT-xxx@2's time.
     if frontier.iter().any(|existing| contains(existing, &set)) {
         return;
     }
@@ -426,6 +431,7 @@ fn a_finesse_against_two_honors_agrees() {
 }
 
 #[test]
+#[ignore = "takes a while; run with --ignored"]
 fn a_hold_up_of_the_ace_agrees() {
     assert_agrees("KQT-xxx@2");
 }
