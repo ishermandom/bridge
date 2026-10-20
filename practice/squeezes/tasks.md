@@ -17,6 +17,12 @@ quantum defenders, with BridgeMaster-style error stops.
 
 ## Backlog
 
+- [ ] **Speed up `generation_test.py` and return it to the repo's test run**
+      {#restore-generation-tests}: `run_tests.sh` leaves it out, because it took
+      2–3s of every turn's Stop hook while this project is paused.
+  - Note: each test certifies a generated problem by exhaustive search in
+    `solver.py` — about 537,000 positions across the file, each a
+    frozen-dataclass copy plus hashing. The `[6-3]` case alone takes 1–2s.
 - [ ] Positional simple squeezes (fast follow per spec.md #curriculum)
 - [ ] Rectify-the-count problems (duck a trick before the squeeze operates)
 - [ ] Full 13-card deals: pad endings with idle early tricks; adopt `endplay`
