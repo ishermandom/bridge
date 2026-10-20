@@ -11,6 +11,10 @@ about the defenders' hands, well enough to reproduce every row of
 `flashcards/input/suit_combinations.csv`: the success %, the best line in
 English, and the intuition behind it.
 
+Worktree: `.claude/worktrees/card-combination-flashcards`, branch
+`suit-combination-analyzer`, holds the analyzer, unlanded until the user reviews
+it and gives the go-ahead.
+
 - [~] Extend the tests with progressively harder combinations, such as long
   suits and safety plays, pinning answers CCAnalyser confirms.
 - [-] Check results against CCAnalyser, the user's reference tool
@@ -18,9 +22,11 @@ English, and the intuition behind it.
   - Note: stopped for good, as agreed, at the first error. Six analyses all
     matched the analyzer exactly; the seventh, KT84-Q32@3, timed out in the
     driver waiting for a result after a reset, most likely a fault in the driver
-    rather than a block. Resuming needs the user's go-ahead. The matches:
-    KQT-xxx@2 54.84%, KJxx-A9xx@3 100%, AQxxx-J9xx@5 32.78%, AQ8xx-J9xx@4 100%,
-    KQxxx-AT9x@5 100%, and KT84-Q32@2 85.93%.
+    rather than a block. Resuming needs the user's go-ahead, and a new driver:
+    the old one lived in a job's scratch folder, and should wait for the
+    result's text to change rather than for a button to become visible. The
+    matches: KQT-xxx@2 54.84%, KJxx-A9xx@3 100%, AQxxx-J9xx@5 32.78%,
+    AQ8xx-J9xx@4 100%, KQxxx-AT9x@5 100%, and KT84-Q32@2 85.93%.
   - Note: drive a real browser (Playwright), never disguised, within the user's
     limits: at most 100 examples in all, 3 per minute, and 10 per 30 minutes.
     Stop for good at the first block or error rather than retry. A plain `curl`
@@ -52,6 +58,11 @@ that every one is complete and unambiguous.
       "Finesse" for A1042 opposite 953, or "Repeated finesse" for K1084 opposite
       Q32 for 3 tricks: no condition built from three facts comes within 10% of
       where the line wins.
+  - Note: facts about a defender's length, such as "West holds at least four",
+    were tried and dropped: they explained only three more of 70 random
+    combinations, in awkward words such as "hoping the 8 is onside and East
+    holds at least five, plus 11.51% more", and slowed the 5,000-entry benchmark
+    from 1.9 to 3.1 seconds.
 
 ---
 
@@ -77,4 +88,5 @@ that every one is complete and unambiguous.
     best line for every trick target? Likely yes for K1084 opposite Q32: by
     Wikipedia's figures, the ten finesse makes 2 tricks 83.1% of the time and 3
     tricks 28.7%, while the analyzer's best lines reach 85.93% and 31.83%.
-    CCAnalyser's check of those two targets would settle it.
+    CCAnalyser confirmed the 85.93%; its check of 3 tricks timed out, so that
+    target is still open.

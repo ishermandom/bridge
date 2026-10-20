@@ -79,6 +79,15 @@ one at least as large, so a new result is checked against the results at least
 as large for whether it adds anything, and against the smaller ones for what it
 replaces.
 
+Some speedups were tried and dropped, as not worth their complexity:
+
+- **A floor from a quick first search**, dropping results that couldn't beat a
+  strategy a narrow search found: 13% faster on the hardest combinations, but
+  60% slower on easy ones.
+- **Skipping duplicate results** with a hash set before the containment tests:
+  20% faster on the hardest, 14% slower on easy ones, once frontiers were
+  sorted.
+
 ### Interchangeable cards {#interchangeable-cards}
 
 Two of the defenders' cards with no declarer card between them beat and lose to
@@ -88,6 +97,11 @@ just a group. Which card of a group a defender plays does carry information, but
 the defenders choose it, and they can always choose so as to tell declarer
 nothing more than the group. Treating the group as one card therefore never
 changes how often declarer succeeds.
+
+The groups are fixed at the start. Groups that a played declarer card no longer
+separates could merge mid-play, but the argument above needs the merged cards to
+be interchangeable in every layout from the start, which such groups aren't, so
+the search keeps them apart and treats a play from either as its own.
 
 Declarer's own cards merge the same way: cards in one hand with no defender card
 left between them take the same tricks. The search tries one of them, the top of
