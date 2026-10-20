@@ -11,12 +11,13 @@ injects the userscript into a real browser, drives each convenience, and reports
 which ones still fire. See spec.md `#testing-strategy`.
 
 **It never books anything.** The script opens modals and reads their state,
-never clicking a save or submit control. Behind that, a request guard allows
-only the handful of lookup calls the checks need and refuses every other write
-to the server, so even an unintended click cannot book a game.
+never clicking a save or submit control. As a backstop, an HTTP request guard
+lets through only the known subset of safe requests. Even an unintended click
+therefore cannot book a game.
 
-Deliberately outside `run_tests.sh`: it needs the network and the live site, so
-it runs by hand when the site looks like it has changed.
+The live run itself stays out of `run_tests.sh`: it needs the network and the
+live site, so it runs by hand when the site looks like it has changed. Only the
+guard's rule is unit tested, through `verify_live_test.py`.
 
 ```shell
 .venv/bin/python club_sites/palo_alto/verify_live.py --name 'Some Player'
@@ -33,12 +34,15 @@ import dataclasses
 import json
 import pathlib
 import sys
+import urllib.parse
 from collections.abc import Sequence
 
 from playwright.sync_api import (
+  Browser,
   Page,
   Request,
   Route,
+  WebSocketRoute,
   sync_playwright,
 )
 from playwright.sync_api import (
@@ -66,12 +70,19 @@ RESERVE_CANDIDATE_ROWS = 10
 # The stored direction every check expects, matching the profile stubbed below.
 EXPECTED_DIRECTION = 'E-W'
 
-# The site funnels every call — reads and writes alike — through one POST to
-# `action.php`, distinguished by an `action` field in the JSON body. The HTTP
-# method therefore cannot tell a lookup from a booking, so the guard allowlists
-# the two read actions these checks need and refuses everything else. A save
-# reaches the server only if it is named here, and nothing that books a game is.
+# The site funnels its data calls — reads and writes alike — through POSTs to
+# one endpoint, `action.php`, distinguished by an `action` field in the JSON
+# body. The HTTP method therefore cannot tell a lookup from a booking, so the
+# guard allowlists the two read actions these checks need and refuses every
+# other action.
 READ_ACTIONS = frozenset({'keyword', 'recentPartners'})
+
+# Playwright's names for the resource types a page fetches to build itself.
+# Fetched by GET, these pass from any host: the page cannot render without them,
+# and the site sends its data calls as fetches rather than as resource loads.
+PAGE_BUILDING_RESOURCES = frozenset(
+  {'script', 'stylesheet', 'image', 'font', 'media'}
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -119,15 +130,32 @@ class ReserveModalState:
     )
 
 
-def _requested_action(request: Request) -> str | None:
-  """The `action` a request's JSON body names, or None when it names none."""
-  body = request.post_data
+@dataclasses.dataclass(frozen=True)
+class RequestSummary:
+  """A request reduced to the fields that decide whether the guard allows it."""
+
+  method: str
+  # Playwright's name for what the request fetches: `document`, `script`,
+  # `fetch`, `xhr`, `ping`, and so on.
+  resource_type: str
+  url: str
+  # The `action` a data call's JSON body names; None when it names none.
+  action: str | None
+
+
+def requested_action(body: bytes | None) -> str | None:
+  """The `action` a request body names, or None when it names none.
+
+  Takes raw bytes rather than Playwright's decoded `post_data`, which raises on
+  a body that isn't UTF-8 — and a guard that raises leaves its request neither
+  allowed nor refused.
+  """
   if not body:
     return None
 
   try:
     parsed: object = json.loads(body)
-  except json.JSONDecodeError:
+  except (json.JSONDecodeError, UnicodeDecodeError):
     return None
 
   if not isinstance(parsed, dict):
@@ -136,20 +164,81 @@ def _requested_action(request: Request) -> str | None:
   return action if isinstance(action, str) else None
 
 
-def _block_writes(route: Route, request: Request) -> None:
-  """Let known reads through and refuse everything else.
+def is_allowed(request: RequestSummary) -> bool:
+  """Whether the guard lets a request reach the network.
 
-  The safety net behind "never book a reservation". A refusal is announced
-  rather than swallowed: blocking a read the site newly depends on would
-  otherwise surface only as a mystifying check failure further down.
+  Allows only these requests:
+
+  - the reservations page itself;
+  - the resources that build it (`PAGE_BUILDING_RESOURCES`), fetched by GET;
+  - a POST to the site's `action.php` naming one of `READ_ACTIONS`.
   """
-  action = _requested_action(request)
-  if request.method == 'GET' or action in READ_ACTIONS:
+  if request.method == 'GET':
+    if request.resource_type == 'document':
+      return request.url == RESERVATIONS_URL
+    return request.resource_type in PAGE_BUILDING_RESOURCES
+
+  url = urllib.parse.urlsplit(request.url)
+  return (
+    request.method == 'POST'
+    and url.hostname == 'paloaltobridge.org'
+    and url.path.endswith('/action.php')
+    and request.action in READ_ACTIONS
+  )
+
+
+def _guard_request(route: Route, request: Request) -> None:
+  """Let allowed requests through and refuse the rest.
+
+  The safety net behind "never book a reservation"; `is_allowed` holds the rule.
+  A refusal is announced rather than swallowed: blocking a read the site newly
+  depends on would otherwise surface only as a mystifying check failure further
+  down.
+  """
+  summary = RequestSummary(
+    method=request.method,
+    resource_type=request.resource_type,
+    url=request.url,
+    action=requested_action(request.post_data_buffer),
+  )
+  if is_allowed(summary):
     route.continue_()
     return
 
-  print(f'blocked {request.method} {request.url} (action={action!r})')
+  print(
+    f'blocked {summary.method} {summary.resource_type} {summary.url} '
+    f'(action={summary.action!r})',
+    flush=True,
+  )
   route.abort()
+
+
+def _refuse_web_socket(web_socket: WebSocketRoute) -> None:
+  """Keep a WebSocket from ever reaching the server.
+
+  Playwright connects a socket routed here only if the handler calls
+  `connect_to_server`, so not calling it is the refusal: the page sees a socket
+  that opens but reaches no one. Closing the socket instead isn't an option,
+  since `WebSocketRoute.close` hangs when called from a handler under the sync
+  API.
+  """
+  print(f'blocked WebSocket {web_socket.url}', flush=True)
+
+
+def open_read_only_page(browser: Browser) -> Page:
+  """Open a page that can read from the site but never write to it.
+
+  Every request the page makes goes through the guard, which sits on the browser
+  context rather than the page, so a popup or new tab the site opens is held to
+  it too. Two channels bypass request routing and are shut separately: service
+  workers are blocked outright, and WebSockets go to `_refuse_web_socket`.
+  """
+  context = browser.new_context(
+    viewport={'width': 1400, 'height': 1000}, service_workers='block'
+  )
+  context.route('**/*', _guard_request)
+  context.route_web_socket('**/*', _refuse_web_socket)
+  return context.new_page()
 
 
 def _gm_storage_stub(name: str, email: str) -> str:
@@ -418,8 +507,7 @@ def verify(name: str, email: str, headless: bool) -> Sequence[CheckResult]:
   """Load the live page with the userscript injected, then run every check."""
   with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=headless)
-    page = browser.new_page(viewport={'width': 1400, 'height': 1000})
-    page.route('**/*', _block_writes)
+    page = open_read_only_page(browser)
     page.add_init_script(_gm_storage_stub(name, email))
 
     page.goto(RESERVATIONS_URL, wait_until='networkidle', timeout=60_000)

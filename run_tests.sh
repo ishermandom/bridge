@@ -69,6 +69,7 @@ fi
 # script's directly — safe as the last step, since nothing follows it here.
 exec uv run --project "$repo_root" pytest \
   "$repo_root/anki" \
+  "$repo_root/club_sites/palo_alto" \
   "$repo_root/convention_cards" \
   "$repo_root/practice/squeezes/scratch" \
   "$repo_root/session_analysis" \

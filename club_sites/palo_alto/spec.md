@@ -336,6 +336,15 @@ Three tiers, matched to how testable each piece is.
   method cannot separate them, and any action the script does not name — every
   save among them — is refused.
 
+  The guard also assumes the site's request shape can change, since trusting
+  today's patterns could fail open. The allowlist therefore covers every
+  request: the page itself, the resources that build it, and the allowlisted
+  lookups are allowed, and nothing else is. Service workers and WebSockets never
+  reach request interception at all, so the guard shuts both outright. Its rule
+  is a pure function with unit tests of its own (`verify_live_test.py`), since
+  it is the one piece of this project whose failure could book, modify, or
+  cancel a real game reservation.
+
 - **Manual in-browser verification** for the last stretch the scripted run can't
   reach: the name autocomplete binding depends on the site's own JS event
   handling, and confirming it goes one step past appearance — complete a
