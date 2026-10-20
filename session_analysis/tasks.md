@@ -380,9 +380,6 @@ lane settles the sheet with the user in chat:
 3. Hold the sheet's transcript until every detail is settled, then give it to
    the user inline in the chat.
 
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-scan-oct-20
-  - Note: the scan waiting in the inbox is `Scanned_20261020-1423.pdf`.
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
