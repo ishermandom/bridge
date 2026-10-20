@@ -24,15 +24,15 @@ import {
 // A game row with the given masterpoint ceiling (omitted = none) and title
 // fields, plus a name cell for the badge.
 function makeGameRow({ mps, name = "A Game", special = "" } = {}) {
-  const table = document.createElement("table");
-  const row = document.createElement("tr");
+  const row = document.createElement("div");
+  row.className = "game";
   if (mps != null) {
     row.dataset.mps = String(mps);
   }
   row.dataset.name = name;
   row.dataset.special = special;
-  row.innerHTML = `<td><div class="gameName"><div>${name}</div></div></td>`;
-  table.append(row);
+  row.innerHTML = `<div class="nameCell">
+    <div class="gameName"><div>${name}</div></div></div>`;
   return row;
 }
 
@@ -82,7 +82,7 @@ describe("parseMasterpointCeiling", () => {
 });
 
 describe("flagLimitedGame", () => {
-  test("dims the row and badges the name of a limited game", () => {
+  test("flags the row and badges the name of a limited game", () => {
     const row = makeGameRow({ mps: 49 });
 
     expect(flagLimitedGame(row)).toBe(true);
@@ -110,23 +110,6 @@ describe("flagLimitedGame", () => {
 
     expect(row.classList.contains("pabc-limited")).toBe(false);
     expect(row.querySelector(".pabc-limited-badge")).toBeNull();
-  });
-
-  test("marks the date cell shared so dimming skips it", () => {
-    // The site shows the date on a day's first game and hides it on the rest,
-    // so the first game's date heads the whole day. Dimming must skip that date
-    // cell — the one carrying the day-of-week label — so it isn't dimmed.
-    const row = makeGameRow({ mps: 49 });
-    const dateCell = document.createElement("td");
-    dateCell.innerHTML = `<div><span class="dow">Mon</span> Jun 22</div>`;
-    row.prepend(dateCell);
-
-    flagLimitedGame(row);
-
-    expect(dateCell.classList.contains("pabc-shared-cell")).toBe(true);
-    // The game's own name cell carries no date and still dims with the row.
-    const gameCell = row.querySelector(".gameName").closest("td");
-    expect(gameCell.classList.contains("pabc-shared-cell")).toBe(false);
   });
 
   test("does not add a second badge when run twice", () => {

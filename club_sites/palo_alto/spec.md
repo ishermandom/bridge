@@ -188,19 +188,22 @@ does wish to book a limited game on occasion.
 **Detection** uses two independent signals, either sufficient to mark a game
 limited:
 
-- the **masterpoint ceiling** on the row's `data-mps` (e.g. EZ Bridge at 49);
-  and
+- the **masterpoint ceiling** on the game's `data-mps` (e.g. Silver Rush Pairs
+  at 750); and
 - a **restriction named in the game's title/subtitle** (`data-name` +
   `data-special`) — a beginner/NLM/Mid-Flight label, or a masterpoint cap like
   `0-3000MP` or `0-99`.
 
-The ceiling alone is unreliable: the site populates `data-mps` inconsistently,
-carrying it on some instances of an event and omitting it on others, so the
-title-based check is needed as a backstop. The title is checked rather than the
-section list, because sections are overloaded — an open stratified game lists a
-`<500MP` section yet is open to all through its `Open` section, and
-session/bracket logistics (`Morning only`, `Bracketed teams`) share the same
-field, so a section-based rule both over- and under-flags.
+The ceiling alone is unreliable. The site populates `data-mps` inconsistently:
+it carries the ceiling on some instances of an event and omits it on others, and
+leaves it off EZ Bridge, the canonical limited game, entirely. So the
+title-based check is needed as a backstop.
+
+The title is checked rather than the section list, because sections are
+overloaded. An open stratified game lists a `<500MP` section yet is open to all
+through its `Open` section, and session/bracket logistics (`Morning only`,
+`Bracketed teams`) share the same field. A section-based rule would therefore
+both over- and under-flag.
 
 Detection is a **pure function** of the ceiling and the title text
 (`isLimitedGame`, composing `hasRestrictedLabel`), kept free of DOM access so it
@@ -208,15 +211,14 @@ is unit-tested directly; small DOM helpers read the attributes off a row.
 
 **Presentation** flags limited games in two places:
 
-- in the games list, by dimming the row (cell-level opacity, robust to the
-  site's own cell text colors) and adding a quiet "Limited" badge, so the game
-  recedes before the user clicks reserve (the primary prevention point). Dimming
-  the rare limited game reads better than emphasizing it; the badge's text
-  labels why the row is dimmed without re-brightening it, so the signal never
-  rests on color alone. The site shows the date on a day's first game and hides
-  it on the rest, so the first game's date heads the whole day. That date cell
-  (the one carrying the day-of-week label) is excluded from the dimming, so a
-  limited first game does not dim the date the open games below rely on; and
+- in the games list, by dimming the row (opacity rather than a text color,
+  robust to the site's own cell text colors) and adding a quiet "Limited" badge,
+  so the game recedes before the user clicks reserve (the primary prevention
+  point). Dimming the rare limited game reads better than emphasizing it; the
+  badge's text labels why the row is dimmed without re-brightening it, so the
+  signal never rests on color alone. The dimming spares the date cell, which
+  heads the whole day because the site shows the date only on a day's first
+  game, and the reservation list, which the user opens on purpose to read; and
 - in the reservation modal, by a warning banner shown when the modal opens for a
   limited game (a second catch right before saving). The modal carries no
   ceiling of its own, so its limited status is carried over from the list: a
@@ -351,11 +353,11 @@ Three tiers, matched to how testable each piece is.
   reservation and confirm it persists against the correct player record. The
   scripted run checks that the field carries a bound player id, which is a proxy
   for this, not a substitute. One trap when driving the page from a
-  browser-automation tool: `new-reserve-button` defines its own `click()`, which
-  opens the reserve modal directly without dispatching a click event, so a
-  scripted `element.click()` silently skips every click listener — including the
-  one that arms the limited-game banner. Only a real mouse click exercises that
-  path.
+  browser-automation tool: the site's `reserve-button` element defines its own
+  `click()`, which opens the reserve modal directly without dispatching a click
+  event, so a scripted `element.click()` silently skips every click listener —
+  including the one that arms the limited-game banner. Only a real mouse click
+  exercises that path.
 
 ## Type checking
 

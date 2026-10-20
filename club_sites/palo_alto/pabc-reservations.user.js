@@ -6,7 +6,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-idle
-// @version      1.1
+// @version      1.2
 // ==/UserScript==
 
 // Copyright 2026 Ilya Sherman (ishermandom@)
@@ -21,8 +21,8 @@
 // Pure, DOM-free classification, so it is unit-testable on its own. A game is
 // "limited" when its eligibility could bar the user. Two independent signals,
 // either sufficient:
-//   1. a masterpoint ceiling on the row's `data-mps` (e.g. EZ Bridge at 49) —
-//      but the site populates this inconsistently, carrying it on some
+//   1. a masterpoint ceiling on the game's `data-mps` (e.g. Silver Rush at
+//      750) — but the site populates this inconsistently, carrying it on some
 //      instances of an event and not others, so it cannot stand alone; and
 //   2. a restriction named in the game's title/subtitle (`data-name` +
 //      `data-special`): a beginner/NLM/Mid-Flight label, or a masterpoint cap
@@ -360,16 +360,23 @@ function injectHelperStyles() {
     }
 
     /* A limited game's row recedes (it's the rare case the user usually wants
-       to skip). Dimming is cell-level opacity, not a text color, so the site's
-       own cell colors can't override it — and it fades the badge along with the
-       row. The "Limited" badge is a quiet neutral tag that labels why the row
-       is dimmed rather than a bright alert that fights the dimming.
+       to skip). Dimming is opacity, not a text color, so the site's own cell
+       colors can't override it — and it fades the badge along with the row.
+       The "Limited" badge is a quiet neutral tag that labels why the row is
+       dimmed rather than a bright alert that fights the dimming.
 
-       The site shows the date on a day's first game and hides it on the rest,
-       so the first game's date heads the whole day. That date cell is excluded
-       (pabc-shared-cell, set in flagLimitedGame) so a limited first game
-       doesn't dim the date the open games below rely on. */
-    tr.pabc-limited > td:not(.pabc-shared-cell) { opacity: 0.4; }
+       Two parts of the row stay bright:
+       - The date cell. The site shows the date on a day's first game and
+         hides it on the rest, so the first game's date heads the whole day; a
+         limited first game must not dim the date the open games below rely
+         on.
+       - The game's reservation list, which opens beneath the row from inside
+         its action cell. Opacity on the whole cell would fade that list along
+         with the buttons, so only the buttons dim. */
+    .game.pabc-limited > :not(.dateCell, .actionCell),
+    .game.pabc-limited > .actionCell > :not(reservation-list) {
+      opacity: 0.4;
+    }
     /* align-self/fit-content keep the chip hugging its text — the name cell is
        a flex column, which would otherwise stretch the chip to the cell's
        width. */
@@ -448,7 +455,7 @@ function mountSettingsPanel(root = document.body) {
 /**
  * The masterpoint ceiling on a game row's `data-mps`, or null when absent.
  *
- * @param {HTMLElement} row - a game `<tr>`.
+ * @param {HTMLElement} row - a game's row in the list (`.game`).
  * @returns {?number}
  */
 function parseMasterpointCeiling(row) {
@@ -468,9 +475,11 @@ function parseMasterpointCeiling(row) {
 }
 
 /**
- * Dim a limited game's row and badge its name. No-op for an open game.
+ * Dim a limited game's row and badge its name. No-op for an open game. The
+ * dimming itself is the `pabc-limited` rule in `injectHelperStyles`, which
+ * also decides which parts of the row stay bright.
  *
- * @param {HTMLElement} row - a game `<tr>`.
+ * @param {HTMLElement} row - a game's row in the list (`.game`).
  * @returns {boolean} whether the row was flagged.
  */
 function flagLimitedGame(row) {
@@ -480,19 +489,6 @@ function flagLimitedGame(row) {
   }
 
   row.classList.add("pabc-limited");
-
-  // The site shows the date on a day's first game and hides it on the rest
-  // (their date cells get a "sameDate" class), so the first game's date doubles
-  // as the whole day's header. Skip dimming the date cell — the one carrying the
-  // day-of-week label — so dimming a limited first game doesn't dim the date the
-  // open games below rely on. On a later game the date cell is hidden anyway, so
-  // excluding it has no visible effect and the rest of the row still dims. A
-  // lone limited game's date isn't shared, but leaving it bright is a negligible
-  // cosmetic cost, not worth detecting.
-  const dateCell = row.querySelector(".dow")?.closest("td");
-  if (dateCell) {
-    dateCell.classList.add("pabc-shared-cell");
-  }
 
   const gameName = row.querySelector(".gameName");
   if (gameName && !gameName.querySelector(".pabc-limited-badge")) {
@@ -809,12 +805,14 @@ function main() {
   // button so the reserve modal can warn when it opens. A game row is picked
   // out by `data-name` — the title attribute the limited-game check itself
   // reads — so the selector rests on the same attribute the feature consumes.
+  // The `.game` class narrows the selector to games, since the page's director
+  // contact rows carry a `data-name` too.
   observers.push(
-    onElementAdded("tr[data-name]", (/** @type {HTMLElement} */ row) => {
+    onElementAdded(".game[data-name]", (/** @type {HTMLElement} */ row) => {
       if (!flagLimitedGame(row)) {
         return;
       }
-      const reserveButton = row.querySelector("new-reserve-button");
+      const reserveButton = row.querySelector("reserve-button");
       if (reserveButton) {
         reserveButton.addEventListener("click", () => {
           isPendingLimitedReserve = true;

@@ -268,17 +268,17 @@ def _open_reserve_modal(page: Page, row_selector: str) -> str:
   has already started answers with an alert instead of the modal, and the games
   list rolls forward daily, so which rows are in the past changes by the hour.
   Rather than reimplement the site's rules about what is still reservable, this
-  clicks and reads what came back. Trying rows in turn also absorbs the table
-  being rebuilt underfoot, which detaches a row a locator just resolved.
+  clicks and reads what came back. Trying rows in turn also absorbs the game
+  list being rebuilt underfoot, which detaches a row a locator just resolved.
 
-  Clicks through the mouse, deliberately: `new-reserve-button` defines its own
-  `click()` that opens the modal without dispatching a click event, so a
-  scripted `element.click()` would silently skip every click listener —
-  including the one that arms the limited-game banner.
+  Clicks through the mouse, deliberately: the site's `reserve-button` element
+  defines its own `click()` that opens the modal without dispatching a click
+  event, so a scripted `element.click()` would silently skip every click
+  listener — including the one that arms the limited-game banner.
   """
   rows = page.locator(row_selector)
   for index in range(min(rows.count(), RESERVE_CANDIDATE_ROWS)):
-    button = rows.nth(index).locator('new-reserve-button').first
+    button = rows.nth(index).locator('reserve-button').first
     name = rows.nth(index).get_attribute('data-name') or '(unnamed game)'
     button.scroll_into_view_if_needed()
     button.click()
@@ -294,7 +294,7 @@ def _open_reserve_modal(page: Page, row_selector: str) -> str:
       )
     except PlaywrightTimeoutError:
       refusal = page.evaluate("""() =>
-        document.querySelector('custom-modal.alert dialog[open] .message')
+        document.querySelector('custom-modal dialog[open] .message')
           ?.textContent?.trim() ?? ''""")
       print(
         f'{name}: {refusal or "no reserve modal"} — trying the next game',
@@ -395,11 +395,11 @@ def check_limited_games_flagged(page: Page) -> CheckResult:
   — while a game flagged on its title instead is correctly ignored here.
   """
   unflagged: list[str] = page.evaluate("""() =>
-    [...document.querySelectorAll('tr[data-name][data-mps]')]
+    [...document.querySelectorAll('.game[data-name][data-mps]')]
       .filter((row) => row.dataset.mps !== ''
                        && !row.classList.contains('pabc-limited'))
       .map((row) => row.dataset.name)""")
-  flagged = page.locator('tr.pabc-limited').count()
+  flagged = page.locator('.game.pabc-limited').count()
   badges = page.locator('.pabc-limited-badge').count()
 
   detail = f'{flagged} rows flagged, {badges} badged'
@@ -408,9 +408,41 @@ def check_limited_games_flagged(page: Page) -> CheckResult:
   return CheckResult('limited games flagged', not unflagged, detail)
 
 
+def check_limited_rows_dimmed(page: Page) -> CheckResult:
+  """Each flagged row dims, sparing its date cell and its reservation list.
+
+  The userscript's dimming CSS names the site's own classes and elements, so if
+  the site renames one of them, the dimming fails quietly: the rows are still
+  flagged, but nothing dims.
+  """
+  rows_dimmed_incorrectly: list[str] = page.evaluate("""() => {
+    const opacity = (element) =>
+      element ? getComputedStyle(element).opacity : 'missing';
+    // 0.4 is the userscript's dimming opacity; 1 is undimmed.
+    return [...document.querySelectorAll('.game.pabc-limited')]
+      .filter((row) =>
+        opacity(row.querySelector('.nameCell')) !== '0.4'
+        || opacity(row.querySelector('reserve-button')) !== '0.4'
+        || opacity(row.querySelector('.dateCell')) !== '1'
+        || opacity(row.querySelector('reservation-list')) !== '1')
+      .map((row) => row.dataset.name);
+  }""")
+  flagged = page.locator('.game.pabc-limited').count()
+
+  # With no flagged rows, the check would pass without testing anything.
+  passed = flagged > 0 and not rows_dimmed_incorrectly
+  dimmed_correctly = flagged - len(rows_dimmed_incorrectly)
+  detail = f'{dimmed_correctly} of {flagged} flagged rows dimmed correctly'
+  if rows_dimmed_incorrectly:
+    detail = (
+      f'{detail}; dimmed incorrectly: {sorted(set(rows_dimmed_incorrectly))}'
+    )
+  return CheckResult('limited rows dimmed', passed, detail)
+
+
 def check_limited_reserve(page: Page, name: str) -> CheckResult:
   """A limited game's reserve modal warns, and still prefills the player."""
-  game = _open_reserve_modal(page, 'tr.pabc-limited')
+  game = _open_reserve_modal(page, '.game.pabc-limited')
   modal = _read_reserve_modal(page)
   _close_modal(page)
 
@@ -427,7 +459,7 @@ def check_open_reserve(page: Page, name: str) -> CheckResult:
   carry-over flag consumed at the next open, so this is where a flag left armed
   would surface as a spurious warning.
   """
-  game = _open_reserve_modal(page, 'tr[data-name]:not(.pabc-limited)')
+  game = _open_reserve_modal(page, '.game[data-name]:not(.pabc-limited)')
   modal = _read_reserve_modal(page)
   _close_modal(page)
 
@@ -496,6 +528,7 @@ def run_checks(page: Page, name: str, email: str) -> Sequence[CheckResult]:
     _reported(check_settings_panel(page)),
     _reported(check_game_list_expanded(page)),
     _reported(check_limited_games_flagged(page)),
+    _reported(check_limited_rows_dimmed(page)),
     _reported(check_limited_reserve(page, name)),
     _reported(check_open_reserve(page, name)),
     _reported(check_my_reservations(page, name)),

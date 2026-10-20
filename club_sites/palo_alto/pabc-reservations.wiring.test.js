@@ -45,44 +45,86 @@ function flush() {
 }
 
 /**
- * A games table holding one limited game (carrying a masterpoint ceiling) and
- * one open game, each with the reserve button the site puts in its last cell.
- * The open game's date cell carries `sameDate`, as it does live on every game
- * after a day's first.
+ * The game list, holding one day with a limited game and an open one. Only the
+ * limited game's title marks it as limited: like the live EZ Bridge game, its
+ * row carries no masterpoint ceiling.
  */
-function makeGamesTable() {
-  const table = document.createElement("table");
-  table.innerHTML = `
-    <tbody>
-      <tr data-id="622" data-date="08/24/26" data-time="1115"
-          data-name="EZ Bridge" data-special="" data-seating="1" data-mps="49">
-        <td><div><span class="dow">Mon</span> Aug 24</div>
-          <div class="timeCell">11:15am</div></td>
-        <td>11:15am</td>
-        <td><span class="tableFee">$15</span>
+function makeGameList() {
+  const list = document.createElement("div");
+  list.id = "gameList";
+  list.setAttribute("role", "list");
+  list.innerHTML = `
+    <div class="day today" data-date="08/24/26" data-dow="1" data-label="24">
+      <div class="game" role="listitem" data-id="622" data-date="08/24/26"
+          data-time="1115" data-dow="1" data-club="15" data-special=""
+          data-name="EZ Bridge" data-tablefee="15" data-seating="1">
+        <div class="dateCell"><div><span class="dow">Mon</span> Aug 24</div>
+          <div class="phoneTime"><span>11:15am</span></div></div>
+        <div class="timeCell"><span>11:15am</span></div>
+        <div class="nameCell"><span class="tableFee">$15</span>
           <div class="gameName"><div>EZ Bridge </div>
-            <div><span class="special"></span></div></div></td>
-        <td><new-reserve-button title="Make a reservation"><div>Reserve</div>
-          </new-reserve-button></td>
-      </tr>
-      <tr data-id="621" data-date="08/24/26" data-time="1130"
-          data-name="Monday Morning Game" data-special="" data-seating="1">
-        <td class="sameDate"><div><span class="dow">Mon</span> Aug 24</div>
-          <div class="timeCell">11:30am</div></td>
-        <td>11:30am</td>
-        <td><span class="tableFee">$15</span>
+            <div><span class="special"></span></div></div></div>
+        <div class="actionCell">
+          <reserve-button title="Make a reservation"><div>Reserve</div>
+            </reserve-button>
+          <partner-finder-button title="Need a partner"><div>Partner?</div>
+            </partner-finder-button>
+          <contact-button title="Contact director"><div>Director</div>
+            </contact-button>
+          <view-reservations title="View reservations"><div>View list</div>
+            </view-reservations>
+          <reservation-list>
+            <div class="headerDiv"><span>Mon 08/24 EZ Bridge</span></div>
+            <div class="chart"><div class="sectionBlock"
+                data-section="EZ Bridge players" data-mps="49">
+              <div class="sectionHeader">EZ Bridge players</div>
+              <section-names class="sectionNames empty"></section-names>
+            </div></div>
+          </reservation-list>
+        </div>
+      </div>
+      <div class="game" role="listitem" data-id="621" data-date="08/24/26"
+          data-time="1130" data-dow="1" data-club="15" data-special=""
+          data-name="Monday Morning Game" data-tablefee="15" data-seating="1">
+        <div class="dateCell"><div><span class="dow">Mon</span> Aug 24</div>
+          <div class="phoneTime"><span>11:30am</span></div></div>
+        <div class="timeCell"><span>11:30am</span></div>
+        <div class="nameCell"><span class="tableFee">$15</span>
           <div class="gameName"><div>Monday Morning Game </div>
-            <div><span class="special"></span></div></div></td>
-        <td><new-reserve-button title="Make a reservation"><div>Reserve</div>
-          </new-reserve-button></td>
-      </tr>
-    </tbody>`;
-  document.body.append(table);
+            <div><span class="special"></span></div></div></div>
+        <div class="actionCell">
+          <reserve-button title="Make a reservation"><div>Reserve</div>
+            </reserve-button>
+          <partner-finder-button title="Need a partner"><div>Partner?</div>
+            </partner-finder-button>
+          <contact-button title="Contact director"><div>Director</div>
+            </contact-button>
+          <view-reservations title="View reservations"><div>View list</div>
+            </view-reservations>
+          <reservation-list>
+            <div class="headerDiv"><span>Mon 08/24 Monday Morning Game</span>
+              </div>
+            <div class="chart"><div class="sectionBlock" data-section="Open"
+                data-mps="">
+              <div class="sectionHeader">Open</div>
+              <section-names class="sectionNames empty"></section-names>
+            </div></div>
+          </reservation-list>
+        </div>
+      </div>
+    </div>`;
+  document.body.append(list);
 }
 
 // The row for a game by title, the way the wiring has to find it.
 function gameRow(name) {
-  return document.querySelector(`tr[data-name="${name}"]`);
+  return document.querySelector(`.game[data-name="${name}"]`);
+}
+
+// The opacity the helper's stylesheet gives an element: what the user sees as
+// dimmed or not.
+function opacityOf(element) {
+  return getComputedStyle(element).opacity;
 }
 
 /**
@@ -186,18 +228,20 @@ describe("page wiring", () => {
   });
 
   test("dims the limited game's row and leaves the open game's alone", () => {
-    makeGamesTable();
+    makeGameList();
 
     observers = main();
 
-    expect(gameRow("EZ Bridge").classList.contains("pabc-limited")).toBe(true);
+    expect(opacityOf(gameRow("EZ Bridge").querySelector(".nameCell"))).toBe(
+      "0.4",
+    );
     expect(
-      gameRow("Monday Morning Game").classList.contains("pabc-limited"),
-    ).toBe(false);
+      opacityOf(gameRow("Monday Morning Game").querySelector(".nameCell")),
+    ).toBe("1");
   });
 
   test("badges the limited game's name cell", () => {
-    makeGamesTable();
+    makeGameList();
 
     observers = main();
 
@@ -207,45 +251,58 @@ describe("page wiring", () => {
   });
 
   test("spares the date cell the day's other games read", () => {
-    makeGamesTable();
+    makeGameList();
 
     observers = main();
 
-    const dateCell = gameRow("EZ Bridge").querySelector(".dow").closest("td");
-    expect(dateCell.classList.contains("pabc-shared-cell")).toBe(true);
+    // Confirm the row dimmed before confirming its date did not: on its own,
+    // "the date is bright" also holds when nothing was dimmed at all.
+    const row = gameRow("EZ Bridge");
+    expect(opacityOf(row.querySelector(".timeCell"))).toBe("0.4");
+    expect(opacityOf(row.querySelector(".dateCell"))).toBe("1");
+  });
+
+  test("dims the limited game's buttons but not its reservation list", () => {
+    makeGameList();
+
+    observers = main();
+
+    const row = gameRow("EZ Bridge");
+    expect(opacityOf(row.querySelector("reserve-button"))).toBe("0.4");
+    expect(opacityOf(row.querySelector("reservation-list"))).toBe("1");
   });
 
   test("shows no warning when reserving an open game", () => {
-    makeGamesTable();
+    makeGameList();
     const modal = makeReservePopover();
     observers = main();
 
-    gameRow("Monday Morning Game").querySelector("new-reserve-button").click();
+    gameRow("Monday Morning Game").querySelector("reserve-button").click();
     openPopover(modal);
 
     expect(modal.querySelector(".pabc-reserve-banner")).toBeNull();
   });
 
   test("warns when reserving a limited game", () => {
-    makeGamesTable();
+    makeGameList();
     const modal = makeReservePopover(["EZ Bridge players"]);
     observers = main();
 
     // A real click, as a person makes. The live element overrides `click()` to
     // open the modal without dispatching an event, which no scripted click can
     // reproduce — but a person's click does reach this listener.
-    gameRow("EZ Bridge").querySelector("new-reserve-button").click();
+    gameRow("EZ Bridge").querySelector("reserve-button").click();
     openPopover(modal);
 
     expect(modal.querySelector(".pabc-reserve-banner")).not.toBeNull();
   });
 
   test("starts each wiring with no warning left pending", () => {
-    makeGamesTable();
+    makeGameList();
     observers = main();
     // Arm the pending warning and then never open the modal — the case that
     // leaves it set, since only an open consumes it.
-    gameRow("EZ Bridge").querySelector("new-reserve-button").click();
+    gameRow("EZ Bridge").querySelector("reserve-button").click();
 
     // Rebuild and rewire the page, as reloading it does.
     observers.forEach((observer) => observer.disconnect());
