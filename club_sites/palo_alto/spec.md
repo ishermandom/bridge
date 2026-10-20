@@ -176,6 +176,12 @@ default — they never overwrite something the user has already typed or chosen.
   animations during the Firecracker sectional; a CSS rule hides them. Purely
   cosmetic, and the only feature implemented as a static style rather than
   behavior.
+- **Skip the header's intro animations.** On each load the site sweeps a rainbow
+  across the page title and blinks the club logo, once each. The site already
+  has an off-switch: it marks each element `animationDone` when its animation
+  ends, which its stylesheet turns into the finished look with no animation. The
+  helper sets that mark up front rather than restyling the header itself, so the
+  header keeps whatever finished look the site gives it.
 
 ## Limited-game guard
 

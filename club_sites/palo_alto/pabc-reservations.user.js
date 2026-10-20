@@ -6,7 +6,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-idle
-// @version      1.3
+// @version      1.4
 // ==/UserScript==
 
 // Copyright 2026 Ilya Sherman (ishermandom@)
@@ -593,6 +593,19 @@ function expandShowMore(button) {
 }
 
 /**
+ * Skip one of the header's intro animations: the rainbow sweep across the
+ * title, or the logo's blink. The site marks each element `animationDone` once
+ * its animation ends, and its stylesheet then shows the finished look with the
+ * animation switched off; marking the element up front gets there without the
+ * animation ever playing.
+ *
+ * @param {Element} element - the logo or the title.
+ */
+function skipIntroAnimation(element) {
+  element.classList.add("animationDone");
+}
+
+/**
  * Fire the `change` event a real selection would, after setting a control's
  * value programmatically. This page reads these controls' values directly, so
  * it does not need the event today; firing it keeps the set faithful to a user
@@ -820,6 +833,7 @@ function main() {
   let isPendingLimitedReserve = false;
 
   observers.push(onElementAdded("#showMore", expandShowMore));
+  observers.push(onElementAdded("#logo, h2#topHeader", skipIntroAnimation));
 
   // Flag limited game rows; on a limited row, remember a click on its reserve
   // button so the reserve modal can warn when it opens. A game row is picked

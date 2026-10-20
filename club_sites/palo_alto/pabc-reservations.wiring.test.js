@@ -227,6 +227,26 @@ describe("page wiring", () => {
     expect(clicks).toBe(1);
   });
 
+  test("skips the header's intro animations", () => {
+    const page = document.createElement("div");
+    page.id = "body";
+    page.innerHTML = `
+      <a href="https://example.com/"><img id="logo" src="images/logo.png"></a>
+      <h2 id="topHeader">Game Reservations</h2>`;
+    document.body.append(page);
+
+    observers = main();
+
+    // The site's own mark for an animation that has finished; its stylesheet
+    // then shows the finished look with the animation switched off.
+    expect(document.querySelector("#logo").classList).toContain(
+      "animationDone",
+    );
+    expect(document.querySelector("#topHeader").classList).toContain(
+      "animationDone",
+    );
+  });
+
   test("dims the limited game's row and leaves the open game's alone", () => {
     makeGameList();
 

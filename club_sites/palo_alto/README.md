@@ -23,6 +23,9 @@ Bridge) from open ones so they are harder to book by accident.
   accident. It's a visual warning only; it never blocks a booking.
 - **Hides the Firecracker fireworks.** Suppresses the animated fireworks the
   site draws during the Firecracker sectional.
+- **Skips the header animation.** Shows the page title and club logo in their
+  finished look, without the rainbow sweep and logo blink the site plays on each
+  load.
 
 A game counts as "limited" when it carries a masterpoint ceiling — the
 eligibility cap the site places on restricted games like EZ Bridge, a `0-99`
