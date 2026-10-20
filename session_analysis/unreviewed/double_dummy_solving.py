@@ -23,6 +23,7 @@ the two compare directly and their difference is what the opening lead cost.
 """
 
 import collections
+import functools
 from collections.abc import Mapping, Sequence
 
 import endplay.dds
@@ -89,7 +90,23 @@ def solve_table(deal: Deal) -> SolvedDoubleDummyTricks:
   `deal_checks.find_deal_issues` establishes the precondition and reports why it
   fails, which is why this raises rather than repeating the check.
   """
-  table = endplay.dds.calc_dd_table(endplay.types.Deal(_written_deal(deal)))
+  return _solved_table(_written_deal(deal))
+
+
+@functools.cache
+def _solved_table(written_deal: str) -> SolvedDoubleDummyTricks:
+  """The table `solve_table` returns, solved once per written deal.
+
+  The same deal can reach the solver many times in one process — a session
+  captured in two formats, or the tests parsing their few sample captures over
+  and over — and each solve takes tens of milliseconds to give the same answer.
+
+  Every caller shares the one table, read-only so that no caller can change what
+  the others see. The return type, `SolvedDoubleDummyTricks`, is a nested
+  read-only `Mapping`, so the type checker rejects any write to the table.
+  """
+  table = endplay.dds.calc_dd_table(endplay.types.Deal(written_deal))
+
   # The solver's table, like its play analysis, comes back untyped, so each
   # count is converted at this boundary rather than travelling on unchecked.
   return {
