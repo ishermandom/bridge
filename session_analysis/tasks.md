@@ -361,6 +361,16 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
+**Ingesting a new scan** {#ingesting-a-scan}: each scan gets a task of its own,
+naming the file waiting in the inbox and the worktree its lane works in. The
+lane settles the sheet with the user in chat:
+
+1. Run the whole path first — ingest, the traveller fetch, and reconciliation.
+2. While the review UI (`#review-ui`) has not landed, raise any detail that
+   needs clarifying or review in chat, and apply the user's fixes there.
+3. Hold the sheet's transcript until every detail is settled, then give it to
+   the user inline in the chat.
+
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
