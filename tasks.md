@@ -185,10 +185,3 @@ production signatures for the tests' benefit.
   - Note: the floor is the slowest single test, a squeeze-generation case at
     1.3–2.3s, plus worker startup. Module-level caches such as the renderer's
     shared base card build once per worker. Breakpoints need `-n 0`.
-
-- [ ] **Consider running the JavaScript and Python suites side by side**
-      {#parallel-suites}: a maybe, not yet settled. `run_tests.sh` runs the
-      `club_sites/palo_alto` type check and vitest suite before pytest; running
-      the two concurrently would hide most of the shorter one.
-  - Note: measured 2026-09-14, the type check takes ~0.3s and vitest ~0.8s, so
-    running them alongside pytest would save about a second of an ~8s run.

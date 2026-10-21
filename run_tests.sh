@@ -43,32 +43,38 @@ if [ ! -f "$installed_lockfile" ] \
   fi
 fi
 
+# The userscript's checks run in the background while pytest runs: together they
+# take about a second, which pytest's longer run hides. Each side writes to its
+# own file, printed once both finish, so the two never interleave.
+#
+# TODO: restore color for a run in a terminal. Writing to a file, each tool
+# finds no terminal and prints without color.
+javascript_output="$(mktemp)"
+pytest_output="$(mktemp)"
+trap 'rm -f "$javascript_output" "$pytest_output"' EXIT
+
 # Both Node tools are called by their path in the package's node_modules rather
 # than through npm scripts, to avoid adding npm's own startup latency to every
 # run.
 bin="$package/node_modules/.bin"
 
-# Type-check first, so a type error fails the run before vitest starts. `tsc`
-# checks the JSDoc-annotated userscript in place — no build, no emit. `-p` names
-# the package's config, which lists the files to check. Gating explicitly
-# (rather than `&&`) keeps the failing step's own exit status.
-"$bin/tsc" -p "$package/jsconfig.json"
-typecheck_status=$?
-if [ "$typecheck_status" -ne 0 ]; then
-  exit "$typecheck_status"
-fi
-
-# Then the vitest suite itself, gated the same way. `run` runs it once, where a
-# bare `vitest` in a terminal would stay up watching for changes. `--root` finds
-# the package's tests wherever the caller ran this script from, and must be an
-# absolute path: given a relative one, such as `./club_sites/palo_alto` when the
-# script runs as `./run_tests.sh`, vitest fails to load the test files that run
-# under jsdom.
-"$bin/vitest" run --root "$(realpath "$package")"
-palo_alto_status=$?
-if [ "$palo_alto_status" -ne 0 ]; then
-  exit "$palo_alto_status"
-fi
+# Type-check first: `&&` starts vitest only once `tsc` passes, and the pair's
+# status is the failing step's. `tsc` checks the JSDoc-annotated userscript in
+# place — no build, no emit. `-p` names the package's config, which lists the
+# files to check.
+#
+# `run` runs vitest once, where a bare `vitest` in a terminal would stay up
+# watching for changes. `--root` finds the package's tests wherever the caller
+# ran this script from, and must be an absolute path: given a relative one, such
+# as `./club_sites/palo_alto` when the script runs as `./run_tests.sh`, vitest
+# fails to load the test files that run under jsdom.
+#
+# The trailing `&` runs the group in the background, and `$!` is its process ID.
+{
+  "$bin/tsc" -p "$package/jsconfig.json" \
+    && "$bin/vitest" run --root "$(realpath "$package")"
+} > "$javascript_output" 2>&1 &
+javascript_pid=$!
 
 # The Python suites run as one pytest invocation through the uv workspace, so
 # all share the lockfile/venv regardless of the caller's directory. Pytest picks
@@ -98,9 +104,10 @@ if [ -n "${PYTEST_FROM_HOOK:-}" ]; then
   marker_args=(-m "not slow")
 fi
 
-# `exec` replaces this shell with pytest, so pytest's exit status becomes the
-# script's directly — safe as the last step, since nothing follows it here.
-exec uv run --project "$repo_root" pytest \
+# pytest runs in the foreground so that Ctrl-C reaches it: a script's background
+# jobs ignore Ctrl-C, which leaves only the second-long JavaScript side to run
+# on after an interrupt.
+uv run --project "$repo_root" pytest \
   "${marker_args[@]}" \
   "$repo_root/anki" \
   "$repo_root/club_sites/palo_alto" \
@@ -109,4 +116,20 @@ exec uv run --project "$repo_root" pytest \
   "$repo_root/session_analysis" \
   "$repo_root/system_notes" \
   --ignore="$repo_root/practice/squeezes/scratch/generation_test.py" \
-  --ignore="$repo_root/practice/squeezes/scratch/server_test.py"
+  --ignore="$repo_root/practice/squeezes/scratch/server_test.py" \
+  > "$pytest_output" 2>&1
+pytest_status=$?
+
+wait "$javascript_pid"
+javascript_status=$?
+
+# JavaScript first, as in a run in sequence, so the last line is pytest's
+# summary — the one line the Stop hook's runner shows on a pass.
+cat "$javascript_output" "$pytest_output"
+
+# Either side's failure fails the run; when both fail, the status is the
+# JavaScript side's.
+if [ "$javascript_status" -ne 0 ]; then
+  exit "$javascript_status"
+fi
+exit "$pytest_status"
