@@ -17,7 +17,7 @@ package="$repo_root/club_sites/palo_alto"
 # Install the Node dependencies when they're missing or out of date. npm doesn't
 # bootstrap itself the way `uv run` below does, and node_modules is gitignored,
 # so a fresh checkout — most often a new worktree — would otherwise reach `tsc`
-# and `vitest` with neither on PATH.
+# and `vitest` before either is installed.
 #
 # npm records the tree it installed in node_modules/.package-lock.json, writing
 # it last — after the packages and the .bin links — so it doubles as a
@@ -43,17 +43,28 @@ if [ ! -f "$installed_lockfile" ] \
   fi
 fi
 
+# Both Node tools are called by their path in the package's node_modules rather
+# than through npm scripts, to avoid adding npm's own startup latency to every
+# run.
+bin="$package/node_modules/.bin"
+
 # Type-check first, so a type error fails the run before vitest starts. `tsc`
-# checks the JSDoc-annotated userscript in place — no build, no emit. Gating
-# explicitly (rather than `&&`) keeps the failing step's own exit status.
-npm --prefix "$package" run typecheck
+# checks the JSDoc-annotated userscript in place — no build, no emit. `-p` names
+# the package's config, which lists the files to check. Gating explicitly
+# (rather than `&&`) keeps the failing step's own exit status.
+"$bin/tsc" -p "$package/jsconfig.json"
 typecheck_status=$?
 if [ "$typecheck_status" -ne 0 ]; then
   exit "$typecheck_status"
 fi
 
-# Then the vitest suite itself, gated the same way.
-npm --prefix "$package" test
+# Then the vitest suite itself, gated the same way. `run` runs it once, where a
+# bare `vitest` in a terminal would stay up watching for changes. `--root` finds
+# the package's tests wherever the caller ran this script from, and must be an
+# absolute path: given a relative one, such as `./club_sites/palo_alto` when the
+# script runs as `./run_tests.sh`, vitest fails to load the test files that run
+# under jsdom.
+"$bin/vitest" run --root "$(realpath "$package")"
 palo_alto_status=$?
 if [ "$palo_alto_status" -ne 0 ]; then
   exit "$palo_alto_status"
