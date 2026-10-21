@@ -61,8 +61,10 @@ import argparse
 import dataclasses
 import enum
 import hashlib
-from collections.abc import Iterator, MutableSet, Sequence, Set
+from collections.abc import Callable, Iterator, MutableSet, Sequence, Set
 from pathlib import Path, PurePosixPath
+
+from PIL import Image
 
 from session_analysis import (
   assembly,
@@ -89,12 +91,13 @@ from session_analysis.unreviewed import (
 )
 from session_analysis.unreviewed.rule_grid import SheetGeometryError
 from session_analysis.unreviewed.sheet_structure import SheetStructureError
-from session_analysis.vision_model_invocation import (
-  DEFAULT_MODEL,
-  CommandRunner,
-  VisionModelInvocationError,
-  run_claude,
-)
+from session_analysis.vision_model_invocation import VisionModelInvocationError
+
+# How one sheet's image becomes a transcription: `extraction.transcribe_sheet`
+# in a real run. Ingest takes a `Transcriber` as a parameter rather than calling
+# `extraction.transcribe_sheet` itself, so that a test can script what
+# transcription returns and skip both the image work and the model calls.
+type Transcriber = Callable[[Image.Image], extraction.SheetTranscription]
 
 # A sheet whose board count does not match its board-row count. One strip is cut
 # per board row and the model is asked for one board per row strip, so the two
@@ -186,17 +189,14 @@ class SheetReport:
 def process_inbox(
   tree: PrivateTree,
   *,
-  model: str = DEFAULT_MODEL,
-  run_command: CommandRunner = run_claude,
+  transcribe: Transcriber = extraction.transcribe_sheet,
 ) -> issue_reporting.Read[Sequence[SheetReport]]:
   """Digitize every scan waiting in the inbox.
 
   Args:
     tree: the private tree whose inbox is read and whose archive, failure, and
       pending-record directories are written.
-    model: the vision model to transcribe with.
-    run_command: how the headless model invocation is run; injected so a test
-      needs no model call.
+    transcribe: how each sheet is transcribed; see `Transcriber`.
 
   Returns:
     One report per sheet, in the order they were processed, alongside any
@@ -221,9 +221,7 @@ def process_inbox(
   for index, scan in enumerate(scans):
     try:
       reports.extend(
-        _process_scan(
-          scan, tree, taken_keys, model=model, run_command=run_command
-        )
+        _process_scan(scan, tree, taken_keys, transcribe=transcribe)
       )
     except VisionModelInvocationError as error:
       # The model call failed, and this stage cannot tell the two reasons apart:
@@ -292,8 +290,7 @@ def digitize_scan(
   *,
   archived_as: PurePosixPath,
   content_hash: str,
-  model: str = DEFAULT_MODEL,
-  run_command: CommandRunner = run_claude,
+  transcribe: Transcriber = extraction.transcribe_sheet,
 ) -> Sequence[DigitizedSheet | UndigitizedSheet]:
   """Read one scan file through extraction into named, validated `Session`s.
 
@@ -332,9 +329,7 @@ def digitize_scan(
 
     sheet = read
     try:
-      transcription = extraction.transcribe_sheet(
-        sheet.image, model=model, run_command=run_command
-      )
+      transcription = transcribe(sheet.image)
     except _TERMINAL_SHEET_ERRORS as error:
       outcomes.append(
         UndigitizedSheet(sheet.page, f'{type(error).__name__}: {error}')
@@ -377,8 +372,7 @@ def _process_scan(
   tree: PrivateTree,
   taken_keys: MutableSet[str],
   *,
-  model: str,
-  run_command: CommandRunner,
+  transcribe: Transcriber,
 ) -> Sequence[SheetReport]:
   """Take one scan file as far as it goes, and move it out of the inbox.
 
@@ -410,8 +404,7 @@ def _process_scan(
       scan,
       archived_as=archived_as,
       content_hash=content_hash,
-      model=model,
-      run_command=run_command,
+      transcribe=transcribe,
     )
   except scan_decoding.ScanDecodingError as error:
     # The file would not open at all, so there are no pages to report on. The
