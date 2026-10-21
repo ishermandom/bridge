@@ -9,9 +9,9 @@ trackers alongside their code, in subdirectories.
 
 ## Recurring maintenance
 
-**Goal:** keep what this repo depends on current, on a chosen cadence rather
-than by surprise. Entries here never complete — a finished run leaves the task
-in place for its next turn — so never prune them.
+**Goal:** refresh what goes stale on its own, on a chosen cadence rather than by
+surprise. Entries here never complete — a finished run leaves the task in place
+for its next turn — so never prune them.
 
 - [ ] **Refresh pinned dependencies** {#dependency-refresh} — about monthly, run
       `uv lock --upgrade && uv sync`, so everything this repo pins picks up
@@ -33,6 +33,19 @@ in place for its next turn — so never prune them.
     orphaned builds. And a duplicate install is a cheap cache hit.
   - Note: use `git log -1 --format=%as -- uv.lock` to determine when this last
     ran.
+
+- [ ] **Review the `slow` annotations** {#slow-annotations} — about monthly,
+      measure each test's latency against the budget described in
+      `pyproject.toml`, and update the annotations to match.
+  - Last run: 2026-10-21
+  - Note: to measure, time several runs in the usual order and several in
+    reverse, and start from the cheaper of each test's two medians, so that no
+    test is charged in full for filling a shared cache first. Then amortize
+    shared setup and cache costs across the tests that use them.
+    - Tip: wrapping each `functools.cache` function in a pytest plugin shows
+      what each cached result cost and which tests read it.
+  - Rationale: a periodic review by hand is simpler, for now, than a
+    `conftest.py` report or a check.
 
 ---
 

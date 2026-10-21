@@ -51,6 +51,7 @@ def _panel_spanning(
   )
 
 
+@pytest.mark.slow
 def test_dewarp_straightens_a_perspective_skewed_scan() -> None:
   # 29 rules at a 20px pitch bounding 28 board rows, running y=100 to y=660 at
   # the left edge and two pitches lower at the right.

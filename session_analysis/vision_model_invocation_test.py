@@ -311,6 +311,7 @@ def test_an_image_over_the_token_budget_is_refused_before_sending() -> None:
   assert runner.command is None
 
 
+@pytest.mark.slow
 def test_an_image_over_the_byte_limit_is_refused_before_sending() -> None:
   # Noise defeats PNG's compression, so 1200x1200 encodes to about 4.3MB — past
   # the byte limit while well within both the edge limit and the token budget.

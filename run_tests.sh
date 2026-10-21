@@ -89,9 +89,19 @@ fi
 # TODO: return the server's tests once the trainer resumes
 # (practice/squeezes/tasks.md #restore-server-tests).
 #
+# A run from the Stop hook, which sets PYTEST_FROM_HOOK, leaves out the tests
+# marked `slow`: too slow to pay on every conversational turn, though still fast
+# enough for any intentional run. The flags sit in an array so that, empty, it
+# adds no argument at all; `:-` reads an unset variable as empty.
+marker_args=()
+if [ -n "${PYTEST_FROM_HOOK:-}" ]; then
+  marker_args=(-m "not slow")
+fi
+
 # `exec` replaces this shell with pytest, so pytest's exit status becomes the
 # script's directly — safe as the last step, since nothing follows it here.
 exec uv run --project "$repo_root" pytest \
+  "${marker_args[@]}" \
   "$repo_root/anki" \
   "$repo_root/club_sites/palo_alto" \
   "$repo_root/convention_cards" \

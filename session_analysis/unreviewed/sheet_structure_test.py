@@ -103,6 +103,7 @@ def test_a_reading_of_an_unscaled_sheet_is_returned_as_given() -> None:
   assert structure.panels[0].grid.bottom == 660
 
 
+@pytest.mark.slow
 def test_a_reading_of_a_scaled_sheet_is_divided_back_by_the_scale() -> None:
   # The model reads a half-size copy, so a rule it reports at y=100 is at y=200
   # on the sheet itself. Getting this wrong shifts every row box.

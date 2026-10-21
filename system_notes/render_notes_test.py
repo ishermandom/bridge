@@ -71,16 +71,19 @@ def read(path: Path) -> str:
 # --- goldens ---
 
 
+@pytest.mark.slow
 def test_html_matches_golden(rendered: render_notes.RenderedNotes) -> None:
   assert read(rendered.html) == read(GOLDEN_DIRECTORY / 'notes.html')
 
 
+@pytest.mark.slow
 def test_pdf_text_matches_golden(rendered: render_notes.RenderedNotes) -> None:
   assert pdf_inspection.extract_text(rendered.pdf) == read(
     GOLDEN_DIRECTORY / 'notes.pdf.txt'
   )
 
 
+@pytest.mark.slow
 def test_text_matches_golden(rendered: render_notes.RenderedNotes) -> None:
   assert read(rendered.text) == read(GOLDEN_DIRECTORY / 'notes.txt')
 
@@ -125,6 +128,7 @@ def test_list_markers_follow_depth() -> None:
 # --- warnings ---
 
 
+@pytest.mark.slow
 def test_a_weasyprint_warning_fails_the_render(tmp_path: Path) -> None:
   """WeasyPrint only warns about an undecodable image and lays it out anyway."""
   html = tmp_path / 'notes.html'
@@ -144,6 +148,7 @@ def test_a_weasyprint_warning_fails_the_render(tmp_path: Path) -> None:
 # --- fonts ---
 
 
+@pytest.mark.slow
 def test_pdf_embeds_exactly_the_chosen_font_families(
   rendered: render_notes.RenderedNotes,
 ) -> None:
@@ -151,6 +156,7 @@ def test_pdf_embeds_exactly_the_chosen_font_families(
   assert families == render_notes.CHOSEN_FONT_FAMILIES
 
 
+@pytest.mark.slow
 def test_a_font_fallback_fails_the_render(tmp_path: Path) -> None:
   # A code span has no family in the stylesheet, so it falls back to whatever
   # monospace the machine offers — never one of the chosen families.
@@ -243,6 +249,7 @@ def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
   )
 
 
+@pytest.mark.slow
 def test_no_digit_is_wider_than_the_page_number_stand_in() -> None:
   """The probe's `88` must stay at least as wide as any real page number.
 
@@ -365,6 +372,7 @@ def _reference_targets(document: str) -> dict[str, str]:
   return targets
 
 
+@pytest.mark.slow
 def test_every_printed_page_reference_is_correct(
   rendered: render_notes.RenderedNotes,
 ) -> None:

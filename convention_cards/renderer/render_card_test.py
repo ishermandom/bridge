@@ -186,6 +186,7 @@ def _blank_card_pdf() -> bytes:
 # --- pixel fidelity ---
 
 
+@pytest.mark.slow
 def test_blank_card_matches_the_original_pixel_for_pixel() -> None:
   difference = ImageChops.difference(
     rasterize_at_golden_scale(_blank_card_pdf()),
@@ -543,6 +544,7 @@ def test_the_full_export_renders_once_unrendered_keys_are_removed() -> None:
   assert '2/1 game forcing, five-card majors' in text
 
 
+@pytest.mark.slow
 def test_the_full_export_matches_its_committed_golden() -> None:
   # Pixel-level regression net over the whole card; regenerate with
   # `renderer.regenerate_goldens` after intentional rendering changes.

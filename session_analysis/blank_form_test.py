@@ -21,6 +21,7 @@ choose which rules are the grid rather than contributing a coordinate.
 import pathlib
 import random
 
+import pytest
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from session_analysis.sheet_dewarp import dewarp_sheet
@@ -79,6 +80,7 @@ def _degrade(image: Image.Image) -> Image.Image:
   return dimmed.filter(ImageFilter.GaussianBlur(0.5))
 
 
+@pytest.mark.slow
 def test_the_clean_render_resolves_the_board_grid() -> None:
   dewarped = dewarp_sheet(Image.open(_FIXTURE))
 
@@ -92,6 +94,7 @@ def test_the_clean_render_resolves_the_board_grid() -> None:
   assert geometry.row_boxes[-1].bottom == 1182
 
 
+@pytest.mark.slow
 def test_a_degraded_capture_still_resolves_the_board_grid() -> None:
   degraded = _degrade(Image.open(_FIXTURE))
 
@@ -103,6 +106,7 @@ def test_a_degraded_capture_still_resolves_the_board_grid() -> None:
   assert geometry.row_boxes[0].top == 105
 
 
+@pytest.mark.slow
 def test_the_footer_guide_underline_is_never_taken_for_a_board_row() -> None:
   # The underline runs nearly the full width one pitch below the grid, so ink
   # coverage cannot tell it from a rule. Taking it for one is what used to push

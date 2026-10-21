@@ -100,6 +100,7 @@ def _one_capture_tree(tmp_path: Path) -> PrivateTree:
 # --- which parser reads a capture ---
 
 
+@pytest.mark.slow
 def test_every_site_and_format_reaches_its_own_parser() -> None:
   captures = _make_captures(
     {

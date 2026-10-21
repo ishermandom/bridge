@@ -427,6 +427,7 @@ def test_a_comment_in_main_stays_and_packs_nothing() -> None:
 # --- refusals ---
 
 
+@pytest.mark.slow
 def test_a_heading_inside_a_fenced_div_strands_what_follows() -> None:
   # pandoc ends the heading's section where the div ends, so the subsection
   # after the div lands in <main> as a section of its own, cut off from the
@@ -446,6 +447,7 @@ def test_a_heading_inside_a_fenced_div_strands_what_follows() -> None:
     _paged(html)
 
 
+@pytest.mark.slow
 def test_a_stray_closing_tag_strands_what_follows() -> None:
   # pandoc passes raw HTML through untouched, so a stray </section> closes the
   # section around it early, and the paragraph after it lands in <main>.

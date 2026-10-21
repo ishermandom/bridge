@@ -197,6 +197,7 @@ def test_captures_are_stored_even_when_another_source_failed(
 # --- storing ---
 
 
+@pytest.mark.slow
 def test_a_fetched_capture_is_stored_as_a_record(tmp_path: Path) -> None:
   tree = PrivateTree(tmp_path)
   sites = _Sites(

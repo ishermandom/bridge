@@ -13,6 +13,7 @@ import json
 import statistics
 from collections.abc import Sequence
 
+import pytest
 from PIL import Image
 
 from session_analysis.extraction import transcribe_sheet
@@ -70,6 +71,7 @@ def _reading(rule_ys: Sequence[int], row_count: int, *, footer: bool) -> str:
   )
 
 
+@pytest.mark.slow
 def test_transcribe_sheet_returns_both_runs_raw_json() -> None:
   with ScriptedModelRunner(
     [
@@ -88,6 +90,7 @@ def test_transcribe_sheet_returns_both_runs_raw_json() -> None:
   )
 
 
+@pytest.mark.slow
 def test_transcribe_sheet_returns_the_resolved_geometry() -> None:
   # 29 rules at a 20px pitch bounding 28 board rows, drawn from y=100 between
   # x=40 and x=560.
@@ -108,6 +111,7 @@ def test_transcribe_sheet_returns_the_resolved_geometry() -> None:
   assert transcription.source_quad.top_left.x < 40
 
 
+@pytest.mark.slow
 def test_transcribe_sheet_reads_the_same_strips_both_times() -> None:
   with ScriptedModelRunner(
     [_reading(_TWENTY_FOUR_ROWS, 24, footer=False), '{}', '{}']
@@ -120,6 +124,7 @@ def test_transcribe_sheet_reads_the_same_strips_both_times() -> None:
   assert runner.stdin_texts[1] == runner.stdin_texts[2]
 
 
+@pytest.mark.slow
 def test_transcribe_sheet_sends_labeled_strips_for_every_row() -> None:
   # 29 rules bounding 28 board rows; the reading reports a footer besides.
   rule_ys = range(100, 661, 20)
@@ -143,6 +148,7 @@ def test_transcribe_sheet_sends_labeled_strips_for_every_row() -> None:
   }
 
 
+@pytest.mark.slow
 def test_the_layout_reading_is_sent_as_one_whole_page() -> None:
   # The reading is a judgement about the form, so it gets the sheet entire — the
   # strips it decides the bounds of cannot be cut until it comes back.

@@ -304,6 +304,7 @@ def _unenriched_board(number: int) -> Board:
 # --- a scan becomes a record ---
 
 
+@pytest.mark.slow
 def test_a_scan_is_filed_under_the_key_its_footer_names(
   tmp_path: Path,
 ) -> None:
@@ -404,6 +405,7 @@ def test_the_record_points_at_the_archived_scan(tmp_path: Path) -> None:
   assert (tree.scan_archive / session.source.image.path).is_file()
 
 
+@pytest.mark.slow
 def test_the_detected_grid_persists_on_the_record(tmp_path: Path) -> None:
   tree = PrivateTree(tmp_path)
   _write_scan(tree, 'scan.png', rule_ys=_TWENTY_EIGHT_ROWS)
@@ -423,6 +425,7 @@ def test_the_detected_grid_persists_on_the_record(tmp_path: Path) -> None:
 # --- several sheets in one container ---
 
 
+@pytest.mark.slow
 def test_every_sheet_of_a_container_becomes_its_own_record(
   tmp_path: Path,
 ) -> None:
@@ -480,6 +483,7 @@ def test_two_sheets_of_one_container_sharing_a_key_both_survive(
   ]
 
 
+@pytest.mark.slow
 def test_a_sheet_that_will_not_resolve_does_not_cost_the_ones_before_it(
   tmp_path: Path,
 ) -> None:

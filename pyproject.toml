@@ -46,3 +46,6 @@ strict = true
 [tool.pytest.ini_options]
 # Tests are named <module>_test.py, beside the module they cover.
 python_files = ["*_test.py"]
+markers = [
+  "slow: takes 25ms or more, with the cost of shared setup and caches amortized across the tests that use them (the target for any test is under 10ms); skipped when the Stop hook runs the suite, run everywhere else",
+]
