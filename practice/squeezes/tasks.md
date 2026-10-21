@@ -20,6 +20,11 @@ quantum defenders, with BridgeMaster-style error stops.
 - [ ] **Speed up `generation_test.py` and return it to the repo's test run**
       {#restore-generation-tests}: `run_tests.sh` leaves it out, because it took
       2–3s of every turn's Stop hook while this project is paused.
+- [ ] **Return `server_test.py` to the repo's test run when the trainer
+      resumes** {#restore-server-tests}: `run_tests.sh` leaves it out while this
+      project is paused. Its tests run in milliseconds, but importing FastAPI's
+      test client cost ~0.1s of every turn's Stop hook, and nothing else in the
+      run imports it.
   - Note: each test certifies a generated problem by exhaustive search in
     `solver.py` — about 537,000 positions across the file, each a
     frozen-dataclass copy plus hashing. The `[6-3]` case alone takes 1–2s.

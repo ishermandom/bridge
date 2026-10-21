@@ -76,12 +76,18 @@ fi
 # `system_notes.*` imports, and each remaining suite's own directory, since
 # their modules import each other by bare name.
 #
-# The squeeze generator's tests are left out. The squeeze trainer is paused, and
-# those tests certify each generated problem by exhaustive search, at 2–3s a
-# run; the trainer's other tests take milliseconds and stay in.
+# Two of the paused squeeze trainer's test files are left out; its other tests
+# take milliseconds and stay in:
+# - the generator's, which certify each generated problem by exhaustive search,
+#   at 2–3s a run
+# - the server's, which run fast but import FastAPI's test client, ~0.1s that
+#   nothing else in the run needs
 #
 # TODO: return the generator's tests once they are fast enough to run every turn
 # (practice/squeezes/tasks.md #restore-generation-tests).
+#
+# TODO: return the server's tests once the trainer resumes
+# (practice/squeezes/tasks.md #restore-server-tests).
 #
 # `exec` replaces this shell with pytest, so pytest's exit status becomes the
 # script's directly — safe as the last step, since nothing follows it here.
@@ -92,4 +98,5 @@ exec uv run --project "$repo_root" pytest \
   "$repo_root/practice/squeezes/scratch" \
   "$repo_root/session_analysis" \
   "$repo_root/system_notes" \
-  --ignore="$repo_root/practice/squeezes/scratch/generation_test.py"
+  --ignore="$repo_root/practice/squeezes/scratch/generation_test.py" \
+  --ignore="$repo_root/practice/squeezes/scratch/server_test.py"
