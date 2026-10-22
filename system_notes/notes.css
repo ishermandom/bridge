@@ -196,6 +196,14 @@ ul ul ul ul ul ul ul ul ul ul ul ul {
   list-style-type: "• ";
 }
 
+/* A callout is an aside on the list item it sits in, so it carries no marker —
+   `callouts.lua` lifts it out of its list. The muted color sets it apart from
+   the bids; it needs no italic rule, since the source already writes it in
+   italic. */
+.callout {
+  color: var(--muted);
+}
+
 a {
   color: var(--accent);
   text-decoration: none;

@@ -40,12 +40,14 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 #   and every copy should carry the spans the earlier filters put there.
 #
 # `bids.lua` may run at any point in the order: it rewrites only inline text
-# that no other filter touches.
+# that no other filter touches. So may `callouts.lua`, which moves whole list
+# items and rewrites nothing inside them.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
     'metadata.lua',
     'bids.lua',
+    'callouts.lua',
     'nowrap.lua',
     'shorthand.lua',
     'headings.lua',

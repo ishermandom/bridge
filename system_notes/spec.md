@@ -17,7 +17,8 @@ shorthand are written, but nothing about what they mean.
 
 - **Input**: one `notes.md` per partnership, in Pandoc Markdown plus this tool's
   small notation: bids written plainly (`4S`, `2NT`), `!S !H !D !C` for suits
-  outside bids, and `[](#section-id)` for cross-references. A YAML block at the
+  outside bids, `[](#section-id)` for cross-references, and a list item wholly
+  in italic for a callout (an aside on the bid above it). A YAML block at the
   top carries the title (required) and an optional date.
 - **Real notes** are private partnership agreements, so they live in
   `bridge-private` rather than in this public `bridge` repo, which holds only
@@ -27,11 +28,11 @@ shorthand are written, but nothing about what they mean.
   checkout beside `bridge-private`.
 - **The fixture** (`fixture/notes.md`) is AI-drafted sample material written to
   exercise the notation — five-deep lists, forward and backward references,
-  suits in headings and prose. It pairs a conventional 2/1 outline written in
-  prose with one maximal-shorthand section holding no subsections (a Woolsey
-  defense to 1NT) that stress-tests how much a page of nested bullets can carry.
-  It must say prominently, in its own text, that no human has reviewed or
-  verified any of it.
+  suits in headings and prose, and a callout. It pairs a conventional 2/1
+  outline written in prose with one maximal-shorthand section holding no
+  subsections (a Woolsey defense to 1NT) that stress-tests how much a page of
+  nested bullets can carry. It must say prominently, in its own text, that no
+  human has reviewed or verified any of it.
 - **Sibling tool**: `convention_cards/` likewise keeps its tool in this repo and
   its private data in `bridge-private`. This tool copies the `regenerate.sh`
   wrapper convention from `convention_cards/` rather than sharing code with it.
@@ -120,6 +121,20 @@ syntax the plain-text output must survive:
   holding a capital or a digit (so `and/or` stays prose). Whole auctions may
   still break at a column edge; keeping them intact is deferred until a real
   page shows a bad break.
+- **Callouts**: a callout is an aside on a bid rather than a bid itself. It is
+  written as a list item wholly in italic, nested under the bid it explains:
+  `- _Note: …_`. It renders without a list marker, since a marker would place it
+  in a round of the auction. It sits in a muted color under the text of the item
+  it annotates, and the plain text likewise gives it a line of its own with no
+  marker. Italic already marks such asides, so recognizing them costs the author
+  no new syntax. A fenced div or a blockquote would need new syntax, and pandoc
+  wants either set off by a blank line, which makes every item in the list
+  around it a separate paragraph. An item that merely opens on an italic term
+  (`_Fast denies, slow shows_: …`) stays an ordinary item. A callout must stand
+  alone under the item it annotates. One that shares its list with other items,
+  or is nested under no item, fails the render: nothing there settles which item
+  it annotates or where it would sit, so the author decides when a real case
+  first comes up.
 
 ## Appearance {#appearance}
 

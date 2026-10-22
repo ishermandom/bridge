@@ -152,6 +152,7 @@ Maintainer notes — editing this fixture:
   - _Fast denies, slow shows_: a direct 3NT denies a stopper in their suit, and
     2NT then 3NT shows one.
   - Double is negative through 2S and penalty above that.
+    - _Note: negative here shows values but no clear bid._
 - Over a double, redouble shows any 10 or more points; all bids are to play.
 - Over their 1NT overcall of our suit opening, see [](#versus-notrump).
 

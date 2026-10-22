@@ -156,10 +156,11 @@ Jacoby transfers
     ● 3NT: game values, five cards. Opener                          shows one.
       passes or corrects to four of the major.                    ● Double is negative through 2♠ and penalty
     ● A new suit at the three level: natural, game                  above that.
-      forcing, five or more cards.                             ○ Over a double, redouble shows any 10 or
-        □ Opener shows three-card support for                    more points; all bids are to play.
-          the major first, then a stopper.                     ○ Over their 1NT overcall of our suit opening,
-        □ A jump in the fourth suit is a splinter.               see Versus their notrump (p. 7).
+      forcing, five or more cards.                                  Note: negative here shows values but no clear
+                                                                    bid.
+        □ Opener shows three-card support for
+          the major first, then a stopper.                     ○ Over a double, redouble shows any 10 or
+        □ A jump in the fourth suit is a splinter.               more points; all bids are to play.
 
 
 
@@ -168,9 +169,11 @@ Jacoby transfers
 System Notes                                                                                 Notrump openings
 
 
-                                                              4♥ are Texas. The same structures apply after
-The 2NT opening                                               a 2♣ opening and a 2NT rebid
- ○ 20–21 balanced. 3♣ is Stayman, 3♦ and 3♥                   (The strong 2♣ opening (p. 7)).
+ ○ Over their 1NT overcall of our suit opening,               4♥ are Texas. The same structures apply after
+   see Versus their notrump (p. 7).                           a 2♣ opening and a 2NT rebid
+                                                              (The strong 2♣ opening (p. 7)).
+The 2NT opening
+ ○ 20–21 balanced. 3♣ is Stayman, 3♦ and 3♥
    are transfers, 3♠ is a minor-suit relay, 4♦ and
 
 

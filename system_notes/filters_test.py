@@ -1,8 +1,13 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Each Lua filter on small inputs, one filter at a time, through pandoc."""
+"""Each Lua filter on small inputs, one filter at a time, through pandoc.
+
+`pandoc` and `failing_pandoc` dedent their Markdown first, so a test can write a
+multi-line input indented in a triple-quoted string.
+"""
 
 import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -21,7 +26,7 @@ def pandoc(markdown: str, filter_name: str, to: str = 'html') -> str:
       '--to',
       to,
     ],
-    input=markdown,
+    input=textwrap.dedent(markdown),
     capture_output=True,
     text=True,
     encoding='utf-8',
@@ -33,7 +38,7 @@ def failing_pandoc(markdown: str, filter_name: str) -> str:
   """Run pandoc on `markdown` expecting the filter to fail; return stderr."""
   completed = subprocess.run(
     ['pandoc', '--lua-filter', str(FILTERS / filter_name)],
-    input=markdown,
+    input=textwrap.dedent(markdown),
     capture_output=True,
     text=True,
     encoding='utf-8',
@@ -225,3 +230,95 @@ def test_plain_text_keeps_shorthand_as_typed() -> None:
   assert pandoc('OM and 4cM', 'shorthand.lua', to='plain').strip() == (
     'OM and 4cM'
   )
+
+
+# --- callouts ---
+
+
+def test_italic_item_becomes_a_callout_inside_the_item_above_it() -> None:
+  html = pandoc(
+    """
+    - 3S=relay
+      - _Note: always 3S_
+    """,
+    'callouts.lua',
+  )
+  assert html == (
+    '<ul>\n'
+    '<li>3S=relay\n'
+    '<div class="callout">\n'
+    '<em>Note: always 3S</em>\n'
+    '</div></li>\n'
+    '</ul>\n'
+  )
+
+
+def test_plain_text_gives_a_callout_no_marker() -> None:
+  text = pandoc(
+    """
+    - 3S=relay
+      - _Note: always 3S_
+    """,
+    'callouts.lua',
+    to='plain',
+  )
+  assert text.splitlines() == [
+    '- 3S=relay',
+    '  Note: always 3S',
+  ]
+
+
+@pytest.mark.parametrize(
+  'markdown',
+  [
+    # Opens on an italic term, as a definition does.
+    '- _Fast denies_: a direct 3NT denies a stopper\n',
+    '- 3S=_relay_\n',
+    # Holds a list of its own beside its paragraph.
+    """
+    - _Note: see below_
+      - 3S=relay
+    """,
+  ],
+)
+def test_item_not_wholly_one_italic_paragraph_stays_a_list_item(
+  markdown: str,
+) -> None:
+  assert 'callout' not in pandoc(markdown, 'callouts.lua')
+
+
+@pytest.mark.parametrize(
+  'markdown',
+  [
+    """
+    - 3D=transfer
+      - _Note: first_
+      - 3S=min
+    """,
+    """
+    - 3D=transfer
+      - 3S=min
+      - _Note: between_
+      - 3NT=max
+    """,
+    """
+    - 3D=transfer
+      - 3S=min
+      - _Note: last_
+    """,
+    """
+    - 3D=transfer
+      - _Note: one_
+      - _Note: two_
+    """,
+  ],
+  ids=['first', 'between', 'last', 'beside another callout'],
+)
+def test_callout_beside_other_items_fails_the_render(markdown: str) -> None:
+  stderr = failing_pandoc(markdown, 'callouts.lua')
+  assert 'shares its list with other items' in stderr
+
+
+def test_callout_nested_under_no_item_fails_the_render() -> None:
+  stderr = failing_pandoc('- _Note: stray_\n', 'callouts.lua')
+  assert 'is nested under no item' in stderr
