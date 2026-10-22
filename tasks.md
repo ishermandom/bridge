@@ -164,24 +164,3 @@ production signatures for the tests' benefit.
   - Note: the repo has no `.prettierignore` and no project-level prettier
     config; `quiet-prettier.sh` falls back to `~/.prettierrc`. Adding an ignore
     file is a repo-local change and does not touch dotfiles.
-
-- [~] **Measure where the Stop hook's time goes in this repo**: time its run
-  over bridge end to end and per check, and find what dominates.
-  - Note: #parallel-pytest and #parallel-suites hold two speedups already
-    measured here.
-  - Note: the hook itself, `stop_checks.sh`, lives in dotfiles. That repo's
-    tracker has its own timing task, with unlanded work on worktree
-    `stop-hook-timing` that ports the Stop chain to Rust.
-  - Worktree: stop-hook-runtime
-
-- [ ] **Consider running the Python suites in parallel with pytest-xdist**
-      {#parallel-pytest}: a maybe, not yet settled. Four worker processes
-      (`-n 4 --dist worksteal`) took the Python suites' pytest time from a
-      median of ~6.6s to ~4.0s, with all 1,028 tests passing in every parallel
-      run.
-  - Note: more workers ran slower — each one re-collects the whole suite
-    (0.67s), and past four they land on this machine's efficiency cores.
-    `-n auto --maxprocesses 4` caps the count on any machine.
-  - Note: the floor is the slowest single test, a squeeze-generation case at
-    1.3–2.3s, plus worker startup. Module-level caches such as the renderer's
-    shared base card build once per worker. Breakpoints need `-n 0`.
