@@ -107,7 +107,12 @@ fi
 # pytest runs in the foreground so that Ctrl-C reaches it: a script's background
 # jobs ignore Ctrl-C, which leaves only the second-long JavaScript side to run
 # on after an interrupt.
+#
+# `--disable-plugin-autoload` keeps pytest from loading every plugin an
+# installed package advertises, which slows each run even when no test uses the
+# plugin, as with anyio's. A plugin a test needs can be named with `-p`.
 uv run --project "$repo_root" pytest \
+  --disable-plugin-autoload \
   "${marker_args[@]}" \
   "$repo_root/anki" \
   "$repo_root/club_sites/palo_alto" \
