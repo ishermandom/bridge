@@ -11,7 +11,7 @@
 
 use crate::cards::{Rank, RankSet, rank_symbol};
 use crate::describe::{
-    Answer, Condition, Line, Plan, Step, TrickEnd, dedup, implied_reply,
+    Answer, Condition, Line, Plan, Play, Step, TrickEnd, dedup, implied_reply,
     restricted, step_words,
 };
 use crate::layout_set::LayoutSet;
@@ -104,8 +104,26 @@ impl Reader<'_, '_> {
     ) -> Result<(), String> {
         let plan = step.plan;
         let words = step_words(step, self.solver.layouts);
+        // "Cash" says no defender can beat the card. A line shortened by
+        // merging parts could otherwise say so of a deal where a defender
+        // still can.
+        if let Play::Cash(card) = step.play {
+            let missing = self.solver.missing_ranks(position);
+            if let Some(high) = missing.highest().filter(|&high| high > card) {
+                return Err(format!(
+                    "\"{words}\" cashes a card the {} can still beat",
+                    rank_symbol(high)
+                ));
+            }
+        }
+        let named_cards = named_cards(step.play);
         let leader_cards = position.hand(plan.leader);
         let lead = match plan.lead {
+            // A card the words name must be in hand; one they leave unnamed
+            // may be any of its equals.
+            Some(card) if named_cards.contains(card) => {
+                leader_cards.contains(card).then_some(card)
+            }
             Some(card) => {
                 self.card_or_equal(position, leader_cards, card, RankSet::EMPTY)
             }
@@ -159,7 +177,19 @@ impl Reader<'_, '_> {
                 },
                 Some(Answer::Card(card)) => FollowPlay::Card(card),
             };
+            let is_card_named = stated
+                .is_some_and(|exception| exception.answer != Answer::Low)
+                || matches!(named_reply,
+                    FollowPlay::Card(card) if named_cards.contains(card));
             let reply = match named_reply {
+                FollowPlay::Card(card) if is_card_named => {
+                    if !partner_cards.contains(card) {
+                        return Err(format!(
+                            "\"{words}\" plays a card already played"
+                        ));
+                    }
+                    FollowPlay::Card(card)
+                }
                 FollowPlay::Card(card) => FollowPlay::Card(
                     self.card_or_equal(
                         position,
@@ -190,15 +220,25 @@ impl Reader<'_, '_> {
                     declarer_won: done.declarer_wins(self.solver.layouts),
                 };
                 // A split, nested or not, routes the ending to the one part
-                // whose condition it meets.
+                // whose condition it meets, or else to an "Otherwise".
                 let mut next_line = rest;
                 while let Line::Split(parts) = next_line {
-                    let lines: Vec<&Line> = dedup(
+                    let mut lines: Vec<&Line> = dedup(
                         parts
                             .iter()
                             .filter(|part| end.meets(&part.condition))
                             .map(|part| &part.line),
                     );
+                    if lines.is_empty() {
+                        lines.extend(
+                            parts
+                                .iter()
+                                .filter(|part| {
+                                    part.condition == Condition::Otherwise
+                                })
+                                .map(|part| &part.line),
+                        );
+                    }
                     next_line = match lines.as_slice() {
                         [line] => line,
                         [] if self.is_safe(next) => &Line::Done,
@@ -247,6 +287,23 @@ impl Reader<'_, '_> {
     }
 }
 
+/// The cards `play`'s words name, which a reader must hold as named; the
+/// low cards they leave unnamed may be any of their equals.
+fn named_cards(play: Play) -> RankSet {
+    match play {
+        Play::Cash(card)
+        | Play::Toward { lead: None, card }
+        | Play::Run(card)
+        | Play::Lead(card) => RankSet::single(card),
+        Play::Toward {
+            lead: Some(lead),
+            card,
+        } => RankSet::single(lead).with(card),
+        Play::Other { lead, third } => RankSet::single(lead).with(third),
+        Play::LeadLow(_) | Play::Duck(_) => RankSet::EMPTY,
+    }
+}
+
 /// How a trick actually ended, for matching against a line's conditions.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Ending {
@@ -273,11 +330,13 @@ impl Ending {
 
     /// Whether this ending meets `condition`, read literally: a condition
     /// that names no second-hand card holds whatever second hand played.
+    /// "Otherwise" isn't met on its own; it takes what no other part does.
     pub(crate) fn meets(&self, condition: &Condition) -> bool {
         match condition {
             Condition::Wins => self.declarer_won,
             Condition::Loses => !self.declarer_won,
             Condition::Ended(ends) => ends.iter().any(|end| self.is(end)),
+            Condition::Otherwise => false,
         }
     }
 

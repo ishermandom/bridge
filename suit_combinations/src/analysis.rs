@@ -7,15 +7,22 @@ use crate::describe::{Describer, Line, line_words};
 use crate::layout_set::LayoutSet;
 use crate::layouts::{DEAL_COUNT, Layouts};
 use crate::notation::Problem;
+use crate::shorten::OtherwiseRule;
 use crate::solver::{Position, Solver};
 
 /// The longest line, in characters, that `Analysis::line_words` spells out:
 /// about as much as a flashcard's answer can hold. A complete line any
-/// longer is replaced by `TOO_MANY_CASES` rather than cut short, since a
-/// shortened line would leave out cases where the play differs.
+/// longer is replaced by `TOO_MANY_CASES` rather than cut short, since
+/// cutting it would leave out cases where the play differs.
 pub const MAX_LINE_LENGTH: usize = 400;
 
-/// What `Analysis::line_words` says of a line too long to spell out.
+/// How many fewer parts, across all of a problem's tied lines, removing the
+/// most parts must leave to replace the usual case as "Otherwise": one fewer
+/// reads better about as often as it reads worse.
+const MIN_PARTS_SAVED: usize = 2;
+
+/// What `Analysis::line_words` says instead of a line too long to spell out,
+/// or one that fails its check.
 pub const TOO_MANY_CASES: &str =
     "The best play depends on too many cases to describe here";
 
@@ -86,20 +93,28 @@ impl Analysis {
         if self.best[0].deals_by_target[0] == 0 {
             return "No line can succeed".to_string();
         }
-        let mut lines: Vec<String> = Vec::new();
-        for result in &self.best {
-            let words = line_words(&result.line, &self.layouts);
-            if !lines.contains(&words) {
-                lines.push(words);
-            }
-        }
-        if lines.len() == 1 {
-            return lines.remove(0);
-        }
-        let bullets: Vec<String> =
-            lines.iter().map(|line| format!("* {line}")).collect();
-        format!("Either:\n{}", bullets.join("\n"))
+        either_words(self.best.iter().map(|result| &result.line), &self.layouts)
     }
+}
+
+/// `lines` in words, offering each in turn when they read differently.
+fn either_words<'l>(
+    lines: impl IntoIterator<Item = &'l Line>,
+    layouts: &Layouts,
+) -> String {
+    let mut distinct: Vec<String> = Vec::new();
+    for line in lines {
+        let words = line_words(line, layouts);
+        if !distinct.contains(&words) {
+            distinct.push(words);
+        }
+    }
+    if distinct.len() == 1 {
+        return distinct.remove(0);
+    }
+    let bullets: Vec<String> =
+        distinct.iter().map(|words| format!("* {words}")).collect();
+    format!("Either:\n{}", bullets.join("\n"))
 }
 
 /// `deals` as a percentage of all deals.
@@ -142,12 +157,44 @@ pub fn analyze(problem: Problem) -> Analysis {
             .map(|(_, deals)| deals.clone())
             .max()
             .expect("a frontier always holds a result");
-        let mut describer = Describer::new(&mut solver);
-        candidates
+        let tied: Vec<(Vec<LayoutSet>, Vec<u64>)> = candidates
             .into_iter()
             .filter(|(_, deals)| *deals == top)
-            .map(|(layouts_by_target, deals_by_target)| {
-                let line = describer.describe(&layouts_by_target);
+            .collect();
+        let mut describer = Describer::new(&mut solver);
+        let full_lines: Vec<Line> = tied
+            .iter()
+            .map(|(layouts_by_target, _)| describer.describe(layouts_by_target))
+            .collect();
+        let mut shorten_all = |rule: OtherwiseRule| -> Vec<Line> {
+            full_lines
+                .iter()
+                .zip(&tied)
+                .map(|(line, (layouts_by_target, _))| {
+                    describer.shorten(line.clone(), layouts_by_target, rule)
+                })
+                .collect()
+        };
+        // The usual case as "Otherwise" reads most like a teacher, so letting
+        // the most parts go instead is worth it only when the usual case
+        // leaves the answer past the limit, which counts the tied lines
+        // together as `Analysis::line_words` shows them, or leaves at least
+        // `MIN_PARTS_SAVED` more conditions to read.
+        let mut lines = shorten_all(OtherwiseRule::Usual);
+        let length = either_words(&lines, &layouts).chars().count();
+        let usual_parts: usize = lines.iter().map(Line::part_count).sum();
+        if length > MAX_LINE_LENGTH || usual_parts >= MIN_PARTS_SAVED {
+            let fewest = shorten_all(OtherwiseRule::FewestParts);
+            let fewest_parts: usize = fewest.iter().map(Line::part_count).sum();
+            if length > MAX_LINE_LENGTH
+                || fewest_parts + MIN_PARTS_SAVED <= usual_parts
+            {
+                lines = fewest;
+            }
+        }
+        tied.into_iter()
+            .zip(lines)
+            .map(|((layouts_by_target, deals_by_target), line)| {
                 let check = describer.check(&line, &layouts_by_target);
                 BestResult {
                     layouts_by_target,

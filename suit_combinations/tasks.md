@@ -69,6 +69,9 @@ it and gives the go-ahead.
     cards missing and a target that lets declarer lose several tricks. Nearly
     all the time goes to `Frontier::insert`, keeping huge frontiers free of
     beaten results; balanced holdings rarely take a tenth of a second.
+  - Note: for some, describing and checking the lines takes far longer than
+    solving: analyzing 4 opposite KJ97 for 1 trick takes over 600 seconds in
+    all.
 
 ---
 
@@ -76,20 +79,18 @@ it and gives the go-ahead.
 
 **Goal:** describe every line as briefly and faithfully as a teacher would.
 
-- [~] Shorten complete lines the way a teacher would, without leaving anything
-  out, so that fewer of them run past the 400-character limit: 2,652 of 11,702
-  sampled lines do, about one in four, and K8xx opposite JT9 for 3 tricks, the
-  spreadsheet's "Run the J", is among them.
+- [ ] Bring more lines within the 400-character limit: shortened as spec.md
+      #shortening-lines describes, 1,243 of the 2,652 sampled lines that ran
+      past it still do.
   - Rationale: the user, 2026-10-22: a line must be accurate and complete above
     all else; a concise but misleading line is worse than none. Of the ways to
-    show a complete but long line, the user chose the limit, then this task.
-  - Note: the next step is rewrites that `suit_combinations check` validates,
-    keeping each only if the line still checks: "Otherwise" for the heaviest
-    part of a split, dropping parts whose endings "Otherwise" handles, dropping
-    a split left with one part, and dropping stated answers the name's
-    implication covers. A teacher's further shorthand, such as "if an honor
-    falls, cash the other one", would need conditions about cards fallen rather
-    than who played them.
+    show a complete but long line, the user chose the limit, then shortening.
+  - Note: a teacher's further shorthand, such as "if an honor falls, cash the
+    other one", would need conditions about cards fallen rather than who played
+    them.
+  - Note: parts whose lines read the same could share one condition where the
+    "Otherwise" can't take them, as two of the usual case's four parts do for
+    JT97 opposite K83 for 3 tricks.
 - [ ] Describe the lines the check still rejects, which are shown as too many
       cases: 43 of 11,702 sampled problems, mostly a reply naming a card already
       played after branches that answered second hand differently, as in AQJ762
@@ -113,17 +114,9 @@ it and gives the go-ahead.
 - [ ] Offer "Either" only for lines that read differently: K975 opposite AT86
       for 4 tricks offers "Cash the K, then cash the A" and "Cash the A, then
       cash the K", which differ only in plays the line leaves out.
-- [ ] Shorten lines that branch on every show-out, such as KJxx opposite A9xx
-      for 3 tricks, which mostly comes down to cashing the K and then leading
-      low toward the A9, inserting the 9, yet the analyzer spells out every
-      branch.
-  - Note: dropping the parts of a split that few deals reach doesn't work: in
-    KQxxx opposite AT9x for 5 tricks, the rare 4-0 splits are the whole point of
-    the safety play, and the shortened line, "cash the K, then cash the A, then
-    cash the Q", would lose to them.
-  - Note: answering a show-out with the line's own card, when that works, merged
-    most show-out branches into the main line. Complete lines split further, on
-    every card second hand might play, so this task folds into the one above.
+- [ ] Name a ducked trick with a stated answer by the card it plays where that
+      reads better: AT42 opposite 953 for 2 tricks says "duck a round (if West
+      plays a low card, play the A)" for low to the A, ducking West's honors.
 - [ ] Find a condition for remarks that now name only a technique, such as
       "Finesse" for A1042 opposite 953, or "Repeated finesse" for K1084 opposite
       Q32 for 3 tricks: no condition built from three facts comes within 10% of

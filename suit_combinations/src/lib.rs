@@ -14,5 +14,6 @@ pub mod layout_set;
 pub mod layouts;
 pub mod notation;
 pub mod remark;
+mod shorten;
 pub mod solver;
 pub mod suitplay_comparison;

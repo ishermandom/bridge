@@ -159,21 +159,22 @@ play. A play matches across those branches by its cards rather than its name, so
 the description then uses the name that says more.
 
 A condition reads literally: it holds after whatever second hand played unless
-it names second hand's card. So when second hand played different cards in the
-ways a trick went, every condition names second hand's card, as in "If West
-plays the K or the J, low to the T. If West plays a low card, low to the Q.",
-and it says "wins with" only of the card that took the trick. "If that wins" and
-"If it loses" stand only when declarer played the named card every way the trick
-went, since "it" is that card; in KT9xxx opposite xxx, ducking West's A under
-"low to the K" makes "If West wins with the A, cash the K". A group that splits
-again nests its conditions under its own, since they only tell its own branches
-apart.
+it names second hand's card. So when second hand's card differs between the
+branches a split covers, every condition names second hand's card, as in "If
+West plays the K or the J, low to the T", and a condition uses "wins with" only
+for the card that took the trick. "If that wins" and "If it loses" appear only
+when declarer played the named card in every branch, since "it" refers to that
+card. In KT9xxx opposite xxx, for example, the trick is named "low to the K",
+but when West rises with the A, North plays low and keeps the K, so the
+condition reads "If West wins with the A, cash the K". When a group splits
+again, its conditions nest under the group's own condition, since they tell
+apart only that group's branches.
 
-Running a card and then the next cards down the same touching sequence reads as
-the first run alone, "Run the Q" for QJT opposite Axx, since running a sequence
-means running it card by card; the input file writes them so. A run interrupted
-by the other hand's card stays spelled out: "Run the 9, then run the J" from J9x
-opposite AQTx.
+Running a card and then the next cards down the same sequence reads as the first
+run alone, "Run the Q" for Axx opposite QJT, since running a sequence means
+running it card by card; the input file writes such lines this way too. A card
+in the other hand between them breaks the sequence, so each run stays spelled
+out: "Run the 9, then run the J" from AQTx opposite J9x.
 
 The line stops once its target is safe on sure winners, and a reader stops
 following it there too, cashing the winners. Overtricks shape it only where they
@@ -205,24 +206,88 @@ one part's condition; where merging branches would make their later conditions
 overlap, the describer splits them earlier instead, while they can still be told
 apart.
 
-A complete line can run long when the strategy branches a lot. Past 400
-characters, about as much as a flashcard's answer holds, the line says instead
-that the best play depends on too many cases to describe, rather than shortening
-it into something that leaves cases out.
+A complete line can run long when the strategy branches a lot, even once
+shortened as #shortening-lines describes. Past 400 characters, about as much as
+a flashcard's answer holds, the line says instead that the best play depends on
+too many cases to describe, rather than cutting it into something that leaves
+cases out.
+
+### Shortening lines {#shortening-lines}
+
+The describer spells out every case, which is complete but often longer than a
+teacher would put it. A teacher states the unusual cases and lets "Otherwise"
+cover the rest, as in this line for AQT opposite xx for 3 tricks: "Low to the T.
+If West plays the K or the J, low to the T. Otherwise, low to the Q." The line
+is shortened by rewrites like that one, and each rewrite stands only if the line
+still passes its check (#checking-lines). A shortened line is therefore exactly
+as complete as the full one; shortening never trades accuracy for brevity.
+
+- **Unneeded answers**: an answer stated with a trick is removed when the reader
+  reaches the target without it.
+- **"Otherwise"**: one part of a split takes "Otherwise" as its condition and
+  moves last. Then each other part is removed if the "Otherwise" line also
+  reaches the target in that part's branches, and a split left with only
+  "Otherwise" becomes that part's line.
+
+The part that says "Otherwise" is the usual case, the one a teacher would leave
+unstated. The usual case is the part holding the most deals in which declarer
+played the card the trick is named by, as declarer does when second hand plays
+low. Among parts as usual as one another, the one with the longest condition
+takes "Otherwise", saving the most words. In AQxxx opposite J9xx for 5 tricks,
+once the Q holds, the usual case reads "Otherwise, cash the A", dropping West's
+doubleton K. Making "run the J" the "Otherwise" instead would save a part, but
+it repeats the finesse against a K the A would drop. The remark (#remarks),
+which follows the line's usual path, would then call the play a repeated
+finesse.
+
+In two cases the describer sets the usual case aside and removes the most parts
+instead: in each split, it tries the six most usual parts as "Otherwise", and
+keeps the one that removes the most other parts, the more usual of any that tie.
+The two cases are:
+
+- **Past the limit**: the usual case leaves the whole description, with tied
+  lines counted together, past the length limit. A line in less usual terms is
+  better than no line at all. Of 2,652 sampled lines too long before shortening,
+  the usual case alone brought 810 within the limit, and removing the most parts
+  brought 1,409.
+- **Two parts fewer**: removing the most parts leaves the whole description at
+  least two parts shorter than the usual case does. In JT97 opposite K83 for 3
+  tricks, it leaves "If East plays the Q, ... Otherwise, run the J, then low to
+  the T", whereas the usual case splits four ways, two of them reading the same.
+  A single part fewer reads better about as often as it reads worse. In T53
+  opposite AKQ94 for 4 tricks, for example, the usual case names West's
+  show-out, whereas removing the most parts would name every card West might
+  follow with instead.
+
+The describer judges both cases on the whole description rather than split by
+split, because the part chosen as "Otherwise" in one split can push the
+branching to a later trick, where the line splits into more parts than before.
 
 ### Checking lines {#checking-lines}
 
 `suit_combinations check` plays each line the way a reader would, against every
-layout where its strategy reaches the target: each trick's plan, its stated
-answers and those its name implies, and each condition routing the tricks that
-end its way, read literally. It reports where a line stops short, plays a card
-already gone, or leaves an ending to no condition or to two with different
-lines. Equal cards stand in for one another, as they would for a reader.
+layout where its strategy reaches the target. In each trick it follows the plan,
+the answers the line states, and the answers the trick's name implies. After
+each trick it reads every condition literally and follows the part whose
+condition matches how the trick ended; "Otherwise" takes every ending that no
+other condition in its split matches. It reports where a line stops short, plays
+a card already gone, or routes a trick's ending to no condition, or to two
+conditions whose lines differ. Equal cards stand in for the low cards a line
+leaves unnamed, as they would for a reader, but a card the line names must be
+that card.
 
-Every line is checked as it's described, and one that falls short is replaced,
-as an over-long one is, by saying that the best play depends on too many cases,
-so that no line shown misleads. Checking costs about half again the time of
-describing.
+It also reports a "cash" of a card a defender can still beat. Every other name
+says only what declarer plays, which stays true whatever the defenders hold, but
+"cash" also says the card is a sure winner. When several branches share a play,
+its name comes from the branch where that name explains the play best, and a
+cash explains least, so a shared play is called a cash only when it is a cash in
+every branch. Shortening merges parts into the one that says "Otherwise", whose
+play names then cover the merged parts' branches too, so the check holds a
+shortened line to the same rule.
+
+Every line is checked after shortening. A line that fails the check is replaced
+by the same message as an over-long line, that the best play depends on too many
+cases, so that no line shown misleads.
 
 ## Remarks {#remarks}
 

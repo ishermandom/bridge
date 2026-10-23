@@ -4,7 +4,8 @@
 //! Lines that are complete when followed as written, as
 //! `suit_combinations/spec.md` #describing-lines describes: every card
 //! second hand might play is answered, by the trick's name or a stated
-//! answer, and every condition holds as it reads.
+//! answer, and every condition holds as it reads. Shortened, they leave the
+//! usual case as "Otherwise", as #shortening-lines describes.
 
 use suit_combinations::analysis::{TOO_MANY_CASES, analyze, line_errors};
 use suit_combinations::notation::parse_problem;
@@ -23,7 +24,7 @@ fn line_ignores_low_cards_held_only_where_it_fails() {
     assert_eq!(
         line("QT85-A742@4"),
         "Cash the A, then low to the 8. If West plays the J or the 9, low to \
-         the 8. If West plays the 6 or the 3, low to the T."
+         the 8. Otherwise, low to the T."
     );
 }
 
@@ -36,22 +37,53 @@ fn line_answers_a_show_out_with_its_own_card() {
 
 #[test]
 fn line_states_an_answer_its_name_doesnt_imply() {
-    // Over West's T, the cheapest card that wins would be the A; ducking
-    // keeps the A and Q over West's K.
+    // "Cash the A" implies the A over West's T; the line wins with the Q
+    // instead, a play it needs in order to reach the target.
     assert_eq!(
-        line("AQ9xxx-Jx@2"),
-        "Lead the J and play the 9 (if West plays the T, play low)"
+        line("AQxxx-J9x@2"),
+        "Cash the A (if West plays the T, play the Q), then low to the J"
     );
 }
 
 #[test]
-fn line_names_second_hands_card_when_the_ways_differ() {
-    // When West splits an honor, North wins as cheaply as it can and must
-    // finesse again with the T, where "then low to the Q" would be wrong.
+fn line_names_the_unusual_case_and_leaves_the_usual_as_otherwise() {
+    // When West plays the K or the J, North wins as cheaply as it can and
+    // must finesse again with the T; "then low to the Q" would be wrong
+    // there.
     assert_eq!(
         line("AQT-xx@3"),
-        "Low to the T. If West plays the K or the J, low to the T. If West \
-         plays a low card, low to the Q."
+        "Low to the T. If West plays the K or the J, low to the T. Otherwise, \
+         low to the Q."
+    );
+}
+
+#[test]
+fn line_keeps_the_usual_case_as_otherwise_over_one_that_saves_a_part() {
+    // Once the Q holds, cashing the A drops West's doubleton K. Making "run
+    // the J" the "Otherwise" would save a part, but finesses again for
+    // nothing.
+    assert_eq!(
+        line("AQxxx-J9xx@5"),
+        "Low to the Q.\n\
+         - If West plays the K and East plays the T, cash the J, then cash \
+         the 9.\n\
+         - If West plays the K and East plays a low card, cash the J, then \
+         cash the Q.\n\
+         - If West plays a low card and East plays the T, run the J.\n  \
+         - If West plays the K, cash the 9.\n  \
+         - Otherwise, cash the A.\n\
+         - Otherwise, cash the A."
+    );
+}
+
+#[test]
+fn line_lets_the_most_parts_go_when_that_leaves_far_fewer() {
+    // Leaving the usual case as "Otherwise" would split four ways after the
+    // 7, two of the ways reading the same.
+    assert_eq!(
+        line("JT97-K83@3"),
+        "Run the 7. If East plays the Q, lead the 8 to the J, then run the T. \
+         Otherwise, run the J, then low to the T."
     );
 }
 
@@ -60,8 +92,8 @@ fn line_says_second_hand_won_only_when_its_card_did() {
     // North plays low under West's A, which can't be beaten, keeping the K.
     assert_eq!(
         line("KT9xxx-xxx@5"),
-        "Low to the K. If West plays one of the Q, J or the 8, duck a round. \
-         If West wins with the A, cash the K."
+        "Low to the K. If West wins with the A, cash the K. Otherwise, duck a \
+         round."
     );
 }
 

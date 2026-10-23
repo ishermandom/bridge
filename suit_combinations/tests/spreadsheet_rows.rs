@@ -7,7 +7,7 @@
 //! Each test pins the analyzer's own answer, verified by hand. Where it
 //! differs from the row beyond wording, a comment says how.
 
-use suit_combinations::analysis::{TOO_MANY_CASES, analyze};
+use suit_combinations::analysis::analyze;
 use suit_combinations::notation::parse_problem;
 
 /// The analyzer's answer for one problem.
@@ -65,10 +65,9 @@ fn aqt_opposite_xx_makes_3_tricks_when_both_honors_are_onside() {
         answer("AQT-xx@3"),
         Answer {
             success_percent: "24.00".to_string(),
-            line:
-                "Low to the T. If West plays the K or the J, low to the T. If \
-                   West plays a low card, low to the Q."
-                    .to_string(),
+            line: "Low to the T. If West plays the K or the J, low to the T. \
+                   Otherwise, low to the Q."
+                .to_string(),
             remark: "Finesse hoping the K and J are both onside".to_string(),
         }
     );
@@ -109,7 +108,7 @@ fn aq9_opposite_xx_adds_a_chance_with_the_9() {
         Answer {
             success_percent: "63.00".to_string(),
             line: "Low to the 9. If West plays one of the J, T, low to the 9. \
-                   If West plays a low card, low to the Q."
+                   Otherwise, low to the Q."
                 .to_string(),
             remark: "Finesse hoping the K is onside, or the J and T are both \
                     onside"
@@ -130,7 +129,7 @@ fn aj9_opposite_xx_needs_the_t_and_another_honor_onside() {
             success_percent: "37.31".to_string(),
             line:
                 "Low to the 9. If West plays one of the K, Q or the T, low to \
-                   the 9. If West plays a low card, low to the J."
+                   the 9. Otherwise, low to the J."
                     .to_string(),
             remark: "Finesse hoping the T and either the K or Q are onside, \
                     plus a small extra chance (0.31%) from rarer layouts"
@@ -238,12 +237,18 @@ fn akx_opposite_jtx_adds_a_singleton_queen_to_the_finesse() {
 #[test]
 fn k8xx_opposite_jt9_makes_3_tricks_half_the_time() {
     // The row's "Run the J" leaves out what follows West covering, or the A
-    // falling; the complete line runs past what a card can hold.
+    // falling.
     assert_eq!(
         answer("K8xx-JT9@3"),
         Answer {
             success_percent: "50.00".to_string(),
-            line: TOO_MANY_CASES.to_string(),
+            line: "Run the J.\n\
+                   - If West plays the Q, low to the T, then run the 9.\n\
+                   - Otherwise:\n  \
+                   - If West plays a low card and East plays a low card, run \
+                   the T, then run the 9 (if West shows out, play low).\n  \
+                   - Otherwise, run the T."
+                .to_string(),
             remark: "Repeated finesse hoping the Q is onside".to_string(),
         }
     );

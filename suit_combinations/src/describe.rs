@@ -17,6 +17,7 @@ use crate::cards::{Rank, RankSet, rank_symbol};
 use crate::check;
 use crate::layout_set::LayoutSet;
 use crate::layouts::{Defender, Layouts};
+use crate::shorten::OtherwiseRule;
 use crate::solver::{DefenderPlay, FollowPlay, Hand, Position, Solver, Trick};
 
 /// One trick of a line, as the description names it.
@@ -76,6 +77,9 @@ pub enum Condition {
     Loses,
     /// The trick ended in one of these ways.
     Ended(Vec<TrickEnd>),
+    /// The trick ended in a way no other part's condition names; only a
+    /// split's last part has it.
+    Otherwise,
 }
 
 /// How a trick ended: who won it, and the plays that set it apart.
@@ -199,6 +203,18 @@ impl Line {
                         .expect("a split has parts")
                         .line;
                 }
+            }
+        }
+    }
+
+    /// How many parts the line's splits have in all, each with a condition
+    /// to read.
+    pub fn part_count(&self) -> usize {
+        match self {
+            Line::Done => 0,
+            Line::Play(_, rest) => rest.part_count(),
+            Line::Split(parts) => {
+                parts.iter().map(|part| 1 + part.line.part_count()).sum()
             }
         }
     }
@@ -404,10 +420,14 @@ fn is_next_in_sequence(layouts: &Layouts, higher: Rank, lower: Rank) -> bool {
 }
 
 /// A condition in words, such as "If that wins".
-fn condition_words(condition: &Condition, layouts: &Layouts) -> String {
+pub(crate) fn condition_words(
+    condition: &Condition,
+    layouts: &Layouts,
+) -> String {
     let ends = match condition {
         Condition::Wins => return "If that wins".to_string(),
         Condition::Loses => return "If it loses".to_string(),
+        Condition::Otherwise => return "Otherwise".to_string(),
         Condition::Ended(ends) => ends,
     };
     // Whether second hand's card took the trick, beating fourth hand's.
@@ -1728,6 +1748,18 @@ impl<'s, 'a> Describer<'s, 'a> {
         required: &[LayoutSet],
     ) -> Result<(), String> {
         crate::check::check(self.solver, line, required)
+    }
+
+    /// `line`, shortened by every rewrite that keeps it passing `check`,
+    /// choosing each split's "Otherwise" by `rule`, as `crate::shorten`
+    /// describes.
+    pub(crate) fn shorten(
+        &mut self,
+        line: Line,
+        required: &[LayoutSet],
+        rule: OtherwiseRule,
+    ) -> Line {
+        crate::shorten::shorten(self.solver, line, required, rule)
     }
 }
 
