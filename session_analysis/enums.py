@@ -20,7 +20,7 @@ class Direction(enum.StrEnum):
   WEST = 'W'
 
   @property
-  def left_hand_opponent(self) -> 'Direction':
+  def left_hand_opponent(self) -> Direction:
     """The seat to this one's left.
 
     Play moves clockwise, so this is the seat that plays first after this one —

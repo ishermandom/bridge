@@ -97,7 +97,7 @@ class SheetStructure(FrozenModel):
   # disagree, so it is carried rather than discarded.
   notes: str = ''
 
-  def rescaled(self, scale: float) -> 'SheetStructure':
+  def rescaled(self, scale: float) -> SheetStructure:
     """This reading in the full-resolution image's own pixel space.
 
     The model reads a scaled copy (`image_for_model`), so every coordinate it

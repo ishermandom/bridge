@@ -29,12 +29,15 @@ dev = [
   "ruff",
 ]
 
-# No [tool.ruff] table: ruff falls back to the global config at
-# ~/.config/ruff/pyproject.toml only while a project declares none, so a table
-# here would replace that rule set wholesale rather than merge with it. Should
-# a table ever be wanted, `extend = "~/.config/ruff/pyproject.toml"` pulls the
-# shared rules back in.
-#
+# ruff falls back to the global config at ~/.config/ruff/pyproject.toml only
+# while a project declares no [tool.ruff] table, so this table pulls the shared
+# rules back in with `extend` and overrides only the target Python: the shared
+# config's older target rejects syntax this repo uses, such as 3.15's
+# `lazy import`.
+[tool.ruff]
+extend = "~/.config/ruff/pyproject.toml"
+target-version = "py315"
+
 # Mypy has no other config file: runs launch from the repo root, where mypy
 # discovers this table.
 

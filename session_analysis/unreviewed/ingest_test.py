@@ -195,7 +195,7 @@ class _ScriptedTranscriber:
       raise entry
     return entry
 
-  def __enter__(self) -> '_ScriptedTranscriber':
+  def __enter__(self) -> _ScriptedTranscriber:
     return self
 
   def __exit__(

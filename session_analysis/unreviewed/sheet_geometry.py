@@ -91,7 +91,7 @@ class Box(FrozenModel):
     return self.right - self.left
 
   @pydantic.model_validator(mode='after')
-  def _edges_are_ordered(self) -> 'Box':
+  def _edges_are_ordered(self) -> Box:
     """Refuse a rectangle whose edges cross.
 
     Checked here because a `Box` also arrives from outside — a model reading of

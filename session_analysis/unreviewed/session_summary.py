@@ -59,7 +59,7 @@ class Totals:
     return 100 * self.matchpoints / self.tops
 
   @staticmethod
-  def summed(groups: Iterable['Totals']) -> 'Totals':
+  def summed(groups: Iterable[Totals]) -> Totals:
     """Several groups of boards added into one."""
     gathered = list(groups)
     return Totals(

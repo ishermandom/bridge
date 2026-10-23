@@ -387,7 +387,7 @@ class _Players:
     self._by_pair = by_pair
 
   @classmethod
-  def read(cls, section: Mapping[str, object]) -> '_Players':
+  def read(cls, section: Mapping[str, object]) -> _Players:
     """Read a section's pair summaries into a name lookup."""
     by_pair: dict[_PairKey, tuple[str, ...]] = {}
     for entry in _list(section.get('pair_summaries')):

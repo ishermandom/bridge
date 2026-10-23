@@ -155,7 +155,7 @@ def requested_action(body: bytes | None) -> str | None:
 
   try:
     parsed: object = json.loads(body)
-  except (json.JSONDecodeError, UnicodeDecodeError):
+  except json.JSONDecodeError, UnicodeDecodeError:
     return None
 
   if not isinstance(parsed, dict):

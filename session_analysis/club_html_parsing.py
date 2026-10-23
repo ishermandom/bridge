@@ -377,7 +377,7 @@ class _Standings:
     self.date = date
 
   @classmethod
-  def read(cls, soup: bs4.BeautifulSoup) -> issue_reporting.Read['_Standings']:
+  def read(cls, soup: bs4.BeautifulSoup) -> issue_reporting.Read[_Standings]:
     """Read the standings out of the capture's recap block.
 
     A capture with no recap yields empty standings rather than an error: the

@@ -554,7 +554,7 @@ class _BrowserFetcher:
     self._sleep = sleep
     self._started = False
 
-  def __enter__(self) -> '_BrowserFetcher':
+  def __enter__(self) -> _BrowserFetcher:
     return self
 
   def __exit__(self, *exception: object) -> None:

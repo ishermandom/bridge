@@ -331,7 +331,7 @@ class ClubStyle(enum.Enum):
   PAR_SCORE = enum.auto()
 
   @classmethod
-  def of(cls, paragraph: str) -> 'ClubStyle':
+  def of(cls, paragraph: str) -> ClubStyle:
     """The style a published analysis paragraph is in."""
     return cls.PAR_LINE if '<br>Par&nbsp;' in paragraph else cls.PAR_SCORE
 

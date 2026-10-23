@@ -45,7 +45,7 @@ class ScriptedModelRunner:
       args=[], returncode=0, stdout=json.dumps(reply), stderr=''
     )
 
-  def __enter__(self) -> 'ScriptedModelRunner':
+  def __enter__(self) -> ScriptedModelRunner:
     return self
 
   def __exit__(
