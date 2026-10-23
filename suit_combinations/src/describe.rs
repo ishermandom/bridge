@@ -772,7 +772,20 @@ impl<'s, 'a> Describer<'s, 'a> {
         let mut candidates = Vec::new();
         for (leader, lead) in self.solver.leads(position) {
             let trick = Trick::led(position, leader, lead);
-            let options = self.solver.defender_options(trick);
+            // Second hand's plays, leaving out any made only where the line
+            // has already failed: declarer's answer to such a play changes
+            // nothing, so the description never follows it.
+            let options: Vec<(DefenderPlay, LayoutSet)> = self
+                .solver
+                .defender_options(trick)
+                .into_iter()
+                .filter(|&(_, layouts)| {
+                    branch
+                        .required
+                        .iter()
+                        .any(|set| !set.intersection(layouts).is_empty())
+                })
+                .collect();
             // Whether declarer, answering freely, can still meet the
             // requirement after each of second hand's plays.
             let free: Vec<bool> = options
@@ -1181,7 +1194,11 @@ impl<'s, 'a> Describer<'s, 'a> {
         {
             let required = restricted(&branch.required, layouts);
             let shown = led.with_defender_play(play);
-            for reply in self.solver.third_hand_options(shown) {
+            // The line's own reply comes first, when it works here too, so
+            // that the card the line names is the card played.
+            let replies = std::iter::once(third)
+                .chain(self.solver.third_hand_options(shown));
+            for reply in replies {
                 let after_reply =
                     self.solver.defender_turn(shown.with_third(reply));
                 if after_reply.achieves(&required) {

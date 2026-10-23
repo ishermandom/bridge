@@ -124,12 +124,19 @@ when second hand plays low:
 - **Duck a round**: play low from both hands.
 
 "Second hand plays low" means its lowest card below the card declarer means to
-win the trick with. When second hand has no such card, as when West holds only
-the A and Q against a lead of the 9, declarer's reply stays free: such a play
-still matches a sibling branch's "run the 9", and on its own is named by the
-reply the line follows, here covering with the K. The line also follows second
-hand showing out, since a show-out tells declarer where the rest of the suit
-lies.
+win the trick with, among the cards it might play where the line can still
+succeed; declarer's answer to any other card changes nothing. In QT85 opposite
+A742 for 4 tricks, which needs East's K to be singleton, East's low cards don't
+count, and the line reads "Cash the A, then low to the 8, then low to the T"
+rather than following a low card no winning layout holds. When second hand has
+no such card, as when West holds only the A and Q against a lead of the 9,
+declarer's reply stays free: such a play still matches a sibling branch's "run
+the 9", and on its own is named by the reply the line follows, here covering
+with the K. The line also follows second hand showing out, since a show-out
+tells declarer where the rest of the suit lies, and answers the show-out with
+the line's own card when that works too, so the card it names is the card
+played. AQJ opposite xx reads "Low to the Q"; answering West's show-out with the
+A instead would go on to "run the Q", naming the Q twice.
 
 After each trick, the next is joined with "then" when one play suits every way
 the trick might have gone; otherwise the line splits, first on whether the trick
