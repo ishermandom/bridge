@@ -228,7 +228,7 @@ that returns club captures and no ACBL ones may be reporting the environment
 rather than a fault.
 
 - [ ] Fetch a real tournament traveller through the reworked ACBL fetch.
-      Trigger: the next tournament played.
+      Trigger: the next tournament played. {#real-tournament-fetch}
   - Rationale: the rework is proven end to end on the club surface — index, game
     page, stored record — but the tournament surface has only ever been read as
     far as its index, because no tournament fell on the date used to validate
@@ -380,6 +380,13 @@ lane settles the sheet with the user in chat:
 3. Hold the sheet's transcript until every detail is settled, then give it to
    the user inline in the chat.
 
+- [~] Ingest the latest scoresheet, settling it with the user in chat.
+  - Worktree: ingest-sectional-oct-22
+  - Note: the scan waiting in the inbox is `Scanned_20261022-1843.pdf`.
+  - Note: the sheet covers a sectional's morning and afternoon sessions. Ingest
+    it as two sessions, each matched to its own ACBL upload.
+  - Note: this sectional is the trigger #real-tournament-fetch waits for, and
+    its two sessions on one date are the case #multi-session-days covers.
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
