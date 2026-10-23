@@ -124,11 +124,14 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
     let atoms = atoms(layouts, onside);
     let found = simplest_condition(layouts, &atoms, wins);
     let condition = found.as_ref().map(|(condition, _)| condition.clone());
-    let extras = match &condition {
-        Some(condition) => wins.difference(atoms.layouts_of(condition)),
-        None => wins,
+    // Extra chances are extra to a condition; with none, there's nothing for
+    // them to add to.
+    let extras_words = match &condition {
+        Some(condition) => {
+            extras_words(layouts, wins.difference(atoms.layouts_of(condition)))
+        }
+        None => String::new(),
     };
-    let extras_words = extras_words(layouts, extras);
 
     let is_two_way = best.iter().any(|result| {
         let other = result
@@ -263,7 +266,8 @@ fn atoms(layouts: &Layouts, onside: Option<Defender>) -> Atoms {
 }
 
 /// The simplest condition matching `target` to within
-/// `MAX_CONDITION_ERROR`, preferring a simpler one within
+/// `MAX_CONDITION_ERROR`, and more closely than saying nothing would,
+/// preferring a simpler one within
 /// `SIMPLICITY_TOLERANCE`, built from up to three of `atoms`, if any comes
 /// that close. Returns the condition with its error, in deals.
 fn simplest_condition(
@@ -317,7 +321,14 @@ fn simplest_condition(
         }
     }
 
-    let usable = (MAX_CONDITION_ERROR * DEAL_COUNT as f64) as u64;
+    // A condition must also miss less than saying nothing would: claiming
+    // that `target` never happens misses all of it, and claiming that it
+    // always happens misses everything else.
+    let says_nothing = layouts
+        .weight(target)
+        .min(layouts.weight(layouts.all.difference(target)));
+    let usable = ((MAX_CONDITION_ERROR * DEAL_COUNT as f64) as u64)
+        .min(says_nothing.saturating_sub(1));
     let tolerance = (SIMPLICITY_TOLERANCE * DEAL_COUNT as f64) as u64;
     let least = scored.iter().map(|(error, _)| *error).min()?;
     if least > usable {
@@ -325,7 +336,7 @@ fn simplest_condition(
     }
     scored
         .into_iter()
-        .filter(|(error, _)| *error <= least + tolerance)
+        .filter(|(error, _)| *error <= usable.min(least + tolerance))
         .min_by_key(|(error, condition)| (condition.size(), *error))
         .map(|(error, condition)| (condition, error))
 }

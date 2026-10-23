@@ -53,6 +53,18 @@ fn remark_says_when_a_likely_line_fails() {
 }
 
 #[test]
+fn remark_names_no_condition_that_misses_as_much_as_none() {
+    // The line wins 5.17% of the time; "West holds all seven" holds in almost
+    // none of those layouts, so naming it explains nothing.
+    assert_eq!(remark("AKT9-xx@4"), "Finesse");
+}
+
+#[test]
+fn remark_adds_no_extra_chance_without_a_condition() {
+    assert_eq!(remark("AT9-Qxx@3"), "A two-way finesse");
+}
+
+#[test]
 fn remark_names_equal_honors_on_both_sides() {
     assert_eq!(
         remark("AQ8x-K9xx@4"),

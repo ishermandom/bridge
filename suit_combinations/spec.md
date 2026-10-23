@@ -199,23 +199,30 @@ the K or J is onside".
     line without a finesse, with either defender);
   - one defender holding every missing card.
 
-  A condition may miss by up to 10% of deals; a simpler one is preferred when it
-  misses by at most 5% more, which keeps "Repeated finesse hoping the A is
-  onside" for KQ10 opposite xxx rather than adding a clause for a short J.
+  A success condition may miss by up to 10% of deals; a simpler one is preferred
+  when it misses by at most 5% more, which keeps "Repeated finesse hoping the A
+  is onside" for KQT opposite xxx rather than adding a clause for a short J.
 
-  A condition that holds in every layout, or in none, says nothing and is never
-  chosen.
+  A success condition that holds in every layout, or in none, says nothing and
+  is never chosen. Nor is one that misses as many deals as the claim that the
+  line always wins, or the claim that it never wins, would miss. For AKT9
+  opposite xx for 4 tricks, a line that wins 5.17% of the time, the condition
+  "West holds all seven" holds in almost none of the line's wins, so the remark
+  is just "Finesse".
 
-- **Extras**: what the condition misses becomes an extra chance, such as "with a
-  small chance to drop a singleton Q", or a percentage when no simple pattern
-  fits; above 5% of deals it is no longer called small.
-- **Failure**: a line that succeeds more often than not may say instead when it
-  fails, when that is exact where the success condition is not, or simpler:
-  "Finesse; it fails only when East holds all four" for KQ964 opposite A852. The
-  failure condition must hold in every layout where the line fails.
+- **Extras**: what the success condition misses becomes an extra chance, such as
+  "with a small chance to drop a singleton Q", or a percentage when no simple
+  pattern fits; above 5% of deals it is no longer called small. A remark with no
+  success condition has nothing for extras to add to, so it names only the
+  technique, such as "A two-way finesse".
+- **Failure**: a line that succeeds more often than not may instead say when it
+  fails, if the failure condition is exact where the success condition is not,
+  or is simpler: "Finesse; it fails only when East holds all four" for KQ964
+  opposite A852. The failure condition must hold in every layout where the line
+  fails.
 
-A line that succeeds in every layout says so instead, and so does a target that
-best defense always prevents.
+When the line succeeds however the cards lie, or best defense always holds
+declarer below the target, the remark says just that, in place of all of these.
 
 ## Testing {#testing}
 
