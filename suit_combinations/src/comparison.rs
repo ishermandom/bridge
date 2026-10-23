@@ -117,7 +117,7 @@ fn row_problem(
     let target: u8 = target
         .parse()
         .map_err(|_| format!("tricks target {target:?} isn't a number"))?;
-    let longest = combination.north.len().max(combination.south.len());
+    let longest = combination.longer_hand_length();
     if target == 0 || target > longest {
         return Err(format!(
             "tricks target {target} is outside 1 to {longest}, the longer \

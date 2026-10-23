@@ -229,7 +229,34 @@ best defense always prevents.
   only when asked, to keep the default run fast: `cargo test -- --ignored`.
 - **CCAnalyser**: `tests/ccanalyser_checks.rs` pins the harder combinations it
   confirmed, checked within the limits in [tasks.md](tasks.md).
+- **SuitPlay**: the reference the user trusts most, run locally on as many
+  holdings as wanted, as #suitplay describes.
 
 `suit_combinations compare FILE` runs every row of the input file through the
 analyzer and reports where the two differ, so that new rows get the same check
 before a test pins them.
+
+### SuitPlay {#suitplay}
+
+SuitPlay is a Windows program, so `suitplay/` runs it under Wine in a small
+Linux virtual machine that Lima builds from `suitplay/lima.yaml`.
+`suitplay/run.sh` feeds it a file of holdings, and
+`suit_combinations compare-suitplay` compares every trick target of each holding
+with the analyzer.
+
+- **A Linux machine rather than Wine on macOS**: Wine's macOS builds draw only
+  through macOS's own window server, which exists only inside a logged-in
+  session, so they can't run from a session with no one logged in at the screen,
+  such as one over SSH. Wine on Linux draws on a virtual X display instead. The
+  Linux machine runs on ARM, like the Mac, so SuitPlay's Intel code still needs
+  translating: Hangover, a build of Wine for ARM, does that with its own
+  translators rather than Rosetta, which Apple is winding down after macOS 27.
+- **AutoHotkey reads the window's controls**: `suitplay/suitplay.ahk` enters
+  each holding and reads SuitPlay's results list as text, which is exact where
+  reading screenshots could misread a digit.
+- **The license stays the user's decision**: SuitPlay shows its license
+  agreement on a fresh machine, and the scripts accept it only when run with
+  `--accept-license`.
+- **Every target is compared**: SuitPlay answers each holding for every target
+  at once, so one run checks them all, including the sure and impossible ones it
+  leaves unlisted.

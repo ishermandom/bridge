@@ -42,6 +42,26 @@ explains the line alongside the percentage. For now it assumes unlimited entries
 and nothing known about the defenders' hands; constraints such as limited
 entries, and playing for the most tricks on average, are planned.
 
+Its chances can be checked against SuitPlay, a long-established Windows
+analyzer. `suit_combinations/suitplay/run.sh` runs SuitPlay inside a small Linux
+virtual machine on a file of holdings, one per line such as `AQT-xx`, and prints
+SuitPlay's chance of each trick target; `compare-suitplay` then lists every
+target where the two disagree:
+
+```sh
+suit_combinations/suitplay/run.sh holdings.txt > suitplay.tsv
+cargo run --release --manifest-path suit_combinations/Cargo.toml -- \
+  compare-suitplay suitplay.tsv
+```
+
+This needs [Lima](https://lima-vm.io/) (`brew install lima`) and a copy of
+`SuitPlay.exe` in `/Users/Shared/data/bridge/suitplay/`. The first run builds
+the virtual machine, which takes a few minutes and about 5 GB of disk. SuitPlay
+first shows its license agreement; `run.sh holdings.txt --accept-license`
+accepts it. SuitPlay takes a few seconds for most holdings, but can take minutes
+when many cards are missing; `run.sh` gives up on a holding after five minutes,
+or after the number given with `--minutes-per-holding`.
+
 ### Double-dummy solver
 
 `double_dummy/` — Rust

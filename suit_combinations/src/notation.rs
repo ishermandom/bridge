@@ -191,6 +191,13 @@ impl Combination {
     }
 }
 
+impl Combination {
+    /// How many cards the longer hand holds: the most tricks the suit can win.
+    pub fn longer_hand_length(&self) -> u8 {
+        self.north.len().max(self.south.len())
+    }
+}
+
 impl fmt::Display for Combination {
     /// The notation, such as `AQT-xx`.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -242,7 +249,7 @@ pub fn parse_problem(text: &str) -> Result<Problem, NotationError> {
              tricks"
         ))
     })?;
-    let longest = combination.north.len().max(combination.south.len());
+    let longest = combination.longer_hand_length();
     if target == 0 || target > longest {
         return Err(NotationError(format!(
             "problem {text:?} wants {target} tricks; its longer hand can win \

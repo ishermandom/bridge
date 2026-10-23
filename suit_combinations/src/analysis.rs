@@ -84,11 +84,7 @@ pub fn percent_of_deals(deals: u64) -> f64 {
 /// Find the best strategies for `problem`.
 pub fn analyze(problem: Problem) -> Analysis {
     let layouts = Layouts::new(problem.combination);
-    let longest = problem
-        .combination
-        .north
-        .len()
-        .max(problem.combination.south.len());
+    let longest = problem.combination.longer_hand_length();
     let best = {
         let mut solver = Solver::new(&layouts, problem.target, longest);
         let frontier = solver.solve(Position::start(&layouts));
@@ -127,6 +123,22 @@ pub fn analyze(problem: Problem) -> Analysis {
         layouts,
         best,
     }
+}
+
+/// The chance, in percent, that a best strategy reaches `problem`'s target.
+///
+/// Unlike `analyze`, this tracks no overtricks and describes no line, which
+/// makes it the quick way to check many problems' chances.
+pub fn best_success_percent(problem: Problem) -> f64 {
+    let layouts = Layouts::new(problem.combination);
+    let mut solver = Solver::new(&layouts, problem.target, problem.target);
+    let frontier = solver.solve(Position::start(&layouts));
+    let best_deals = frontier
+        .results()
+        .map(|result| layouts.weight(result[0]))
+        .max()
+        .expect("a frontier always holds a result");
+    percent_of_deals(best_deals)
 }
 
 #[cfg(test)]
