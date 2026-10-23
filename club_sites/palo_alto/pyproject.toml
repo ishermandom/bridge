@@ -11,7 +11,7 @@
 name = "pabc-reservations-helper"
 version = "0.0.0"
 description = "Live-site check for the Palo Alto Bridge Center reservations helper."
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 
 # Playwright drives a real browser, which is the only way to check the
 # userscript against markup this project does not control. The floor records

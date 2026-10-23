@@ -37,9 +37,9 @@ _uniform_ line exists.
 
 Rationale for not using a DDS library here: endings are small enough (3–6 cards
 a hand) that exact search in Python is instant, correctness is provable rather
-than approximated, and it avoids a native dependency (`endplay` has no Python
-3.14 wheels yet, though it does build from source — verified, so full 13-card
-deals can adopt it later).
+than approximated, and it avoids a native dependency (`endplay` publishes wheels
+only up to Python 3.13, though it does build from source — verified, so full
+13-card deals can adopt it later).
 
 The same solver drives the robots:
 

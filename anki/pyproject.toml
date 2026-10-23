@@ -6,7 +6,7 @@
 name = "anki-tooling"
 version = "0.0.0"
 description = "Generating and syncing the bridge study deck's Anki cards."
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
   "genanki",
   "markdown-it-py",

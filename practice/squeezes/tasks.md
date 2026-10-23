@@ -32,8 +32,8 @@ quantum defenders, with BridgeMaster-style error stops.
 - [ ] Rectify-the-count problems (duck a trick before the squeeze operates)
 - [ ] Full 13-card deals: pad endings with idle early tricks; adopt `endplay`
       for double-dummy checks at that size
-  - Note: `endplay` has no Python 3.14 wheels but builds from sdist — verified
-    2026-08-04.
+  - Note: `endplay` publishes wheels only up to Python 3.13, but builds from its
+    release tag, as `session_analysis` does — verified on 3.15, 2026-10-23.
 - [ ] Mixed sets: ~half squeezes, ~half look-alikes (finesse as percentage
       play); weighted families per spec.md #generation
 - [ ] Seed and cross-check problems against open corpora: Wikipedia's squeeze

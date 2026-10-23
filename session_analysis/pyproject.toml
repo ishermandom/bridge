@@ -5,7 +5,7 @@
 name = "session-analysis"
 version = "0.0.0"
 description = "Digitizing handwritten bridge scoresheets and analyzing the session."
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
   "beautifulsoup4>=4.12",
   # Bo Haglund's double-dummy solver
@@ -23,7 +23,7 @@ package = false
 [tool.uv.sources]
 # The published sdist cannot build: it carries the solver's C sources but no
 # CMakeLists.txt, while its build hook shells out to cmake, so a plain install
-# fails on every Python version. There are no CPython 3.14 wheels either. The
+# fails on every Python version. Its wheels stop at CPython 3.13, too. The
 # release tag carries the build files the sdist drops, so it is what we build
 # from, and uv locks the commit that tag names, which keeps it reproducible.
 endplay = { git = "https://github.com/dominicprice/endplay", tag = "v0.5.12" }

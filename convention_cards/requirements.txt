@@ -96,8 +96,6 @@ streamlit==1.66.1
     # via convention-cards
 typing-extensions==4.16.0
     # via
-    #   altair
-    #   anyio
     #   pyee
     #   streamlit
 tzdata==2026.5
