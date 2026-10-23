@@ -7,7 +7,7 @@
 //! Each test pins the analyzer's own answer, verified by hand. Where it
 //! differs from the row beyond wording, a comment says how.
 
-use suit_combinations::analysis::analyze;
+use suit_combinations::analysis::{TOO_MANY_CASES, analyze};
 use suit_combinations::notation::parse_problem;
 
 /// The analyzer's answer for one problem.
@@ -58,11 +58,17 @@ fn aqj_opposite_xx_makes_3_tricks_half_the_time() {
 
 #[test]
 fn aqt_opposite_xx_makes_3_tricks_when_both_honors_are_onside() {
+    // The row's "Low to the T, then low to the Q" leaves out West playing
+    // the K or the J, after which North wins as cheaply as it can and
+    // finesses the T again.
     assert_eq!(
         answer("AQT-xx@3"),
         Answer {
             success_percent: "24.00".to_string(),
-            line: "Low to the T, then low to the Q".to_string(),
+            line:
+                "Low to the T. If West plays the K or the J, low to the T. If \
+                   West plays a low card, low to the Q."
+                    .to_string(),
             remark: "Finesse hoping the K and J are both onside".to_string(),
         }
     );
@@ -96,11 +102,15 @@ fn ajt_opposite_xx_makes_2_tricks_unless_both_honors_are_offside() {
 
 #[test]
 fn aq9_opposite_xx_adds_a_chance_with_the_9() {
+    // The row's "Low to the 9, then low to the Q" leaves out West playing
+    // the J or the T, after which the Q wins and North finesses the 9 again.
     assert_eq!(
         answer("AQ9-xx@2"),
         Answer {
             success_percent: "63.00".to_string(),
-            line: "Low to the 9, then low to the Q".to_string(),
+            line: "Low to the 9. If West plays one of the J, T, low to the 9. \
+                   If West plays a low card, low to the Q."
+                .to_string(),
             remark: "Finesse hoping the K is onside, or the J and T are both \
                     onside"
                 .to_string(),
@@ -111,12 +121,17 @@ fn aq9_opposite_xx_adds_a_chance_with_the_9() {
 #[test]
 fn aj9_opposite_xx_needs_the_t_and_another_honor_onside() {
     // The extra chance is West holding the K and Q alone, which fall under
-    // the A and J. The row adds a tip on which cases to consider.
+    // the A and J. The row adds a tip on which cases to consider. Its "Low
+    // to the 9, then low to the J" leaves out West playing the K, the Q or
+    // the T, after which North finesses the 9 again.
     assert_eq!(
         answer("AJ9-xx@2"),
         Answer {
             success_percent: "37.31".to_string(),
-            line: "Low to the 9, then low to the J".to_string(),
+            line:
+                "Low to the 9. If West plays one of the K, Q or the T, low to \
+                   the 9. If West plays a low card, low to the J."
+                    .to_string(),
             remark: "Finesse hoping the T and either the K or Q are onside, \
                     plus a small extra chance (0.31%) from rarer layouts"
                 .to_string(),
@@ -183,11 +198,12 @@ fn kqt_opposite_xxx_loses_to_a_hold_up_of_the_ace() {
 
 #[test]
 fn kjt_opposite_xxx_makes_2_tricks_half_the_time() {
+    // The J and T take the same tricks, so either can be finessed first.
     assert_eq!(
         answer("KJT-xxx@2"),
         Answer {
             success_percent: "50.00".to_string(),
-            line: "Low to the J, then low to the T".to_string(),
+            line: "Low to the T, then low to the J".to_string(),
             remark: "Repeated finesse hoping the Q is onside".to_string(),
         }
     );
@@ -221,11 +237,13 @@ fn akx_opposite_jtx_adds_a_singleton_queen_to_the_finesse() {
 
 #[test]
 fn k8xx_opposite_jt9_makes_3_tricks_half_the_time() {
+    // The row's "Run the J" leaves out what follows West covering, or the A
+    // falling; the complete line runs past what a card can hold.
     assert_eq!(
         answer("K8xx-JT9@3"),
         Answer {
             success_percent: "50.00".to_string(),
-            line: "Run the J".to_string(),
+            line: TOO_MANY_CASES.to_string(),
             remark: "Repeated finesse hoping the Q is onside".to_string(),
         }
     );

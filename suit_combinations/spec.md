@@ -113,10 +113,12 @@ left, since declarer's next card may beat it.
 
 ## Describing lines {#describing-lines}
 
-The description reads like a teacher's summary of the line, such as "Low to the
-T, then low to the Q", rather than a full strategy tree. It follows one main
-line and names each trick by what declarer leads and what the other hand plays
-when second hand plays low:
+A line must be accurate and complete above all: followed as written, it reaches
+the target in every layout where its strategy does, whatever the defenders play.
+A short line that leaves out a case where the play differs is worse than none.
+Within that, it reads like a teacher's summary, such as "Low to the T, then low
+to the Q", and names each trick by what declarer leads and what the other hand
+plays when second hand plays low:
 
 - **Cash the A**: win with a card no defender can beat.
 - **Low to the Q**: lead low toward the Q and play it.
@@ -127,23 +129,45 @@ when second hand plays low:
 win the trick with, among the cards it might play where the line can still
 succeed; declarer's answer to any other card changes nothing. In QT85 opposite
 A742 for 4 tricks, which needs East's K to be singleton, East's low cards don't
-count, and the line reads "Cash the A, then low to the 8, then low to the T"
-rather than following a low card no winning layout holds. When second hand has
-no such card, as when West holds only the A and Q against a lead of the 9,
-declarer's reply stays free: such a play still matches a sibling branch's "run
-the 9", and on its own is named by the reply the line follows, here covering
-with the K. The line also follows second hand showing out, since a show-out
-tells declarer where the rest of the suit lies, and answers the show-out with
-the line's own card when that works too, so the card it names is the card
-played. AQJ opposite xx reads "Low to the Q"; answering West's show-out with the
-A instead would go on to "run the Q", naming the Q twice.
+count, and the first trick reads "Cash the A" rather than naming a low card no
+winning layout holds. When second hand has no such card, as when West holds only
+the A and Q against a lead of the 9, the play still matches a sibling branch's
+"run the 9" by its plan; on its own it ranks below a play named by the card it
+really plays, here covering with the K.
+
+The line answers every other card second hand might play where it can still
+succeed, and the trick's name implies most answers:
+
+- the named card, while it still wins the trick, and over a show-out;
+- otherwise the cheapest card that wins the trick;
+- otherwise a low card.
+
+A trick named as ducked plays low throughout, so it never shares a play with a
+trick that isn't. An answer the name doesn't imply is stated with the trick:
+"Cash the A (if West plays the J, play the Q)". Each answer is recorded as an
+instruction, such as "the cheapest card that wins" or "play low", rather than as
+a particular card, so branches whose cheapest winning card differs can still
+share a play. Playing the named card over a show-out, when that works, means the
+card declarer plays is the card the line names: AQJ opposite xx reads "Low to
+the Q", where answering West's show-out with the A would go on to "run the Q",
+naming the Q twice.
 
 After each trick, the next is joined with "then" when one play suits every way
-the trick might have gone; otherwise the line splits, first on whether the trick
-won or lost, then into groups that share a play. A play matches across those
-branches by its cards rather than its name, so "low to the Q" still matches once
-the K has gone and the Q has become a winner; the description then uses the name
-that says more.
+the trick might have gone; otherwise the line splits into groups that share a
+play. A play matches across those branches by its cards rather than its name, so
+"low to the Q" still matches once the K has gone and the Q has become a winner;
+the description then uses the name that says more.
+
+A condition reads literally: it holds after whatever second hand played unless
+it names second hand's card. So when second hand played different cards in the
+ways a trick went, every condition names second hand's card, as in "If West
+plays the K or the J, low to the T. If West plays a low card, low to the Q.",
+and it says "wins with" only of the card that took the trick. "If that wins" and
+"If it loses" stand only when declarer played the named card every way the trick
+went, since "it" is that card; in KT9xxx opposite xxx, ducking West's A under
+"low to the K" makes "If West wins with the A, cash the K". A group that splits
+again nests its conditions under its own, since they only tell its own branches
+apart.
 
 Running a card and then the next cards down the same touching sequence reads as
 the first run alone, "Run the Q" for QJT opposite Axx, since running a sequence
@@ -151,10 +175,11 @@ means running it card by card; the input file writes them so. A run interrupted
 by the other hand's card stays spelled out: "Run the 9, then run the J" from J9x
 opposite AQTx.
 
-The line stops once its target is safe on sure winners. Overtricks shape it only
-where they come free: a branch whose target is already safe goes along with the
-other branches' play when that play suits it, which is how "Low to the T, then
-low to the Q" keeps its second finesse after the T wins.
+The line stops once its target is safe on sure winners, and a reader stops
+following it there too, cashing the winners. Overtricks shape it only where they
+come free: a branch whose target is already safe goes along with the other
+branches' play when that play keeps its target safe, which is how "Low to the T,
+then low to the Q" keeps its second finesse after the T wins.
 
 Among lines that work equally well, the description prefers:
 
@@ -180,20 +205,45 @@ one part's condition; where merging branches would make their later conditions
 overlap, the describer splits them earlier instead, while they can still be told
 apart.
 
+A complete line can run long when the strategy branches a lot. Past 400
+characters, about as much as a flashcard's answer holds, the line says instead
+that the best play depends on too many cases to describe, rather than shortening
+it into something that leaves cases out.
+
+### Checking lines {#checking-lines}
+
+`suit_combinations check` plays each line the way a reader would, against every
+layout where its strategy reaches the target: each trick's plan, its stated
+answers and those its name implies, and each condition routing the tricks that
+end its way, read literally. It reports where a line stops short, plays a card
+already gone, or leaves an ending to no condition or to two with different
+lines. Equal cards stand in for one another, as they would for a reader.
+
+Every line is checked as it's described, and one that falls short is replaced,
+as an over-long one is, by saying that the best play depends on too many cases,
+so that no line shown misleads. Checking costs about half again the time of
+describing.
+
 ## Remarks {#remarks}
 
 A remark explains why the line works, the way a teacher would: "Finesse hoping
 the K or J is onside".
 
-- **Technique**, from the finesses along the line's likeliest path: none is
-  "Play for the drop"; two against the same single card, as KQx takes against
-  the A, is a "Repeated finesse"; anything else is a "Finesse". Tied lines that
-  finesse different defenders make "A two-way finesse".
-- **Onside** means the defender who plays before declarer's finessing card in
-  the line's first finesse.
-- **Condition**: the simplest statement, built from up to three facts, that
-  matches the layouts where the line wins. The facts are:
-  - an honor lying onside or offside, or one or all of a run of equal honors;
+- **Technique**, from the finesses along the line's usual path: a path with no
+  finesse is "Play for the drop"; one with two finesses against the same single
+  card, as KQx takes against the A, is a "Repeated finesse"; anything else is a
+  "Finesse". Tied lines that finesse different defenders make "A two-way
+  finesse". At each split, the path takes the part the most deals reach after
+  declarer played the card the trick is named by, as the usual case does
+  (#shortening-lines). So AQT opposite xx for 3 tricks is a "Finesse" of the T
+  and then the Q, though more deals reach the part where West plays the K or the
+  J.
+- **Onside**: a card is onside when it lies with the defender who plays before
+  declarer's finessing card in the line's first finesse.
+- **Success condition**: the simplest statement, built from up to three facts,
+  that matches the layouts where the line wins. The facts are:
+  - an honor lying onside or offside, or, for equal honors such as the K and Q,
+    one of them or all of them;
   - the suit splitting evenly;
   - an honor being singleton, or at most doubleton, onside or offside (or, for a
     line without a finesse, with either defender);

@@ -7,6 +7,7 @@
 
 pub mod analysis;
 pub mod cards;
+mod check;
 pub mod comparison;
 pub mod describe;
 pub mod layout_set;

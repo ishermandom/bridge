@@ -76,30 +76,32 @@ it and gives the go-ahead.
 
 **Goal:** describe every line as briefly and faithfully as a teacher would.
 
-- [~] Follow every card second hand might play where the line can still win,
-  rather than only the lowest and a show-out, and say how declarer answers each.
-  Plays that only another card leads to go unmentioned today: AT98 opposite Kxxx
-  for 4 tricks reads "Cash the A, then cash the K", which covers East's QJ
-  doubleton, 3.39% of the line's 9.04%. When West's singleton honor drops
-  instead, the line takes two finesses against East's honor, and says nothing of
-  them.
+- [~] Shorten complete lines the way a teacher would, without leaving anything
+  out, so that fewer of them run past the 400-character limit: 2,652 of 11,702
+  sampled lines do, about one in four, and K8xx opposite JT9 for 3 tricks, the
+  spreadsheet's "Run the J", is among them.
   - Rationale: the user, 2026-10-22: a line must be accurate and complete above
-    all else; a concise but misleading line is worse than none.
-  - Note: conditions share the gap, since they name only the last defender's
-    card: in AQTxxx opposite xxx for 5 tricks, "Cash the A, then low to the Q. …
-    If it loses, cash the Q." reads as though the Q lost, but the losing branch
-    is West's singleton K, ducked. The next three tasks likely follow from this
-    one.
-- [ ] Name each card once along a line: 53 of 11,702 sampled lines name one
-      twice, such as "Low to the 9, then low to the T, then low to the T" for
-      AT42 opposite 953 for 2 tricks. One play answers second hand's different
-      cards with different cards, as KQ964 opposite A852 plays the 6 over West's
-      3 and the 9 over West's 7, and the line names only one of them.
+    all else; a concise but misleading line is worse than none. Of the ways to
+    show a complete but long line, the user chose the limit, then this task.
+  - Note: the next step is rewrites that `suit_combinations check` validates,
+    keeping each only if the line still checks: "Otherwise" for the heaviest
+    part of a split, dropping parts whose endings "Otherwise" handles, dropping
+    a split left with one part, and dropping stated answers the name's
+    implication covers. A teacher's further shorthand, such as "if an honor
+    falls, cash the other one", would need conditions about cards fallen rather
+    than who played them.
+- [ ] Describe the lines the check still rejects, which are shown as too many
+      cases: 43 of 11,702 sampled problems, mostly a reply naming a card already
+      played after branches that answered second hand differently, as in AQJ762
+      opposite 93 for 4 tricks.
+- [ ] Name each card once along a line where the reader can't tell why: "Low to
+      the 9. If West wins with one of the K, Q, J, or East shows out, low to the
+      T, then low to the T." for AT42 opposite 953 is accurate, since the first
+      T only stays in hand where West's honor fell to the A, but reads oddly.
   - Note: naming each trick for its likeliest branch's cards was tried and
     dropped: it turned KQ964 opposite A852's safety play, "Cash the A, then low
     to the 9", into "Cash the A, then cash the K, then cash the Q, then cash the
-    K". Answering show-outs with the line's own card fixed most cases, from 210
-    of 11,702.
+    K".
 - [ ] Lead and follow with the lowest of equal choices: AKT8 opposite 532 for 3
       tricks reads "Lead the 5 to the A" where "Cash the A" plays the same, and
       Q7 opposite AJ8642 for 5 tricks "Lead the Q and play the 6" where "Run the
@@ -120,8 +122,8 @@ it and gives the go-ahead.
     the safety play, and the shortened line, "cash the K, then cash the A, then
     cash the Q", would lose to them.
   - Note: answering a show-out with the line's own card, when that works, merged
-    most show-out branches into the main line: sampled lines needing an outline
-    fell from 487 to 163 of 11,702. KJxx opposite A9xx still splits.
+    most show-out branches into the main line. Complete lines split further, on
+    every card second hand might play, so this task folds into the one above.
 - [ ] Find a condition for remarks that now name only a technique, such as
       "Finesse" for A1042 opposite 953, or "Repeated finesse" for K1084 opposite
       Q32 for 3 tricks: no condition built from three facts comes within 10% of
@@ -139,6 +141,13 @@ it and gives the go-ahead.
       rather than finesses: QT85 opposite A742 for 4 tricks gets "Finesse hoping
       the K is singleton offside", where the A drops East's singleton K before
       the finesses against West.
+- [ ] Give remarks for lines without a finesse the conditions that need one:
+      AQ8x opposite K9xx for 4 tricks, whose complete line cashes top cards
+      unless someone shows out, says only "Play for the drop", where it once
+      said "Finesse hoping the suit splits 3-2, or the J and T are split".
+  - Note: conditions about where a card lies, such as "the J and T are split",
+    come only with a finesse to set onside; one that fits either way round would
+    serve a drop as well.
 - [ ] Name the technique correctly when one hand is void: AKT74 opposite a void
       for 3 tricks gets "Finesse hoping the suit splits 4-4, plus 7.34% more",
       though with nothing to lead from in the other hand no finesse is possible;

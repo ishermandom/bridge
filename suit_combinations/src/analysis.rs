@@ -9,6 +9,16 @@ use crate::layouts::{DEAL_COUNT, Layouts};
 use crate::notation::Problem;
 use crate::solver::{Position, Solver};
 
+/// The longest line, in characters, that `Analysis::line_words` spells out:
+/// about as much as a flashcard's answer can hold. A complete line any
+/// longer is replaced by `TOO_MANY_CASES` rather than cut short, since a
+/// shortened line would leave out cases where the play differs.
+pub const MAX_LINE_LENGTH: usize = 400;
+
+/// What `Analysis::line_words` says of a line too long to spell out.
+pub const TOO_MANY_CASES: &str =
+    "The best play depends on too many cases to describe here";
+
 /// One best strategy: its result and its line of play.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BestResult {
@@ -19,6 +29,9 @@ pub struct BestResult {
     pub deals_by_target: Vec<u64>,
     /// The line of play.
     pub line: Line,
+    /// Whether a reader following the line as written reaches the target
+    /// wherever the strategy does, as `Describer::check` finds, and why not.
+    pub check: Result<(), String>,
 }
 
 impl BestResult {
@@ -55,8 +68,21 @@ impl Analysis {
     }
 
     /// The best line in words, offering each best strategy in turn when
-    /// several tie with different lines.
+    /// several tie with different lines, or saying that it has too many
+    /// cases to describe when it runs past `MAX_LINE_LENGTH` or a line
+    /// fails its check.
     pub fn line_words(&self) -> String {
+        let words = self.full_line_words();
+        let is_checked = self.best.iter().all(|result| result.check.is_ok());
+        if words.chars().count() > MAX_LINE_LENGTH || !is_checked {
+            return TOO_MANY_CASES.to_string();
+        }
+        words
+    }
+
+    /// The best line in words, however long, offering each best strategy in
+    /// turn when several tie with different lines.
+    pub fn full_line_words(&self) -> String {
         if self.best[0].deals_by_target[0] == 0 {
             return "No line can succeed".to_string();
         }
@@ -81,7 +107,19 @@ pub fn percent_of_deals(deals: u64) -> f64 {
     100.0 * deals as f64 / DEAL_COUNT as f64
 }
 
-/// Find the best strategies for `problem`.
+/// Why each of `problem`'s best lines, if any, would fail a reader who
+/// follows it, as `Describer::check` finds: empty when every line reaches
+/// the target wherever its strategy does.
+pub fn line_errors(problem: Problem) -> Vec<String> {
+    analyze(problem)
+        .best
+        .into_iter()
+        .filter_map(|result| result.check.err())
+        .collect()
+}
+
+/// Find the best strategies for `problem`, describing and checking each
+/// one's line.
 pub fn analyze(problem: Problem) -> Analysis {
     let layouts = Layouts::new(problem.combination);
     let longest = problem.combination.longer_hand_length();
@@ -110,10 +148,12 @@ pub fn analyze(problem: Problem) -> Analysis {
             .filter(|(_, deals)| *deals == top)
             .map(|(layouts_by_target, deals_by_target)| {
                 let line = describer.describe(&layouts_by_target);
+                let check = describer.check(&line, &layouts_by_target);
                 BestResult {
                     layouts_by_target,
                     deals_by_target,
                     line,
+                    check,
                 }
             })
             .collect()

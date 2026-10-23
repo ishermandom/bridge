@@ -1,0 +1,300 @@
+// Copyright 2026 Ilya Sherman (ishermandom@)
+// SPDX-License-Identifier: MIT
+
+//! Following a described line the way a reader would, to confirm that it
+//! reaches the target wherever its strategy does.
+//!
+//! The reading is set out in `suit_combinations/spec.md` #checking-lines. In
+//! short: each trick is played as its plan says, with the answers its step
+//! states and those its name implies; each condition is read literally; and
+//! the reader stops once the target is safe on sure winners.
+
+use crate::cards::{Rank, RankSet, rank_symbol};
+use crate::describe::{
+    Answer, Condition, Line, Plan, Step, TrickEnd, dedup, implied_reply,
+    restricted, step_words,
+};
+use crate::layout_set::LayoutSet;
+use crate::layouts::Defender;
+use crate::solver::{DefenderPlay, FollowPlay, Position, Solver, Trick};
+
+/// Whether `line` reaches `solver`'s lowest target wherever `required`'s
+/// first set says it must, played the way a reader would play it. An error
+/// says where the line falls short, after the tricks that led there.
+pub(crate) fn check(
+    solver: &mut Solver,
+    line: &Line,
+    required: &[LayoutSet],
+) -> Result<(), String> {
+    let start = Position::start(solver.layouts);
+    Reader { solver }.check_from(line, start, required)
+}
+
+/// A reader following a line, with the solver to tell what the defenders
+/// might play.
+struct Reader<'s, 'a> {
+    solver: &'s mut Solver<'a>,
+}
+
+impl Reader<'_, '_> {
+    /// `check` from `position`, with `required` cut down to the layouts
+    /// still possible there.
+    fn check_from(
+        &mut self,
+        line: &Line,
+        position: Position,
+        required: &[LayoutSet],
+    ) -> Result<(), String> {
+        if required[0].is_empty() || self.is_safe(position) {
+            return Ok(());
+        }
+        match line {
+            Line::Done => Err(format!(
+                "the line stops with {} tricks won and the target not yet \
+                 safe, in {} deals",
+                position.tricks_won,
+                self.solver.layouts.weight(required[0])
+            )),
+            Line::Split(_) => {
+                Err("the line splits before any trick".to_string())
+            }
+            Line::Play(step, rest) => {
+                self.check_trick(step, rest, position, required)
+            }
+        }
+    }
+
+    /// `card` if `cards` still holds it, or else one of `cards` that takes
+    /// the same tricks, counting `contested` as left, as a reader would play
+    /// in its stead; None if there's neither.
+    fn card_or_equal(
+        &self,
+        position: Position,
+        cards: RankSet,
+        card: Rank,
+        contested: RankSet,
+    ) -> Option<Rank> {
+        if cards.contains(card) {
+            return Some(card);
+        }
+        // Count `card` as still held to find what takes the same tricks,
+        // then play the lowest of the others.
+        self.solver
+            .equivalent_cards(position, cards.with(card), card, contested)
+            .without(card)
+            .lowest()
+    }
+
+    /// Whether the target is safe at `position` on sure winners, where the
+    /// reader stops following the line and cashes them.
+    fn is_safe(&self, position: Position) -> bool {
+        let rounds_left = position.north.len().max(position.south.len());
+        let certain = position.tricks_won
+            + self.solver.sure_tricks(position).min(rounds_left);
+        certain >= self.solver.lowest_target
+    }
+
+    /// `check_from` for a trick played as `step` says, followed by `rest`.
+    fn check_trick(
+        &mut self,
+        step: &Step,
+        rest: &Line,
+        position: Position,
+        required: &[LayoutSet],
+    ) -> Result<(), String> {
+        let plan = step.plan;
+        let words = step_words(step, self.solver.layouts);
+        let leader_cards = position.hand(plan.leader);
+        let lead = match plan.lead {
+            Some(card) => {
+                self.card_or_equal(position, leader_cards, card, RankSet::EMPTY)
+            }
+            None => leader_cards.lowest(),
+        }
+        .ok_or_else(|| format!("\"{words}\" leads a card already played"))?;
+        let named = Plan {
+            leader: plan.leader,
+            lead,
+            third: plan.third,
+        };
+        let trick = Trick::led(position, plan.leader, lead);
+        let at_stake: Vec<(DefenderPlay, LayoutSet)> = self
+            .solver
+            .defender_options(trick)
+            .into_iter()
+            .filter(|&(_, layouts)| {
+                required
+                    .iter()
+                    .any(|set| !set.intersection(layouts).is_empty())
+            })
+            .collect();
+        let second_defender = plan.leader.next_defender();
+        let partner_cards = position.hand(plan.leader.partner());
+        for &(second, layouts) in &at_stake {
+            let required = restricted(required, layouts);
+            if required[0].is_empty() {
+                continue;
+            }
+            let stated = step.exceptions.iter().find(|exception| {
+                exception.defender == second_defender
+                    && exception.play == second
+            });
+            let contested = match second {
+                DefenderPlay::Group(group) => {
+                    self.solver.layouts.groups[group].ranks
+                }
+                DefenderPlay::ShowOut => RankSet::EMPTY,
+            };
+            let named_reply = match stated.map(|exception| exception.answer) {
+                None => implied_reply(
+                    self.solver.layouts,
+                    position,
+                    named,
+                    step.play,
+                    second,
+                ),
+                Some(Answer::Low) => match partner_cards.lowest() {
+                    Some(lowest) => FollowPlay::Card(lowest),
+                    None => FollowPlay::Discard,
+                },
+                Some(Answer::Card(card)) => FollowPlay::Card(card),
+            };
+            let reply = match named_reply {
+                FollowPlay::Card(card) => FollowPlay::Card(
+                    self.card_or_equal(
+                        position,
+                        partner_cards,
+                        card,
+                        contested,
+                    )
+                    .ok_or_else(|| {
+                        format!("\"{words}\" plays a card already played")
+                    })?,
+                ),
+                FollowPlay::Discard => FollowPlay::Discard,
+            };
+            let played = trick.with_defender_play(second).with_third(reply);
+            for (fourth, _) in self.solver.defender_options(played) {
+                let done = played.with_defender_play(fourth);
+                let next = done.next_position(self.solver.layouts);
+                let next_required =
+                    restricted(&required, self.solver.live(next));
+                if next_required[0].is_empty() {
+                    continue;
+                }
+                let end = Ending {
+                    second_defender,
+                    second,
+                    fourth_defender: plan.leader.last_defender(),
+                    fourth,
+                    declarer_won: done.declarer_wins(self.solver.layouts),
+                };
+                // A split, nested or not, routes the ending to the one part
+                // whose condition it meets.
+                let mut next_line = rest;
+                while let Line::Split(parts) = next_line {
+                    let lines: Vec<&Line> = dedup(
+                        parts
+                            .iter()
+                            .filter(|part| end.meets(&part.condition))
+                            .map(|part| &part.line),
+                    );
+                    next_line = match lines.as_slice() {
+                        [line] => line,
+                        [] if self.is_safe(next) => &Line::Done,
+                        [] => {
+                            return Err(format!(
+                                "after \"{words}\", no condition covers \
+                                 {end:?}"
+                            ));
+                        }
+                        _ => {
+                            return Err(format!(
+                                "after \"{words}\", two conditions with \
+                                 different lines cover {end:?}"
+                            ));
+                        }
+                    };
+                }
+                self.check_from(next_line, next, &next_required).map_err(
+                    |error| {
+                        let card = |play: DefenderPlay| match play {
+                            DefenderPlay::Group(group) => rank_symbol(
+                                self.solver.layouts.groups[group].top(),
+                            )
+                            .to_string(),
+                            DefenderPlay::ShowOut => "-".to_string(),
+                        };
+                        let reply = match reply {
+                            FollowPlay::Card(card) => {
+                                rank_symbol(card).to_string()
+                            }
+                            FollowPlay::Discard => "-".to_string(),
+                        };
+                        // The trick, in play order, then what failed after it.
+                        format!(
+                            "[{} {} {} {}] {error}",
+                            rank_symbol(lead),
+                            card(second),
+                            reply,
+                            card(fourth)
+                        )
+                    },
+                )?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// How a trick actually ended, for matching against a line's conditions.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Ending {
+    second_defender: Defender,
+    second: DefenderPlay,
+    fourth_defender: Defender,
+    fourth: DefenderPlay,
+    declarer_won: bool,
+}
+
+impl Ending {
+    /// The ending a branch records, or None for one that doesn't say what
+    /// second hand played.
+    pub(crate) fn of(end: TrickEnd) -> Option<Ending> {
+        let (second_defender, second) = end.second?;
+        Some(Ending {
+            second_defender,
+            second,
+            fourth_defender: end.defender,
+            fourth: end.play,
+            declarer_won: end.declarer_won,
+        })
+    }
+
+    /// Whether this ending meets `condition`, read literally: a condition
+    /// that names no second-hand card holds whatever second hand played.
+    pub(crate) fn meets(&self, condition: &Condition) -> bool {
+        match condition {
+            Condition::Wins => self.declarer_won,
+            Condition::Loses => !self.declarer_won,
+            Condition::Ended(ends) => ends.iter().any(|end| self.is(end)),
+        }
+    }
+
+    /// Whether this ending is one `end` names.
+    fn is(&self, end: &TrickEnd) -> bool {
+        let is_second = |(defender, play): (Defender, DefenderPlay)| {
+            (defender, play) == (self.second_defender, self.second)
+        };
+        if end.defender == self.second_defender && end.second.is_none() {
+            // An ending merged into second hand's play names second hand as
+            // its defender and no second play; it holds whatever fourth hand
+            // played and whoever won the trick.
+            return end.play == self.second;
+        }
+        end.second.is_none_or(is_second)
+            && end.defender == self.fourth_defender
+            && end.play == self.fourth
+            && end.declarer_won == self.declarer_won
+    }
+}
