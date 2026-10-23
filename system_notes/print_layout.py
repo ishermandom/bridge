@@ -42,7 +42,10 @@ from pathlib import Path
 from xml.etree.ElementTree import Comment, Element, SubElement, tostring
 
 import tinyhtml5
-import weasyprint
+
+# Loaded at first use: WeasyPrint takes a sizable fraction of a second to load,
+# and most importers of this module never render.
+lazy import weasyprint
 
 from system_notes import pdf_inspection
 

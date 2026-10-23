@@ -21,7 +21,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-import weasyprint
+# Loaded at first use, as in `print_layout`.
+lazy import weasyprint
 
 from system_notes import pdf_inspection, print_layout
 
