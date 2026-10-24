@@ -215,10 +215,12 @@ A date is not a game, though. The club publishes every game it runs and its
 calendar is read by date, so a day with a morning and an afternoon game stores
 captures of both. A day we played twice also puts two of our sheets on one date.
 Matched on the date alone, the other game's captures join our session,
-contradict its deals on every board, and leave every deal unfilled. Nothing
-time-like tells the games apart: only the ACBL club surface publishes anything
-of the kind, as the coarse `club_session` label (`Monday Morning`), and the
-club's own files carry a date and nothing finer.
+contradict its deals on every board, and leave every deal unfilled. Little
+time-like tells the games apart. The ACBL club surface publishes only a coarse
+`club_session` label (`Monday Morning`), and the club's own files carry a date
+and nothing finer. An ACBL tournament page does open on its session's start time
+(`Oct 22, 2026 - Thursday 10:00 am`), but `acbl_tournament_parsing` keeps only
+the date.
 
 **What tells the games apart is the sheet's opening leads.** A lead has to be a
 card the hand on lead held. So each session sharing a capture's date has its

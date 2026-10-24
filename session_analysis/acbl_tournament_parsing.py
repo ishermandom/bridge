@@ -478,11 +478,23 @@ def _results(
       ),
     )
 
+  east_west = tables.get(Side.EAST_WEST)
   east_west_matchpoints = {
     key: _number(_column(row, _MATCHPOINTS_COLUMN))
-    for row in _rows(tables.get(Side.EAST_WEST))
+    for row in _rows(east_west)
     if (key := _row_key(_pairs(row, listed_first=Side.EAST_WEST)))
   }
+  issues: tuple[Issue, ...] = ()
+  if not east_west:
+    # The rows survive without this table, but every East-West matchpoint goes
+    # with it, and nothing downstream could tell that loss from a page that
+    # never printed them.
+    issues = (
+      _NO_RESULTS_TABLE.issue(
+        'the board has no East-West results table — its rows carry no '
+        'East-West matchpoints'
+      ),
+    )
   # Which sides were vulnerable, for the scoring that recovers a row's tricks.
   vulnerability = board_rotation.vulnerability_for_board(board_number)
   vulnerable = vulnerability.vulnerable_sides
@@ -504,7 +516,7 @@ def _results(
     )
   # Every failure a row can hold is reported on the row itself, which keeps the
   # pairs and the score beside whatever could not be read from them.
-  return issue_reporting.Read(tuple(results))
+  return issue_reporting.Read(tuple(results), issues=issues)
 
 
 def _tables(panel: bs4.Tag) -> Mapping[Side, bs4.Tag]:
@@ -520,7 +532,12 @@ def _tables(panel: bs4.Tag) -> Mapping[Side, bs4.Tag]:
   found: dict[Side, bs4.Tag] = {}
   for table in row.find_all('table', class_='board-results-table'):
     heading = table.find_previous(['h4', 'h3'])
-    side = _TABLE_SIDES.get(_flattened(heading)) if heading else None
+    # A heading can carry a trailing asterisk the page never explains: the
+    # 2026-10-22 afternoon session prints `E-W*` over every East-West table, and
+    # stars every score in it.
+    side = (
+      _TABLE_SIDES.get(_flattened(heading).rstrip('*')) if heading else None
+    )
     if side and side not in found:
       found[side] = table
   return found

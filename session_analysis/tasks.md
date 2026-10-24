@@ -227,13 +227,6 @@ older one does not. The club capture route needs no browser at all, so a run
 that returns club captures and no ACBL ones may be reporting the environment
 rather than a fault.
 
-- [ ] Fetch a real tournament traveller through the reworked ACBL fetch.
-      Trigger: the next tournament played. {#real-tournament-fetch}
-  - Rationale: the rework is proven end to end on the club surface — index, game
-    page, stored record — but the tournament surface has only ever been read as
-    far as its index, because no tournament fell on the date used to validate
-    it. The two surfaces share their machinery, so this is confirmation rather
-    than suspicion.
 - [ ] Stop every run from reporting the captures known to hold no boards.
       {#capture-diagnosis}
   - Rationale: `traveller_store` reports `capture_held_no_boards` for every
@@ -297,11 +290,9 @@ rather than a fault.
     no stored capture fits the leads of a sheet from another game. The captures
     on disk that carry no deals carry no boards either, so `traveller_store`
     writes no record for them and matching never sees them (#capture-diagnosis).
-  - Note: only the ACBL club surface publishes anything time-like today, as a
-    coarse `club_session` label (`Monday Morning`); the club's own PBN and HTML
-    and the ACBL tournament pages carry a date and nothing finer. Tournament
-    captures are expected to state a session time, which is the first thing to
-    check.
+  - Note: travellers.md `#matching` says which sources state a session's time. A
+    tournament page states its start time, which the parser drops, so that is
+    the first tiebreak to reach for where a tournament session is ambiguous.
   - Open question: the event text is the obvious tiebreak, and `session_keys`
     explains why matching on it was rejected — the sources spell one event four
     different ways. A fuzzy tiebreak used only when the date is ambiguous is a
@@ -377,16 +368,10 @@ lane settles the sheet with the user in chat:
 1. Run the whole path first — ingest, the traveller fetch, and reconciliation.
 2. While the review UI (`#review-ui`) has not landed, raise any detail that
    needs clarifying or review in chat, and apply the user's fixes there.
-3. Hold the sheet's transcript until every detail is settled, then give it to
-   the user inline in the chat.
+3. Hold the sheet's transcript until every detail is settled, then save it as
+   text and as a page in the private tree's `transcripts/`, where the user opens
+   it (#page-reaches-user).
 
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-sectional-oct-22
-  - Note: the scan waiting in the inbox is `Scanned_20261022-1843.pdf`.
-  - Note: the sheet covers a sectional's morning and afternoon sessions. Ingest
-    it as two sessions, each matched to its own ACBL upload.
-  - Note: this sectional is the trigger #real-tournament-fetch waits for, and
-    its two sessions on one date are the case #multi-session-days covers.
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
@@ -533,9 +518,14 @@ lane settles the sheet with the user in chat:
     transcript the way `PASSED OUT` is. A sat-out board carries no contract, no
     lead and no matchpoints, and yet carries a deal: it was dealt whether or not
     we played it, so reconciliation fills it like any other.
-  - Note: one spelling seen so far, `SIT ouT`, twice, in that one session. The
+  - Note: two spellings seen so far: `SIT ouT` twice on 2026-09-04, and
+    `SIT OUT` on all three boards of the 2026-10-23 afternoon's sit-out. The
     sheet's capitalization is erratic, so read it case-insensitively and expect
-    other wordings rather than pinning to this one.
+    other wordings rather than pinning to either.
+  - Note: `pabc-sect-fri-aft-2026-10-23-p2` settled its sit-out boards, 19 to
+    21, by clearing each row and noting the sit-out on the board, so the
+    transcript skips them. Once a sit-out has a resolution of its own, those
+    three boards want it set.
 - [ ] Let the lead cell say what the sheet says. {#partial-and-marked-leads}
   - Rationale: two forms the sheet really writes both come back as
     `unparseable_lead`, and both are faithful transcriptions rather than
@@ -800,6 +790,9 @@ argued in `unreviewed.double_dummy_comparison`.
     script instead.
   - Open question: whether the page takes a path to save to, or always lands
     beside the stored text transcripts.
+  - Note: the user can open either `/Users/Shared/transfer` or the private
+    tree's `transcripts/`, and the latter keeps the page durably beside its
+    text.
 
 ---
 

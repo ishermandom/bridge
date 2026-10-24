@@ -131,7 +131,7 @@ def _make_diagram(
 
 
 def _make_panel(
-  number: int,
+  board_number: int,
   *,
   labels: str = '',
   diagram: str = '',
@@ -155,7 +155,8 @@ def _make_panel(
       f'<div class="par-score"><a href="#par">Par Score</a>'
       f'<span>{par}</span></div>'
     )
-  return f'<div class="board" id="board-{number}">{"".join(blocks)}</div>'
+  contents = ''.join(blocks)
+  return f'<div class="board" id="board-{board_number}">{contents}</div>'
 
 
 def _make_pairs(
@@ -208,6 +209,7 @@ def _make_board(
   *,
   north_south_rows: Sequence[str] = (),
   east_west_rows: Sequence[str] = (),
+  east_west_heading: str = 'E-W',
 ) -> str:
   """A board's row: the panel on one side, its two results tables on the other.
 
@@ -219,7 +221,7 @@ def _make_board(
     f'<div class="col-sm-4">{panel}</div>'
     '<div class="col-sm-8">'
     f'{_make_results_table("N-S", north_south_rows)}'
-    f'{_make_results_table("E-W", east_west_rows)}'
+    f'{_make_results_table(east_west_heading, east_west_rows)}'
     '</div></div>'
   )
 
@@ -662,6 +664,30 @@ def test_matchpoints_are_joined_across_the_two_tables() -> None:
   assert row.east_west_matchpoints == 1.5
 
 
+def test_east_west_matchpoints_are_read_under_an_asterisked_heading() -> None:
+  # Some sessions print `E-W*` over the East-West table and star every score in
+  # it, explaining the mark nowhere. Scores are read from the North-South table,
+  # so only the heading has to be read past.
+  pairs = _make_pairs(('1', ['Alfa']), ('3', ['Charlie']))
+  reversed_pairs = _make_pairs(('3', ['Charlie']), ('1', ['Alfa']))
+  traveller = parse_markup(
+    _make_board(
+      _make_panel(board_number=1),
+      north_south_rows=[_make_results_row(pairs=pairs, matchpoints='2.50')],
+      east_west_rows=[
+        _make_results_row(
+          pairs=reversed_pairs, score='110*', matchpoints='1.50'
+        )
+      ],
+      east_west_heading='E-W*',
+    )
+  )
+
+  board = traveller.boards[0]
+  assert board.results[0].east_west_matchpoints == 1.5
+  assert board.issues == ()
+
+
 def test_the_east_west_table_lists_its_own_pair_first() -> None:
   # Each table names its own side's pair first, so the East-West one has to be
   # put back into North-South order before the join. Distinct numbers on the two
@@ -795,6 +821,30 @@ def test_a_board_whose_results_table_is_missing_reports_the_lost_rows() -> None:
   board = traveller.boards[0]
   assert board.results == ()
   assert [issue.code for issue in board.issues] == ['no_results_table']
+
+
+def test_an_unknown_east_west_heading_reports_the_lost_matchpoints() -> None:
+  # A heading naming no side leaves the board without an East-West table. The
+  # rows survive on the North-South table alone, but blank East-West matchpoints
+  # would otherwise read as a page that never printed them.
+  pairs = _make_pairs(('1', ['Alfa']), ('3', ['Charlie']))
+  reversed_pairs = _make_pairs(('3', ['Charlie']), ('1', ['Alfa']))
+  traveller = parse_markup(
+    _make_board(
+      _make_panel(board_number=1),
+      north_south_rows=[_make_results_row(pairs=pairs, matchpoints='2.50')],
+      east_west_rows=[
+        _make_results_row(pairs=reversed_pairs, matchpoints='1.50')
+      ],
+      east_west_heading='Totals',
+    )
+  )
+
+  board = traveller.boards[0]
+  assert board.results[0].north_south_matchpoints == 2.5
+  assert board.results[0].east_west_matchpoints is None
+  assert [issue.code for issue in board.issues] == ['no_results_table']
+  assert 'East-West' in board.issues[0].message
 
 
 def test_a_dealer_contradicting_the_board_number_is_reported() -> None:
