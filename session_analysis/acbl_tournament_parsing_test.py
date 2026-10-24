@@ -131,8 +131,8 @@ def _make_diagram(
 
 
 def _make_panel(
-  board_number: int,
   *,
+  board_number: int,
   labels: str = '',
   diagram: str = '',
   double_dummy: tuple[str, str] | None = None,
@@ -256,7 +256,7 @@ def test_the_event_comes_from_the_summary_heading() -> None:
   # words `Event Summary` trailing it.
   traveller = parse_markup(
     '<h2>Placeholder Open Pairs Event Summary</h2>',
-    _make_board(_make_panel(1)),
+    _make_board(_make_panel(board_number=1)),
   )
 
   assert traveller.event == 'Placeholder Open Pairs'
@@ -264,7 +264,8 @@ def test_the_event_comes_from_the_summary_heading() -> None:
 
 def test_the_date_comes_from_the_opening_heading() -> None:
   traveller = parse_markup(
-    '<h1>May 12, 2026 - Tuesday 1:00 pm</h1>', _make_board(_make_panel(1))
+    '<h1>May 12, 2026 - Tuesday 1:00 pm</h1>',
+    _make_board(_make_panel(board_number=1)),
   )
 
   assert traveller.date == datetime.date(2026, 5, 12)
@@ -276,14 +277,14 @@ def test_boards_take_the_section_heading_above_them() -> None:
   traveller = parse_markup(
     '<h3 class="section">Section A</h3>',
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(pairs=_make_pairs(('1', ['Alfa']), ('4', ['Bravo'])))
       ],
     ),
     '<h3 class="section">Section B</h3>',
     _make_board(
-      _make_panel(2),
+      _make_panel(board_number=2),
       north_south_rows=[
         _make_results_row(
           pairs=_make_pairs(('1', ['Charlie']), ('4', ['Delta']))
@@ -301,7 +302,9 @@ def test_boards_take_the_section_heading_above_them() -> None:
 
 
 def test_every_seat_is_dealt_thirteen_cards() -> None:
-  traveller = parse_markup(_make_board(_make_panel(1, diagram=_make_diagram())))
+  traveller = parse_markup(
+    _make_board(_make_panel(board_number=1, diagram=_make_diagram()))
+  )
 
   deal = traveller.boards[0].deal
   assert deal is not None
@@ -317,7 +320,7 @@ def test_the_diagram_is_read_as_it_is_laid_out() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1,
+        board_number=1,
         diagram=_make_diagram(
           {
             Direction.NORTH: {Suit.SPADES: 'A K Q J 10 9 8 7 6 5 4 3 2'},
@@ -344,7 +347,7 @@ def test_a_void_written_as_an_em_dash() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1,
+        board_number=1,
         diagram=_make_diagram(
           {
             Direction.NORTH: {
@@ -371,7 +374,7 @@ def test_a_void_written_as_an_em_dash() -> None:
 
 def test_a_panel_printing_no_diagram_has_no_deal() -> None:
   # A panel is still a board without one, and its rows stand on their own.
-  traveller = parse_markup(_make_board(_make_panel(1)))
+  traveller = parse_markup(_make_board(_make_panel(board_number=1)))
 
   assert traveller.boards[0].deal is None
   assert not traveller.boards[0].issues
@@ -387,7 +390,7 @@ def test_seats_straddling_seven_tricks() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1,
+        board_number=1,
         double_dummy=(f'NS: {spades}6/7', f'EW: 1/-{spades} {spades}7/6'),
       )
     )
@@ -406,7 +409,8 @@ def test_a_trick_count_below_seven() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1, double_dummy=(f'NS: {hearts}0 {clubs}5', f'EW: 6{hearts} 2{clubs}')
+        board_number=1,
+        double_dummy=(f'NS: {hearts}0 {clubs}5', f'EW: 6{hearts} 2{clubs}'),
       )
     )
   )
@@ -421,7 +425,9 @@ def test_an_unreadable_double_dummy_line_costs_only_the_analysis() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1, diagram=_make_diagram(), double_dummy=('NS: rubbish', 'EW: rubbish')
+        board_number=1,
+        diagram=_make_diagram(),
+        double_dummy=('NS: rubbish', 'EW: rubbish'),
       )
     )
   )
@@ -461,7 +467,9 @@ def test_par_stated_for_a_seat() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1, double_dummy=(f'NS: 4{spades}', 'EW: '), par=f'+420 4{spades}-N'
+        board_number=1,
+        double_dummy=(f'NS: 4{spades}', 'EW: '),
+        par=f'+420 4{spades}-N',
       )
     )
   )
@@ -483,7 +491,7 @@ def test_a_doubling_wrapped_in_a_span_of_its_own() -> None:
   traveller = parse_markup(
     _make_board(
       _make_panel(
-        1,
+        board_number=1,
         par=(
           f'-100 4{hearts}'
           '<span style="font-size: 18px;display: inline;">*</span>-N-1'
@@ -507,7 +515,9 @@ def test_a_par_result_that_cannot_be_recovered_costs_only_par() -> None:
   spades = _make_glyph(Suit.SPADES)
   traveller = parse_markup(
     _make_board(
-      _make_panel(1, diagram=_make_diagram(), par=f'+420 4{spades}-N'),
+      _make_panel(
+        board_number=1, diagram=_make_diagram(), par=f'+420 4{spades}-N'
+      ),
       north_south_rows=[
         _make_results_row(pairs=_make_pairs(('1', ['Alfa']), ('4', ['Bravo'])))
       ],
@@ -527,7 +537,7 @@ def test_a_par_result_that_cannot_be_recovered_costs_only_par() -> None:
 def test_a_row_names_both_pairs() -> None:
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(
           pairs=_make_pairs(
@@ -552,7 +562,7 @@ def test_a_player_whose_own_name_is_hyphenated() -> None:
   # never what the names are split on.
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(
           pairs=_make_pairs(
@@ -575,7 +585,7 @@ def test_the_trick_count_is_recovered_from_the_score() -> None:
   spades = _make_glyph(Suit.SPADES)
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(contract=f'4{spades}', declarer='N', score='420')
       ],
@@ -595,7 +605,7 @@ def test_recovery_uses_the_vulnerability_the_board_number_fixes() -> None:
   diamonds = _make_glyph(Suit.DIAMONDS)
   traveller = parse_markup(
     _make_board(
-      _make_panel(2),
+      _make_panel(board_number=2),
       north_south_rows=[
         _make_results_row(contract=f'6{diamonds}x', declarer='W', score='1100')
       ],
@@ -614,7 +624,7 @@ def test_a_vulnerable_grand_slam() -> None:
   spades = _make_glyph(Suit.SPADES)
   traveller = parse_markup(
     _make_board(
-      _make_panel(2),
+      _make_panel(board_number=2),
       north_south_rows=[
         _make_results_row(contract=f'7{spades}', declarer='N', score='2210')
       ],
@@ -632,7 +642,7 @@ def test_a_contract_doubled_more_times_than_exist_is_no_contract() -> None:
   spades = _make_glyph(Suit.SPADES)
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(contract=f'4{spades}xxx', declarer='N', score='420')
       ],
@@ -651,7 +661,7 @@ def test_matchpoints_are_joined_across_the_two_tables() -> None:
   reversed_pairs = _make_pairs(('3', ['Charlie']), ('1', ['Alfa']))
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[_make_results_row(pairs=pairs, matchpoints='2.50')],
       east_west_rows=[
         _make_results_row(pairs=reversed_pairs, matchpoints='1.50')
@@ -694,7 +704,7 @@ def test_the_east_west_table_lists_its_own_pair_first() -> None:
   # sides are what make a wrong order visible.
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(
           pairs=_make_pairs(('1', ['Alfa']), ('9', ['Charlie'])),
@@ -720,7 +730,7 @@ def test_a_row_naming_no_pairs_joins_to_nothing() -> None:
   # East-West matchpoints rather than whichever other row is equally anonymous.
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[_make_results_row(matchpoints='2.00')],
       east_west_rows=[_make_results_row(matchpoints='1.00')],
     )
@@ -737,7 +747,7 @@ def test_a_passed_out_board() -> None:
   # from one nobody played.
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(
           score='PASS',
@@ -759,7 +769,7 @@ def test_a_row_the_page_records_no_contract_for() -> None:
   # the fact of the non-result are part of the record.
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(
           score='NS', pairs=_make_pairs(('1', ['Alfa']), ('3', ['Charlie']))
@@ -782,7 +792,7 @@ def test_a_score_no_result_of_the_contract_reaches_is_reported() -> None:
   spades = _make_glyph(Suit.SPADES)
   traveller = parse_markup(
     _make_board(
-      _make_panel(1),
+      _make_panel(board_number=1),
       north_south_rows=[
         _make_results_row(
           contract=f'4{spades}',
@@ -816,7 +826,7 @@ def test_a_page_holding_no_game_reports_an_issue() -> None:
 def test_a_board_whose_results_table_is_missing_reports_the_lost_rows() -> None:
   # Every board on every capture seen has both tables, so a board with none
   # means the markup has moved and its rows would otherwise vanish quietly.
-  traveller = parse_markup(_make_panel(1))
+  traveller = parse_markup(_make_panel(board_number=1))
 
   board = traveller.boards[0]
   assert board.results == ()
@@ -852,7 +862,9 @@ def test_a_dealer_contradicting_the_board_number_is_reported() -> None:
   # printed one is read only to be checked. Board 1 is North's deal.
   traveller = parse_markup(
     _make_board(
-      _make_panel(1, labels='<span>Dlr: E</span><span>Vul: None</span>')
+      _make_panel(
+        board_number=1, labels='<span>Dlr: E</span><span>Vul: None</span>'
+      )
     )
   )
 
