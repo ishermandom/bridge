@@ -372,12 +372,6 @@ lane settles the sheet with the user in chat:
    text and as a page in the private tree's `transcripts/`, where the user opens
    it (#page-reaches-user).
 
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-tournament-oct-24
-  - Note: the scan waiting in the inbox is `Scanned_20261024-1809.pdf`.
-  - Note: the sheet covers a tournament's two sessions. Ingest it as two
-    sessions, each matched to its own ACBL upload.
-  - Note: the user sat West on every board of both sessions.
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
