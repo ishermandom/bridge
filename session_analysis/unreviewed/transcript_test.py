@@ -648,14 +648,14 @@ def test_the_header_names_the_session_and_its_date() -> None:
   assert next(iter(render_session(session))) == 'Monday Pairs — 2026-06-29'
 
 
-def test_the_header_is_a_single_line() -> None:
+def test_the_header_leaves_out_the_stored_key() -> None:
   session = _make_session(
     _make_board(auction=[_make_bid(1, Strain.CLUBS)]),
     session_key='pabc-mon-2026-06-29',
   )
 
-  # The stored key names the same session as the event and date, so it is left
-  # out of a header kept to one line.
+  # The stored key names the same session as the event and date, so a session
+  # with no recap to link has a header of one line.
   assert list(render_session(session))[1] == ''
 
 
@@ -667,16 +667,110 @@ def test_a_date_the_footer_did_not_yield_says_so() -> None:
   assert next(iter(render_session(session))) == 'Monday Pairs — date not read'
 
 
+def test_the_header_links_each_recap_published_for_the_session() -> None:
+  session = _make_session(
+    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+    travellers=(
+      CaptureReference(
+        path='acbl_club/my.acbl.org/details/1.html',
+        url='https://acbl.example.com/details/1',
+      ),
+      CaptureReference(
+        path='club/gameresults2/R260629M.htm',
+        url='https://club.example.com/R260629M.htm',
+      ),
+    ),
+  )
+
+  # In plain text, each address follows on a comment line of its own, and the
+  # sites' names are left to the web page.
+  assert list(render_session(session))[:4] == [
+    'Monday Pairs — 2026-06-29',
+    'Recaps:',
+    '- https://acbl.example.com/details/1',
+    '- https://club.example.com/R260629M.htm',
+  ]
+
+
+def test_a_lone_recap_is_named_in_the_singular() -> None:
+  session = _make_session(
+    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+    travellers=(
+      CaptureReference(
+        path='acbl_tournament/live.acbl.org/1/summary.html',
+        url='https://live.example.com/1/summary',
+      ),
+    ),
+  )
+
+  assert list(render_session(session))[1:3] == [
+    'Recap:',
+    '- https://live.example.com/1/summary',
+  ]
+
+
+def test_the_club_s_deal_file_is_not_linked_as_a_recap() -> None:
+  # The club publishes a PBN beside its HTML recap, for programs to read.
+  session = _make_session(
+    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+    travellers=(
+      CaptureReference(
+        path='club/gameresults2/D260629M.pbn',
+        url='https://club.example.com/D260629M.pbn',
+      ),
+    ),
+  )
+
+  assert 'D260629M.pbn' not in _lines_of(session)
+
+
+def test_a_recap_saved_by_hand_is_not_linked() -> None:
+  session = _make_session(
+    _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+    travellers=(CaptureReference(path='club/R260629M.html'),),
+  )
+
+  assert 'Recap' not in _lines_of(session)
+
+
+def test_the_page_links_each_recap_by_its_site_s_name(tmp_path: Path) -> None:
+  record = _write_record(
+    tmp_path,
+    _make_session(
+      _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+      travellers=(
+        CaptureReference(
+          path='acbl_club/my.acbl.org/details/1.html',
+          url='https://acbl.example.com/details/1',
+        ),
+        CaptureReference(
+          path='club/gameresults2/R260629M.htm',
+          url='https://club.example.com/R260629M.htm',
+        ),
+      ),
+    ),
+  )
+  pages: list[str] = []
+
+  main([str(record), '--page'], show_page=pages.append)
+
+  [page] = pages
+  acbl = '<a href="https://acbl.example.com/details/1">ACBL</a>'
+  club = '<a href="https://club.example.com/R260629M.htm">club</a>'
+  assert f'Recaps: {acbl}, {club}</p>' in page
+
+
 # --- laying the boards out ---
 
 
-def test_the_board_lines_run_with_nothing_between_them() -> None:
+def test_board_lines_with_no_link_run_with_nothing_between_them() -> None:
   session = _make_session(
     _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
     _make_board(6, auction=[_make_bid(1, Strain.HEARTS)]),
   )
 
-  # A solid block of rows is what pastes cleanly into a spreadsheet.
+  # Neither board has a deal to link to the solver, so no address comes between
+  # their lines.
   assert '#5\t1C\n#6\t1H' in _lines_of(session)
 
 
@@ -736,6 +830,61 @@ def test_a_line_carries_no_trailing_whitespace() -> None:
   assert [
     line for line in render_session(session) if line != line.rstrip()
   ] == []
+
+
+# --- links to the solver ---
+
+
+def test_a_board_with_a_deal_is_followed_by_its_solver_link() -> None:
+  # West, on lead against South, holds the two of spades.
+  session = _make_session(
+    _make_board(
+      5,
+      outcome=_make_outcome(
+        level=3,
+        strain=Strain.NOTRUMP,
+        declarer=Direction.SOUTH,
+        tricks_taken=9,
+      ),
+      opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
+      deal=a_deal_the_lead_decides(),
+    )
+  )
+
+  # `_make_number` fixes North as dealer and nobody vulnerable.
+  assert (
+    '#5\t3NS+3\tlead=2oS\n'
+    '- https://dds.bridgewebs.com/bsol_standalone/ddummy.htm?board=5&dealer=N'
+    '&vul=None&north=AKQJ..AKQJ.AKQJT&east=76.8765432.76.43'
+    '&south=T98.T9.T98.98765&west=5432.AKQJ.5432.2'
+    '&contract=3NT&declarer=S&leadcard=2S'
+  ) in _lines_of(session)
+
+
+def test_the_page_links_a_board_s_number_to_the_solver(
+  tmp_path: Path,
+) -> None:
+  record = _write_record(
+    tmp_path,
+    _make_session(
+      _make_board(
+        5,
+        auction=[_make_bid(1, Strain.CLUBS)],
+        deal=a_deal_the_lead_decides(),
+      )
+    ),
+  )
+  pages: list[str] = []
+
+  main([str(record), '--page'], show_page=pages.append)
+
+  [page] = pages
+  # The number itself is the link, so the line reads as it did without one.
+  assert (
+    '><a href="https://dds.bridgewebs.com/bsol_standalone/ddummy.htm'
+    '?board=5&amp;dealer=N&amp;'
+  ) in page
+  assert '>#5</a>' in page
 
 
 # --- the result against the double dummy ---

@@ -77,6 +77,13 @@ contract and score twice, under `Actual` and `Can Do`, beside an empty `Action`,
 so that the reader can fill in what a better action would have scored. The line
 above that table leaves blanks, in square brackets, for where the better score
 would have placed.
+
+Two kinds of link lead out to what the transcript cannot hold itself. A line
+under the header links each recap published for the session — the ACBL's and the
+club's own, whichever of them its travellers were fetched from. And each board's
+number links to a double-dummy solver, set up on the board as the table played
+it (`solver_links`). Plain text has nothing to click, so there each address goes
+on a comment line under the line holding its link.
 """
 
 import argparse
@@ -86,9 +93,9 @@ import tempfile
 import webbrowser
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from decimal import ROUND_HALF_UP, Decimal
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from session_analysis import notation
+from session_analysis import notation, traveller_store
 from session_analysis.enums import CallKind, Penalty, Rank, Strain
 from session_analysis.models import (
   AuctionEntry,
@@ -102,16 +109,23 @@ from session_analysis.models import (
   Passout,
   PlayedContract,
   Session,
+  Source,
 )
 from session_analysis.private_paths import PrivateTree, discover_private_tree
+from session_analysis.travellers import TravellerSource
 from session_analysis.unreviewed import (
   double_dummy_comparison,
   session_summary,
+  solver_links,
 )
 from session_analysis.unreviewed.transcript_layout import (
   Alignment,
   Block,
+  Cell,
   FullWidthRow,
+  Line,
+  Link,
+  LinkList,
   Paragraph,
   Placeholder,
   Table,
@@ -165,6 +179,15 @@ _PENALTY_MARKS: Mapping[Penalty, str] = {
   Penalty.REDOUBLED: '**',
 }
 
+# How the header names each kind of capture a reader would open as a recap. The
+# club's PBN is left out: it is a deal file for programs, where its HTML is the
+# same game's page for people.
+_RECAP_NAMES: Mapping[TravellerSource, str] = {
+  TravellerSource.ACBL_CLUB: 'ACBL',
+  TravellerSource.ACBL_TOURNAMENT: 'ACBL',
+  TravellerSource.CLUB_HTML: 'club',
+}
+
 # Scores and percentages are printed to the hundredth, rounding a half up the
 # way a reader rounding by hand would: 17 of 32 is 53.13%, not banker's 53.12%.
 _HUNDREDTHS = Decimal('0.01')
@@ -201,8 +224,11 @@ def render_session(session: Session) -> Iterator[str]:
 
 
 def _header(session: Session, *, has_played_boards: bool) -> Paragraph:
-  """The session's name and date, then any caveat about the whole of it."""
-  lines = [_session_title(session)]
+  """The session's name and date, its recaps, and any caveat about it whole."""
+  lines: list[Line] = [_session_title(session)]
+  recaps = _recap_line(session.source)
+  if recaps:
+    lines.append(recaps)
 
   # A session no traveller has reached has no double-dummy analysis to compare
   # its results against — whether its game published no traveller, or
@@ -214,6 +240,25 @@ def _header(session: Session, *, has_played_boards: bool) -> Paragraph:
       'No traveller has reached this session; nothing to compare against.'
     )
   return Paragraph(tuple(lines))
+
+
+def _recap_line(source: Source) -> Line | None:
+  """A link to each recap published for the session, or None if none is.
+
+  A recap is linked only where something fetched it, since a capture saved by
+  hand carries no address (`CaptureReference`), and a guessed one would look no
+  different from a real one.
+  """
+  links: list[Link] = []
+  for capture in source.travellers:
+    kind = traveller_store.capture_source(PurePosixPath(capture.path))
+    name = _RECAP_NAMES.get(kind) if kind else None
+    if capture.url and name:
+      links.append(Link(name, capture.url))
+  if not links:
+    return None
+  label = 'Recap: ' if len(links) == 1 else 'Recaps: '
+  return (label, LinkList(tuple(links)))
 
 
 def _session_title(session: Session) -> str:
@@ -423,9 +468,9 @@ def _board_table(
 ) -> Table:
   """The boards as one table, a line apiece.
 
-  In plain text nothing sits between two boards, so that the lines paste into a
-  spreadsheet as a solid block of rows. On the web page the table allows notes
-  between its rows.
+  Each board's number links to the solver, where the board has a deal to open
+  there, so in plain text a board's line can carry the link's address on a line
+  under it. On the web page the table allows notes between its rows.
   """
   return Table(
     alignments=(Alignment.LEFT,) * 6,
@@ -437,14 +482,16 @@ def _board_table(
 def _board_cells(
   board: Board,
   comparisons: Mapping[int, double_dummy_comparison.BoardComparison],
-) -> tuple[str, ...]:
+) -> tuple[Cell, ...]:
   """One board's line, a cell empty where nothing was recorded or compared."""
   # A board whose number went unread reaches no traveller row, and so has no
   # comparison waiting for it under any key.
   schedule = board.number.schedule
   compared = comparisons.get(schedule.number) if schedule else None
+  number = _spell_number(board.number, prefix='#')
+  solver_link = solver_links.solver_link(board)
   return (
-    _spell_number(board.number, prefix='#'),
+    Link(number, solver_link) if solver_link else number,
     _spell_bidding(board),
     _spell_lead(board.opening_lead),
     _spell_matchpoints(board.matchpoints),

@@ -45,8 +45,39 @@ class Placeholder:
   text: str
 
 
-# A line of text, whole or in pieces, some of them placeholders.
-Line = str | tuple[str | Placeholder, ...]
+@dataclasses.dataclass(frozen=True)
+class Link:
+  """Text that leads to a web address.
+
+  The web page makes the text itself the link. Plain text has no links, so it
+  keeps the text where it stands, as part of what its line says, and gives the
+  address a line of its own under the line or row holding it, written as a
+  comment is: a dash, then the address.
+  """
+
+  text: str
+  url: str
+
+
+@dataclasses.dataclass(frozen=True)
+class LinkList:
+  """Links named one after another, such as the places a session is published.
+
+  The web page names each in turn, a comma between two, with every name the link
+  itself. Plain text leaves the names out and gives each address its comment
+  line, as it does for a lone `Link`. A lone link's text is part of what its
+  line says, where these names only say where each address leads, and the
+  address says that itself.
+  """
+
+  links: tuple[Link, ...]
+
+
+# One piece of a line.
+Piece = str | Placeholder | Link | LinkList
+
+# A line of text, whole or in pieces, some of them placeholders or links.
+Line = str | tuple[Piece, ...]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -63,8 +94,11 @@ class FullWidthRow:
   text: str
 
 
+# What one cell of a table holds.
+Cell = str | Link
+
 # A row of cells, one per column, or one value spanning them all.
-TableRow = tuple[str, ...] | FullWidthRow
+TableRow = tuple[Cell, ...] | FullWidthRow
 
 
 @dataclasses.dataclass(frozen=True)
@@ -90,29 +124,56 @@ def as_plain_text(blocks: Sequence[Block]) -> Iterator[str]:
   """The blocks as lines of text, a blank line between one block and the next.
 
   A table's cells are separated by tabs. Empty cells at the end of a row are
-  dropped, since a run of trailing tabs says nothing and pastes as nothing.
+  dropped, since a run of trailing tabs says nothing and pastes as nothing. The
+  address of each link follows the line or row holding it, on a line of its own.
   """
   for index, block in enumerate(blocks):
     if index:
       yield ''
     if isinstance(block, Paragraph):
-      yield from (_line_text(line) for line in block.lines)
+      for line in block.lines:
+        yield _line_text(line)
+        yield from _link_lines(() if isinstance(line, str) else line)
     else:
       for row in block.rows:
         if isinstance(row, FullWidthRow):
           yield row.text
         else:
-          yield '\t'.join(row).rstrip('\t')
+          yield '\t'.join(_text_of(cell) for cell in row).rstrip('\t')
+          yield from _link_lines(row)
 
 
 def _line_text(line: Line) -> str:
-  """One line as plain text, each placeholder in its square brackets."""
+  """One line as plain text."""
   if isinstance(line, str):
     return line
-  return ''.join(
-    f'[{piece.text}]' if isinstance(piece, Placeholder) else piece
-    for piece in line
-  )
+  # A list of links ending the line is left out, which would otherwise leave the
+  # space that set it off trailing with nothing after it.
+  return ''.join(_text_of(piece) for piece in line).rstrip()
+
+
+def _text_of(piece: Piece) -> str:
+  """A piece of a line, or a cell, as plain text.
+
+  A placeholder is set in its square brackets, and a link keeps its text, its
+  address left for a line below. A list of links leaves out the names.
+  """
+  if isinstance(piece, Placeholder):
+    return f'[{piece.text}]'
+  if isinstance(piece, Link):
+    return piece.text
+  if isinstance(piece, LinkList):
+    return ''
+  return piece
+
+
+def _link_lines(pieces: Iterable[Piece]) -> Iterator[str]:
+  """A comment line for each link among `pieces`, carrying its address."""
+  for piece in pieces:
+    if isinstance(piece, Link):
+      yield f'- {piece.url}'
+    elif isinstance(piece, LinkList):
+      yield from (f'- {link.url}' for link in piece.links)
 
 
 def as_web_page(title: str, documents: Sequence[Sequence[Block]]) -> str:
@@ -193,18 +254,28 @@ def _block_html(block: Block) -> str:
 
 
 def _line_html(line: Line) -> str:
-  """One line as markup, each placeholder bracketed and drawn in red."""
+  """One line as markup."""
   if isinstance(line, str):
     return html.escape(line)
-  return ''.join(
-    f'<span style="color: red">[{html.escape(piece.text)}]</span>'
-    if isinstance(piece, Placeholder)
-    else html.escape(piece)
-    for piece in line
-  )
+  return ''.join(_html_of(piece) for piece in line)
 
 
-def _lines_as_blocks_html(lines: Iterable[str]) -> str:
+def _html_of(piece: Piece) -> str:
+  """A piece of a line, or a cell, as markup.
+
+  A placeholder is bracketed and drawn in red, and a link's text is made the
+  link itself. A list of links names each in turn, a comma between two.
+  """
+  if isinstance(piece, Placeholder):
+    return f'<span style="color: red">[{html.escape(piece.text)}]</span>'
+  if isinstance(piece, Link):
+    return f'<a href="{html.escape(piece.url)}">{html.escape(piece.text)}</a>'
+  if isinstance(piece, LinkList):
+    return ', '.join(_html_of(link) for link in piece.links)
+  return html.escape(piece)
+
+
+def _lines_as_blocks_html(lines: Iterable[Line]) -> str:
   """Lines as markup, each a block of its own.
 
   An editor's Enter at the end of such a line opens a new one under it, which
@@ -212,12 +283,12 @@ def _lines_as_blocks_html(lines: Iterable[str]) -> str:
   split the paragraph instead, and its margin would set the two halves apart.
   """
   markup = '\n'.join(
-    f'<div style="{_FONT}">{html.escape(line)}</div>' for line in lines
+    f'<div style="{_FONT}">{_line_html(line)}</div>' for line in lines
   )
   return f'<div style="margin: 0 0 1em">\n{markup}\n</div>'
 
 
-def _row_as_line(row: TableRow) -> str:
+def _row_as_line(row: TableRow) -> Line:
   """A table row as one line of text, its values set a gap apart.
 
   An empty cell is left out rather than widening the gap around it: with the
@@ -225,7 +296,14 @@ def _row_as_line(row: TableRow) -> str:
   """
   if isinstance(row, FullWidthRow):
     return row.text
-  return _VALUE_GAP.join(cell for cell in row if cell)
+  pieces: list[Cell] = []
+  for cell in row:
+    if not cell:
+      continue
+    if pieces:
+      pieces.append(_VALUE_GAP)
+    pieces.append(cell)
+  return tuple(pieces)
 
 
 def _row_html(row: TableRow, alignments: Sequence[Alignment]) -> str:
@@ -239,8 +317,7 @@ def _row_html(row: TableRow, alignments: Sequence[Alignment]) -> str:
     )
 
   cells = ''.join(
-    f'<td style="{_CELL_STYLE}; text-align: {alignment}">'
-    f'{html.escape(cell)}</td>'
+    f'<td style="{_CELL_STYLE}; text-align: {alignment}">{_html_of(cell)}</td>'
     for cell, alignment in zip(row, alignments, strict=True)
   )
   return f'<tr>{cells}</tr>'
