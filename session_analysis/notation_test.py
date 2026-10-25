@@ -13,7 +13,7 @@ from session_analysis.enums import (
   Strain,
   Suit,
 )
-from session_analysis.models import Card
+from session_analysis.models import Card, Hand
 from session_analysis.notation import (
   NotationError,
   ResultNotation,
@@ -23,6 +23,7 @@ from session_analysis.notation import (
   par_contracts,
   tricks_taken,
   tricks_taken_from_par_result,
+  written_hand,
 )
 from session_analysis.travellers import DoubleDummyTricks
 
@@ -219,6 +220,32 @@ def test_an_unreadable_rank_names_the_suit_it_was_in() -> None:
 def test_the_wrong_number_of_holdings_is_refused() -> None:
   with pytest.raises(NotationError, match='4 suit holdings'):
     hand_from_holdings(['AKQ', 'AKJ', 'AK'])
+
+
+# --- writing a hand ---
+
+
+def test_a_hand_is_written_spades_first_and_high_card_first() -> None:
+  # Held low card first and clubs first, so that neither order can come from how
+  # the hand happens to be stored.
+  hand = Hand(
+    cards=(
+      Card(rank=Rank.TWO, suit=Suit.CLUBS),
+      Card(rank=Rank.TEN, suit=Suit.CLUBS),
+      Card(rank=Rank.QUEEN, suit=Suit.SPADES),
+      Card(rank=Rank.ACE, suit=Suit.SPADES),
+      Card(rank=Rank.KING, suit=Suit.HEARTS),
+      Card(rank=Rank.THREE, suit=Suit.DIAMONDS),
+    )
+  )
+
+  assert written_hand(hand) == 'AQ.K.3.T2'
+
+
+def test_a_void_is_written_as_nothing_between_its_dots() -> None:
+  hand = hand_from_holdings(['AQ', 'KJ8643', '', 'T7532'])
+
+  assert written_hand(hand) == 'AQ.KJ8643..T7532'
 
 
 # --- assembling a deal ---

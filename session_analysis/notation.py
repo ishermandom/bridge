@@ -56,6 +56,10 @@ BOOK = 6
 # first.
 SUITS_HIGH_TO_LOW = (Suit.SPADES, Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS)
 
+# The ranks of a suit in the order a hand prints them: the ace first. `Rank`
+# declares its members the other way up, from the two.
+_RANKS_HIGH_TO_LOW = tuple(reversed(Rank))
+
 # Every strain in ascending order, which is the order the double-dummy tables
 # walk them in. Named to sit beside `SUITS_HIGH_TO_LOW`, which runs the other
 # way because that is the order a hand is printed in.
@@ -401,6 +405,27 @@ def hand_from_holdings(holdings: Sequence[str]) -> Hand:
         ) from error
 
   return Hand(cards=tuple(cards))
+
+
+def written_hand(hand: Hand) -> str:
+  """The hand as a PBN deal writes one: its four holdings, joined by dots.
+
+  The suits run spades first, each holding high card first with a ten as `T`,
+  and a void is nothing at all between its two dots: `AQ.KJ8643..T7532` holds no
+  diamond. Split at its dots, the result is the four holdings that
+  `hand_from_holdings` reads back into this hand.
+  """
+  ranks_by_suit: dict[Suit, list[Rank]] = {suit: [] for suit in Suit}
+  for card in hand.cards:
+    ranks_by_suit[card.suit].append(card.rank)
+
+  return '.'.join(
+    ''.join(
+      rank.value
+      for rank in sorted(ranks_by_suit[suit], key=_RANKS_HIGH_TO_LOW.index)
+    )
+    for suit in SUITS_HIGH_TO_LOW
+  )
 
 
 def deal_from_hands(hands: Mapping[Direction, Hand]) -> Deal:

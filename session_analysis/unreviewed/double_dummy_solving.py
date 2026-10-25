@@ -22,18 +22,17 @@ The count that comes back is declarer's, as a published table's cells are, so
 the two compare directly and their difference is what the opening lead cost.
 """
 
-import collections
 import functools
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 import endplay.dds
 import endplay.types
 
-from session_analysis.enums import Direction, Rank, Strain, Suit
+from session_analysis import notation
+from session_analysis.enums import Direction, Strain
 from session_analysis.models import (
   Card,
   Deal,
-  Hand,
   SolvedDoubleDummyTricks,
 )
 
@@ -52,23 +51,15 @@ _SOLVER_STRAINS: Mapping[Strain, endplay.types.Denom] = {
   Strain.NOTRUMP: endplay.types.Denom.nt,
 }
 
-# The seats a written deal names in turn, and the suits each hand writes in
-# turn. Both orders are the notation's rather than ours, so they are spelled out
-# here instead of taken from the enums' own declaration order.
+# The seats a written deal names in turn. The order is the notation's rather
+# than ours, so it is spelled out here instead of taken from the enum's own
+# declaration order.
 _WRITTEN_SEATS = (
   Direction.NORTH,
   Direction.EAST,
   Direction.SOUTH,
   Direction.WEST,
 )
-_WRITTEN_SUITS = (Suit.SPADES, Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS)
-
-# Where each rank falls when a suit is written high card first. `Rank` declares
-# its members the other way up, so the order is reversed once here rather than
-# at each hand.
-_RANK_ORDER: Mapping[Rank, int] = {
-  rank: position for position, rank in enumerate(reversed(list(Rank)))
-}
 
 
 def solve_table(deal: Deal) -> SolvedDoubleDummyTricks:
@@ -171,35 +162,14 @@ def tricks_after_lead(
 
 
 def _written_deal(deal: Deal) -> str:
-  """The deal as the solver spells one: four hands, from North clockwise."""
-  hands = ' '.join(_written_hand(deal.hands[seat]) for seat in _WRITTEN_SEATS)
-  return f'N:{hands}'
+  """The deal as the solver spells one: four hands, from North clockwise.
 
-
-def _written_hand(hand: Hand) -> str:
-  """One hand as its four suits, each high card first, in the written order.
-
-  A void is written as nothing at all between the dots that separate the suits,
-  which is what falls out of grouping by suit and joining — a suit with no cards
-  simply contributes no characters.
+  Each hand is spelled the way a PBN deal writes one, which the solver reads.
   """
-  # A default dictionary rather than a plain one, so that the void suits below
-  # answer with an empty list instead of raising.
-  by_suit: collections.defaultdict[Suit, list[Card]] = collections.defaultdict(
-    list
+  hands = ' '.join(
+    notation.written_hand(deal.hands[seat]) for seat in _WRITTEN_SEATS
   )
-  for card in hand.cards:
-    by_suit[card.suit].append(card)
-
-  return '.'.join(
-    ''.join(card.rank.value for card in _high_to_low(by_suit[suit]))
-    for suit in _WRITTEN_SUITS
-  )
-
-
-def _high_to_low(cards: Sequence[Card]) -> Sequence[Card]:
-  """One suit's cards, ace first, as a written hand orders them."""
-  return sorted(cards, key=lambda card: _RANK_ORDER[card.rank])
+  return f'N:{hands}'
 
 
 def _written_card(card: Card) -> str:
