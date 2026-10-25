@@ -691,6 +691,13 @@ given, or every stored one, and `--page` opens them as a web page for pasting
 into an email. The comparisons themselves, and what their silences mean, are
 argued in `unreviewed.double_dummy_comparison`.
 
+- [~] Link a transcript to the session's published recaps, and to a double-dummy
+  solve of each deal if possible.
+  - Worktree: transcript-links
+  - Note: the recaps are the ACBL one and the club's own, wherever each game has
+    them.
+  - Note: the user's preferred solver is https://mirgo2.co.uk/bridgesolver/.
+
 - [ ] Score each board in its game's own unit — matchpoints or IMPs — with a
       single unit shared by every board in a session. {#score-in-game-units}
   - Note: only matchpoints exist today, so a board from an IMP game scores
