@@ -71,7 +71,11 @@ from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
-from session_analysis.travellers import Traveller, TravellerBoard
+from session_analysis.travellers import (
+  Traveller,
+  TravellerBoard,
+  TravellerSource,
+)
 from session_analysis.unreviewed import deal_checks, double_dummy_solving
 
 # A capture that yielded no record. Both are worth a person's attention rather
@@ -119,30 +123,40 @@ class _CaptureParser(Protocol):
   ) -> Traveller: ...
 
 
-def _parser_for(site: str, suffix: str) -> _CaptureParser | None:
-  """The parser for a capture's site and extension, or None if there is none.
+# The parser that reads each kind of capture.
+_PARSERS: Mapping[TravellerSource, _CaptureParser] = {
+  TravellerSource.CLUB_PBN: club_pbn_parsing.parse_club_pbn,
+  TravellerSource.CLUB_HTML: club_html_parsing.parse_club_html,
+  TravellerSource.ACBL_CLUB: acbl_club_parsing.parse_acbl_club_html,
+  TravellerSource.ACBL_TOURNAMENT: (
+    acbl_tournament_parsing.parse_acbl_tournament_html
+  ),
+}
 
-  Args:
-    site: the capture root subdirectory the capture sits in, naming the site
-      that published it.
-    suffix: the capture's file extension. The club publishes both a PBN deal
-      file and an HTML recap per game and the two share a directory, so within
-      the club's captures the extension tells the formats apart; the
-      two ACBL directories hold HTML alone.
+
+def capture_source(path: PurePosixPath) -> TravellerSource | None:
+  """Which kind of capture `path` is filed as, or None if it is no known kind.
+
+  The path is relative to the capture root, and its first directory names the
+  site that published the capture. The club publishes both a PBN deal file and
+  an HTML recap per game and the two share a directory, so within the club's
+  captures the extension tells the formats apart; the two ACBL directories hold
+  HTML alone.
   """
-  suffix = suffix.lower()
+  site = path.parts[0]
+  suffix = path.suffix.lower()
   if site == CLUB_CAPTURE_DIRECTORY:
     if suffix == _PBN_SUFFIX:
-      return club_pbn_parsing.parse_club_pbn
+      return TravellerSource.CLUB_PBN
     if suffix in _HTML_SUFFIXES:
-      return club_html_parsing.parse_club_html
+      return TravellerSource.CLUB_HTML
     return None
   if suffix not in _HTML_SUFFIXES:
     return None
   if site == ACBL_CLUB_CAPTURE_DIRECTORY:
-    return acbl_club_parsing.parse_acbl_club_html
+    return TravellerSource.ACBL_CLUB
   if site == ACBL_TOURNAMENT_CAPTURE_DIRECTORY:
-    return acbl_tournament_parsing.parse_acbl_tournament_html
+    return TravellerSource.ACBL_TOURNAMENT
   return None
 
 
@@ -269,12 +283,12 @@ def parse_captures(
   travellers: dict[PurePosixPath, Traveller] = {}
   issues: list[Issue] = []
   for path, capture in captures.items():
-    parse = _parser_for(path.parts[0], path.suffix)
-    if not parse:
+    source = capture_source(path)
+    if not source:
       issues.append(_UNRECOGNIZED_CAPTURE.issue(f'no parser reads {path}'))
       continue
 
-    traveller = parse(
+    traveller = _PARSERS[source](
       _decoded(capture.content),
       reference=CaptureReference(path=str(path), url=capture.url),
     )

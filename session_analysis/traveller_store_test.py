@@ -31,6 +31,7 @@ from session_analysis.private_paths import (
 from session_analysis.testing.deals import a_suit_to_each_seat, whole_suit
 from session_analysis.traveller_store import (
   Capture,
+  capture_source,
   parse_captures,
   store_travellers,
 )
@@ -140,6 +141,39 @@ def test_the_clubs_two_formats_are_told_apart_by_extension() -> None:
     _CLUB_PBN: TravellerSource.CLUB_PBN,
     _CLUB_HTML: TravellerSource.CLUB_HTML,
   }
+
+
+@pytest.mark.parametrize(
+  ('path', 'source'),
+  [
+    (_CLUB_PBN, TravellerSource.CLUB_PBN),
+    (_CLUB_HTML, TravellerSource.CLUB_HTML),
+    (_ACBL_CLUB, TravellerSource.ACBL_CLUB),
+    (_ACBL_TOURNAMENT, TravellerSource.ACBL_TOURNAMENT),
+  ],
+)
+def test_a_path_names_its_kind_of_capture(
+  path: str, source: TravellerSource
+) -> None:
+  assert capture_source(PurePosixPath(path)) == source
+
+
+def test_an_extension_is_read_whatever_its_case() -> None:
+  path = PurePosixPath(f'{CLUB_CAPTURE_DIRECTORY}/gameresults2/R260714A.HTM')
+
+  assert capture_source(path) == TravellerSource.CLUB_HTML
+
+
+@pytest.mark.parametrize(
+  'path',
+  [
+    'elsewhere/R260714A.htm',
+    f'{ACBL_CLUB_CAPTURE_DIRECTORY}/my.acbl.org/details/1441256.pbn',
+    f'{CLUB_CAPTURE_DIRECTORY}/gameresults2/hand-record.pdf',
+  ],
+)
+def test_a_path_no_parser_reads_names_no_kind(path: str) -> None:
+  assert capture_source(PurePosixPath(path)) is None
 
 
 # --- where a record lands ---
