@@ -6,8 +6,8 @@ Each traced run yields one ordered list of timestamped events: the launcher's
 spawn, every bash command in the chain, pytest's phase marks, and the launcher's
 view of the exit. Consecutive events split the run into back-to-back segments,
 and each segment is charged to the event that began it: the command bash was
-about to run, or the pytest phase that had begun. The JavaScript checks run in
-the background beside pytest, so their events are kept out of that sequence.
+about to run, or the pytest phase that had begun. The checks `run_tests.sh` runs
+in the background beside pytest are kept out of that sequence.
 
 Rows are grouped as step, then script, then item, and averaged across rounds.
 Means are used because they add up: the rows' means sum exactly to the total's.
@@ -81,6 +81,7 @@ _STEP_ORDER = (
   'ruff-lint.sh',
 )
 _SINGLE_PROGRAMS = {
+  'cargo',
   'readlink',
   'dirname',
   'realpath',
@@ -164,15 +165,28 @@ def read_trace(label: str) -> list[Event]:
   return events
 
 
-def is_background(event: Event) -> bool:
-  """Whether `event` belongs to the JavaScript checks beside pytest.
+def background_pid(trace: Iterable[Event]) -> int:
+  """The process ID of the subshell running `run_tests.sh`'s background checks.
 
-  The checks may run under a wrapper such as `taskpolicy`, so any word naming a
-  Node tool marks them.
+  The checks run as one group sent to the background with `&`, so bash traces
+  every command in the group from that one subshell, the type check among them.
   """
-  words = event.command.split(' ')
+  return next(
+    event.pid
+    for event in trace
+    if event.source == 'run_tests.sh'
+    and any('/node_modules/.bin/tsc' in word for word in event.command.split())
+  )
+
+
+def is_background(event: Event, background: int) -> bool:
+  """Whether `event` belongs to the checks running beside pytest.
+
+  A `$(...)` in the group runs in a subshell of its own, so the one `realpath`
+  the group makes is matched by its command instead.
+  """
   return event.source == 'run_tests.sh' and (
-    any('/node_modules/.bin/' in word for word in words)
+    event.pid == background
     or event.command == 'realpath ./club_sites/palo_alto'
   )
 
@@ -218,7 +232,10 @@ def item_label(event: Event) -> str:
 
 def critical_path(run: TracedRun) -> list[Event]:
   """The run's events in time order, less the background checks."""
-  events = [event for event in run.trace if not is_background(event)]
+  background = background_pid(run.trace)
+  events = [
+    event for event in run.trace if not is_background(event, background)
+  ]
   events.extend(
     Event(timestamp=run.timeline['marks'][mark], source='pytest', command=mark)
     for mark in _PYTEST_MARKS
@@ -511,13 +528,25 @@ def main() -> None:
     in_hook_phases.append(pytest_phases(run.timeline, pytest_launch))
   print_rows(per_run_rows)
 
-  tsc_to_vitest = []
+  # Each background check runs from its own start to the next one's; the last
+  # check's end goes untraced.
+  background_spans: dict[str, list[float]] = defaultdict(list)
   for run in traced:
-    background = [event for event in run.trace if is_background(event)]
-    tsc_to_vitest.append(background[-1].timestamp - background[0].timestamp)
+    background = background_pid(run.trace)
+    group = [
+      event
+      for event in run.trace
+      if event.source == 'run_tests.sh' and event.pid == background
+    ]
+    for current, following in itertools.pairwise(group):
+      program = current.command.split(' ')[0].split('/')[-1]
+      background_spans[program].append(following.timestamp - current.timestamp)
   print(
-    '\nJavaScript checks (background): tsc start to vitest start, mean '
-    f'{milliseconds(statistics.mean(tsc_to_vitest)).strip()}ms'
+    '\nbackground checks, each start to the next one (mean ms): '
+    + ', '.join(
+      f'{program} {milliseconds(statistics.mean(spans)).strip()}'
+      for program, spans in background_spans.items()
+    )
   )
 
   print_phase_comparison(
