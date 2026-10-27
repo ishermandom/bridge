@@ -372,6 +372,13 @@ lane settles the sheet with the user in chat:
    text and as a page in the private tree's `transcripts/`, where the user opens
    it (#page-reaches-user).
 
+- [~] Decide whether the local dewarp is still needed, if every scan comes from
+  a scanner app.
+  - Worktree: dewarp-still-needed
+  - Note: the user set the premise on 2026-10-26: photos will always come from a
+    scanner app, never straight from the camera app.
+  - Note: the answer settles #dewarp-without-the-vote, which plans to rebuild
+    the dewarp, and the tasks that wait on it.
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
