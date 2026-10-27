@@ -95,13 +95,19 @@ javascript_pid=$!
 # TODO: return the server's tests once the trainer resumes
 # (practice/squeezes/tasks.md #restore-server-tests).
 #
-# A run from the Stop hook, which sets PYTEST_FROM_HOOK, leaves out the tests
-# marked `slow`: too slow to pay on every conversational turn, though still fast
-# enough for any intentional run. The flags sit in an array so that, empty, it
-# adds no argument at all; `:-` reads an unset variable as empty.
-marker_args=()
+# A run from the Stop hook, which sets PYTEST_FROM_HOOK, sheds what is not worth
+# paying for on every conversational turn:
+#
+# - `-m "not slow"` leaves out the tests marked `slow`, which are still fast
+#   enough for any intentional run
+# - `-p no:debugging` skips pytest's debugging plugin, which imports `pdb` at
+#   startup to serve `--pdb` and `--trace`, flags the hook never passes
+#
+# The flags sit in an array so that, empty, it adds no argument at all; `:-`
+# reads an unset variable as empty.
+hook_args=()
 if [ -n "${PYTEST_FROM_HOOK:-}" ]; then
-  marker_args=(-m "not slow")
+  hook_args=(-m "not slow" -p no:debugging)
 fi
 
 # pytest runs in the foreground so that Ctrl-C reaches it: a script's background
@@ -113,7 +119,7 @@ fi
 # plugin, as with anyio's. A plugin a test needs can be named with `-p`.
 uv run --project "$repo_root" pytest \
   --disable-plugin-autoload \
-  "${marker_args[@]}" \
+  "${hook_args[@]}" \
   "$repo_root/anki" \
   "$repo_root/club_sites/palo_alto" \
   "$repo_root/convention_cards" \
