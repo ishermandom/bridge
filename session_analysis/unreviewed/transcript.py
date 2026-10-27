@@ -403,8 +403,7 @@ class _SummaryColumns:
   ) -> tuple[str, ...]:
     """A row breaking a total down: indented two spaces, its label led by a dot.
 
-    The spaces sit inside the first cell, where the web page's `pre` cells keep
-    them as well.
+    The spaces sit inside the first cell, where the web page keeps them as well.
     """
     first, *rest = self.cells(totals, f'· {label}')
     return (f'  {first}', *rest)

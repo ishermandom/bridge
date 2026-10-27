@@ -220,11 +220,15 @@ _FONT = 'font-family: Calibri, Carlito, Arial, Helvetica, sans-serif'
 _PARAGRAPH_STYLE = f'margin: 0 0 1em; {_FONT}'
 
 # Set on every cell. The padding keeps a gap of a word or so between columns,
-# wide enough that two columns of numbers never read as one. `pre` keeps a
-# cell's leading spaces, which indent a row, and stops an auction wrapping
-# inside its cell.
+# wide enough that two columns of numbers never read as one. `nowrap` stops an
+# auction wrapping inside its cell.
+#
+# `nowrap` also folds any line break written into a cell's markup into a single
+# space, where `pre` would show it. Some mail programs re-wrap the markup of a
+# message they quote in a reply, Windows Live Mail among them, and so break
+# lines inside cells. `_cell_html` keeps a row's indent under `nowrap`.
 _CELL_STYLE = (
-  f'padding: 0 1.5em 0 0; white-space: pre; vertical-align: top; {_FONT}'
+  f'padding: 0 1.5em 0 0; white-space: nowrap; vertical-align: top; {_FONT}'
 )
 
 # What separates two values on a table row set as a line of text: about four
@@ -317,7 +321,21 @@ def _row_html(row: TableRow, alignments: Sequence[Alignment]) -> str:
     )
 
   cells = ''.join(
-    f'<td style="{_CELL_STYLE}; text-align: {alignment}">{_html_of(cell)}</td>'
+    f'<td style="{_CELL_STYLE}; text-align: {alignment}">'
+    f'{_cell_html(cell)}</td>'
     for cell, alignment in zip(row, alignments, strict=True)
   )
   return f'<tr>{cells}</tr>'
+
+
+def _cell_html(cell: Cell) -> str:
+  """A table cell as markup, its leading spaces made non-breaking.
+
+  A cell's `nowrap` style drops ordinary spaces at its start, and with them the
+  indent they give a row.
+  """
+  if not isinstance(cell, str):
+    return _html_of(cell)
+  text = cell.lstrip(' ')
+  indent = '\N{NO-BREAK SPACE}' * (len(cell) - len(text))
+  return indent + html.escape(text)

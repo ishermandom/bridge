@@ -95,6 +95,27 @@ def test_a_full_width_row_spans_every_column() -> None:
   assert 'colspan="3"' in as_web_page('Monday Pairs', [[table]])
 
 
+def test_the_page_keeps_a_cell_s_indent() -> None:
+  table = Table(alignments=(Alignment.LEFT,), rows=(('  75.00%',),))
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # Non-breaking, since the cells' style drops ordinary spaces at their start.
+  indent = '\N{NO-BREAK SPACE}' * 2
+  assert f'>{indent}75.00%</td>' in page
+
+
+def test_cells_fold_a_line_break_in_their_markup_into_a_space() -> None:
+  table = Table(alignments=(Alignment.LEFT,), rows=(('1C 1H 1NT',),))
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # A mail program quoting the page in a reply may break the markup's lines
+  # inside a cell. `nowrap` reads such a break as a space; `pre` would show it.
+  assert 'white-space: nowrap' in page
+  assert 'white-space: pre' not in page
+
+
 def test_a_table_allowing_notes_is_set_as_lines_on_the_page() -> None:
   table = Table(
     alignments=(Alignment.LEFT, Alignment.LEFT),
