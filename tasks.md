@@ -59,10 +59,12 @@ production signatures for the tests' benefit.
   - Rationale, measurements, the exclusion list, and the mechanics are in
     [faking-the-filesystem.md](faking-the-filesystem.md) — read it first; it was
     written from a live exploration and settles most of what this needs.
-  - Note: not a speed change. Real temporary directories would cost about 11 ms
-    across the whole suite. The point is that `write` comes off three public
-    signatures in `acbl_fetching` and `club_fetching`, and the real writer
-    starts being exercised.
+  - Note: mostly not a speed change. Writing real temporary directories costs
+    about 11 ms across the whole suite, though pytest also deletes an earlier
+    run's directories at the end of every run, which fewer files would shrink
+    ([stop-hook-timing.md](stop-hook-timing.md#set-aside) #set-aside). The point
+    is that `write` comes off three public signatures in `acbl_fetching` and
+    `club_fetching`, and the real writer starts being exercised.
   - Note: three things are excluded and should stay on real paths — anything
     Pillow-based (a JPEG save silently writes zero bytes and sends the image to
     standard output), `private_paths` (shells out to git, which cannot run
@@ -164,3 +166,11 @@ production signatures for the tests' benefit.
   - Note: the repo has no `.prettierignore` and no project-level prettier
     config; `quiet-prettier.sh` falls back to `~/.prettierrc`. Adding an ignore
     file is a repo-local change and does not touch dotfiles.
+
+- [ ] **[maybe] Freeze what collection loads, so garbage collection skips it**
+      {#freeze-collected-objects} — a root `conftest.py` would pause garbage
+      collection while pytest collects, then freeze everything collection
+      loaded. Two variants, their measurements, and the tradeoffs they share are
+      in [stop-hook-timing.md](stop-hook-timing.md#freeze-variants).
+  - Note: Claude's lean is the variant that runs one full garbage collection
+    before the freeze.
