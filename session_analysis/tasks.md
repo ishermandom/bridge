@@ -970,6 +970,11 @@ rationale lives in the design docs' open-question sections —
     field, plus why it exists where the code cannot say; leave the detail —
     where a value comes from, when it is null — to the comment in models.py.
   - Note: `matchpoint_top`'s bullet already has that shape.
+- [ ] Check an auction's circles against its turn order when the sheet writes
+      every pass. {#circles-alternate}
+  - Rationale: with every call written, the two sides take turns, so a break in
+    the alternation means a misplaced circle or a missing pass. It caught a
+    crossed-out circle transcribed as a real one on 2026-10-26.
 
 ---
 
