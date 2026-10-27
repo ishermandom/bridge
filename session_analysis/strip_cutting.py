@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Cut a dewarped scan into the labeled per-row strips the model transcribes.
+"""Cut a scan into the labeled per-row strips the model transcribes.
 
 Sent whole, a scan reaches the vision model downscaled below legibility for
 dense handwriting, so the sheet is sent as crops instead: one strip per printed

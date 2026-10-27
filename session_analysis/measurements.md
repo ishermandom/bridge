@@ -29,7 +29,10 @@ to re-run them.
   assembled from runs: an Opus 5.5 run agreeing with the 40 runs of Opus 5.5 and
   Sonnet 5.5 at `high` on every cell where most of those runs agree. The
   exceptions are board 1's declarer, which the travellers settle as West, and
-  board 17's `2D_H`, the only reading of that call that parses.
+  board 17's `2D_H`, the only reading of that call that parses. The pipeline
+  reads every scan as delivered and does not straighten a raw photo, so cutting
+  this sheet's strips again starts from the straightened copy beside it,
+  `PXL_20260630_191216837-dewarped.jpg`.
 - **The 9/24 sheet**:
   `bridge-private/session_analysis/scoresheets/archive/862caf5b70a4-Scanned_20260924-1511.pdf`,
   a scanner app's PDF. Its session record, reconciled and reviewed with the
@@ -169,6 +172,30 @@ Supports spec.md #image-limits.
   though: if the CLI was already shrinking the full-width strips, both sets
   reached the model at the same size. Whether the CLI was doing so is not
   settled.
+
+## Scan tilt {#scan-tilt}
+
+Supports spec.md #scan-read-as-delivered.
+
+- **How level scanner-app pages arrive** (2026-10-26, the archive's 28
+  scoresheet pages, scanned 2026-09-01 to 2026-10-26): measuring the angle of
+  each page's printed rules, in steps of 0.05°, found every page within 0.6° of
+  level and 20 of the 28 at 0°. At 0.6° a rule drifts a third of a row pitch
+  across the page, so it sits at most about a sixth of a pitch from where its
+  row's box puts it, inside the 0.3-pitch padding each strip carries.
+- **What straightening from the grid did to them** (2026-10-26, the same 28
+  pages): it refused three pages outright, because its vote across column slices
+  on the grid's row count tied, and tilted two more until geometry failed; all
+  five were ingested with it skipped. On 11 of the 23 pages it did straighten,
+  it fitted an edge of the grid more than 1° off level — up to 3.5° — where the
+  page itself sat within 0.6°. On the raw 6/29 photo it was built for, its
+  output sat 0.65° off level.
+- **How far a page can tilt before geometry refuses it** (2026-10-26, the blank
+  v4 fixture, degraded as `blank_form_test` degrades it, at 0.6°, 1°, 1.5°, 2°
+  and 2.5°): the board rows resolved through 2°, within 6 pixels of the clean
+  render at a 39-pixel pitch. At 2.5° the column slices split 7 to 5 between two
+  runs of rules and the sheet was refused — a tilt drifting the rules about a
+  pitch across the grid fails loudly rather than cutting the wrong rows.
 
 ## Which model cuts {#cutter-choice}
 

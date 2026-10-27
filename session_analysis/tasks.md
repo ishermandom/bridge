@@ -87,13 +87,14 @@ unread.
     one session and read fastest as one sitting.
   - Note: the ingest spine — `ingest`, `scan_decoding`, `session_keys`, and
     `session_matching` — landed the same way. Its design was settled with the
-    user before it was written: the frame on `SheetImage` rather than `Source`,
-    a provisional key renamed at review rather than a stable id, the key derived
-    from the footer alone with the time of day riding in the footer text, the
-    capture match reading the date alone, every page of a scan container
-    digitized as its own sheet, and failures moved to `scoresheets/failed/` with
-    a sidecar. Each is argued where it is implemented, so what remains is
-    whether the code does what those decisions say.
+    user before it was written: the geometry on `SheetImage` rather than
+    `Source`, a provisional key renamed at review rather than a stable id, the
+    key derived from the footer alone with the time of day riding in the footer
+    text, the capture match reading the date alone, every page of a scan
+    container digitized as its own sheet, and failures moved to
+    `scoresheets/failed/` with a sidecar. Each is argued where it is
+    implemented, so what remains is whether the code does what those decisions
+    say.
   - Note: the spine has now been run against real scans, which answered three
     things the tests could not:
     - A phone scan needs almost no dewarping — Google's ML Kit scanner rectifies
@@ -372,54 +373,13 @@ lane settles the sheet with the user in chat:
    text and as a page in the private tree's `transcripts/`, where the user opens
    it (#page-reaches-user).
 
-- [~] Decide whether the local dewarp is still needed, if every scan comes from
-  a scanner app.
+- [~] Migrate the stored session records off `source_quad`, in the same step
+  that lands the branch removing the field. {#source-quad-migration}
   - Worktree: dewarp-still-needed
-  - Note: the user set the premise on 2026-10-26: photos will always come from a
-    scanner app, never straight from the camera app.
-  - Note: the answer settles #dewarp-without-the-vote, which plans to rebuild
-    the dewarp, and the tasks that wait on it.
-- [ ] Straighten a scan by the direction its printed lines run, not by a
-      row-count vote. {#dewarp-without-the-vote}
-  - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
-    `resolve_grid_consensus`, a vote on the grid's row count. Lines outside the
-    grid — chart lines, the footer underline, the photo's own edge — chain onto
-    those runs, so the vote either refuses the sheet (two panels of different
-    heights, as on Baron Barclay's form) or passes with a count built from
-    different lines in different slices, and tilts a level page. Straightening
-    needs only the direction the printed lines run, which every horizontal line
-    on the form shares, so there is nothing to vote on.
-  - Rationale: this replaces a plan to give the dewarp the model's row count,
-    which would have moved the layout reading onto the uncorrected scan.
-  - Note: the tilt is live. A sweep of the archive's 15 scan pages found every
-    photo level to within 0.6°, but the dewarp tilted two of them by 2–3°. The
-    2026-09-28 sheet then failed geometry and was ingested with the dewarp
-    skipped. The 2026-09-21 sheet passed with its row strips cut diagonally
-    across two rows, and the model still read the right ones.
-  - Note: the refusals are live too. The 2026-10-15 scan split its slices 4–4
-    between 31 and 32 rows, both counts built from lines outside the grid —
-    chart rows above it, the footer underline and the photo's bottom edge below
-    — so the vote refused it, and it was ingested with the dewarp skipped. Every
-    archived scan splits its slices across 28–32 rows and passes only on a one-
-    or two-slice plurality, so a tie can recur on any sheet.
-  - Note: until this lands, a refused scanner-app scan ingests by running the
-    ingest command with `extraction.dewarp_sheet` swapped for an identity that
-    frames the photo by its own corners — how both skipped records were made.
-    Move the scan back from `scoresheets/failed/` into the inbox first.
-  - Note: stage one is rotation only, which covers the scanner app, the default
-    capture path. Rotate by the angle that makes the row profile sharpest, and
-    keep the whole page rather than a crop around the grid, which also retires
-    the fixed footer margin (the TODO on `_FOOTER_HEIGHT_IN_ROW_PITCHES`).
-    spec.md `#dewarp-from-the-grid`, which says correctness no longer depends on
-    the scanner app, changes when stage one lands.
-  - Note: stage two, perspective for raw phone photos, is a nice-to-have. The
-    same measure sees perspective band by band, but the photo's own edges throw
-    it off, so it needs confining to the printed area.
-  - Note: a two-panel sheet also doubles the strip count — 36 row strips plus a
-    footer, against 29 for a single-panel sheet. Above 20 image blocks in one
-    request a stricter per-image limit applies, documented as 2000px a side.
-    Every image is sized within 2000px regardless (spec.md #image-limits), so
-    the count does not change what may be sent.
+  - Note: from the repo root, run `scratch/source_quad_migration.py` as a dry
+    run, then with `--write`, and commit the rewritten records in
+    `bridge-private`. Its docstring says why the run and the landing go
+    together.
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
     panels reported flush against each other pass — and a single table read as
@@ -956,26 +916,12 @@ rationale lives in the design docs' open-question sections —
     either way, so this is a live driver rather than a sample-only concern. See
     spec.md `#scope`.
   - Note: the samples are in
-    `bridge-private/session_analysis/scoresheets/samples`. Getting Baron Barclay
-    as far as the cut needs #dewarp-without-the-vote first: its panels differ in
-    height, so the dewarp's own row-count vote refuses the sheet before the
-    model is ever called.
-- [ ] Maybe: grid-extent cross-check in `transcribe_sheet` — compare the
-      detected `grid_left`/`grid_right` against where the dewarp placed the
-      borders by construction (`_DEWARP_SIDE_MARGIN_IN_PITCHES` from the frame
-      edges); deviation beyond ~1 pitch raises rather than cutting strips.
-  - Rationale: catches asymmetric border failures — a border only partly visible
-    resolves in the dewarp's median-filtered bands but dilutes out of
-    detection's single full-height column profile, which today silently crops
-    the `Bd` column and makes the model substitute `Vs` numbers (observed live).
-    Also catches future drift between the two derivations.
-  - Note: reshaped by the layout reading, and worth rethinking against it before
-    it is written. `_panel_sides` no longer profiles the full height for the
-    outermost line; it takes the printed line nearest the reported border, so
-    the failure this was written against — detection diluting a partly visible
-    border that the dewarp still resolved — is not the one to guard now. What
-    remains worth catching is both readings agreeing on a border that is not the
-    table's.
+    `bridge-private/session_analysis/scoresheets/samples`.
+  - Note: a two-panel sheet doubles the strip count — 36 row strips plus a
+    footer, against 29 for a single-panel sheet. Above 20 image blocks in one
+    request a stricter per-image limit applies, documented as 2000px a side.
+    Every image is sized within 2000px regardless (spec.md #image-limits), so
+    the count does not change what may be sent.
 - [ ] Board-number continuity check in validation — flag a session whose
       transcribed board numbers don't run consecutively from their start.
       {#board-number-continuity}
@@ -1061,23 +1007,22 @@ rationale lives in the design docs' open-question sections —
     natural time to pick one home and point the other two at it.
 - [ ] Investigate whether `models` should stop importing the image pipeline.
       {#models-import-direction}
-  - Rationale: `SheetFrame` holds a `SheetGeometry` and a `Quad`, which live in
-    the modules that compute them — so `models` imports `sheet_geometry` and
-    `sheet_dewarp`, and every consumer of the canonical models now loads Pillow
-    transitively. `parsing`, `validation`, `travellers`, and all four capture
-    parsers pay that cost for types they never touch.
-  - Note: it is import weight, not a cycle — neither of those modules imports
+  - Rationale: `SheetImage` holds a `SheetGeometry`, which lives in the module
+    that computes it — so `models` imports `sheet_geometry`, and every consumer
+    of the canonical models now loads Pillow transitively. `parsing`,
+    `validation`, `travellers`, and all four capture parsers pay that cost for
+    types they never touch.
+  - Note: it is import weight, not a cycle — `sheet_geometry` does not import
     `models` — so nothing is broken. The question is whether the coupling is
     worth removing, not whether it is wrong.
-  - Note: the obvious fix inverts it — move `Box`, `Point`, `Quad`, and
-    `SheetGeometry` into `models` as canonical types, the way `Card` and `Deal`
-    are shared with `travellers`, and have the image pipeline import them from
-    there. That is a real refactor: `SheetGeometry` carries a `row_pitch` method
-    and `Box` a `width` one, and `sheet_structure` reads `Box` from
-    `sheet_geometry` too.
+  - Note: the obvious fix inverts it — move `Box` and `SheetGeometry` into
+    `models` as canonical types, the way `Card` and `Deal` are shared with
+    `travellers`, and have the image pipeline import them from there. That is a
+    real refactor: `SheetGeometry` carries a `row_pitch` method and `Box` a
+    `width` one, and `sheet_structure` reads `Box` from `sheet_geometry` too.
   - Note: measure before deciding. If Pillow's import cost is negligible for a
     command that loads it anyway, the tidier dependency graph may not earn the
-    churn. models.md `#sheet-frame` records the reasoning as it stands.
+    churn. models.md `#sheet-image` records the reasoning as it stands.
 
 - [ ] Drop the `session_analysis/travellers/` entry from `.gitignore`. The
       directory is gone — the captures live in `bridge-private` now — and the

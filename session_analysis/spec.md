@@ -250,32 +250,36 @@ mode**, on the existing Claude subscription — no separate API billing.
   every strip, while fitting the strips cost no measurable accuracy
   (measurements.md #image-limits).
 
-- **The scan is dewarped from its own printed grid before anything else reads
-  it.** {#dewarp-from-the-grid} The live 6/29 scan (a raw phone photo) showed
-  why: perspective slants the top rules ~1.5 row pitches across the sheet's
-  width, tapering to flat at the bottom — no straight horizontal profile or
-  straight crop survives that, and the prototype's straight strips worked only
-  because the transcribed columns cluster where the drift is small. Narrow
-  column slices each resolve the rules sharply; the fitted top/bottom rule lines
-  and side border lines intersect into the grid's corner quad; and a true
-  perspective transform (not PIL's bilinear `QUAD`, which measurably
-  under-corrects mid-grid) maps the quad, extended with margins for footer and
-  padding, to an upright rectangle at native scale. This supersedes the earlier
-  reliance on the scanner app's perspective correction (see Ingest): good
-  capture still helps, but correctness no longer depends on it.
-- **Row geometry is resolved per scan in dewarped space, from two readings of
-  the sheet, and padding is the consumer's job.** The model reads the sheet's
-  layout first (`sheet_structure`): how many ruled rows each panel has, roughly
-  where each panel sits, and where the footer band is. Detection then finds
-  where every printed rule actually is — per-rule medians across the column
-  slices' chains, because a full-width profile stays blind to a rule that page
-  curl has pushed a fraction of a pitch out of line while each slice still sees
-  it sharply — and takes the run of rules matching the reported count. The split
-  is deliberate: what a line _means_ is a judgement about the form, and where it
-  _is_ is a measurement. Measured over repeated runs the reported row count is
-  exactly stable while the reported coordinates drift about a percent of the
-  page, so the count is a hard constraint and the coordinates only place it;
-  every coordinate in the result comes from a rule found in the pixels.
+- **The scan is read as delivered, with no straightening of its own.**
+  {#scan-read-as-delivered} Every scan comes from a scanner app, which flattens
+  and crops the page on the phone (see Ingest). The pages it delivers sit level
+  enough for straight strips: their tilt stays inside each strip's padding, and
+  a tilt too large for that makes geometry refuse the sheet rather than cut the
+  wrong rows (measurements.md #scan-tilt). Whatever the page holds stays in
+  view, so a footer is never cropped away for sitting lower than expected.
+
+  Straightening each scan from its own printed grid was rejected on the
+  evidence. It was built for raw phone photos. On scanner-app pages it did more
+  harm than good: it refused level pages outright and tilted others by several
+  degrees.
+
+  Reading scans as delivered means raw camera photos are not a supported input.
+  If a page ever arrives tilted past what geometry survives — a skewed
+  photocopy, say — rotating it until its rules run level might be effective.
+
+- **Row geometry is resolved per scan, in the scan's own pixels, from two
+  readings of the sheet, and padding is the consumer's job.** The model reads
+  the sheet's layout first (`sheet_structure`): how many ruled rows each panel
+  has, roughly where each panel sits, and where the footer band is. Detection
+  then finds where every printed rule actually is — per-rule medians across the
+  column slices' chains, because a full-width profile stays blind to a rule that
+  page curl has pushed a fraction of a pitch out of line while each slice still
+  sees it sharply — and takes the run of rules matching the reported count. The
+  split is deliberate: what a line _means_ is a judgement about the form, and
+  where it _is_ is a measurement. Measured over repeated runs the reported row
+  count is exactly stable while the reported coordinates drift about a percent
+  of the page, so the count is a hard constraint and the coordinates only place
+  it; every coordinate in the result comes from a rule found in the pixels.
 
   This replaced three heuristics that each assumed a single full-width grid and
   each failed on real scans: a row-count vote across the slices, an ink-coverage
@@ -291,13 +295,13 @@ mode**, on the existing Claude subscription — no separate API billing.
   fixture in `testdata/`). The result is a typed `SheetGeometry` of tight
   rule-to-rule row boxes and the footer region beside them — carried rather than
   derived at a fixed offset below the last row, since several forms print charts
-  there and no footer at all — persisted with the source quad alongside the
-  processed session: extraction cuts strips from it, a voting rerun reuses the
-  same strips, and the review UI crops from it. Handwriting bleeds past the
-  printed rules and curl leaves residual drift, so each consumer pads the tight
-  boxes at cut time — extraction expands each strip by a fraction of the row
-  pitch into its neighbors, and the extraction prompt's input-format rule for
-  overlapping strips disambiguates the duplicated content that padding creates.
+  there and no footer at all — persisted alongside the processed session:
+  extraction cuts strips from it, a voting rerun reuses the same strips, and the
+  review UI crops from it. Handwriting bleeds past the printed rules and curl
+  leaves residual drift, so each consumer pads the tight boxes at cut time —
+  extraction expands each strip by a fraction of the row pitch into its
+  neighbors, and the extraction prompt's input-format rule for overlapping
+  strips disambiguates the duplicated content that padding creates.
 
 - **Extraction job is mechanical.** The model emits one flat, string-valued
   object per board — the auction as a single faithful transcription with inline
@@ -399,12 +403,12 @@ The two candidate transports and their tradeoff:
 
 Whichever is chosen:
 
-- **Convention**: one sheet is one scan file. The scanner's on-device
-  perspective correction improves capture quality but is no longer load-bearing
-  — extraction dewarps from the printed grid itself (see Extraction). A PDF is
-  **unwrapped rather than rasterized**: a scanner app's PDF is a container
-  around the photo it already took, so the embedded image is the original pixels
-  where rendering the page would resample them.
+- **Convention**: one sheet is one scan file, from a scanner app. The scanner's
+  on-device perspective correction is load-bearing, because extraction reads the
+  scan as delivered (#scan-read-as-delivered). A PDF is **unwrapped rather than
+  rasterized**: a scanner app's PDF is a container around the photo it already
+  took, so the embedded image is the original pixels where rendering the page
+  would resample them.
 - **Every page of a container is its own sheet.** A scanner app writes one file
   per feed, so several sheets fed together arrive in one PDF; each is a separate
   session with its own footer, key and traveller. `decode_scan` yields one

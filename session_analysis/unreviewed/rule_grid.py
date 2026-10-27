@@ -27,26 +27,22 @@ Three refinements make that signal trustworthy on a real photo:
   grid rules at all — a header box's lines, a title underline — are exactly as
   dark as rules. The grid is therefore identified structurally: the longest
   chain of dips spaced one near-uniform pitch apart, skipping interlopers. Only
-  the grid repeats at one spacing, dozens of times — and the chain's length is
-  also what counts the rows.
-- **Slice consensus.** Profiles are taken over narrow vertical slices of the
-  image, never its full width: a perspective-slanted rule stays sharp within a
-  slice but smears to invisibility when averaged across the whole width. Each
-  slice's chain votes on the grid's row count; the modal count wins, and the
-  chains of slices that disagree are excluded from the returned consensus rather
-  than guessed at.
+  the grid repeats at one spacing, dozens of times.
+- **Column slices.** Profiles are taken over narrow vertical slices of the
+  image, never its full width. Page curl or a slight tilt makes a rule drift
+  across the sheet, and a drifting rule stays sharp within a slice but smears
+  when averaged across the whole width. Each slice reads the rules on its own,
+  and only the slices that agree on one run of rules are combined; the rest are
+  excluded rather than guessed at.
 
-`resolve_grid_consensus` is the entry point. `sheet_dewarp` fits the grid's
-corner quad from the consensus; `sheet_geometry` turns a dewarped frame's
-consensus into per-row boxes.
+`rules_bounding_rows` is the entry point: `sheet_geometry` calls it once per
+panel, with the row count the sheet's layout reading reports.
 """
 
-import collections
 import dataclasses
 import itertools
 import statistics
 from collections.abc import Sequence
-from typing import NamedTuple
 
 from PIL import Image
 
@@ -93,15 +89,10 @@ _MINIMUM_PITCH_DIVISOR = 120
 
 # How many vertical slices the image is read in — each ~250px wide on the
 # reference scan, narrow enough that a slanted rule drifts only a few pixels
-# within it — and how many must agree on the same grid before the consensus is
+# within it — and how many must agree on the same run of rules before it is
 # trusted.
 _SLICE_COUNT = 12
 _MINIMUM_VALID_SLICES = 4
-
-# A scoresheet grid has at least this many rows. A shorter uniform chain is some
-# other structure (a printed header box's lines, a few aligned words) and
-# doesn't get to vote for the row count.
-_MINIMUM_ROW_COUNT = 8
 
 # How much better the run of rules chosen by `rules_bounding_rows` must fit the
 # reported bounds than the next-best run, in row pitches. Runs sit a pitch
@@ -137,17 +128,6 @@ class SheetGeometryError(Exception):
   """Raised when a scan's row grid cannot be resolved."""
 
 
-class SliceChain(NamedTuple):
-  """One column slice's resolved rule chain.
-
-  `center_x` is the slice's horizontal center in image pixels; `rule_ys` are the
-  detected rules' pixel rows, top to bottom.
-  """
-
-  center_x: float
-  rule_ys: Sequence[int]
-
-
 @dataclasses.dataclass(frozen=True)
 class _SliceReading:
   """One column slice's answer about where a known number of rows sit."""
@@ -157,106 +137,6 @@ class _SliceReading:
   # or None when the slice's chain held only one run of the right length and
   # there was nothing to choose between.
   margin: float | None
-
-
-@dataclasses.dataclass(frozen=True)
-class GridConsensus:
-  """The slices' agreement: the voted row count, and the chains of the slices
-  that agree with it.
-
-  The chains are handed over unsummarized because the consumers need opposite
-  statistics from them: `sheet_dewarp` fits lines through the per-slice rule
-  positions to measure their slant, while `sheet_geometry` takes per-rule
-  medians across slices to erase it.
-  """
-
-  row_count: int
-  chains: list[SliceChain]
-
-
-def resolve_grid_consensus(gray: Image.Image) -> GridConsensus:
-  """Resolve the grid per column slice, inferring the row count by consensus.
-
-  `gray` is the scan already converted to grayscale (PIL mode `'L'`).
-
-  The grid's row count is not assumed: each slice's chain votes, and the modal
-  count wins. A slice whose chain disagrees with the mode is untrustworthy —
-  most often the footer's printed guide underlines (rule-like lines one-ish
-  pitch below the grid, darkened further by the writing on them) chained on as a
-  ghost rule, or background at the sheet's edge hid part of the grid — so its
-  chain is excluded from the returned consensus rather than guessed at.
-
-  A tie between two counts is resolved by compatibility: when both readings'
-  chains end at the same bottom rule, the shorter is the same grid missing some
-  top rows (a chart printed above the grid spans only part of the sheet's width,
-  so only some slices chain it), and the longer reading subsumes it. A tie
-  between readings with different bottom rules is genuine ambiguity, refused.
-
-  Raises:
-    SheetGeometryError: no slice resolved a plausible grid, the slices split
-      evenly between two incompatible row counts, or too few match the
-      consensus.
-  """
-  chains = _slice_chains(gray, 0, gray.width)
-  # What each slice that resolved a chain made of the row count, for the error
-  # messages below. A slice that resolved none is absent rather than a zero:
-  # what a reader needs is the spread of the readings that exist.
-  row_counts = sorted(len(chain.rule_ys) - 1 for chain in chains)
-
-  votes = collections.Counter(
-    len(chain.rule_ys) - 1
-    for chain in chains
-    if len(chain.rule_ys) - 1 >= _MINIMUM_ROW_COUNT
-  )
-  if not votes:
-    raise SheetGeometryError(
-      f'none of the {_SLICE_COUNT} column slices resolved a plausible grid '
-      f'(row counts resolved: {row_counts}, minimum {_MINIMUM_ROW_COUNT})'
-    )
-  ranked = votes.most_common()
-  if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
-    if _tied_readings_share_a_bottom_rule(chains, ranked[0][0], ranked[1][0]):
-      row_count = max(ranked[0][0], ranked[1][0])
-    else:
-      raise SheetGeometryError(
-        f'ambiguous row count: {ranked[0][1]} slice(s) found {ranked[0][0]} '
-        f'rows and as many found {ranked[1][0]} (row counts resolved: '
-        f'{row_counts})'
-      )
-  else:
-    row_count = ranked[0][0]
-
-  matching = [chain for chain in chains if len(chain.rule_ys) - 1 == row_count]
-  if len(matching) < _MINIMUM_VALID_SLICES:
-    raise SheetGeometryError(
-      f'grid resolved in only {len(matching)} of {_SLICE_COUNT} column '
-      f'slices (row counts resolved: {row_counts}); need at least '
-      f'{_MINIMUM_VALID_SLICES}'
-    )
-  return GridConsensus(row_count=row_count, chains=matching)
-
-
-def _tied_readings_share_a_bottom_rule(
-  chains: Sequence[SliceChain], count_a: int, count_b: int
-) -> bool:
-  """Whether two tied row-count readings end at the same bottom rule.
-
-  If they do, the shorter reading is the same grid with some top rows unseen by
-  its slices, and the longer subsumes it; if their bottoms differ, they are
-  genuinely different structures (a footer ghost extends the bottom, for
-  example). "Same" allows half a pitch of drift.
-  """
-
-  def bottom(count: int) -> float:
-    return statistics.median(
-      chain.rule_ys[-1] for chain in chains if len(chain.rule_ys) - 1 == count
-    )
-
-  sample = next(chain.rule_ys for chain in chains if len(chain.rule_ys) >= 2)
-  pitch = statistics.median(
-    second - first for first, second in itertools.pairwise(sample)
-  )
-  return abs(bottom(count_a) - bottom(count_b)) <= 0.5 * pitch
 
 
 def rules_bounding_rows(
@@ -270,10 +150,9 @@ def rules_bounding_rows(
 ) -> Sequence[int]:
   """The `row_count + 1` printed rules bounding a known number of rows.
 
-  The alternative to inferring the row count from the scan
-  (`resolve_grid_consensus`): here it is already known, and the job is only to
-  find which of the detected rules it counts. A slice's chain routinely runs
-  past the grid at either end — a scale chart above, the footer's guide
+  The sheet's layout reading supplies the row count, so the only job is to find
+  which of the detected rules bound that many rows. A slice's chain routinely
+  runs past the grid at either end — a scale chart above, the footer's guide
   underline below — and the window of the chain that is the right length and
   best fits `top`..`bottom` is the grid. Since the count is exact and those
   bounds are approximate, the count decides the window's size and the bounds
@@ -308,8 +187,7 @@ def rules_bounding_rows(
 
   Returns:
     Each rule's pixel row, top to bottom, as the median across the slices that
-    resolved a window — the same way the slices' readings are combined
-    elsewhere, so page curl is averaged out rather than followed.
+    agreed on one window, so page curl is averaged out rather than followed.
 
   Raises:
     SheetGeometryError: too few slices resolved a chain long enough to hold
@@ -371,35 +249,6 @@ def rules_bounding_rows(
   return rules
 
 
-def _slice_chains(
-  gray: Image.Image, left: int, right: int
-) -> Sequence[SliceChain]:
-  """Each column slice's rule chain, across the span between two x positions.
-
-  The one place an image is cut into slices and each slice read for its rules.
-  Both consumers start here and then part ways: `resolve_grid_consensus` votes
-  on how long the chains are, while `rules_bounding_rows` is told the length and
-  looks for where it sits. A slice that resolved no chain is simply absent.
-  """
-  slice_width = max(1, (right - left) // _SLICE_COUNT)
-  chains: list[SliceChain] = []
-  for slice_index in range(_SLICE_COUNT):
-    slice_left = left + slice_index * slice_width
-    band = gray.crop((slice_left, 0, slice_left + slice_width, gray.height))
-    centers = dip_centers(pixel_row_profile(band))
-    if len(centers) < 2:
-      continue
-    chains.append(
-      SliceChain(
-        center_x=slice_left + slice_width / 2,
-        rule_ys=_longest_uniform_chain(
-          centers, minimum_gap=gray.height // _MINIMUM_PITCH_DIVISOR
-        ),
-      )
-    )
-  return chains
-
-
 def _slice_readings(
   gray: Image.Image,
   wanted: int,
@@ -408,10 +257,23 @@ def _slice_readings(
   top: float,
   bottom: float,
 ) -> Sequence[_SliceReading]:
-  """Each column slice's best run of `wanted` rules, where it resolved one."""
+  """Each column slice's best run of `wanted` rules, where it resolved one.
+
+  The span between `left` and `right` is cut into slices, and each slice is read
+  for its own rule chain. A slice whose chain is too short to hold `wanted`
+  rules is simply absent.
+  """
+  slice_width = max(1, (right - left) // _SLICE_COUNT)
   readings: list[_SliceReading] = []
-  for slice_chain in _slice_chains(gray, left, right):
-    chain = slice_chain.rule_ys
+  for slice_index in range(_SLICE_COUNT):
+    slice_left = left + slice_index * slice_width
+    band = gray.crop((slice_left, 0, slice_left + slice_width, gray.height))
+    centers = dip_centers(pixel_row_profile(band))
+    if len(centers) < 2:
+      continue
+    chain = _longest_uniform_chain(
+      centers, minimum_gap=gray.height // _MINIMUM_PITCH_DIVISOR
+    )
     if len(chain) < wanted:
       continue
     # Scored on both ends, so a chain overhanging at the top and the bottom

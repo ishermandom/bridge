@@ -37,7 +37,7 @@ holds a single sheet.
 ```sh
 PYTHONPATH=. uv run --project . python \
   session_analysis/scratch/strips_model_comparison.py cut \
-  --scan ../bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837.jpg \
+  --scan ../bridge-private/session_analysis/scoresheets/samples/PXL_20260630_191216837-dewarped.jpg \
   --output-directory /tmp/strips-6-29
 ```
 

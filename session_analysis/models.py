@@ -35,7 +35,6 @@ from session_analysis.enums import (
   Vulnerability,
 )
 from session_analysis.frozen_model import FrozenModel
-from session_analysis.sheet_dewarp import Quad
 from session_analysis.unreviewed.sheet_geometry import SheetGeometry
 
 
@@ -297,28 +296,15 @@ class Board(FrozenModel):
   issues: tuple[Issue, ...] = ()
 
 
-class SheetFrame(FrozenModel):
-  """How a scan was read: the quad it was dewarped by, and the grid in it.
-
-  The two sit in different coordinate systems — `source_quad` in original-scan
-  pixels, `geometry` in the dewarped frame those corners map to — so neither
-  means anything without the other, and both mean something only against the
-  exact image they came from. They are stored so the review UI reproduces the
-  dewarped frame and its grid from the archived scan rather than re-detecting
-  them.
-  """
-
-  geometry: SheetGeometry
-  source_quad: Quad
-
-
 class SheetImage(FrozenModel):
-  """The scanned sheet a session was digitized from, and how it was read.
+  """The scanned sheet a session was digitized from, and the grid read from it.
 
-  `frame` belongs here rather than on `Source` because it is valid for exactly
-  these bytes: applied to any other image its coordinates are quietly wrong
-  rather than an error. Beside `content_hash` that is checkable — re-hash the
-  archived scan, and the frame either still describes it or does not.
+  `geometry` belongs here rather than on `Source` because it is valid for
+  exactly these bytes: applied to any other image its coordinates are quietly
+  wrong rather than an error. Beside `content_hash` that is checkable — re-hash
+  the archived scan, and the geometry either still describes it or does not. The
+  geometry is stored so the review UI can crop the archived scan by it rather
+  than re-detecting the grid.
   """
 
   # The scan's path under the archive root, in POSIX spelling, so a record still
@@ -329,9 +315,11 @@ class SheetImage(FrozenModel):
   # Which page of that file this session was read from, counting from one. A
   # scanner app puts several sheets in one container when they are fed together,
   # and each is its own session — so the path alone does not identify the image
-  # a frame describes, and re-deriving a record needs the page too.
+  # its geometry describes, and re-deriving a record needs the page too.
   page: Annotated[int, pydantic.Field(gt=0)] = 1
-  frame: SheetFrame
+  # In the scan's own pixels: the scan is read as delivered (spec.md
+  # `#scan-read-as-delivered`).
+  geometry: SheetGeometry
 
 
 class CaptureReference(FrozenModel):

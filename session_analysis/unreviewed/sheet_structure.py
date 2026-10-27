@@ -188,7 +188,7 @@ def read_sheet_structure(
   """Ask the model what the printed table on this sheet is made of.
 
   Args:
-    image: the dewarped sheet, in its own full-resolution pixel space.
+    image: the sheet as delivered, in its own full-resolution pixel space.
     model: the vision model to read with.
     run_command: how the headless invocation is run; injected so a test needs
       no model call.

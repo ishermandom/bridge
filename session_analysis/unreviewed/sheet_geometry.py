@@ -1,6 +1,6 @@
 # Copyright 2026 Ilya Sherman (ishermandom@)
 # SPDX-License-Identifier: MIT
-"""Turn a dewarped scan into per-row crop geometry: `SheetGeometry`.
+"""Turn a scan into per-row crop geometry: `SheetGeometry`.
 
 The geometry is resolved from two readings of the same sheet, each supplying
 what the other cannot. `sheet_structure` says what the printed table is made of
@@ -18,12 +18,11 @@ footer band is the exception — nothing measures it, so it is carried as read a
 only clamped to the image, because what bounds it is handwriting rather than a
 printed rule.
 
-The resulting `SheetGeometry` holds tight rule-to-rule boxes in dewarped-image
-coordinates; handwriting routinely bleeds past the printed rules, so each
-consumer pads the tight boxes at cut time. Extraction cuts its strips from the
-geometry and the review UI crops from it, so the geometry persists alongside the
-processed session — with the source quad from `sheet_dewarp`, keeping the frame
-reproducible from the archived scan — rather than being recomputed per consumer.
+The resulting `SheetGeometry` holds tight rule-to-rule boxes in the scan's own
+pixels; handwriting routinely bleeds past the printed rules, so each consumer
+pads the tight boxes at cut time. Extraction cuts its strips from the geometry
+and the review UI crops from it, so the geometry persists alongside the
+processed session rather than being recomputed per consumer.
 
 A form that prints its boards in side-by-side panels contributes each panel's
 rows in turn, left to right, which is the order its printed board numbers run
@@ -125,7 +124,7 @@ class BoardPanel(FrozenModel):
 
 
 class SheetGeometry(FrozenModel):
-  """One scan's grid: tight per-row boxes, in dewarped-image space.
+  """One scan's grid: tight per-row boxes, in the scan's own pixels.
 
   Row boxes run rule-to-rule with no padding — consumers pad at cut time, each
   to its own needs (see the module docstring) — and are ordered as the sheet's
@@ -152,10 +151,10 @@ def resolve_sheet_geometry(
   panels: Sequence[BoardPanel],
   footer: Box | None = None,
 ) -> SheetGeometry:
-  """Resolve a dewarped scan's printed rules against a reading of its layout.
+  """Resolve a scan's printed rules against a reading of its layout.
 
   Args:
-    image: the dewarped scan.
+    image: the scan, as delivered.
     panels: the sheet's blocks of board rows, left to right, each with its own
       exact row count and approximate extent.
     footer: where the handwritten footer sits, or None on a form without one.
@@ -241,8 +240,7 @@ def _footer_within(footer: Box | None, width: int, height: int) -> Box | None:
   no footer, so it is answered the way a form printing none is: no footer strip,
   no event or date, and a record filed unnamed and carrying `unnamed_session`.
   That is the right shape of answer but not a precise one — it does not
-  distinguish a form with no footer from a reading that placed one outside the
-  frame the dewarp kept.
+  distinguish a form with no footer from a reading that placed one off the page.
   """
   if not footer:
     return None

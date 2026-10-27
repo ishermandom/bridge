@@ -24,7 +24,6 @@ import random
 import pytest
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.unreviewed.sheet_geometry import (
   BoardPanel,
   Box,
@@ -45,12 +44,16 @@ def _reading() -> BoardPanel:
   """
   return BoardPanel(
     board_row_count=28,
-    grid=Box(left=26, top=111, right=1174, bottom=1176),
+    grid=Box(left=45, top=129, right=1193, bottom=1196),
   )
 
 
 def _degrade(image: Image.Image) -> Image.Image:
-  """A rough phone capture: scribbles, slight rotation, uneven light, blur."""
+  """A rough capture: scribbles, a tilt, uneven light, blur.
+
+  The tilt turns the page about its center without growing the canvas, so the
+  page keeps the clean render's coordinates near its center.
+  """
   rng = random.Random(7)
   scribbled = image.copy()
   draw = ImageDraw.Draw(scribbled)
@@ -68,7 +71,7 @@ def _degrade(image: Image.Image) -> Image.Image:
       )
     draw.line(points, fill=60, width=2)
   rotated = scribbled.rotate(
-    1.5, resample=Image.Resampling.BICUBIC, expand=True, fillcolor=255
+    1.5, resample=Image.Resampling.BICUBIC, fillcolor=255
   )
   # Light falls off toward one edge, as under a ceiling lamp.
   vignette = (
@@ -82,28 +85,26 @@ def _degrade(image: Image.Image) -> Image.Image:
 
 @pytest.mark.slow
 def test_the_clean_render_resolves_the_board_grid() -> None:
-  dewarped = dewarp_sheet(Image.open(_FIXTURE))
+  geometry = resolve_sheet_geometry(Image.open(_FIXTURE), [_reading()])
 
-  geometry = resolve_sheet_geometry(dewarped.image, [_reading()])
-
-  # In the dewarped frame the form's board rows run from y=105 to y=1182, which
-  # the reported 111..1176 snap out to. A header row and a scale chart sit above
-  # them, chaining in at nearly the grid's own pitch, so landing on 105 is a
-  # statement about which run of rules was chosen.
-  assert geometry.row_boxes[0].top == 105
-  assert geometry.row_boxes[-1].bottom == 1182
+  # The form's board rows run from y=123 to y=1202, which the reported 129..1196
+  # snap out to. A header row and a scale chart sit above them, chaining in at
+  # nearly the grid's own pitch, so landing on 123 is a statement about which
+  # run of rules was chosen.
+  assert geometry.row_boxes[0].top == 123
+  assert geometry.row_boxes[-1].bottom == 1202
 
 
 @pytest.mark.slow
 def test_a_degraded_capture_still_resolves_the_board_grid() -> None:
   degraded = _degrade(Image.open(_FIXTURE))
 
-  dewarped = dewarp_sheet(degraded)
-  geometry = resolve_sheet_geometry(dewarped.image, [_reading()])
+  geometry = resolve_sheet_geometry(degraded, [_reading()])
 
-  # The same y=105 the clean render resolves to, through a 1.5-degree rotation,
-  # a vignette and a blur.
-  assert geometry.row_boxes[0].top == 105
+  # y=129 is the clean render's first rule (y=123), carried 6px down by the
+  # 1.5-degree tilt: the tilt turns about the page's center, about 200px right
+  # of the grid's. The header row, a pitch (39px) above, would land near 90.
+  assert geometry.row_boxes[0].top == 129
 
 
 @pytest.mark.slow
@@ -111,9 +112,7 @@ def test_the_footer_guide_underline_is_never_taken_for_a_board_row() -> None:
   # The underline runs nearly the full width one pitch below the grid, so ink
   # coverage cannot tell it from a rule. Taking it for one is what used to push
   # the footer region onto blank paper and lose the sheet's event and date.
-  dewarped = dewarp_sheet(Image.open(_FIXTURE))
+  geometry = resolve_sheet_geometry(Image.open(_FIXTURE), [_reading()])
 
-  geometry = resolve_sheet_geometry(dewarped.image, [_reading()])
-
-  # The underline sits at y=1219, a pitch below the last board rule at 1182.
-  assert geometry.row_boxes[-1].bottom < 1219
+  # The underline sits at y=1238, a pitch below the last board rule at 1202.
+  assert geometry.row_boxes[-1].bottom < 1238

@@ -76,7 +76,6 @@ from session_analysis.enums import IssueSeverity
 from session_analysis.models import (
   Issue,
   Session,
-  SheetFrame,
   SheetImage,
   Source,
 )
@@ -341,10 +340,7 @@ def digitize_scan(
         path=str(archived_as),
         content_hash=content_hash,
         page=sheet.page,
-        frame=SheetFrame(
-          geometry=transcription.geometry,
-          source_quad=transcription.source_quad,
-        ),
+        geometry=transcription.geometry,
       )
     )
     session = assembly.parse_and_assemble_voted_session(

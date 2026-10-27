@@ -36,7 +36,6 @@ from PIL import Image
 
 from session_analysis.extraction_prompt import VISION_MODEL_SYSTEM_PROMPT
 from session_analysis.extraction_schema import VISION_MODEL_OUTPUT_SCHEMA
-from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.strip_cutting import cut_strips
 from session_analysis.unreviewed.scan_decoding import DecodedScan, decode_scan
 from session_analysis.unreviewed.sheet_geometry import (
@@ -121,15 +120,13 @@ def read_single_sheet(scan_path: pathlib.Path) -> Image.Image:
 
 
 def cut_strip_set(scan_path: pathlib.Path, layout_model: str) -> StripSet:
-  """Dewarp a scan, read its layout with one model, and cut its strips."""
+  """Read a scan's layout with one model, and cut its strips."""
   runner = _CostRecordingRunner()
-  dewarped = dewarp_sheet(read_single_sheet(scan_path))
+  image = read_single_sheet(scan_path)
   structure = read_sheet_structure(
-    dewarped.image, model=layout_model, run_command=runner
+    image, model=layout_model, run_command=runner
   )
-  geometry = resolve_sheet_geometry(
-    dewarped.image, structure.panels, structure.footer
-  )
+  geometry = resolve_sheet_geometry(image, structure.panels, structure.footer)
   event = _result_event(runner.last_stdout)
   cost = event.get('total_cost_usd')
   return StripSet(
@@ -141,7 +138,7 @@ def cut_strip_set(scan_path: pathlib.Path, layout_model: str) -> StripSet:
     layout_effort=DEFAULT_EFFORT,
     layout_cost_usd=cost if isinstance(cost, (int, float)) else 0.0,
     geometry=geometry,
-    strips=tuple(cut_strips(dewarped.image, geometry)),
+    strips=tuple(cut_strips(image, geometry)),
   )
 
 

@@ -10,41 +10,26 @@ between.
 """
 
 import json
-import statistics
 from collections.abc import Sequence
 
 import pytest
-from PIL import Image
 
 from session_analysis.extraction import transcribe_sheet
-from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.testing.scripted_model import ScriptedModelRunner
 from session_analysis.testing.synthetic_scans import draw_sheet
-from session_analysis.unreviewed.rule_grid import resolve_grid_consensus
 
 # The grid a test with no opinion about the geometry draws. Only its row count
 # is depended on: no assertion here turns on where these rules sit.
 _TWENTY_FOUR_ROWS = list(range(80, 657, 24))
 
 
-def _frame_bounds(rule_ys: Sequence[int]) -> tuple[Image.Image, int, int]:
-  """The dewarped frame of a drawn sheet, and where its grid sits in it.
-
-  A scripted reading has to name roughly where the rows are, as a real one does
-  — the dewarp adds margins, so the drawn `rule_ys` are not those positions. The
-  drawn sheet carries nothing but its own rules, so the slice consensus over the
-  dewarped frame is the grid.
-  """
-  frame = dewarp_sheet(draw_sheet(rule_ys)).image
-  chains = resolve_grid_consensus(frame.convert('L')).chains
-  top = statistics.median(chain.rule_ys[0] for chain in chains)
-  bottom = statistics.median(chain.rule_ys[-1] for chain in chains)
-  return frame, round(top), round(bottom)
-
-
 def _reading(rule_ys: Sequence[int], row_count: int, *, footer: bool) -> str:
-  """A scripted layout reading of a drawn sheet, as the model returns one."""
-  frame, top, bottom = _frame_bounds(rule_ys)
+  """A scripted layout reading of a drawn sheet, as the model returns one.
+
+  A real reading names roughly where the rows are; this one names the drawn
+  first and last rules exactly, since the scan is read as drawn.
+  """
+  sheet = draw_sheet(rule_ys)
   return json.dumps(
     {
       'panels': [
@@ -52,17 +37,17 @@ def _reading(rule_ys: Sequence[int], row_count: int, *, footer: bool) -> str:
           'board_row_count': row_count,
           'grid': {
             'left': 0,
-            'top': top,
-            'right': frame.width,
-            'bottom': bottom,
+            'top': rule_ys[0],
+            'right': sheet.width,
+            'bottom': rule_ys[-1],
           },
         }
       ],
       'footer': {
         'left': 0,
-        'top': frame.height - 50,
-        'right': frame.width,
-        'bottom': frame.height,
+        'top': sheet.height - 50,
+        'right': sheet.width,
+        'bottom': sheet.height,
       }
       if footer
       else None,
@@ -105,10 +90,8 @@ def test_transcribe_sheet_returns_the_resolved_geometry() -> None:
   # count mis-parsed as 27 would still have resolved against these rules, and
   # come back as 27 boxes.
   assert len(transcription.geometry.row_boxes) == 28
-  # The source quad sits just outside the drawn grid: the dewarp margins push
-  # its top corner above and left of the first rule's start at (40, 100).
-  assert transcription.source_quad.top_left.y < 100
-  assert transcription.source_quad.top_left.x < 40
+  # In the scan's own pixels: the first row starts at the drawn first rule.
+  assert transcription.geometry.row_boxes[0].top == 100
 
 
 @pytest.mark.slow

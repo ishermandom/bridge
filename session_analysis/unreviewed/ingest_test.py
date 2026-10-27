@@ -16,7 +16,6 @@ faking-the-filesystem.md).
 import datetime
 import functools
 import json
-import statistics
 import types
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -43,7 +42,6 @@ from session_analysis.private_paths import (
   CLUB_CAPTURE_DIRECTORY,
   PrivateTree,
 )
-from session_analysis.sheet_dewarp import dewarp_sheet
 from session_analysis.testing import provenance
 from session_analysis.testing.scripted_model import ScriptedModelRunner
 from session_analysis.testing.synthetic_scans import draw_sheet
@@ -59,10 +57,7 @@ from session_analysis.unreviewed.ingest import (
   summarize_reconciliation,
   summarize_run,
 )
-from session_analysis.unreviewed.rule_grid import (
-  SheetGeometryError,
-  resolve_grid_consensus,
-)
+from session_analysis.unreviewed.rule_grid import SheetGeometryError
 from session_analysis.vision_model_invocation import (
   CommandRunner,
   VisionModelInvocationError,
@@ -127,14 +122,12 @@ def _reading(
 ) -> str:
   """A scripted layout reading of the scan `_write_scan` draws.
 
-  Every sheet costs one of these before its two transcription runs. It names
-  roughly where the rows are, as a real reading does; the drawn grid carries
-  nothing but its own rules, so the slice consensus over the dewarped frame is
-  the grid, and only the row count has to match what was drawn.
+  Every sheet costs one of these before its two transcription runs. Like a real
+  reading, it names where the rows are: here exactly the drawn first and last
+  rules, since the scan is read as drawn. Only the row count has to match what
+  was drawn.
   """
-  frame = dewarp_sheet(draw_sheet(rule_ys)).image
-  # Where the drawn grid lands once the dewarp has added its margins.
-  chains = resolve_grid_consensus(frame.convert('L')).chains
+  sheet = draw_sheet(rule_ys)
   return json.dumps(
     {
       'panels': [
@@ -144,21 +137,17 @@ def _reading(
           ),
           'grid': {
             'left': 0,
-            'top': round(
-              statistics.median(chain.rule_ys[0] for chain in chains)
-            ),
-            'right': frame.width,
-            'bottom': round(
-              statistics.median(chain.rule_ys[-1] for chain in chains)
-            ),
+            'top': rule_ys[0],
+            'right': sheet.width,
+            'bottom': rule_ys[-1],
           },
         }
       ],
       'footer': {
         'left': 0,
-        'top': frame.height - 50,
-        'right': frame.width,
-        'bottom': frame.height,
+        'top': sheet.height - 50,
+        'right': sheet.width,
+        'bottom': sheet.height,
       },
       'notes': '',
     }
@@ -214,10 +203,10 @@ class _ScriptedTranscriber:
 def _real_transcription() -> SheetTranscription:
   """One real transcription of the default drawn sheet, for the grid it finds.
 
-  Every scripted transcription carries the `geometry` and `source_quad` found
-  here, so the records these tests write hold what a real run over
-  `_write_scan`'s default sheet puts there. That geometry includes the sheet's
-  24 board rows: ingest checks each sheet's board count against its row count.
+  Every scripted transcription carries the `geometry` found here, so the records
+  these tests write hold what a real run over `_write_scan`'s default sheet puts
+  there. That geometry includes the sheet's 24 board rows: ingest checks each
+  sheet's board count against its row count.
   """
   with ScriptedModelRunner(
     [_reading(), _sheet_json(), _sheet_json()]
@@ -233,7 +222,6 @@ def _transcription(sheet_json: str) -> SheetTranscription:
   return SheetTranscription(
     raw_jsons=(sheet_json, sheet_json),
     geometry=real.geometry,
-    source_quad=real.source_quad,
   )
 
 
@@ -415,11 +403,11 @@ def test_the_detected_grid_persists_on_the_record(tmp_path: Path) -> None:
   ) as runner:
     process_inbox(tree, transcribe=_transcribed_by(runner))
 
-  frame = _stored_session(tree, 'pabc-morn-2026-06-29').source.image.frame
-  # The grid the review UI reproduces the dewarped frame from, rather than
-  # re-detecting it from the archived scan.
-  assert len(frame.geometry.row_boxes) == 28
-  assert frame.source_quad.top_left.y < 100
+  geometry = _stored_session(tree, 'pabc-morn-2026-06-29').source.image.geometry
+  # The grid the review UI crops the archived scan by. It is in the scan's own
+  # pixels, so the first row starts at the first rule, drawn at y=100.
+  assert len(geometry.row_boxes) == 28
+  assert geometry.row_boxes[0].top == 100
 
 
 # --- several sheets in one container ---
@@ -873,10 +861,11 @@ def test_a_scan_that_is_no_image_is_set_aside_with_its_reason(
 def test_a_scan_with_no_grid_to_find_is_set_aside(tmp_path: Path) -> None:
   tree = PrivateTree(tmp_path)
   tree.scan_inbox.mkdir(parents=True)
-  # A blank page: nothing for the dewarp pass to fit a grid to.
+  # A blank page: the layout reading reports a grid, but no printed rule is
+  # there to back it, so the sheet fails before either transcription run.
   Image.new('L', (600, 800), 255).save(tree.scan_inbox / 'scan.png')
 
-  with ScriptedModelRunner([]) as runner:
+  with ScriptedModelRunner([_reading()]) as runner:
     run = process_inbox(tree, transcribe=_transcribed_by(runner))
 
   assert run.value[0].outcome == SheetOutcome.FAILED

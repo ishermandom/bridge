@@ -147,7 +147,7 @@ pillow jpeg: raised UnidentifiedImageError: cannot identify image file
 ```
 
 PNG through the same call writes correctly, so this is specific to the C encoder
-path. **The image pipeline is excluded by this** — `sheet_dewarp`,
+path. **The image pipeline is excluded by this** — `sheet_geometry`,
 `strip_cutting`, and `extraction` are all Pillow-based.
 
 ### `tmp_path` alongside `fs` — loud, but uninformative
