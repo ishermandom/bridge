@@ -48,35 +48,42 @@ pub(crate) fn shorten(
         return line;
     }
     let layouts = solver.layouts;
-    let mut keeps =
+    let mut passes_check =
         |candidate: &Line| check::check(solver, candidate, required).is_ok();
     let mut pending: Vec<Vec<Turn>> = vec![Vec::new()];
     while let Some(path) = pending.pop() {
         match node(&line, &path) {
             Line::Done => {}
-            Line::Play(step, _) => {
+            Line::Step(step, _) => {
                 // An answer the line doesn't need is one fewer to read.
-                for index in (0..step.exceptions.len()).rev() {
+                for index in (0..step.stated_answers.len()).rev() {
                     let mut candidate = line.clone();
-                    if let Line::Play(step, _) = node_mut(&mut candidate, &path)
+                    if let Line::Step(step, _) = node_mut(&mut candidate, &path)
                     {
-                        step.exceptions.remove(index);
+                        step.stated_answers.remove(index);
                     }
-                    if keeps(&candidate) {
+                    if passes_check(&candidate) {
                         line = candidate;
                     }
                 }
-                pending.push(with(&path, Turn::Rest));
+                pending.push(extended(&path, Turn::Rest));
             }
             Line::Split(_) => {
-                line = shorten_split(line, &path, layouts, rule, &mut keeps);
+                line = shorten_split(
+                    line,
+                    &path,
+                    layouts,
+                    rule,
+                    &mut passes_check,
+                );
                 match node(&line, &path) {
-                    // A split that became one line is shortened as that line.
                     Line::Split(parts) => {
                         for index in 0..parts.len() {
-                            pending.push(with(&path, Turn::Part(index)));
+                            pending.push(extended(&path, Turn::Part(index)));
                         }
                     }
+                    // A split that became one line is shortened again as
+                    // that line.
                     _ => pending.push(path),
                 }
             }
@@ -94,7 +101,7 @@ fn shorten_split(
     path: &[Turn],
     layouts: &Layouts,
     rule: OtherwiseRule,
-    keeps: &mut impl FnMut(&Line) -> bool,
+    passes_check: &mut impl FnMut(&Line) -> bool,
 ) -> Line {
     let Line::Split(parts) = node(&line, path) else {
         return line;
@@ -103,11 +110,11 @@ fn shorten_split(
         .iter()
         .any(|part| part.condition == Condition::Otherwise);
     if has_otherwise || parts.len() < 2 {
-        return drop_into_otherwise(line, path, keeps);
+        return drop_into_otherwise(line, path, passes_check);
     }
-    // A teacher states the unusual cases and leaves the usual one, the trick
-    // played as named, as "Otherwise"; among parts that take as many deals
-    // that way, the one with the longest condition saves the most.
+    // Order the parts most usual first: the most deals in which declarer
+    // played the card the trick is named by, then, among equals, the longest
+    // condition, which saves the most words as "Otherwise".
     let mut order: Vec<usize> = (0..parts.len()).collect();
     order.sort_by_key(|&index| {
         let part = &parts[index];
@@ -116,10 +123,10 @@ fn shorten_split(
             Reverse(condition_words(&part.condition, layouts).len()),
         )
     });
-    // For the fewest parts, any part might be the one that lets the most
-    // others go, so each is tried in that order, up to a few, keeping the
-    // first among those that leave the fewest.
-    let mut fewest: Option<Line> = None;
+    // Under `FewestParts`, any part might be the one that removes the most
+    // others, so each is tried in that order, up to `OTHERWISE_TRIES`,
+    // keeping the first that leaves the fewest parts.
+    let mut fewest_parts_line: Option<Line> = None;
     for index in order.into_iter().take(OTHERWISE_TRIES) {
         let mut candidate = line.clone();
         if let Line::Split(parts) = node_mut(&mut candidate, path) {
@@ -127,36 +134,36 @@ fn shorten_split(
             part.condition = Condition::Otherwise;
             parts.push(part);
         }
-        if !keeps(&candidate) {
+        if !passes_check(&candidate) {
             continue;
         }
-        let candidate = drop_into_otherwise(candidate, path, keeps);
+        let candidate = drop_into_otherwise(candidate, path, passes_check);
         // The usual case is the first in that order that the line can leave
         // as "Otherwise".
         if rule == OtherwiseRule::Usual {
             return candidate;
         }
-        let is_fewer = fewest.as_ref().is_none_or(|fewest| {
-            parts_len(&candidate, path) < parts_len(fewest, path)
+        let is_fewer = fewest_parts_line.as_ref().is_none_or(|best_so_far| {
+            parts_len(&candidate, path) < parts_len(best_so_far, path)
         });
         if is_fewer {
-            fewest = Some(candidate);
+            fewest_parts_line = Some(candidate);
         }
     }
-    fewest.unwrap_or(line)
+    fewest_parts_line.unwrap_or(line)
 }
 
 /// How many of a split's parts `shorten_split` tries as "Otherwise", which
 /// keeps a split with many parts quick.
 const OTHERWISE_TRIES: usize = 6;
 
-/// `line` with each part of the split at `path` dropped that its
-/// "Otherwise" part can take, and the split replaced by its "Otherwise" line
-/// once that's all that's left.
+/// `line` with every part of the split at `path` removed whose branches the
+/// "Otherwise" line also wins, and the split replaced by that line once only
+/// "Otherwise" is left.
 fn drop_into_otherwise(
     mut line: Line,
     path: &[Turn],
-    keeps: &mut impl FnMut(&Line) -> bool,
+    passes_check: &mut impl FnMut(&Line) -> bool,
 ) -> Line {
     let Line::Split(parts) = node(&line, path) else {
         return line;
@@ -177,18 +184,18 @@ fn drop_into_otherwise(
             otherwise.weight += dropped.weight;
             otherwise.named_weight += dropped.named_weight;
         }
-        if keeps(&candidate) {
+        if passes_check(&candidate) {
             line = candidate;
         }
     }
     if parts_len(&line, path) == 1 {
         let mut candidate = line.clone();
-        let target = node_mut(&mut candidate, path);
-        if let Line::Split(parts) = target {
+        let split_node = node_mut(&mut candidate, path);
+        if let Line::Split(parts) = split_node {
             let only = parts.remove(0).line;
-            *target = only;
+            *split_node = only;
         }
-        if keeps(&candidate) {
+        if passes_check(&candidate) {
             line = candidate;
         }
     }
@@ -205,7 +212,7 @@ fn parts_len(line: &Line, path: &[Turn]) -> usize {
 }
 
 /// `path` with `turn` added.
-fn with(path: &[Turn], turn: Turn) -> Vec<Turn> {
+fn extended(path: &[Turn], turn: Turn) -> Vec<Turn> {
     let mut longer = path.to_vec();
     longer.push(turn);
     longer
@@ -216,7 +223,7 @@ fn node<'l>(line: &'l Line, path: &[Turn]) -> &'l Line {
     let mut node = line;
     for turn in path {
         node = match (node, turn) {
-            (Line::Play(_, rest), Turn::Rest) => rest,
+            (Line::Step(_, rest), Turn::Rest) => rest,
             (Line::Split(parts), Turn::Part(index)) => &parts[*index].line,
             _ => unreachable!("a path follows the line's own shape"),
         };
@@ -229,7 +236,7 @@ fn node_mut<'l>(line: &'l mut Line, path: &[Turn]) -> &'l mut Line {
     let mut node = line;
     for turn in path {
         node = match (node, turn) {
-            (Line::Play(_, rest), Turn::Rest) => rest,
+            (Line::Step(_, rest), Turn::Rest) => rest,
             (Line::Split(parts), Turn::Part(index)) => &mut parts[*index].line,
             _ => unreachable!("a path follows the line's own shape"),
         };

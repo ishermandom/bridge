@@ -11,16 +11,16 @@
 
 use crate::cards::{Rank, RankSet, rank_symbol};
 use crate::describe::{
-    Answer, Condition, Line, Plan, Play, Step, TrickEnd, dedup, implied_reply,
-    restricted, step_words,
+    Answer, Condition, Line, Plan, Play, Step, TrickEnd, dedup, defender_name,
+    implied_reply, restricted, step_words,
 };
 use crate::layout_set::LayoutSet;
-use crate::layouts::Defender;
+use crate::layouts::{Defender, Layouts};
 use crate::solver::{DefenderPlay, FollowPlay, Position, Solver, Trick};
 
-/// Whether `line` reaches `solver`'s lowest target wherever `required`'s
-/// first set says it must, played the way a reader would play it. An error
-/// says where the line falls short, after the tricks that led there.
+/// Checks that `line`, played the way a reader would play it, reaches
+/// `solver`'s lowest target in every layout of `required[0]`. The error says
+/// where the line falls short, after the tricks that led there.
 pub(crate) fn check(
     solver: &mut Solver,
     line: &Line,
@@ -58,7 +58,7 @@ impl Reader<'_, '_> {
             Line::Split(_) => {
                 Err("the line splits before any trick".to_string())
             }
-            Line::Play(step, rest) => {
+            Line::Step(step, rest) => {
                 self.check_trick(step, rest, position, required)
             }
         }
@@ -88,10 +88,7 @@ impl Reader<'_, '_> {
     /// Whether the target is safe at `position` on sure winners, where the
     /// reader stops following the line and cashes them.
     fn is_safe(&self, position: Position) -> bool {
-        let rounds_left = position.north.len().max(position.south.len());
-        let certain = position.tricks_won
-            + self.solver.sure_tricks(position).min(rounds_left);
-        certain >= self.solver.lowest_target
+        self.solver.certain_tricks(position) >= self.solver.lowest_target
     }
 
     /// `check_from` for a trick played as `step` says, followed by `rest`.
@@ -140,22 +137,22 @@ impl Reader<'_, '_> {
             .solver
             .defender_options(trick)
             .into_iter()
-            .filter(|&(_, layouts)| {
+            .filter(|&(_, play_layouts)| {
                 required
                     .iter()
-                    .any(|set| !set.intersection(layouts).is_empty())
+                    .any(|set| !set.intersection(play_layouts).is_empty())
             })
             .collect();
         let second_defender = plan.leader.next_defender();
         let partner_cards = position.hand(plan.leader.partner());
-        for &(second, layouts) in &at_stake {
-            let required = restricted(required, layouts);
+        for &(second, play_layouts) in &at_stake {
+            let required = restricted(required, play_layouts);
             if required[0].is_empty() {
                 continue;
             }
-            let stated = step.exceptions.iter().find(|exception| {
-                exception.defender == second_defender
-                    && exception.play == second
+            let stated = step.stated_answers.iter().find(|stated_answer| {
+                stated_answer.defender == second_defender
+                    && stated_answer.play == second
             });
             let contested = match second {
                 DefenderPlay::Group(group) => {
@@ -163,25 +160,27 @@ impl Reader<'_, '_> {
                 }
                 DefenderPlay::ShowOut => RankSet::EMPTY,
             };
-            let named_reply = match stated.map(|exception| exception.answer) {
-                None => implied_reply(
-                    self.solver.layouts,
-                    position,
-                    named,
-                    step.play,
-                    second,
-                ),
-                Some(Answer::Low) => match partner_cards.lowest() {
-                    Some(lowest) => FollowPlay::Card(lowest),
-                    None => FollowPlay::Discard,
-                },
-                Some(Answer::Card(card)) => FollowPlay::Card(card),
-            };
-            let is_card_named = stated
-                .is_some_and(|exception| exception.answer != Answer::Low)
-                || matches!(named_reply,
+            // The reply the line calls for, stated or implied.
+            let line_reply =
+                match stated.map(|stated_answer| stated_answer.answer) {
+                    None => implied_reply(
+                        self.solver.layouts,
+                        position,
+                        named,
+                        step.play,
+                        second,
+                    ),
+                    Some(Answer::Low) => match partner_cards.lowest() {
+                        Some(lowest) => FollowPlay::Card(lowest),
+                        None => FollowPlay::Discard,
+                    },
+                    Some(Answer::Card(card)) => FollowPlay::Card(card),
+                };
+            let is_card_named = stated.is_some_and(|stated_answer| {
+                stated_answer.answer != Answer::Low
+            }) || matches!(line_reply,
                     FollowPlay::Card(card) if named_cards.contains(card));
-            let reply = match named_reply {
+            let reply = match line_reply {
                 FollowPlay::Card(card) if is_card_named => {
                     if !partner_cards.contains(card) {
                         return Err(format!(
@@ -208,7 +207,7 @@ impl Reader<'_, '_> {
                 let done = played.with_defender_play(fourth);
                 let next = done.next_position(self.solver.layouts);
                 let next_required =
-                    restricted(&required, self.solver.live(next));
+                    restricted(&required, self.solver.possible_layouts(next));
                 if next_required[0].is_empty() {
                     continue;
                 }
@@ -244,46 +243,68 @@ impl Reader<'_, '_> {
                         [] if self.is_safe(next) => &Line::Done,
                         [] => {
                             return Err(format!(
-                                "after \"{words}\", no condition covers \
-                                 {end:?}"
+                                "after \"{words}\", no condition covers {}",
+                                end.words(self.solver.layouts)
                             ));
                         }
                         _ => {
                             return Err(format!(
                                 "after \"{words}\", two conditions with \
-                                 different lines cover {end:?}"
+                                 different lines cover {}",
+                                end.words(self.solver.layouts)
                             ));
                         }
                     };
                 }
                 self.check_from(next_line, next, &next_required).map_err(
                     |error| {
-                        let card = |play: DefenderPlay| match play {
-                            DefenderPlay::Group(group) => rank_symbol(
-                                self.solver.layouts.groups[group].top(),
-                            )
-                            .to_string(),
-                            DefenderPlay::ShowOut => "-".to_string(),
-                        };
-                        let reply = match reply {
-                            FollowPlay::Card(card) => {
-                                rank_symbol(card).to_string()
-                            }
-                            FollowPlay::Discard => "-".to_string(),
-                        };
                         // The trick, in play order, then what failed after it.
-                        format!(
-                            "[{} {} {} {}] {error}",
-                            rank_symbol(lead),
-                            card(second),
+                        let label = trick_label(
+                            self.solver.layouts,
+                            lead,
+                            second,
                             reply,
-                            card(fourth)
-                        )
+                            fourth,
+                        );
+                        format!("[{label}] {error}")
                     },
                 )?;
             }
         }
         Ok(())
+    }
+}
+
+/// A trick's cards in play order, such as "5 K A -", with "-" for a
+/// show-out or a discard.
+fn trick_label(
+    layouts: &Layouts,
+    lead: Rank,
+    second: DefenderPlay,
+    reply: FollowPlay,
+    fourth: DefenderPlay,
+) -> String {
+    let reply = match reply {
+        FollowPlay::Card(card) => rank_symbol(card).to_string(),
+        FollowPlay::Discard => "-".to_string(),
+    };
+    format!(
+        "{} {} {} {}",
+        rank_symbol(lead),
+        defender_play_symbol(layouts, second),
+        reply,
+        defender_play_symbol(layouts, fourth)
+    )
+}
+
+/// A defender's play as one symbol: the top card of its group, or "-" for a
+/// show-out.
+fn defender_play_symbol(layouts: &Layouts, play: DefenderPlay) -> String {
+    match play {
+        DefenderPlay::Group(group) => {
+            rank_symbol(layouts.groups[group].top()).to_string()
+        }
+        DefenderPlay::ShowOut => "-".to_string(),
     }
 }
 
@@ -326,6 +347,23 @@ impl Ending {
             fourth: end.play,
             declarer_won: end.declarer_won,
         })
+    }
+
+    /// The ending in words for an error message, such as "West K, East -,
+    /// declarer wins", with "-" for a show-out.
+    fn words(&self, layouts: &Layouts) -> String {
+        let winner = if self.declarer_won {
+            "declarer wins"
+        } else {
+            "the defenders win"
+        };
+        format!(
+            "{} {}, {} {}, {winner}",
+            defender_name(self.second_defender),
+            defender_play_symbol(layouts, self.second),
+            defender_name(self.fourth_defender),
+            defender_play_symbol(layouts, self.fourth)
+        )
     }
 
     /// Whether this ending meets `condition`, read literally: a condition

@@ -29,7 +29,8 @@ struct Game {
     target: u8,
     /// How many 64-bit words a `LayoutBits` needs.
     word_count: usize,
-    memo: HashMap<State, Vec<LayoutBits>>,
+    /// The frontier from each state solved so far.
+    cache: HashMap<State, Vec<LayoutBits>>,
 }
 
 /// What declarer has seen at the start of a trick.
@@ -39,9 +40,9 @@ struct State {
     south: u16,
     west_played: u16,
     east_played: u16,
-    west_out: bool,
-    east_out: bool,
-    tricks: u8,
+    has_west_shown_out: bool,
+    has_east_shown_out: bool,
+    tricks_won: u8,
 }
 
 /// A defender's play: a card, or none when showing out.
@@ -79,7 +80,7 @@ impl Game {
             weights,
             target,
             word_count,
-            memo: HashMap::new(),
+            cache: HashMap::new(),
         }
     }
 
@@ -101,25 +102,27 @@ impl Game {
         set
     }
 
-    fn live(&self, state: &State) -> LayoutBits {
+    /// The layouts consistent with what the defenders have played in
+    /// `state`.
+    fn possible_layouts(&self, state: &State) -> LayoutBits {
         self.layouts_where(|west, east| {
             west & state.west_played == state.west_played
                 && east & state.east_played == state.east_played
-                && (!state.west_out || west == state.west_played)
-                && (!state.east_out || east == state.east_played)
+                && (!state.has_west_shown_out || west == state.west_played)
+                && (!state.has_east_shown_out || east == state.east_played)
         })
     }
 
-    /// The best chance from the start, as a share of all deals.
+    /// The most deals any strategy wins from the start.
     fn best_weight(&mut self, north: u16, south: u16) -> u64 {
         let start = State {
             north,
             south,
             west_played: 0,
             east_played: 0,
-            west_out: false,
-            east_out: false,
-            tricks: 0,
+            has_west_shown_out: false,
+            has_east_shown_out: false,
+            tricks_won: 0,
         };
         let frontier = self.solve(start);
         frontier
@@ -130,21 +133,23 @@ impl Game {
     }
 
     fn solve(&mut self, state: State) -> Vec<LayoutBits> {
-        if let Some(frontier) = self.memo.get(&state) {
+        if let Some(frontier) = self.cache.get(&state) {
             return frontier.clone();
         }
-        let live = self.live(&state);
+        let possible = self.possible_layouts(&state);
         let rounds = state.north.count_ones().max(state.south.count_ones());
-        let frontier = if state.tricks >= self.target {
-            vec![live]
-        } else if u32::from(state.tricks) + rounds < u32::from(self.target) {
+        let frontier = if state.tricks_won >= self.target {
+            vec![possible]
+        } else if u32::from(state.tricks_won) + rounds < u32::from(self.target)
+        {
             vec![vec![0; self.word_count]]
         } else {
             let mut frontier = Vec::new();
             for (is_north, cards) in [(true, state.north), (false, state.south)]
             {
                 for lead in ranks(cards) {
-                    let child = self.second(state, &live, is_north, lead);
+                    let child =
+                        self.second_hand_turn(state, &possible, is_north, lead);
                     for set in child {
                         insert(&mut frontier, set);
                     }
@@ -152,7 +157,7 @@ impl Game {
             }
             frontier
         };
-        self.memo.insert(state, frontier.clone());
+        self.cache.insert(state, frontier.clone());
         frontier
     }
 
@@ -161,14 +166,13 @@ impl Game {
     fn defender_plays(
         &self,
         state: &State,
-        live: &LayoutBits,
+        possible: &LayoutBits,
         is_west: bool,
-        also_played: u16,
     ) -> Vec<(DefenderCard, LayoutBits)> {
         let played = if is_west {
-            state.west_played | also_played
+            state.west_played
         } else {
-            state.east_played | also_played
+            state.east_played
         };
         let mut plays = Vec::new();
         for card in 0..13u8 {
@@ -176,7 +180,7 @@ impl Game {
                 let hand = if is_west { west } else { east };
                 hand & (1 << card) != 0 && played & (1 << card) == 0
             });
-            let mask = intersection(live, &mask);
+            let mask = intersection(possible, &mask);
             if mask.iter().any(|&word| word != 0) {
                 plays.push((Some(card), mask));
             }
@@ -185,28 +189,31 @@ impl Game {
             let hand = if is_west { west } else { east };
             hand & !played == 0
         });
-        let void = intersection(live, &void);
+        let void = intersection(possible, &void);
         if void.iter().any(|&word| word != 0) {
             plays.push((None, void));
         }
         plays
     }
 
-    fn second(
+    /// The frontier when second hand is due to play to `lead`.
+    fn second_hand_turn(
         &mut self,
         state: State,
-        live: &LayoutBits,
+        possible: &LayoutBits,
         is_north: bool,
         lead: u8,
     ) -> Vec<LayoutBits> {
         // North leads to East; South leads to West.
         let second_is_west = !is_north;
-        let plays = self.defender_plays(&state, live, second_is_west, 0);
-        let mut combined = vec![live.clone()];
+        let plays = self.defender_plays(&state, possible, second_is_west);
+        // Start from a frontier that wins in every possible layout, which
+        // combining leaves unchanged.
+        let mut combined = vec![possible.clone()];
         for (card, mask) in plays {
             let mut child_state = state;
             record(&mut child_state, second_is_west, card);
-            let child_live = self.live(&child_state);
+            let child_possible = self.possible_layouts(&child_state);
             let mut child = Vec::new();
             let partner = if is_north { state.south } else { state.north };
             let thirds: Vec<Option<u8>> = if partner == 0 {
@@ -215,9 +222,9 @@ impl Game {
                 ranks(partner).map(Some).collect()
             };
             for third in thirds {
-                for set in self.fourth(
+                for set in self.fourth_hand_turn(
                     child_state,
-                    &child_live,
+                    &child_possible,
                     is_north,
                     lead,
                     card,
@@ -226,30 +233,33 @@ impl Game {
                     insert(&mut child, set);
                 }
             }
-            combined = combine(&combined, &child, live, &mask);
+            combined = combine(&combined, &child, possible, &mask);
         }
         combined
     }
 
-    fn fourth(
+    /// The frontier when fourth hand is due to play.
+    fn fourth_hand_turn(
         &mut self,
         state: State,
-        live: &LayoutBits,
+        possible: &LayoutBits,
         is_north: bool,
         lead: u8,
         second: DefenderCard,
         third: Option<u8>,
     ) -> Vec<LayoutBits> {
         let fourth_is_west = is_north;
-        let plays = self.defender_plays(&state, live, fourth_is_west, 0);
-        let mut combined = vec![live.clone()];
+        let plays = self.defender_plays(&state, possible, fourth_is_west);
+        // Start from a frontier that wins in every possible layout, which
+        // combining leaves unchanged.
+        let mut combined = vec![possible.clone()];
         for (card, mask) in plays {
             let mut next = state;
             record(&mut next, fourth_is_west, card);
             let declarer_best = third.map_or(lead, |third| third.max(lead));
             let defender_best = [second, card].into_iter().flatten().max();
             if defender_best.is_none_or(|best| declarer_best > best) {
-                next.tricks += 1;
+                next.tricks_won += 1;
             }
             if is_north {
                 next.north &= !(1 << lead);
@@ -263,7 +273,7 @@ impl Game {
                 }
             }
             let child = self.solve(next);
-            combined = combine(&combined, &child, live, &mask);
+            combined = combine(&combined, &child, possible, &mask);
         }
         combined
     }
@@ -274,23 +284,24 @@ fn record(state: &mut State, is_west: bool, card: DefenderCard) {
     match (is_west, card) {
         (true, Some(card)) => state.west_played |= 1 << card,
         (false, Some(card)) => state.east_played |= 1 << card,
-        (true, None) => state.west_out = true,
-        (false, None) => state.east_out = true,
+        (true, None) => state.has_west_shown_out = true,
+        (false, None) => state.has_east_shown_out = true,
     }
 }
 
-/// Fold one more defender play's results into `combined`: a layout succeeds
-/// only where both do, counting the play's part a success outside `mask`.
+/// Fold one more defender play's frontier into `combined`: a layout succeeds
+/// only where both do, counting the play's part as a success in the
+/// possible layouts outside `mask`, where that play can't happen.
 fn combine(
     combined: &[LayoutBits],
     child: &[LayoutBits],
-    live: &LayoutBits,
+    possible: &LayoutBits,
     mask: &LayoutBits,
 ) -> Vec<LayoutBits> {
-    let outside: LayoutBits = live
+    let outside: LayoutBits = possible
         .iter()
         .zip(mask)
-        .map(|(live, mask)| live & !mask)
+        .map(|(possible, mask)| possible & !mask)
         .collect();
     let mut result = Vec::new();
     for left in combined {
@@ -341,14 +352,15 @@ fn binomial(total: u64, chosen: u64) -> u64 {
         .fold(1, |product, index| product * (total - index) / (index + 1))
 }
 
-/// The brute-force chance and the analyzer's, both as deal counts.
+/// The brute-force chance and the analyzer's, both as percentages to six
+/// decimal places.
 fn both_chances(problem: &str) -> (String, String) {
     let parsed = parse_problem(problem).expect("a valid problem");
-    let ranks_of = |set: suit_combinations::cards::RankSet| {
+    let bitmask_of = |set: suit_combinations::cards::RankSet| {
         set.descending().fold(0u16, |mask, rank| mask | (1 << rank))
     };
-    let north = ranks_of(parsed.combination.north);
-    let south = ranks_of(parsed.combination.south);
+    let north = bitmask_of(parsed.combination.north);
+    let south = bitmask_of(parsed.combination.south);
     let mut game = Game::new(north, south, parsed.target);
     let brute = game.best_weight(north, south);
     let analysis = analyze(parsed);
@@ -394,8 +406,8 @@ fn random_problems(count: usize, max_missing: u32, seed: u64) -> Vec<String> {
         if missing > max_missing || north.is_empty() || south.is_empty() {
             continue;
         }
-        let longest = north.len().max(south.len()) as u64;
-        let target = 1 + next() % longest;
+        let most_tricks = north.len().max(south.len()) as u64;
+        let target = 1 + next() % most_tricks;
         problems.push(format!("{north}-{south}@{target}"));
     }
     problems

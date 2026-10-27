@@ -80,8 +80,9 @@ impl Analysis {
     /// fails its check.
     pub fn line_words(&self) -> String {
         let words = self.full_line_words();
-        let is_checked = self.best.iter().all(|result| result.check.is_ok());
-        if words.chars().count() > MAX_LINE_LENGTH || !is_checked {
+        let does_every_line_pass =
+            self.best.iter().all(|result| result.check.is_ok());
+        if words.chars().count() > MAX_LINE_LENGTH || !does_every_line_pass {
             return TOO_MANY_CASES.to_string();
         }
         words
@@ -112,8 +113,11 @@ fn either_words<'l>(
     if distinct.len() == 1 {
         return distinct.remove(0);
     }
-    let bullets: Vec<String> =
-        distinct.iter().map(|words| format!("* {words}")).collect();
+    // An outline's own lines nest under its bullet.
+    let bullets: Vec<String> = distinct
+        .iter()
+        .map(|words| format!("* {}", words.replace('\n', "\n  ")))
+        .collect();
     format!("Either:\n{}", bullets.join("\n"))
 }
 
@@ -137,79 +141,83 @@ pub fn line_errors(problem: Problem) -> Vec<String> {
 /// one's line.
 pub fn analyze(problem: Problem) -> Analysis {
     let layouts = Layouts::new(problem.combination);
-    let longest = problem.combination.longer_hand_length();
-    let best = {
-        let mut solver = Solver::new(&layouts, problem.target, longest);
-        let frontier = solver.solve(Position::start(&layouts));
-        let candidates: Vec<(Vec<LayoutSet>, Vec<u64>)> = frontier
-            .results()
-            .map(|result| {
-                let deals =
-                    result.iter().map(|&set| layouts.weight(set)).collect();
-                (result.to_vec(), deals)
-            })
-            .collect();
-        // Comparing the counts target by target, the problem's own first,
-        // ranks overtricks below the target and each overtrick below the
-        // one before it.
-        let top = candidates
-            .iter()
-            .map(|(_, deals)| deals.clone())
-            .max()
-            .expect("a frontier always holds a result");
-        let tied: Vec<(Vec<LayoutSet>, Vec<u64>)> = candidates
-            .into_iter()
-            .filter(|(_, deals)| *deals == top)
-            .collect();
-        let mut describer = Describer::new(&mut solver);
-        let full_lines: Vec<Line> = tied
-            .iter()
-            .map(|(layouts_by_target, _)| describer.describe(layouts_by_target))
-            .collect();
-        let mut shorten_all = |rule: OtherwiseRule| -> Vec<Line> {
-            full_lines
-                .iter()
-                .zip(&tied)
-                .map(|(line, (layouts_by_target, _))| {
-                    describer.shorten(line.clone(), layouts_by_target, rule)
-                })
-                .collect()
-        };
-        // The usual case as "Otherwise" reads most like a teacher, so letting
-        // the most parts go instead is worth it only when the usual case
-        // leaves the answer past the limit, which counts the tied lines
-        // together as `Analysis::line_words` shows them, or leaves at least
-        // `MIN_PARTS_SAVED` more conditions to read.
-        let mut lines = shorten_all(OtherwiseRule::Usual);
-        let length = either_words(&lines, &layouts).chars().count();
-        let usual_parts: usize = lines.iter().map(Line::part_count).sum();
-        if length > MAX_LINE_LENGTH || usual_parts >= MIN_PARTS_SAVED {
-            let fewest = shorten_all(OtherwiseRule::FewestParts);
-            let fewest_parts: usize = fewest.iter().map(Line::part_count).sum();
-            if length > MAX_LINE_LENGTH
-                || fewest_parts + MIN_PARTS_SAVED <= usual_parts
-            {
-                lines = fewest;
-            }
-        }
-        tied.into_iter()
-            .zip(lines)
-            .map(|((layouts_by_target, deals_by_target), line)| {
-                let check = describer.check(&line, &layouts_by_target);
-                BestResult {
-                    layouts_by_target,
-                    deals_by_target,
-                    line,
-                    check,
-                }
-            })
-            .collect()
-    };
+    let best = best_results(&layouts, problem);
     Analysis {
         problem,
         layouts,
         best,
     }
+}
+
+/// The best strategies for `problem`, each with its line shortened and
+/// checked.
+fn best_results(layouts: &Layouts, problem: Problem) -> Vec<BestResult> {
+    let most_tricks = problem.combination.longer_hand_length();
+    let mut solver = Solver::new(layouts, problem.target, most_tricks);
+    let frontier = solver.solve(Position::start(layouts));
+    let candidates: Vec<(Vec<LayoutSet>, Vec<u64>)> = frontier
+        .results()
+        .map(|result| {
+            let deals = result.iter().map(|&set| layouts.weight(set)).collect();
+            (result.to_vec(), deals)
+        })
+        .collect();
+    // Comparing the counts target by target, the problem's own first, ranks
+    // overtricks below the target and each overtrick below the one before
+    // it.
+    let best_deals = candidates
+        .iter()
+        .map(|(_, deals)| deals.clone())
+        .max()
+        .expect("a frontier always holds a result");
+    let tied: Vec<(Vec<LayoutSet>, Vec<u64>)> = candidates
+        .into_iter()
+        .filter(|(_, deals)| *deals == best_deals)
+        .collect();
+    let mut describer = Describer::new(&mut solver);
+    let full_lines: Vec<Line> = tied
+        .iter()
+        .map(|(layouts_by_target, _)| describer.describe(layouts_by_target))
+        .collect();
+    let mut shorten_all = |rule: OtherwiseRule| -> Vec<Line> {
+        full_lines
+            .iter()
+            .zip(&tied)
+            .map(|(line, (layouts_by_target, _))| {
+                describer.shorten(line.clone(), layouts_by_target, rule)
+            })
+            .collect()
+    };
+    // The usual case as "Otherwise" reads most like a teacher, so removing
+    // the most parts instead pays only in two cases: the usual case leaves
+    // the whole description, with tied lines counted together as
+    // `Analysis::line_words` shows them, past the limit; or it leaves at
+    // least `MIN_PARTS_SAVED` more conditions to read.
+    let mut lines = shorten_all(OtherwiseRule::Usual);
+    let usual_length = either_words(&lines, layouts).chars().count();
+    let usual_parts: usize = lines.iter().map(Line::part_count).sum();
+    if usual_length > MAX_LINE_LENGTH || usual_parts >= MIN_PARTS_SAVED {
+        let fewest_parts_lines = shorten_all(OtherwiseRule::FewestParts);
+        let fewest_parts: usize =
+            fewest_parts_lines.iter().map(Line::part_count).sum();
+        if usual_length > MAX_LINE_LENGTH
+            || fewest_parts + MIN_PARTS_SAVED <= usual_parts
+        {
+            lines = fewest_parts_lines;
+        }
+    }
+    tied.into_iter()
+        .zip(lines)
+        .map(|((layouts_by_target, deals_by_target), line)| {
+            let check = describer.check(&line, &layouts_by_target);
+            BestResult {
+                layouts_by_target,
+                deals_by_target,
+                line,
+                check,
+            }
+        })
+        .collect()
 }
 
 /// The chance, in percent, that a best strategy reaches `problem`'s target.

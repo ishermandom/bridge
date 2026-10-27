@@ -58,12 +58,12 @@ pub fn compare_rows(
                 ComparisonError(format!("the header has no {name:?} column"))
             })
     };
-    let north = column("North")?;
-    let south = column("South")?;
-    let target = column("Tricks target")?;
-    let success = column("Success %")?;
-    let line = column("Best line")?;
-    let remarks = column("Remarks")?;
+    let north_column = column("North")?;
+    let south_column = column("South")?;
+    let target_column = column("Tricks target")?;
+    let success_column = column("Success %")?;
+    let line_column = column("Best line")?;
+    let remarks_column = column("Remarks")?;
 
     let mut comparisons = Vec::new();
     for (index, record) in reader.records().enumerate() {
@@ -78,27 +78,32 @@ pub fn compare_rows(
         if cell(0).starts_with('#') {
             continue;
         }
-        let problem = row_problem(cell(north), cell(south), cell(target))
-            .map_err(|message| {
-                ComparisonError(format!("row {row_number}: {message}"))
-            })?;
+        let problem = row_problem(
+            cell(north_column),
+            cell(south_column),
+            cell(target_column),
+        )
+        .map_err(|message| {
+            ComparisonError(format!("row {row_number}: {message}"))
+        })?;
         let analysis = analyze(problem);
         let percent = analysis.success_percent();
-        let row_percent = cell(success);
+        let row_percent = cell(success_column);
         let decimals = row_percent
             .split_once('.')
             .map_or(0, |(_, after)| after.len());
         let line_words = analysis.line_words();
+        let row_line = cell(line_column);
         comparisons.push(RowComparison {
             problem: problem.to_string(),
             success_percent: format!("{percent:.2}"),
             row_success_percent: row_percent.to_string(),
             success_matches: format!("{percent:.decimals$}") == row_percent,
-            line_matches: squeeze(&line_words) == squeeze(cell(line)),
+            line_matches: squeeze(&line_words) == squeeze(row_line),
             line: line_words,
-            row_line: cell(line).to_string(),
+            row_line: row_line.to_string(),
             remark: analysis.remark(),
-            row_remark: cell(remarks).to_string(),
+            row_remark: cell(remarks_column).to_string(),
         });
     }
     Ok(comparisons)
@@ -117,17 +122,7 @@ fn row_problem(
     let target: u8 = target
         .parse()
         .map_err(|_| format!("tricks target {target:?} isn't a number"))?;
-    let longest = combination.longer_hand_length();
-    if target == 0 || target > longest {
-        return Err(format!(
-            "tricks target {target} is outside 1 to {longest}, the longer \
-             hand's length"
-        ));
-    }
-    Ok(Problem {
-        combination,
-        target,
-    })
+    Problem::new(combination, target).map_err(|error| error.to_string())
 }
 
 /// `text` with each run of whitespace turned into a single space.
@@ -141,36 +136,24 @@ pub fn report(comparisons: &[RowComparison]) -> String {
     let mark = |matches: bool| if matches { "same" } else { "DIFFERS" };
     for comparison in comparisons {
         let _ = writeln!(report, "{}", comparison.problem);
-        let _ = writeln!(
-            report,
-            "  Success %  [{}] {} (row: {})",
-            mark(comparison.success_matches),
-            comparison.success_percent,
-            comparison.row_success_percent
+        write_entry(
+            &mut report,
+            &format!("  Success %  [{}] ", mark(comparison.success_matches)),
+            &format!(
+                "{} (row: {})",
+                comparison.success_percent, comparison.row_success_percent
+            ),
         );
-        let _ = writeln!(
-            report,
-            "  Best line  [{}] {}",
-            mark(comparison.line_matches),
-            indent_after_first(&comparison.line)
+        write_entry(
+            &mut report,
+            &format!("  Best line  [{}] ", mark(comparison.line_matches)),
+            &comparison.line,
         );
         if !comparison.line_matches {
-            let _ = writeln!(
-                report,
-                "        row:  {}",
-                indent_after_first(&comparison.row_line)
-            );
+            write_entry(&mut report, "        row:  ", &comparison.row_line);
         }
-        let _ = writeln!(
-            report,
-            "  Remark     {}",
-            indent_after_first(&comparison.remark)
-        );
-        let _ = writeln!(
-            report,
-            "        row:  {}",
-            indent_after_first(&comparison.row_remark)
-        );
+        write_entry(&mut report, "  Remark     ", &comparison.remark);
+        write_entry(&mut report, "        row:  ", &comparison.row_remark);
         report.push('\n');
     }
     let count = |test: fn(&RowComparison) -> bool| {
@@ -189,9 +172,11 @@ pub fn report(comparisons: &[RowComparison]) -> String {
     report
 }
 
-/// `text` with every line after its first indented to line up under it.
-fn indent_after_first(text: &str) -> String {
-    text.replace('\n', "\n              ")
+/// Add `text` to `report` after `label`, with its later lines lined up under
+/// its first.
+fn write_entry(report: &mut String, label: &str, text: &str) {
+    let indent = format!("\n{}", " ".repeat(label.chars().count()));
+    let _ = writeln!(report, "{label}{}", text.replace('\n', &indent));
 }
 
 #[cfg(test)]

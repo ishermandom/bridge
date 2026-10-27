@@ -47,7 +47,7 @@ fn remark_plays_for_an_even_split_without_a_finesse() {
 #[test]
 fn remark_says_when_a_likely_line_fails() {
     // The line cashes its top cards unless someone shows out, so its
-    // likeliest path takes no finesse.
+    // usual path takes no finesse.
     assert_eq!(
         remark("KQ964-A852@5"),
         "Play for the drop; it fails only when East holds all four"
@@ -55,7 +55,7 @@ fn remark_says_when_a_likely_line_fails() {
 }
 
 #[test]
-fn remark_names_no_condition_that_misses_as_much_as_none() {
+fn remark_names_no_condition_that_misses_as_much_as_saying_nothing() {
     // The line wins 5.17% of the time; "West holds all seven" holds in almost
     // none of those layouts, so naming it explains nothing.
     assert_eq!(remark("AKT9-xx@4"), "Finesse");

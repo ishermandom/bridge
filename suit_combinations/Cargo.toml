@@ -12,7 +12,7 @@ publish = false
 [dependencies]
 # Reads the flashcards' input file, whose cells may hold quoted line breaks.
 csv = "1"
-# A faster hash than the standard library's for the solver's memo table, whose
+# A faster hash than the standard library's for the solver's caches, whose
 # keys never come from untrusted input.
 rustc-hash = "2"
 

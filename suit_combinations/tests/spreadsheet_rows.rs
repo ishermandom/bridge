@@ -107,7 +107,7 @@ fn aq9_opposite_xx_adds_a_chance_with_the_9() {
         answer("AQ9-xx@2"),
         Answer {
             success_percent: "63.00".to_string(),
-            line: "Low to the 9. If West plays one of the J, T, low to the 9. \
+            line: "Low to the 9. If West plays the J or the T, low to the 9. \
                    Otherwise, low to the Q."
                 .to_string(),
             remark: "Finesse hoping the K is onside, or the J and T are both \
@@ -127,10 +127,9 @@ fn aj9_opposite_xx_needs_the_t_and_another_honor_onside() {
         answer("AJ9-xx@2"),
         Answer {
             success_percent: "37.31".to_string(),
-            line:
-                "Low to the 9. If West plays one of the K, Q or the T, low to \
+            line: "Low to the 9. If West plays the K, the Q or the T, low to \
                    the 9. Otherwise, low to the J."
-                    .to_string(),
+                .to_string(),
             remark: "Finesse hoping the T and either the K or Q are onside, \
                     plus a small extra chance (0.31%) from rarer layouts"
                 .to_string(),
@@ -178,7 +177,7 @@ fn kqjx_opposite_xxx_adds_a_3_3_split_to_the_finesse() {
 }
 
 #[test]
-fn kqt_opposite_xxx_loses_to_a_hold_up_of_the_ace() {
+fn kqt_opposite_xxx_finesses_twice_with_a_small_chance_from_the_j() {
     // The row finesses the T once the K loses. Cashing the Q works as well:
     // the J only matters when it is short with West, so it falls. The row's
     // remark also hopes for the J with West whenever the A is with East, but

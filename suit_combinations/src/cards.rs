@@ -57,7 +57,8 @@ impl RankSet {
 
     /// The ranks strictly above `rank`.
     pub fn above(rank: Rank) -> RankSet {
-        RankSet(RankSet::ALL.0 & !((1u16 << (rank + 1)) - 1))
+        let up_to_rank = (1u16 << (rank + 1)) - 1;
+        RankSet(RankSet::ALL.0 & !up_to_rank)
     }
 
     /// Whether the set holds `rank`.

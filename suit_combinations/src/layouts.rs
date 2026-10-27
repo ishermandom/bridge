@@ -115,28 +115,33 @@ impl Layouts {
         ];
         for (index, group) in groups.iter().enumerate() {
             for defender_sets in &mut at_least {
-                // Counts run up to one past the group's size, which no layout
-                // reaches.
+                // Counts 0 through the group's size; `at_least()` treats any
+                // higher count as holding in no layout.
                 defender_sets.push(vec![
                     LayoutSet::EMPTY;
-                    usize::from(group.size()) + 2
+                    usize::from(group.size()) + 1
                 ]);
             }
             for (layout, counts) in west_counts.iter().enumerate() {
                 let west = counts[index];
                 let east = group.size() - west;
                 for count in 0..=west {
-                    at_least[0][index][usize::from(count)].insert(layout);
+                    at_least[Defender::West as usize][index]
+                        [usize::from(count)]
+                    .insert(layout);
                 }
                 for count in 0..=east {
-                    at_least[1][index][usize::from(count)].insert(layout);
+                    at_least[Defender::East as usize][index]
+                        [usize::from(count)]
+                    .insert(layout);
                 }
             }
         }
         for (layout, counts) in west_counts.iter().enumerate() {
             let west: u8 = counts.iter().sum();
-            length[0][usize::from(west)].insert(layout);
-            length[1][usize::from(missing_count - west)].insert(layout);
+            length[Defender::West as usize][usize::from(west)].insert(layout);
+            length[Defender::East as usize][usize::from(missing_count - west)]
+                .insert(layout);
         }
 
         let byte_weights = (0..west_counts.len().div_ceil(8))
@@ -162,14 +167,14 @@ impl Layouts {
     }
 
     /// The layouts where `defender` holds at least `count` cards of the group
-    /// at `group`.
+    /// at `group_index`.
     pub fn at_least(
         &self,
         defender: Defender,
-        group: usize,
+        group_index: usize,
         count: u8,
     ) -> LayoutSet {
-        let sets = &self.at_least[defender as usize][group];
+        let sets = &self.at_least[defender as usize][group_index];
         sets.get(usize::from(count))
             .copied()
             .unwrap_or(LayoutSet::EMPTY)
@@ -189,27 +194,28 @@ impl Layouts {
             .sum()
     }
 
-    /// How many cards of the suit `defender` holds in the layout at `layout`.
-    pub fn length_of(&self, defender: Defender, layout: usize) -> u8 {
-        let west: u8 = self.west_counts[layout].iter().sum();
+    /// How many cards of the suit `defender` holds in the layout at
+    /// `layout_index`.
+    pub fn length_of(&self, defender: Defender, layout_index: usize) -> u8 {
+        let west: u8 = self.west_counts[layout_index].iter().sum();
         match defender {
             Defender::West => west,
             Defender::East => self.missing_count() - west,
         }
     }
 
-    /// How many cards of the group at `group` `defender` holds in the layout
-    /// at `layout`.
+    /// How many cards `defender` holds of the group at `group_index`, in the
+    /// layout at `layout_index`.
     pub fn count_of(
         &self,
         defender: Defender,
-        group: usize,
-        layout: usize,
+        group_index: usize,
+        layout_index: usize,
     ) -> u8 {
-        let west = self.west_counts[layout][group];
+        let west = self.west_counts[layout_index][group_index];
         match defender {
             Defender::West => west,
-            Defender::East => self.groups[group].size() - west,
+            Defender::East => self.groups[group_index].size() - west,
         }
     }
 

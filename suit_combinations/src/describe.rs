@@ -66,6 +66,11 @@ impl Play {
             }
         }
     }
+
+    /// Whether the play gives up the trick.
+    pub fn gives_up_trick(self) -> bool {
+        matches!(self, Play::Duck(_) | Play::LeadLow(_))
+    }
 }
 
 /// How the previous trick went, as a condition on what follows.
@@ -107,7 +112,7 @@ pub struct TrickEnd {
 /// Declarer's answer to a second-hand play, when the trick's name doesn't
 /// imply it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Exception {
+pub struct StatedAnswer {
     /// Second hand, and the play declarer answers.
     pub defender: Defender,
     pub play: DefenderPlay,
@@ -140,7 +145,7 @@ pub struct Finesse {
 pub struct Step {
     pub play: Play,
     pub finesse: Option<Finesse>,
-    pub exceptions: Vec<Exception>,
+    pub stated_answers: Vec<StatedAnswer>,
     /// The cards the step's name stands for.
     pub plan: StepPlan,
 }
@@ -176,21 +181,22 @@ pub enum Line {
     /// can't come at all.
     Done,
     /// A trick's play, then the rest of the line.
-    Play(Step, Box<Line>),
+    Step(Step, Box<Line>),
     /// Different continuations, depending on how the last trick went.
     Split(Vec<Part>),
 }
 
 impl Line {
-    /// The tricks along the line's likeliest path, in order: at each split,
-    /// the part that the most deals reach.
-    pub fn main_path(&self) -> Vec<Step> {
+    /// The tricks along the line's usual path, in order: at each split, the
+    /// part the most deals reach after declarer played the card the trick is
+    /// named by, with ties going to the part the most deals reach overall.
+    pub fn usual_path(&self) -> Vec<Step> {
         let mut steps = Vec::new();
         let mut line = self;
         loop {
             match line {
                 Line::Done => return steps,
-                Line::Play(step, rest) => {
+                Line::Step(step, rest) => {
                     steps.push(step.clone());
                     line = rest;
                 }
@@ -212,7 +218,7 @@ impl Line {
     pub fn part_count(&self) -> usize {
         match self {
             Line::Done => 0,
-            Line::Play(_, rest) => rest.part_count(),
+            Line::Step(_, rest) => rest.part_count(),
             Line::Split(parts) => {
                 parts.iter().map(|part| 1 + part.line.part_count()).sum()
             }
@@ -238,7 +244,7 @@ pub fn line_words(line: &Line, layouts: &Layouts) -> String {
 fn split_depth(line: &Line) -> usize {
     match line {
         Line::Done => 0,
-        Line::Play(_, rest) => split_depth(rest),
+        Line::Step(_, rest) => split_depth(rest),
         Line::Split(parts) => {
             1 + parts
                 .iter()
@@ -259,12 +265,7 @@ fn push_outline(
     depth: usize,
     lines: &mut Vec<String>,
 ) {
-    let mut steps = Vec::new();
-    let mut rest = line;
-    while let Line::Play(step, next) = rest {
-        steps.push(step.clone());
-        rest = next;
-    }
+    let (steps, rest) = leading_steps(line);
     let words = chain_words(&steps, layouts);
     match condition {
         None => lines.push(format!("{}.", capitalize(&words))),
@@ -291,17 +292,24 @@ fn push_outline(
     }
 }
 
+/// The steps `line` opens with, before it ends or splits, and the rest of
+/// the line after them.
+fn leading_steps(line: &Line) -> (Vec<Step>, &Line) {
+    let mut steps = Vec::new();
+    let mut rest = line;
+    while let Line::Step(step, next) = rest {
+        steps.push(step.clone());
+        rest = next;
+    }
+    (steps, rest)
+}
+
 /// The line in words, starting in lowercase.
 fn lowercase_words(line: &Line, layouts: &Layouts) -> String {
     match line {
         Line::Done => "cash the winners".to_string(),
-        Line::Play(..) => {
-            let mut steps = Vec::new();
-            let mut rest = line;
-            while let Line::Play(step, next) = rest {
-                steps.push(step.clone());
-                rest = next;
-            }
+        Line::Step(..) => {
+            let (steps, rest) = leading_steps(line);
             let words = chain_words(&steps, layouts);
             match rest {
                 Line::Split(_) => {
@@ -344,7 +352,7 @@ fn chain_words(steps: &[Step], layouts: &Layouts) -> String {
     for step in steps {
         if let Play::Run(card) = step.play {
             // A run with answers of its own is spelled out, answers and all.
-            let continues_run = step.exceptions.is_empty()
+            let continues_run = step.stated_answers.is_empty()
                 && last_run.is_some_and(|higher| {
                     is_next_in_sequence(layouts, higher, card)
                 });
@@ -364,21 +372,21 @@ fn chain_words(steps: &[Step], layouts: &Layouts) -> String {
 /// as "low to the Q (if West plays the K, play low)".
 pub(crate) fn step_words(step: &Step, layouts: &Layouts) -> String {
     let play = step.play.words();
-    if step.exceptions.is_empty() {
+    if step.stated_answers.is_empty() {
         return play;
     }
     let answers: Vec<String> = step
-        .exceptions
+        .stated_answers
         .iter()
-        .map(|exception| {
-            let answer = match exception.answer {
+        .map(|stated| {
+            let answer = match stated.answer {
                 Answer::Low => "play low".to_string(),
                 Answer::Card(card) => format!("play the {}", rank_symbol(card)),
             };
             format!(
                 "if {} {}, {answer}",
-                defender_name(exception.defender),
-                second_play_words(layouts, exception.play)
+                defender_name(stated.defender),
+                second_play_words(layouts, stated.play)
             )
         })
         .collect();
@@ -386,7 +394,7 @@ pub(crate) fn step_words(step: &Step, layouts: &Layouts) -> String {
 }
 
 /// A defender's name, such as "West".
-fn defender_name(defender: Defender) -> &'static str {
+pub(crate) fn defender_name(defender: Defender) -> &'static str {
     match defender {
         Defender::West => "West",
         Defender::East => "East",
@@ -431,74 +439,73 @@ pub(crate) fn condition_words(
         Condition::Ended(ends) => ends,
     };
     // Whether second hand's card took the trick, beating fourth hand's.
-    let is_won_by_second = |end: &TrickEnd| match (end.second, end.play) {
-        (Some((_, DefenderPlay::Group(second))), fourth)
-            if !end.declarer_won =>
-        {
-            match fourth {
-                DefenderPlay::ShowOut => true,
-                DefenderPlay::Group(fourth) => {
-                    layouts.groups[second].top() > layouts.groups[fourth].top()
-                }
-            }
+    let is_won_by_second = |end: &TrickEnd| match end.second {
+        Some((_, second)) if !end.declarer_won => {
+            second_beats_fourth(layouts, second, end.play)
         }
         _ => false,
     };
+    let card_names = |end: &TrickEnd| match end.play {
+        DefenderPlay::Group(group) => group_names(layouts, group),
+        DefenderPlay::ShowOut => Vec::new(),
+    };
     // One phrase per defender and kind of ending, such as "East plays the T
-    // or a low card", after any second-hand play that sets it apart.
+    // or a low card", prefixed by second hand's play when the condition
+    // names it, as in "West plays the K and East plays the T".
     let mut phrases: Vec<String> = Vec::new();
-    // Who a phrase speaks of: second hand's play if named, the defender the
-    // phrase is about, and whether second hand won the trick.
-    type Speaker = (Option<(Defender, DefenderPlay)>, Defender, bool);
-    let mut speakers: Vec<Speaker> = Vec::new();
+    let mut phrase_keys: Vec<PhraseKey> = Vec::new();
     for end in ends {
-        let speaker = (end.second, end.defender, is_won_by_second(end));
-        if !speakers.contains(&speaker) {
-            speakers.push(speaker);
+        let key = PhraseKey {
+            second: end.second,
+            defender: end.defender,
+            did_second_win: is_won_by_second(end),
+        };
+        if !phrase_keys.contains(&key) {
+            phrase_keys.push(key);
         }
     }
-    for (second, defender, by_second) in speakers {
+    for key in phrase_keys {
         let start = phrases.len();
-        let mine = ends.iter().filter(|end| {
-            end.defender == defender
-                && end.second == second
-                && is_won_by_second(end) == by_second
+        let matching_ends = ends.iter().filter(|end| {
+            end.defender == key.defender
+                && end.second == key.second
+                && is_won_by_second(end) == key.did_second_win
         });
-        let played: Vec<String> = mine
+        // The defender only "plays" a card when declarer or second hand took
+        // the trick; when the defender's own card took it, the phrase says
+        // "wins with".
+        let played: Vec<String> = matching_ends
             .clone()
-            .filter(|end| end.declarer_won || by_second)
-            .filter_map(|end| match end.play {
-                DefenderPlay::Group(group) => Some(group_words(layouts, group)),
-                DefenderPlay::ShowOut => None,
-            })
+            .filter(|end| end.declarer_won || key.did_second_win)
+            .flat_map(card_names)
             .collect();
         if !played.is_empty() {
             phrases.push(format!(
                 "{} plays {}",
-                defender_name(defender),
-                played.join(" or ")
+                defender_name(key.defender),
+                or_list(&played)
             ));
         }
-        if mine.clone().any(|end| end.play == DefenderPlay::ShowOut) {
-            phrases.push(format!("{} shows out", defender_name(defender)));
+        if matching_ends
+            .clone()
+            .any(|end| end.play == DefenderPlay::ShowOut)
+        {
+            phrases.push(format!("{} shows out", defender_name(key.defender)));
         }
-        let winners: Vec<String> = mine
-            .filter(|end| !end.declarer_won && !by_second)
-            .filter_map(|end| match end.play {
-                DefenderPlay::Group(group) => Some(group_words(layouts, group)),
-                DefenderPlay::ShowOut => None,
-            })
+        let winners: Vec<String> = matching_ends
+            .filter(|end| !end.declarer_won && !key.did_second_win)
+            .flat_map(card_names)
             .collect();
         if !winners.is_empty() {
             phrases.push(format!(
                 "{} wins with {}",
-                defender_name(defender),
-                winners.join(" or ")
+                defender_name(key.defender),
+                or_list(&winners)
             ));
         }
-        if let Some((second_defender, second_play)) = second {
+        if let Some((second_defender, second_play)) = key.second {
             let action = match second_play {
-                DefenderPlay::Group(group) if by_second => {
+                DefenderPlay::Group(group) if key.did_second_win => {
                     format!("wins with {}", group_words(layouts, group))
                 }
                 _ => second_play_words(layouts, second_play),
@@ -512,20 +519,58 @@ pub(crate) fn condition_words(
     format!("If {}", phrases.join(", or "))
 }
 
-/// A defender's group in words, such as "the K" or "a low card".
+/// What one phrase of a condition speaks of: second hand's play if the
+/// condition names it, the defender the phrase is about, and whether second
+/// hand's card took the trick.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct PhraseKey {
+    second: Option<(Defender, DefenderPlay)>,
+    defender: Defender,
+    did_second_win: bool,
+}
+
+/// Whether second hand's `second` beats fourth hand's `fourth`.
+fn second_beats_fourth(
+    layouts: &Layouts,
+    second: DefenderPlay,
+    fourth: DefenderPlay,
+) -> bool {
+    match (second, fourth) {
+        (DefenderPlay::Group(_), DefenderPlay::ShowOut) => true,
+        (DefenderPlay::Group(second), DefenderPlay::Group(fourth)) => {
+            layouts.groups[second].top() > layouts.groups[fourth].top()
+        }
+        (DefenderPlay::ShowOut, _) => false,
+    }
+}
+
+/// A defender's group in words, such as "the K", "the J or the T", or "a
+/// low card".
 fn group_words(layouts: &Layouts, group: usize) -> String {
+    or_list(&group_names(layouts, group))
+}
+
+/// The names of a defender's group, any of which the defender may play:
+/// each card, such as "the J" and "the T", or "a low card" for the lowest
+/// group when it holds more than one.
+fn group_names(layouts: &Layouts, group: usize) -> Vec<String> {
     let ranks = layouts.groups[group].ranks;
-    if ranks.len() == 1 {
-        return format!("the {}", rank_symbol(layouts.groups[group].top()));
+    if ranks.len() > 1 && group + 1 == layouts.groups.len() {
+        return vec!["a low card".to_string()];
     }
-    if group + 1 == layouts.groups.len() {
-        return "a low card".to_string();
-    }
-    let names: Vec<String> = ranks
+    ranks
         .descending()
-        .map(|rank| rank_symbol(rank).to_string())
-        .collect();
-    format!("one of the {}", names.join(", "))
+        .map(|rank| format!("the {}", rank_symbol(rank)))
+        .collect()
+}
+
+/// `names` as alternatives, such as "the K, the Q or the T".
+fn or_list(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [only] => only.clone(),
+        [rest @ .., last] => format!("{} or {last}", rest.join(", ")),
+    }
 }
 
 /// `text` with its first letter capitalized.
@@ -539,6 +584,10 @@ fn capitalize(text: &str) -> String {
 
 /// One concrete way to play a trick: the lead, and the third hand's card when
 /// second hand plays below the card declarer means to win with.
+///
+/// `PlanKey` is this plan as matched across branches, with a lead equivalent
+/// to the leader's lowest left unnamed; `StepPlan` is that key as a step
+/// records it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct Plan {
     pub(crate) leader: Hand,
@@ -582,7 +631,7 @@ pub(crate) fn implied_reply(
     let Some(lowest) = partner_cards.lowest() else {
         return FollowPlay::Discard;
     };
-    if matches!(play, Play::Duck(_) | Play::LeadLow(_)) {
+    if play.gives_up_trick() {
         return FollowPlay::Card(lowest);
     }
     let DefenderPlay::Group(group) = second else {
@@ -613,9 +662,9 @@ struct PlanKey {
     lead: LeadKey,
     third: FollowPlay,
     /// Whether the play gives up the trick, which changes what its name
-    /// implies: low cards throughout, where any other play wins second
-    /// hand's higher card as cheaply as it can.
-    ducks: bool,
+    /// implies: a ducked trick plays low throughout, whereas any other play
+    /// beats second hand's higher card as cheaply as it can.
+    gives_up_trick: bool,
 }
 
 /// A plan that achieves what a branch requires.
@@ -629,7 +678,7 @@ struct Candidate {
     plan: Plan,
     /// Declarer's answer to each play second hand might make where the line
     /// can still succeed.
-    answers: Vec<Answered>,
+    answers: Vec<AnswerOptions>,
     /// The entries the plan costs: one when it leads from the hand that
     /// didn't win the last trick.
     entries: u32,
@@ -638,41 +687,52 @@ struct Candidate {
     preference: Preference,
 }
 
-/// A candidate's rank among ties, lowest first: a plan whose named card is
-/// really played before one second hand never lets it play, then the lower
-/// set of equivalent cards, then the lower run of touching cards, then the
-/// higher card within a run.
-type Preference = (bool, Rank, Rank, i8);
+/// A candidate's rank among ties, compared field by field, lowest first.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+struct Preference {
+    /// Whether second hand never lets declarer play the named card, which
+    /// ranks after a plan whose named card is really played.
+    is_hypothetical: bool,
+    /// The lowest card equivalent to the winner, so that the lower set of
+    /// equivalent cards comes first.
+    lowest_equivalent: Rank,
+    /// The lowest card in the winner's touching sequence, so that the lower
+    /// sequence comes first.
+    lowest_in_sequence: Rank,
+    /// The winner's rank, negated, so that the higher card within a
+    /// sequence comes first.
+    negated_winner: i8,
+}
 
 impl Candidate {
     /// This candidate's answer to each second-hand play: the instruction
-    /// `agreed` settles on, or for a play no other branch answers, its own
-    /// first.
-    fn settled(&self, agreed: &[Agreement]) -> Vec<Settled> {
+    /// `agreed` settles on, or, for a play no other branch answers, its own
+    /// most natural instruction.
+    fn settled(&self, agreed: &[Agreement]) -> Vec<SettledAnswer> {
         self.answers
             .iter()
-            .map(|answered| {
+            .map(|answer_options| {
                 let instruction = agreed
                     .iter()
-                    .find(|agreement| agreement.play == answered.play)
-                    .map_or(answered.instructions[0], |agreement| {
+                    .find(|agreement| agreement.play == answer_options.play)
+                    .map_or(answer_options.instructions[0], |agreement| {
                         agreement.instructions[0]
                     });
-                Settled {
-                    play: answered.play,
-                    reply: answered.reply(instruction),
-                    exception: instruction,
+                SettledAnswer {
+                    play: answer_options.play,
+                    reply: answer_options.reply(instruction),
+                    stated_answer: instruction,
                 }
             })
             .collect()
     }
 
     /// The answers in `settled` that the trick's name doesn't imply.
-    fn exceptions(&self, settled: &[Settled]) -> Vec<Exception> {
+    fn stated_answers(&self, settled: &[SettledAnswer]) -> Vec<StatedAnswer> {
         settled
             .iter()
             .filter_map(|each| {
-                each.exception.map(|answer| Exception {
+                each.stated_answer.map(|answer| StatedAnswer {
                     defender: self.plan.leader.next_defender(),
                     play: each.play,
                     answer,
@@ -682,15 +742,15 @@ impl Candidate {
     }
 }
 
-/// The instructions that keep a branch's requirement after one of second
-/// hand's plays. An instruction is an answer the description states, or
-/// None for the reply the trick's name implies, which each branch works out
-/// for itself, so that branches whose implied replies are different cards
-/// can still share a play.
+/// The instructions that still meet a branch's requirement after one of
+/// second hand's plays. An instruction is either an answer the description
+/// states, or None for the reply the trick's name implies. Each branch works
+/// out the implied reply for itself, so branches whose implied replies are
+/// different cards can still share a play.
 #[derive(Clone, Debug)]
-struct Answered {
+struct AnswerOptions {
     play: DefenderPlay,
-    /// Every instruction that keeps the requirement, the most natural
+    /// Every instruction that still meets the requirement, the most natural
     /// first: the implied reply, the cheapest card that wins the trick, then
     /// the rest from the bottom up.
     instructions: Vec<Option<Answer>>,
@@ -700,7 +760,7 @@ struct Answered {
     lowest: Option<Rank>,
 }
 
-impl Answered {
+impl AnswerOptions {
     /// The card `instruction` plays in this branch.
     fn reply(&self, instruction: Option<Answer>) -> FollowPlay {
         match instruction {
@@ -715,12 +775,12 @@ impl Answered {
 
 /// Declarer's settled answer to one of second hand's plays.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-struct Settled {
+struct SettledAnswer {
     play: DefenderPlay,
     reply: FollowPlay,
     /// The answer as the description states it, or None when the trick's
     /// name implies it.
-    exception: Option<Answer>,
+    stated_answer: Option<Answer>,
 }
 
 /// The instructions that every branch sharing a play allows after one of
@@ -745,17 +805,41 @@ struct Branch {
     ended: Option<TrickEnd>,
 }
 
-/// How much a description costs, compared in order: the entries it needs,
-/// then the tricks it spells out.
-type Cost = (u32, u32);
+/// How much a description costs, compared field by field.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+struct Cost {
+    /// The splits whose conditions can't tell two of their continuations
+    /// apart, so that any clear description wins over one with such a split.
+    ambiguous_splits: u32,
+    /// The entries the description needs.
+    entries: u32,
+    /// The tricks it spells out.
+    tricks_spelled_out: u32,
+}
 
-/// The cost added to a description whose conditions can't tell two of its
-/// continuations apart, so that any clear description wins over it.
-const AMBIGUOUS: u32 = 1_000_000;
+impl Cost {
+    /// No cost at all.
+    const ZERO: Cost = Cost {
+        ambiguous_splits: 0,
+        entries: 0,
+        tricks_spelled_out: 0,
+    };
 
-/// How many of the candidate plays common to every branch the description
-/// tries at each trick, in order of preference. Each one tried describes the
-/// rest of the line afresh, so the limit keeps long lines quick.
+    /// This cost and `other` together.
+    fn plus(self, other: Cost) -> Cost {
+        Cost {
+            ambiguous_splits: self.ambiguous_splits + other.ambiguous_splits,
+            entries: self.entries + other.entries,
+            tricks_spelled_out: self.tricks_spelled_out
+                + other.tricks_spelled_out,
+        }
+    }
+}
+
+/// How many candidate plays, among those common to every branch, the
+/// description tries at each trick, in order of preference. Each one tried
+/// describes the rest of the line afresh, so the limit keeps long lines
+/// quick.
 const PLAYS_TRIED: usize = 4;
 
 /// Describes strategies using a solver's frontiers.
@@ -767,7 +851,7 @@ impl<'s, 'a> Describer<'s, 'a> {
     /// A describer drawing on `solver`'s frontiers, which it asks the solver
     /// to remember within each trick.
     pub fn new(solver: &'s mut Solver<'a>) -> Describer<'s, 'a> {
-        solver.remember_tricks();
+        solver.enable_trick_cache();
         Describer { solver }
     }
 
@@ -789,60 +873,68 @@ impl<'s, 'a> Describer<'s, 'a> {
     /// stake.
     ///
     /// A branch whose target is already safe but which can still make
-    /// overtricks goes along with a play the other branches choose, when that
-    /// play suits it, and is dropped otherwise: overtricks shape the line only
-    /// where they come for free.
+    /// overtricks goes along with a play the other branches choose when its
+    /// own answers allow the instructions they agree on, and is dropped
+    /// otherwise: overtricks shape the line only where they come for free.
     fn describe_branches(&mut self, branches: Vec<Branch>) -> (Cost, Line) {
-        let mut hard = Vec::new();
-        let mut soft = Vec::new();
+        let mut target_branches = Vec::new();
+        let mut overtrick_branches = Vec::new();
         for branch in branches {
             match self.urgency(&branch) {
-                Urgency::Target => hard.push(branch),
-                Urgency::Overtricks => soft.push(branch),
+                Urgency::Target => target_branches.push(branch),
+                Urgency::Overtricks => overtrick_branches.push(branch),
                 Urgency::Settled => {}
             }
         }
-        if hard.is_empty() {
-            return ((0, 0), Line::Done);
+        if target_branches.is_empty() {
+            return (Cost::ZERO, Line::Done);
         }
 
-        let hard_options: Vec<Vec<Candidate>> =
-            hard.iter().map(|branch| self.candidates(branch)).collect();
-        let soft_options: Vec<Vec<Candidate>> =
-            soft.iter().map(|branch| self.candidates(branch)).collect();
-        let hard_slices: Vec<&[Candidate]> =
-            hard_options.iter().map(Vec::as_slice).collect();
-        let soft_slices: Vec<&[Candidate]> =
-            soft_options.iter().map(Vec::as_slice).collect();
-        let common: Vec<PlanKey> = common_keys(&hard_options)
+        let target_options: Vec<Vec<Candidate>> = target_branches
+            .iter()
+            .map(|branch| self.candidates(branch))
+            .collect();
+        let overtrick_options: Vec<Vec<Candidate>> = overtrick_branches
+            .iter()
+            .map(|branch| self.candidates(branch))
+            .collect();
+        let target_slices: Vec<&[Candidate]> =
+            target_options.iter().map(Vec::as_slice).collect();
+        let overtrick_slices: Vec<&[Candidate]> =
+            overtrick_options.iter().map(Vec::as_slice).collect();
+        let common: Vec<PlanKey> = common_keys(&target_options)
             .into_iter()
             .filter(|&key| {
-                select(&hard_slices, key, &[]).0.iter().all(Option::is_some)
+                select(&target_slices, key)
+                    .chosen
+                    .iter()
+                    .all(Option::is_some)
             })
             .collect();
 
         let mut best: Option<(Cost, Line)> = None;
         for key in common.into_iter().take(PLAYS_TRIED) {
-            let (hard_chosen, agreed) = select(&hard_slices, key, &[]);
-            // A branch only making overtricks goes along when the replies
-            // the others settle on suit it too.
-            let soft_chosen = soft_slices.iter().map(|each| {
+            let selection = select(&target_slices, key);
+            let agreed = selection.agreed;
+            // A branch only making overtricks goes along when its answers
+            // allow the instructions the others settle on.
+            let overtrick_chosen = overtrick_slices.iter().map(|each| {
                 let mut matching: Vec<&Candidate> = each
                     .iter()
                     .filter(|candidate| candidate.key == key)
                     .collect();
                 matching.sort_by_key(|candidate| candidate.entries);
-                matching
-                    .into_iter()
-                    .find(|candidate| fits(&candidate.answers, &agreed))
+                matching.into_iter().find(|candidate| {
+                    allows_settled(&candidate.answers, &agreed)
+                })
             });
             let mut entries = 0;
             let mut next = Vec::new();
             let mut steps = Vec::new();
-            let chosen = hard
+            let chosen = target_branches
                 .iter()
-                .zip(hard_chosen)
-                .chain(soft.iter().zip(soft_chosen));
+                .zip(selection.chosen)
+                .chain(overtrick_branches.iter().zip(overtrick_chosen));
             for (branch, candidate) in chosen {
                 let Some(candidate) = candidate else {
                     continue;
@@ -852,7 +944,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                 steps.push(Step {
                     play: candidate.play,
                     finesse: candidate.finesse,
-                    exceptions: candidate.exceptions(&settled),
+                    stated_answers: candidate.stated_answers(&settled),
                     plan: StepPlan {
                         leader: key.leader,
                         lead: match key.lead {
@@ -862,7 +954,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                         third: key.third,
                     },
                 });
-                next.extend(self.after(branch, candidate, &settled));
+                next.extend(self.branches_after(branch, candidate, &settled));
             }
             // A play that only cashes a winner in one branch may be a finesse
             // in another, and the finesse is the one worth naming.
@@ -873,37 +965,53 @@ impl<'s, 'a> Describer<'s, 'a> {
                 .expect("every key has a candidate in the first branch");
             // Each branch answers its own second-hand plays, and the step
             // states every answer its name doesn't imply, once.
-            step.exceptions = Vec::new();
-            for exception in steps.iter().flat_map(|step| &step.exceptions) {
-                let is_new = step.exceptions.iter().all(|stated| {
-                    (stated.defender, stated.play)
-                        != (exception.defender, exception.play)
+            step.stated_answers = Vec::new();
+            let branch_answers = steps
+                .iter()
+                .flat_map(|branch_step| &branch_step.stated_answers);
+            for each in branch_answers {
+                let is_new = step.stated_answers.iter().all(|stated| {
+                    (stated.defender, stated.play) != (each.defender, each.play)
                 });
                 if is_new {
-                    step.exceptions.push(*exception);
+                    step.stated_answers.push(*each);
                 }
             }
             let (rest_cost, rest) = self.describe_branches(next);
-            let cost = (
-                rest_cost.0.saturating_add(entries),
-                rest_cost.1.saturating_add(1),
-            );
+            let cost = rest_cost.plus(Cost {
+                ambiguous_splits: 0,
+                entries,
+                tricks_spelled_out: 1,
+            });
             if best.as_ref().is_none_or(|(best_cost, _)| cost < *best_cost) {
-                best = Some((cost, Line::Play(step, Box::new(rest))));
+                best = Some((cost, Line::Step(step, Box::new(rest))));
             }
         }
         // Splitting on how the last trick ended can only help when it
         // separates the branches.
-        let endings = dedup(hard.iter().map(|branch| branch.ended));
+        let endings = dedup(target_branches.iter().map(|branch| branch.ended));
         let can_split_now = endings.len() > 1 && !endings.contains(&None);
         match best {
-            Some(best) if best.0.0 < AMBIGUOUS || !can_split_now => best,
+            Some((cost, line))
+                if cost.ambiguous_splits == 0 || !can_split_now =>
+            {
+                (cost, line)
+            }
             Some(best) => {
-                let split =
-                    self.split(hard, &hard_options, soft, Grouping::ByEnding);
+                let split = self.split(
+                    target_branches,
+                    &target_options,
+                    overtrick_branches,
+                    Grouping::ByEnding,
+                );
                 if split.0 < best.0 { split } else { best }
             }
-            None => self.split(hard, &hard_options, soft, Grouping::ByPlay),
+            None => self.split(
+                target_branches,
+                &target_options,
+                overtrick_branches,
+                Grouping::ByPlay,
+            ),
         }
     }
 
@@ -913,20 +1021,22 @@ impl<'s, 'a> Describer<'s, 'a> {
     /// ambiguous.
     fn split(
         &mut self,
-        hard: Vec<Branch>,
+        target_branches: Vec<Branch>,
         options: &[Vec<Candidate>],
-        soft: Vec<Branch>,
+        overtrick_branches: Vec<Branch>,
         grouping: Grouping,
     ) -> (Cost, Line) {
-        let mut remaining: Vec<usize> = (0..hard.len()).collect();
+        let mut remaining: Vec<usize> = (0..target_branches.len()).collect();
         let mut groups: Vec<Vec<usize>> = Vec::new();
         if grouping == Grouping::ByEnding {
-            for ending in dedup(hard.iter().map(|branch| branch.ended)) {
+            let endings =
+                dedup(target_branches.iter().map(|branch| branch.ended));
+            for ending in endings {
                 groups.push(
                     remaining
                         .iter()
                         .copied()
-                        .filter(|&index| hard[index].ended == ending)
+                        .filter(|&index| target_branches[index].ended == ending)
                         .collect(),
                 );
             }
@@ -942,8 +1052,8 @@ impl<'s, 'a> Describer<'s, 'a> {
             let mut best_key: Option<(usize, Preference, PlanKey)> = None;
             for &index in &remaining {
                 for candidate in &options[index] {
-                    let count = select(&remaining_options, candidate.key, &[])
-                        .0
+                    let count = select(&remaining_options, candidate.key)
+                        .chosen
                         .iter()
                         .filter(|chosen| chosen.is_some())
                         .count();
@@ -960,7 +1070,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                 }
             }
             let (_, _, key) = best_key.expect("every branch has a valid play");
-            let (chosen, _) = select(&remaining_options, key, &[]);
+            let chosen = select(&remaining_options, key).chosen;
             let mut group = Vec::new();
             let mut rest = Vec::new();
             for (&index, candidate) in remaining.iter().zip(chosen) {
@@ -975,28 +1085,30 @@ impl<'s, 'a> Describer<'s, 'a> {
         }
 
         // Describe each group, merging groups whose lines read the same.
-        let mut cost: Cost = (0, 0);
+        let mut cost = Cost::ZERO;
         let mut described: Vec<(Vec<usize>, Line, String)> = Vec::new();
         for group in groups {
             let ends: Vec<TrickEnd> = dedup(group.iter().map(|&index| {
-                hard[index].ended.expect("a split follows a trick")
+                target_branches[index]
+                    .ended
+                    .expect("a split follows a trick")
             }));
-            let mut branches: Vec<Branch> =
-                group.iter().map(|&index| hard[index].clone()).collect();
+            let mut branches: Vec<Branch> = group
+                .iter()
+                .map(|&index| target_branches[index].clone())
+                .collect();
             // A branch only making overtricks follows the group that ended
             // its trick the same way.
             branches.extend(
-                soft.iter()
+                overtrick_branches
+                    .iter()
                     .filter(|branch| {
                         branch.ended.is_some_and(|end| ends.contains(&end))
                     })
                     .cloned(),
             );
             let (part_cost, line) = self.describe_branches(branches);
-            cost = (
-                cost.0.saturating_add(part_cost.0),
-                cost.1.saturating_add(part_cost.1),
-            );
+            cost = cost.plus(part_cost);
             let words = lowercase_words(&line, self.solver.layouts);
             match described.iter_mut().find(|(_, _, other)| *other == words) {
                 Some((merged, _, _)) => merged.extend(group),
@@ -1004,22 +1116,25 @@ impl<'s, 'a> Describer<'s, 'a> {
             }
         }
 
-        let all_won: Vec<usize> = (0..hard.len())
+        let won_indices: Vec<usize> = (0..target_branches.len())
             .filter(|&index| {
-                hard[index].ended.is_some_and(|end| end.declarer_won)
+                target_branches[index]
+                    .ended
+                    .is_some_and(|end| end.declarer_won)
             })
             .collect();
         // "If it loses" and "If that wins" speak of the card the trick is
         // named by, so they suit only a trick played as named.
-        let is_all_as_named = hard
+        let is_all_as_named = target_branches
             .iter()
             .all(|branch| branch.ended.is_some_and(|end| end.is_as_named));
         // When second hand played the same card every way the trick went,
         // conditions leave it out; otherwise each says what second hand
         // played, since a condition naming only fourth hand's card would also
         // seem to hold after second hand's other cards.
-        let is_one_second = dedup(
-            hard.iter()
+        let is_second_play_shared = dedup(
+            target_branches
+                .iter()
                 .map(|branch| branch.ended.and_then(|end| end.second)),
         )
         .len()
@@ -1034,13 +1149,17 @@ impl<'s, 'a> Describer<'s, 'a> {
         let is_two_way = described.len() == 2;
         for (mut group, line, _) in described {
             group.sort_unstable();
-            let ends = if is_one_second {
-                dedup(group.iter().map(|&index| TrickEnd {
-                    second: None,
-                    ..hard[index].ended.expect("a split follows a trick")
+            let ends = if is_second_play_shared {
+                dedup(group.iter().map(|&index| {
+                    TrickEnd {
+                        second: None,
+                        ..target_branches[index]
+                            .ended
+                            .expect("a split follows a trick")
+                    }
                 }))
             } else {
-                collapsed_ends(self.solver.layouts, &hard, &group)
+                collapsed_ends(self.solver.layouts, &target_branches, &group)
             };
             if ends.iter().any(|end| seen_ends.contains(end)) {
                 is_ambiguous = true;
@@ -1048,9 +1167,13 @@ impl<'s, 'a> Describer<'s, 'a> {
             seen_ends.extend(ends.iter().copied());
             let is_by_outcome = is_all_as_named
                 && is_two_way
-                && groups_by_outcome(&group, &all_won, hard.len());
+                && is_outcome_group(
+                    &group,
+                    &won_indices,
+                    target_branches.len(),
+                );
             let condition = if is_by_outcome {
-                if group == all_won {
+                if group == won_indices {
                     Condition::Wins
                 } else {
                     Condition::Loses
@@ -1058,20 +1181,26 @@ impl<'s, 'a> Describer<'s, 'a> {
             } else {
                 Condition::Ended(ends)
             };
-            let weight_of = |index: &&usize| {
-                self.solver.layouts.weight(hard[**index].required[0])
+            let weight_of = |index: usize| {
+                self.solver
+                    .layouts
+                    .weight(target_branches[index].required[0])
             };
-            let weight = group.iter().map(|index| weight_of(&index)).sum();
+            let weight = group.iter().map(|&index| weight_of(index)).sum();
             let named_weight = group
                 .iter()
                 .filter(|&&index| {
-                    hard[index].ended.is_some_and(|end| end.is_as_named)
+                    target_branches[index]
+                        .ended
+                        .is_some_and(|end| end.is_as_named)
                 })
-                .map(|index| weight_of(&index))
+                .map(|&index| weight_of(index))
                 .sum();
-            // A group that splits again before any play splits on this same
-            // trick, but nests: its conditions only tell apart the group's
-            // own branches, and beside the others they could overlap theirs.
+            // A group whose line splits again at once, before any play, still
+            // splits on this same trick, but its split stays nested inside
+            // this part: its conditions tell apart only the group's own
+            // branches, and beside the other parts' conditions they could
+            // overlap.
             parts.push(Part {
                 condition,
                 line,
@@ -1086,7 +1215,7 @@ impl<'s, 'a> Describer<'s, 'a> {
             .iter()
             .map(|part| lowercase_words(&part.line, self.solver.layouts))
             .collect();
-        for branch in &hard {
+        for branch in &target_branches {
             let Some(ending) = branch.ended.and_then(check::Ending::of) else {
                 continue;
             };
@@ -1102,7 +1231,7 @@ impl<'s, 'a> Describer<'s, 'a> {
             }
         }
         if is_ambiguous {
-            cost.0 = cost.0.saturating_add(AMBIGUOUS);
+            cost.ambiguous_splits += 1;
         }
         (cost, Line::Split(parts))
     }
@@ -1110,14 +1239,11 @@ impl<'s, 'a> Describer<'s, 'a> {
     /// What the branch still has at stake: its target, only overtricks, or
     /// nothing, once its sure winners count.
     fn urgency(&self, branch: &Branch) -> Urgency {
-        let position = branch.position;
-        let rounds_left = position.north.len().max(position.south.len());
-        let certain = position.tricks_won
-            + self.solver.sure_tricks(position).min(rounds_left);
-        let pending = |level: usize| {
-            // `level` indexes the solver's targets, which fit in a `u8`.
-            let target = self.solver.lowest_target + level as u8;
-            !branch.required[level].is_empty() && target > certain
+        let certain = self.solver.certain_tricks(branch.position);
+        let pending = |target_index: usize| {
+            // `target_index` indexes the solver's targets, which fit in a `u8`.
+            let target = self.solver.lowest_target + target_index as u8;
+            !branch.required[target_index].is_empty() && target > certain
         };
         if pending(0) {
             Urgency::Target
@@ -1137,25 +1263,24 @@ impl<'s, 'a> Describer<'s, 'a> {
             // Second hand's plays, leaving out any made only where the line
             // has already failed: declarer's answer to such a play changes
             // nothing, so the description never follows it.
-            let options: Vec<(DefenderPlay, LayoutSet)> = self
-                .solver
-                .defender_options(trick)
-                .into_iter()
-                .filter(|&(_, layouts)| {
-                    branch
-                        .required
-                        .iter()
-                        .any(|set| !set.intersection(layouts).is_empty())
-                })
-                .collect();
+            let options: Vec<(DefenderPlay, LayoutSet)> =
+                self.solver
+                    .defender_options(trick)
+                    .into_iter()
+                    .filter(|&(_, play_layouts)| {
+                        branch.required.iter().any(|set| {
+                            !set.intersection(play_layouts).is_empty()
+                        })
+                    })
+                    .collect();
             // Whether declarer, answering freely, can still meet the
             // requirement after each of second hand's plays.
-            let free: Vec<bool> = options
+            let can_answer_freely: Vec<bool> = options
                 .iter()
-                .map(|&(play, layouts)| {
+                .map(|&(play, play_layouts)| {
                     self.solver
                         .third_hand_turn(trick.with_defender_play(play))
-                        .achieves(&restricted(&branch.required, layouts))
+                        .achieves(&restricted(&branch.required, play_layouts))
                 })
                 .collect();
 
@@ -1164,7 +1289,7 @@ impl<'s, 'a> Describer<'s, 'a> {
             // second hand's plays can be checked on its own, since the
             // defenders choose between them layout by layout.
             for (index, &(low, low_layouts)) in options.iter().enumerate() {
-                let others_work = free
+                let others_work = can_answer_freely
                     .iter()
                     .enumerate()
                     .all(|(other, &works)| other == index || works);
@@ -1185,22 +1310,26 @@ impl<'s, 'a> Describer<'s, 'a> {
                     let child =
                         self.solver.defender_turn(low_trick.with_third(third));
                     if child.achieves(&required) {
+                        let main_line = MainLine {
+                            second: low,
+                            reply: third,
+                        };
                         self.add_candidates(
                             &mut candidates,
                             branch,
                             plan,
-                            (low, third),
-                            low,
-                            false,
+                            main_line,
+                            PlanKind::AnswersLowPlay,
                             &options,
                         );
                     }
                 }
             }
 
-            // Plans that second hand can never play below: declarer answers
-            // whatever comes freely, so only the lead is fixed.
-            if !free.iter().all(|&works| works) {
+            // Plans that second hand can never play below: declarer is free
+            // to answer whatever second hand plays, so only the lead is
+            // fixed.
+            if !can_answer_freely.iter().all(|&works| works) {
                 continue;
             }
             for third in self.solver.third_hand_options(trick) {
@@ -1220,8 +1349,7 @@ impl<'s, 'a> Describer<'s, 'a> {
                         branch,
                         plan,
                         main_line,
-                        main_line.0,
-                        true,
+                        PlanKind::Free,
                         &options,
                     );
                 }
@@ -1269,15 +1397,16 @@ impl<'s, 'a> Describer<'s, 'a> {
         trick: Trick,
         options: &[(DefenderPlay, LayoutSet)],
         planned: FollowPlay,
-    ) -> Option<(DefenderPlay, FollowPlay)> {
-        let &(play, layouts) = options
+    ) -> Option<MainLine> {
+        let &(play, play_layouts) = options
             .iter()
             .rev()
             .find(|(play, _)| matches!(play, DefenderPlay::Group(_)))?;
-        let required = restricted(&branch.required, layouts);
+        let required = restricted(&branch.required, play_layouts);
         let played = trick.with_defender_play(play);
         let mut replies = self.solver.third_hand_options(played);
-        // Equivalent cards may stand in for the planned one.
+        // Try the planned card first when it is among the distinct replies;
+        // otherwise an equivalent card stands in for it.
         if let Some(index) = replies.iter().position(|&reply| reply == planned)
         {
             replies.swap(0, index);
@@ -1288,7 +1417,10 @@ impl<'s, 'a> Describer<'s, 'a> {
                 .defender_turn(played.with_third(third))
                 .achieves(&required)
             {
-                return Some((play, third));
+                return Some(MainLine {
+                    second: play,
+                    reply: third,
+                });
             }
         }
         None
@@ -1298,21 +1430,19 @@ impl<'s, 'a> Describer<'s, 'a> {
     /// name its equivalent cards give it.
     ///
     /// The card meant to win the trick may be any of its equivalents, since
-    /// a sibling branch may only offer one of them; a card played under it
-    /// is always the lowest of its equivalents, keeping the higher ones.
-    #[allow(clippy::too_many_arguments)]
+    /// another branch may offer only one of them; a card played under it is
+    /// always the lowest of its equivalents, keeping the higher ones.
     fn add_candidates(
         &mut self,
         candidates: &mut Vec<Candidate>,
         branch: &Branch,
         plan: Plan,
-        main_line: (DefenderPlay, FollowPlay),
-        second: DefenderPlay,
-        is_free: bool,
+        main_line: MainLine,
+        kind: PlanKind,
         options: &[(DefenderPlay, LayoutSet)],
     ) {
         let position = branch.position;
-        let contested = match second {
+        let contested = match main_line.second {
             DefenderPlay::Group(group) => {
                 self.solver.layouts.groups[group].ranks
             }
@@ -1369,15 +1499,14 @@ impl<'s, 'a> Describer<'s, 'a> {
                     third,
                     ..plan
                 };
-                let main_line = if main_line.1 == plan.third {
-                    (main_line.0, third)
+                let main_line = if main_line.reply == plan.third {
+                    MainLine {
+                        reply: third,
+                        ..main_line
+                    }
                 } else {
                     main_line
                 };
-                // Every branch names the trick by the same plan, the card led
-                // and the card meant for second hand's low card, even where
-                // second hand has none at stake: every other answer then
-                // follows from that one name, or is stated beside it.
                 let winner = named.winner();
                 let winner_cards = if named.winning_hand() == plan.leader {
                     leader_cards
@@ -1397,38 +1526,46 @@ impl<'s, 'a> Describer<'s, 'a> {
                         LeadKey::Card(lead)
                     },
                     third,
-                    ducks: matches!(play, Play::Duck(_) | Play::LeadLow(_)),
+                    gives_up_trick: play.gives_up_trick(),
                 };
-                // A free plan names a card for second hand's low card, which
-                // second hand never plays; one naming the card it really
-                // plays reads truer, as "Cash the A" against "Lead the 5 and
+                // A free plan names declarer's card for a low card second
+                // hand never plays. A plan named by the card declarer really
+                // plays reads truer: "Cash the A" rather than "Lead the 5 and
                 // play the 4" when East can only drop a singleton K.
-                let is_hypothetical = is_free && main_line.1 != third;
-                let preference =
-                    if matches!(play, Play::Duck(_) | Play::LeadLow(_)) {
-                        // Giving up a trick is the last resort among ties.
-                        (is_hypothetical, Rank::MAX, Rank::MAX, 0)
-                    } else {
-                        (
-                            is_hypothetical,
-                            lowest(self.solver.equivalent_cards(
+                let is_hypothetical =
+                    kind == PlanKind::Free && main_line.reply != third;
+                let preference = if play.gives_up_trick() {
+                    // Giving up a trick is the last resort among ties.
+                    Preference {
+                        is_hypothetical,
+                        lowest_equivalent: Rank::MAX,
+                        lowest_in_sequence: Rank::MAX,
+                        negated_winner: 0,
+                    }
+                } else {
+                    Preference {
+                        is_hypothetical,
+                        lowest_equivalent: lowest(
+                            self.solver.equivalent_cards(
                                 position,
                                 winner_cards,
                                 winner,
                                 contested,
-                            )),
-                            lowest(self.solver.touching_cards(
-                                position,
-                                winner_cards,
-                                winner,
-                                contested,
-                            )),
-                            // Ranks run below 13.
-                            -(winner as i8),
-                        )
-                    };
+                            ),
+                        ),
+                        lowest_in_sequence: lowest(self.solver.touching_cards(
+                            position,
+                            winner_cards,
+                            winner,
+                            contested,
+                        )),
+                        // Ranks are below 13, so the negated rank fits in an
+                        // `i8`.
+                        negated_winner: -(winner as i8),
+                    }
+                };
                 let answers = self
-                    .answers(branch, named, play, main_line, is_free, options)
+                    .answers(branch, named, play, main_line, kind, options)
                     .expect("a valid plan answers every second-hand play");
                 candidates.push(Candidate {
                     key,
@@ -1443,26 +1580,27 @@ impl<'s, 'a> Describer<'s, 'a> {
         }
     }
 
-    /// The instructions that keep the branch's requirement after each of
-    /// second hand's `options`, once `named` leads: for the low play `named`
-    /// answers, the play itself; for any other, the instructions that work,
-    /// as `Answered` describes them. A free plan, one second hand can never
-    /// play below, has no such low play. None when some play has no
-    /// instruction that works.
+    /// The instructions that still meet the branch's requirement after each
+    /// of second hand's `options`, once `named` leads: for the main line's
+    /// second-hand play, the main line's own reply; for any other, the
+    /// instructions that work, as `AnswerOptions` describes them. A free
+    /// plan, one second hand can never play below, treats the main line's
+    /// play like any other. None when some play has no instruction that
+    /// works.
     fn answers(
         &mut self,
         branch: &Branch,
         named: Plan,
         play: Play,
-        main_line: (DefenderPlay, FollowPlay),
-        is_free: bool,
+        main_line: MainLine,
+        kind: PlanKind,
         options: &[(DefenderPlay, LayoutSet)],
-    ) -> Option<Vec<Answered>> {
+    ) -> Option<Vec<AnswerOptions>> {
         let position = branch.position;
         let partner_cards = position.hand(named.leader.partner());
         let led = Trick::led(position, named.leader, named.lead);
         let mut answers = Vec::new();
-        for &(second, layouts) in options {
+        for &(second, play_layouts) in options {
             let contested = match second {
                 DefenderPlay::Group(group) => {
                     self.solver.layouts.groups[group].ranks
@@ -1487,13 +1625,13 @@ impl<'s, 'a> Describer<'s, 'a> {
                 FollowPlay::Card(card) => Some(Answer::Card(card)),
                 FollowPlay::Discard => None,
             };
-            if second == main_line.0 && !is_free {
-                answers.push(Answered {
+            if second == main_line.second && kind == PlanKind::AnswersLowPlay {
+                answers.push(AnswerOptions {
                     play: second,
                     instructions: dedup(
-                        [None, stated(main_line.1)].into_iter(),
+                        [None, stated(main_line.reply)].into_iter(),
                     ),
-                    implied: main_line.1,
+                    implied: main_line.reply,
                     lowest,
                 });
                 continue;
@@ -1519,7 +1657,7 @@ impl<'s, 'a> Describer<'s, 'a> {
             cards.extend(ascending);
             let tried = std::iter::once(implied)
                 .chain(cards.into_iter().map(FollowPlay::Card));
-            let required = restricted(&branch.required, layouts);
+            let required = restricted(&branch.required, play_layouts);
             let played = led.with_defender_play(second);
             // Cards that take the same tricks as the implied reply count as
             // implied too.
@@ -1555,7 +1693,7 @@ impl<'s, 'a> Describer<'s, 'a> {
             if instructions.is_empty() {
                 return None;
             }
-            answers.push(Answered {
+            answers.push(AnswerOptions {
                 play: second,
                 instructions: dedup(instructions.into_iter()),
                 implied,
@@ -1665,29 +1803,26 @@ impl<'s, 'a> Describer<'s, 'a> {
         }
     }
 
-    /// The branches after `candidate`'s trick: one for each play fourth hand
-    /// might make after the main line, plus those after second hand shows
-    /// out.
-    fn after(
+    /// The branches after `candidate`'s trick: for each second-hand play
+    /// declarer answers, one per play fourth hand might make after it.
+    fn branches_after(
         &mut self,
         branch: &Branch,
         candidate: &Candidate,
-        settled: &[Settled],
+        settled: &[SettledAnswer],
     ) -> Vec<Branch> {
         let plan = candidate.plan;
         let led = Trick::led(branch.position, plan.leader, plan.lead);
         let named_reply = candidate.plan.third;
         let mut branches = Vec::new();
         for answer in settled {
-            let second = Some((plan.leader.next_defender(), answer.play));
             // Even an implied answer, such as playing low under a card
             // declarer can't beat, leaves the named card unplayed.
             let is_as_named = answer.reply == named_reply;
-            branches.extend(self.after_second(
+            branches.extend(self.branches_after_second(
                 branch,
                 led,
                 *answer,
-                second,
                 is_as_named,
             ));
         }
@@ -1695,18 +1830,16 @@ impl<'s, 'a> Describer<'s, 'a> {
     }
 
     /// The branches after second hand plays `answer.play` and the third hand
-    /// answers, one for each play fourth hand might make. `second` names
-    /// second hand and its play when those set the branches apart, and
-    /// `is_as_named` says whether declarer played the card the trick is
-    /// named by.
-    fn after_second(
+    /// answers, one for each play fourth hand might make. `is_as_named` says
+    /// whether declarer played the card the trick is named by.
+    fn branches_after_second(
         &mut self,
         branch: &Branch,
         led: Trick,
-        answer: Settled,
-        second: Option<(Defender, DefenderPlay)>,
+        answer: SettledAnswer,
         is_as_named: bool,
     ) -> Vec<Branch> {
+        let second = Some((led.leader.next_defender(), answer.play));
         let third = answer.reply;
         let trick = led.with_defender_play(answer.play).with_third(third);
         let layouts = self.solver.layouts;
@@ -1714,8 +1847,10 @@ impl<'s, 'a> Describer<'s, 'a> {
         for (play, _) in self.solver.defender_options(trick) {
             let done = trick.with_defender_play(play);
             let position = done.next_position(layouts);
-            let required =
-                restricted(&branch.required, self.solver.live(position));
+            let required = restricted(
+                &branch.required,
+                self.solver.possible_layouts(position),
+            );
             let declarer_won = done.declarer_wins(layouts);
             let winning_hand = match third {
                 FollowPlay::Card(card) if card > led.lead => {
@@ -1797,6 +1932,24 @@ enum Urgency {
     Settled,
 }
 
+/// The second-hand play a candidate's trick follows, and declarer's reply
+/// to it: second hand's low play, or for a free plan, its lowest play.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct MainLine {
+    second: DefenderPlay,
+    reply: FollowPlay,
+}
+
+/// Which second-hand play a plan's third card answers.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum PlanKind {
+    /// Second hand's low play.
+    AnswersLowPlay,
+    /// None: second hand can never play below the card declarer means to
+    /// win with, so declarer is free to answer whatever second hand plays.
+    Free,
+}
+
 /// `required` cut down to the layouts in `layouts`.
 pub(crate) fn restricted(
     required: &[LayoutSet],
@@ -1824,17 +1977,21 @@ fn common_keys(options: &[Vec<Candidate>]) -> Vec<PlanKey> {
     common
 }
 
-/// For each branch's candidates in `options`, the one with `key` that costs
-/// the fewest entries among those that allow, for every second-hand play,
-/// an instruction the branches chosen so far allow too, starting from
-/// `agreed`; None for a branch with no such candidate. Returns the choices,
-/// and the instructions they all allow.
-fn select<'c>(
-    options: &[&'c [Candidate]],
-    key: PlanKey,
-    agreed: &[Agreement],
-) -> (Vec<Option<&'c Candidate>>, Vec<Agreement>) {
-    let mut agreed = agreed.to_vec();
+/// One candidate chosen per branch, and the instructions they all allow.
+struct Selection<'c> {
+    /// Each branch's choice, or None for a branch with no candidate that
+    /// agrees.
+    chosen: Vec<Option<&'c Candidate>>,
+    /// The instructions every choice allows, per second-hand play.
+    agreed: Vec<Agreement>,
+}
+
+/// For each branch's candidates in `options`, the one with `key` that agrees
+/// with the branches chosen before it and costs the fewest entries. A
+/// candidate agrees when, for every second-hand play, it allows an
+/// instruction all the earlier choices allow.
+fn select<'c>(options: &[&'c [Candidate]], key: PlanKey) -> Selection<'c> {
+    let mut agreed = Vec::new();
     let mut chosen = Vec::new();
     for each in options {
         let mut matching: Vec<&Candidate> = each
@@ -1844,26 +2001,26 @@ fn select<'c>(
         matching.sort_by_key(|candidate| candidate.entries);
         let choice = matching
             .into_iter()
-            .find(|candidate| agrees(&candidate.answers, &agreed));
+            .find(|candidate| can_agree(&candidate.answers, &agreed));
         if let Some(candidate) = choice {
             agreed = narrowed(&agreed, &candidate.answers);
         }
         chosen.push(choice);
     }
-    (chosen, agreed)
+    Selection { chosen, agreed }
 }
 
 /// Whether `answers` allow, for every second-hand play `agreed` covers, an
 /// instruction `agreed` allows too, so that one description can fit them
 /// both.
-fn agrees(answers: &[Answered], agreed: &[Agreement]) -> bool {
-    answers.iter().all(|answered| {
+fn can_agree(answers: &[AnswerOptions], agreed: &[Agreement]) -> bool {
+    answers.iter().all(|answer_options| {
         agreed
             .iter()
-            .filter(|agreement| agreement.play == answered.play)
+            .filter(|agreement| agreement.play == answer_options.play)
             .all(|agreement| {
                 agreement.instructions.iter().any(|instruction| {
-                    answered.instructions.contains(instruction)
+                    answer_options.instructions.contains(instruction)
                 })
             })
     })
@@ -1871,33 +2028,35 @@ fn agrees(answers: &[Answered], agreed: &[Agreement]) -> bool {
 
 /// Whether `answers` allow the instruction `agreed` settles on, its first,
 /// for every second-hand play `agreed` covers.
-fn fits(answers: &[Answered], agreed: &[Agreement]) -> bool {
-    answers.iter().all(|answered| {
+fn allows_settled(answers: &[AnswerOptions], agreed: &[Agreement]) -> bool {
+    answers.iter().all(|answer_options| {
         agreed
             .iter()
-            .filter(|agreement| agreement.play == answered.play)
+            .filter(|agreement| agreement.play == answer_options.play)
             .all(|agreement| {
-                answered.instructions.contains(&agreement.instructions[0])
+                answer_options
+                    .instructions
+                    .contains(&agreement.instructions[0])
             })
     })
 }
 
 /// `agreed`, keeping only the instructions `answers` allow too, with the
 /// plays only `answers` covers added.
-fn narrowed(agreed: &[Agreement], answers: &[Answered]) -> Vec<Agreement> {
+fn narrowed(agreed: &[Agreement], answers: &[AnswerOptions]) -> Vec<Agreement> {
     let mut narrowed: Vec<Agreement> = agreed
         .iter()
         .map(|agreement| {
             let instructions = match answers
                 .iter()
-                .find(|answered| answered.play == agreement.play)
+                .find(|answer_options| answer_options.play == agreement.play)
             {
-                Some(answered) => agreement
+                Some(answer_options) => agreement
                     .instructions
                     .iter()
                     .copied()
                     .filter(|instruction| {
-                        answered.instructions.contains(instruction)
+                        answer_options.instructions.contains(instruction)
                     })
                     .collect(),
                 None => agreement.instructions.clone(),
@@ -1908,23 +2067,24 @@ fn narrowed(agreed: &[Agreement], answers: &[Answered]) -> Vec<Agreement> {
             }
         })
         .collect();
-    for answered in answers {
+    for answer_options in answers {
         if !agreed
             .iter()
-            .any(|agreement| agreement.play == answered.play)
+            .any(|agreement| agreement.play == answer_options.play)
         {
             narrowed.push(Agreement {
-                play: answered.play,
-                instructions: answered.instructions.clone(),
+                play: answer_options.play,
+                instructions: answer_options.instructions.clone(),
             });
         }
     }
     narrowed
 }
 
-/// Whether `group` is exactly the branches that won, or exactly those that
-/// lost, of `count` branches of which those in `won` won, with some of each.
-fn groups_by_outcome(group: &[usize], won: &[usize], count: usize) -> bool {
+/// Whether `group` is exactly the branches that won or exactly those that
+/// lost, where `won` lists the winners among branches `0..count` and there
+/// is at least one of each.
+fn is_outcome_group(group: &[usize], won: &[usize], count: usize) -> bool {
     let has_both = !won.is_empty() && won.len() < count;
     let lost: Vec<usize> =
         (0..count).filter(|index| !won.contains(index)).collect();
@@ -1936,36 +2096,38 @@ fn groups_by_outcome(group: &[usize], won: &[usize], count: usize) -> bool {
 /// them: the second-hand play alone then sets the group apart.
 fn collapsed_ends(
     layouts: &Layouts,
-    hard: &[Branch],
+    target_branches: &[Branch],
     group: &[usize],
 ) -> Vec<TrickEnd> {
-    let end_of =
-        |index: usize| hard[index].ended.expect("a split follows a trick");
+    let end_of = |index: usize| {
+        target_branches[index]
+            .ended
+            .expect("a split follows a trick")
+    };
     let mut ends = dedup(group.iter().map(|&index| end_of(index)));
     for second in dedup(ends.iter().filter_map(|end| end.second)) {
-        let after = |end: &TrickEnd| end.second == Some(second);
-        let holds_all = (0..hard.len())
-            .filter(|&index| after(&end_of(index)))
+        let follows_second = |end: &TrickEnd| end.second == Some(second);
+        let holds_all = (0..target_branches.len())
+            .filter(|&index| follows_second(&end_of(index)))
             .all(|index| group.contains(&index));
         if !holds_all {
             continue;
         }
-        let merged: Vec<TrickEnd> =
-            ends.iter().copied().filter(|end| after(end)).collect();
-        ends.retain(|end| !after(end));
+        let merged: Vec<TrickEnd> = ends
+            .iter()
+            .copied()
+            .filter(|end| follows_second(end))
+            .collect();
+        ends.retain(|end| !follows_second(end));
         let (defender, play) = second;
         // The merged ending says second hand won only when its own card took
         // every one of the tricks, rather than fourth hand's.
         let second_won = merged.iter().all(|end| {
-            let fourth_beaten = match (play, end.play) {
-                (DefenderPlay::Group(_), DefenderPlay::ShowOut) => true,
-                (DefenderPlay::Group(second), DefenderPlay::Group(fourth)) => {
-                    layouts.groups[second].top() > layouts.groups[fourth].top()
-                }
-                (DefenderPlay::ShowOut, _) => false,
-            };
-            !end.declarer_won && fourth_beaten
+            !end.declarer_won && second_beats_fourth(layouts, play, end.play)
         });
+        // For a merged ending, `declarer_won` false means second hand's card
+        // took the trick; true means the condition says only what second
+        // hand played, whoever won.
         ends.push(TrickEnd {
             declarer_won: !second_won,
             defender,

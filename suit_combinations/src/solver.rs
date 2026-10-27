@@ -7,14 +7,15 @@
 //! declarer leads every trick, from either hand; the defenders see every card
 //! and know declarer's strategy; and declarer sees only the cards played.
 //!
-//! A strategy's result is the set of layouts where it reaches each target,
-//! and the search keeps every result that no other strategy beats outright.
-//! At declarer's turn, any one choice of play is open, so the results gather
-//! the results of every choice. At a defender's turn, the defenders choose
-//! separately in each layout, so a strategy succeeds in a layout only if it
-//! succeeds after every play that defender could make there. Combining one
-//! result per play this way covers every strategy, since declarer may plan
-//! differently after each play the defender makes.
+//! A strategy's result is, for each target, the set of layouts where it
+//! reaches that target, and the search keeps every result that no other
+//! strategy beats outright. At declarer's turn, declarer may make any one
+//! play, so the frontier there gathers the results after every choice. At a
+//! defender's turn, the defenders choose separately in each layout, so a
+//! strategy succeeds in a layout only if it succeeds after every play that
+//! defender could make there. Combining one result per play this way accounts
+//! for every strategy, since declarer may plan differently after each play the
+//! defender makes.
 
 use std::rc::Rc;
 
@@ -22,7 +23,7 @@ use rustc_hash::FxHashMap;
 
 use crate::cards::{Rank, RankSet, SUIT_SIZE};
 use crate::layout_set::LayoutSet;
-use crate::layouts::{Defender, Layouts};
+use crate::layouts::{Defender, Layouts, MAX_GROUPS};
 
 /// One of declarer's hands.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -63,20 +64,23 @@ impl Hand {
 pub struct PlayedCounts(u32);
 
 impl PlayedCounts {
-    /// How many cards of the group at `group` have been played.
-    pub fn get(self, group: usize) -> u8 {
+    /// How many cards of the group at `group_index` have been played.
+    pub fn get(self, group_index: usize) -> u8 {
         // Four bits hold any group size.
-        ((self.0 >> (4 * group)) & 0xF) as u8
+        ((self.0 >> (4 * group_index)) & 0xF) as u8
     }
 
-    /// These counts with one more card played from the group at `group`.
-    pub fn incremented(self, group: usize) -> PlayedCounts {
-        PlayedCounts(self.0 + (1 << (4 * group)))
+    /// These counts with one more card played from the group at
+    /// `group_index`.
+    pub fn incremented(self, group_index: usize) -> PlayedCounts {
+        PlayedCounts(self.0 + (1 << (4 * group_index)))
     }
 
     /// How many cards have been played in all.
     pub fn total(self) -> u8 {
-        (0..8).map(|group| self.get(group)).sum()
+        (0..MAX_GROUPS)
+            .map(|group_index| self.get(group_index))
+            .sum()
     }
 }
 
@@ -238,7 +242,7 @@ impl Trick {
     }
 
     /// The highest card declarer has played to the trick.
-    fn declarer_best(self) -> Rank {
+    fn highest_declarer_card(self) -> Rank {
         match self.third {
             Some(FollowPlay::Card(card)) => card.max(self.lead),
             _ => self.lead,
@@ -247,7 +251,7 @@ impl Trick {
 
     /// Whether declarer wins the completed trick.
     pub fn declarer_wins(self, layouts: &Layouts) -> bool {
-        let defender_best = [self.second, self.fourth]
+        let highest_defender_card = [self.second, self.fourth]
             .into_iter()
             .flatten()
             .filter_map(|play| match play {
@@ -255,7 +259,8 @@ impl Trick {
                 DefenderPlay::ShowOut => None,
             })
             .max();
-        defender_best.is_none_or(|best| self.declarer_best() > best)
+        highest_defender_card
+            .is_none_or(|highest| self.highest_declarer_card() > highest)
     }
 
     /// The position after the completed trick.
@@ -273,16 +278,17 @@ impl Trick {
     }
 }
 
-/// The results of the strategies that no other strategy beats outright.
+/// The results of the strategies that no other strategy beats outright,
+/// counting equal results once.
 ///
 /// Each result holds one layout set per target, from the solver's lowest
 /// target up: the layouts where the strategy wins at least that many tricks.
 /// One result beats another outright when each of its sets contains the
-/// other's.
+/// other's, and they aren't equal.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Frontier {
-    /// How many sets each result holds.
-    level_count: usize,
+    /// How many sets each result holds: one per target.
+    target_count: usize,
     /// The results, one after another.
     sets: Vec<LayoutSet>,
     /// Each result's signature, in the same order.
@@ -320,9 +326,9 @@ impl Signature {
 
 impl Frontier {
     /// A frontier with no results yet.
-    fn new(level_count: usize) -> Frontier {
+    fn new(target_count: usize) -> Frontier {
         Frontier {
-            level_count,
+            target_count,
             sets: Vec::new(),
             signatures: Vec::new(),
         }
@@ -331,7 +337,7 @@ impl Frontier {
     /// A frontier holding only `result`.
     fn single(result: &[LayoutSet]) -> Frontier {
         Frontier {
-            level_count: result.len(),
+            target_count: result.len(),
             sets: result.to_vec(),
             signatures: vec![Signature::of(result)],
         }
@@ -339,12 +345,12 @@ impl Frontier {
 
     /// The results, each one layout set per target.
     pub fn results(&self) -> impl Iterator<Item = &[LayoutSet]> {
-        self.sets.chunks_exact(self.level_count)
+        self.sets.chunks_exact(self.target_count)
     }
 
     /// How many results the frontier holds.
     pub fn len(&self) -> usize {
-        self.sets.len() / self.level_count
+        self.sets.len() / self.target_count
     }
 
     /// Whether the frontier holds no results.
@@ -366,33 +372,34 @@ impl Frontier {
     /// beaten by it.
     fn insert(&mut self, result: &[LayoutSet]) {
         let signature = Signature::of(result);
-        let size = self.level_count;
+        let target_count = self.target_count;
+        let sets_of =
+            |index: usize| index * target_count..(index + 1) * target_count;
         let boundary = self
             .signatures
             .partition_point(|existing| existing.size >= signature.size);
-        let is_beaten = (0..boundary).any(|index| {
+        let is_matched_or_beaten = (0..boundary).any(|index| {
             self.signatures[index].may_contain(signature)
-                && covers(&self.sets[index * size..(index + 1) * size], result)
+                && covers(&self.sets[sets_of(index)], result)
         });
-        if is_beaten {
+        if is_matched_or_beaten {
             return;
         }
         let mut kept = boundary;
         for index in boundary..self.signatures.len() {
-            let range = index * size..(index + 1) * size;
             let is_dropped = signature.may_contain(self.signatures[index])
-                && covers(result, &self.sets[range.clone()]);
+                && covers(result, &self.sets[sets_of(index)]);
             if !is_dropped {
                 if kept != index {
-                    self.sets.copy_within(range, kept * size);
+                    self.sets.copy_within(sets_of(index), kept * target_count);
                     self.signatures[kept] = self.signatures[index];
                 }
                 kept += 1;
             }
         }
-        self.sets.truncate(kept * size);
+        self.sets.truncate(kept * target_count);
         self.signatures.truncate(kept);
-        let at = boundary * size;
+        let at = boundary * target_count;
         self.sets.splice(at..at, result.iter().copied());
         self.signatures.insert(boundary, signature);
     }
@@ -408,16 +415,18 @@ impl Frontier {
     /// defender's turn: `child` is the frontier after one of the defender's
     /// plays, and `outside` holds the layouts where that play can't happen.
     ///
-    /// Each combined result succeeds in a layout only where both parts do,
-    /// counting the child's part as a success wherever the child can't arise.
+    /// A pairing wins in a layout only where both parts do, counting
+    /// `child`'s part as a win in every layout in `outside`.
     fn combined_with(&self, child: &Frontier, outside: LayoutSet) -> Frontier {
-        let mut combined = Frontier::new(self.level_count);
-        let mut candidate = vec![LayoutSet::EMPTY; self.level_count];
+        let mut combined = Frontier::new(self.target_count);
+        let mut candidate = vec![LayoutSet::EMPTY; self.target_count];
         for result in self.results() {
             for child_result in child.results() {
-                for level in 0..self.level_count {
-                    candidate[level] = result[level]
-                        .intersection(child_result[level].union(outside));
+                for target_index in 0..self.target_count {
+                    candidate[target_index] = result[target_index]
+                        .intersection(
+                            child_result[target_index].union(outside),
+                        );
                 }
                 combined.insert(&candidate);
             }
@@ -428,14 +437,14 @@ impl Frontier {
 
 /// The cards of `cards` reachable from `card` without crossing a rank in
 /// `blockers`, including `card` itself.
-fn run_around(cards: RankSet, card: Rank, blockers: RankSet) -> RankSet {
-    let mut run = RankSet::single(card);
+fn block_containing(cards: RankSet, card: Rank, blockers: RankSet) -> RankSet {
+    let mut block = RankSet::single(card);
     for rank in card + 1..SUIT_SIZE {
         if blockers.contains(rank) {
             break;
         }
         if cards.contains(rank) {
-            run = run.with(rank);
+            block = block.with(rank);
         }
     }
     for rank in (0..card).rev() {
@@ -443,13 +452,14 @@ fn run_around(cards: RankSet, card: Rank, blockers: RankSet) -> RankSet {
             break;
         }
         if cards.contains(rank) {
-            run = run.with(rank);
+            block = block.with(rank);
         }
     }
-    run
+    block
 }
 
-/// Whether `result` reaches every target wherever `required` does.
+/// Whether `result` wins, at every target, in every layout that `required`
+/// lists for that target.
 pub fn covers(result: &[LayoutSet], required: &[LayoutSet]) -> bool {
     result
         .iter()
@@ -461,16 +471,17 @@ pub fn covers(result: &[LayoutSet], required: &[LayoutSet]) -> bool {
 pub struct Solver<'a> {
     /// The combination's layouts.
     pub layouts: &'a Layouts,
-    /// The target that each result's first set counts toward.
+    /// The target that each result's first set counts toward; the set at
+    /// index `i` counts toward `lowest_target + i`.
     pub lowest_target: u8,
     /// How many targets each result tracks.
-    pub level_count: usize,
+    pub target_count: usize,
     /// The frontier from each position reached at the start of a trick.
-    memo: FxHashMap<Position, Rc<Frontier>>,
+    position_cache: FxHashMap<Position, Rc<Frontier>>,
     /// The frontier from each point within a trick, kept only once
-    /// `remember_tricks` is called. The search reaches each such point once,
-    /// but describing a line asks about the same points again and again.
-    trick_memo: Option<FxHashMap<Trick, Rc<Frontier>>>,
+    /// `enable_trick_cache` is called. The search reaches each such point
+    /// once, but describing a line asks about the same points again and again.
+    trick_cache: Option<FxHashMap<Trick, Rc<Frontier>>>,
 }
 
 impl<'a> Solver<'a> {
@@ -485,76 +496,79 @@ impl<'a> Solver<'a> {
         Solver {
             layouts,
             lowest_target,
-            level_count: usize::from(highest_target - lowest_target + 1),
-            memo: FxHashMap::default(),
-            trick_memo: None,
+            target_count: usize::from(highest_target - lowest_target + 1),
+            position_cache: FxHashMap::default(),
+            trick_cache: None,
         }
     }
 
     /// Keep the frontier from each point within a trick from now on.
-    pub fn remember_tricks(&mut self) {
-        self.trick_memo.get_or_insert_with(FxHashMap::default);
+    pub fn enable_trick_cache(&mut self) {
+        self.trick_cache.get_or_insert_with(FxHashMap::default);
     }
 
-    /// The frontier at `trick` from the trick memo, or else from `compute`,
-    /// remembered when the memo is on.
-    fn within_trick(
+    /// The frontier at `trick` from the trick cache, or else from `compute`,
+    /// cached when the cache is on.
+    fn cached_trick_frontier(
         &mut self,
         trick: Trick,
         compute: fn(&mut Self, Trick) -> Rc<Frontier>,
     ) -> Rc<Frontier> {
-        if let Some(frontier) =
-            self.trick_memo.as_ref().and_then(|memo| memo.get(&trick))
+        if let Some(frontier) = self
+            .trick_cache
+            .as_ref()
+            .and_then(|cache| cache.get(&trick))
         {
             return Rc::clone(frontier);
         }
         let frontier = compute(self, trick);
-        if let Some(memo) = self.trick_memo.as_mut() {
-            memo.insert(trick, Rc::clone(&frontier));
+        if let Some(cache) = self.trick_cache.as_mut() {
+            cache.insert(trick, Rc::clone(&frontier));
         }
         frontier
     }
 
-    /// The layouts that fit what the defenders have played in `position`.
-    pub fn live(&self, position: Position) -> LayoutSet {
-        let mut live = self.layouts.all;
+    /// The layouts still possible at `position`: those that fit what the
+    /// defenders have played.
+    pub fn possible_layouts(&self, position: Position) -> LayoutSet {
+        let mut possible = self.layouts.all;
         for defender in [Defender::West, Defender::East] {
             let played = position.played[defender as usize];
             for group in 0..self.layouts.groups.len() {
-                live = live.intersection(self.layouts.at_least(
+                possible = possible.intersection(self.layouts.at_least(
                     defender,
                     group,
                     played.get(group),
                 ));
             }
             if position.shown_out[defender as usize] {
-                live = live.intersection(
+                possible = possible.intersection(
                     self.layouts.with_length(defender, played.total()),
                 );
             }
         }
-        live
+        possible
     }
 
     /// The frontier from `position`, at the start of a trick.
     pub fn solve(&mut self, position: Position) -> Rc<Frontier> {
-        if let Some(frontier) = self.memo.get(&position) {
+        if let Some(frontier) = self.position_cache.get(&position) {
             return Rc::clone(frontier);
         }
         let frontier = Rc::new(self.solve_uncached(position));
-        self.memo.insert(position, Rc::clone(&frontier));
+        self.position_cache.insert(position, Rc::clone(&frontier));
         frontier
     }
 
     /// The frontier from `position`, computed afresh.
     fn solve_uncached(&mut self, position: Position) -> Frontier {
-        let live = self.live(position);
-        if let Some(result) = self.settled_result(position, live) {
+        let possible = self.possible_layouts(position);
+        if let Some(result) = self.settled_result(position, possible) {
             return Frontier::single(&result);
         }
-        let mut frontier = Frontier::new(self.level_count);
+        let mut frontier = Frontier::new(self.target_count);
         for (leader, lead) in self.leads(position) {
-            let after = self.after_lead(Trick::led(position, leader, lead));
+            let after = self.defender_turn(Trick::led(position, leader, lead));
             frontier.merge(&after);
         }
         frontier
@@ -586,18 +600,17 @@ impl<'a> Solver<'a> {
     fn settled_result(
         &self,
         position: Position,
-        live: LayoutSet,
+        possible: LayoutSet,
     ) -> Option<Vec<LayoutSet>> {
         let rounds_left = position.north.len().max(position.south.len());
-        let sure = self.sure_tricks(position).min(rounds_left);
-        let certain_through = position.tricks_won + sure;
+        let certain_through = self.certain_tricks(position);
         let possible_through = position.tricks_won + rounds_left;
-        let mut result = Vec::with_capacity(self.level_count);
-        for level in 0..self.level_count {
-            // `level` is below `level_count`, which fits in a `u8`.
-            let target = self.lowest_target + level as u8;
+        let mut result = Vec::with_capacity(self.target_count);
+        for target_index in 0..self.target_count {
+            // `target_index` is below `target_count`, which fits in a `u8`.
+            let target = self.lowest_target + target_index as u8;
             if target <= certain_through {
-                result.push(live);
+                result.push(possible);
             } else if target > possible_through {
                 result.push(LayoutSet::EMPTY);
             } else {
@@ -607,8 +620,15 @@ impl<'a> Solver<'a> {
         Some(result)
     }
 
+    /// How many tricks declarer is sure of at `position`: those already won
+    /// plus the sure winners, which the rounds left can cap.
+    pub fn certain_tricks(&self, position: Position) -> u8 {
+        let rounds_left = position.north.len().max(position.south.len());
+        position.tricks_won + self.top_winner_count(position).min(rounds_left)
+    }
+
     /// How many of declarer's cards outrank every defender's card left.
-    pub fn sure_tricks(&self, position: Position) -> u8 {
+    fn top_winner_count(&self, position: Position) -> u8 {
         let declarer = position.north.union(position.south);
         match self.missing_ranks(position).highest() {
             Some(highest) => {
@@ -656,13 +676,10 @@ impl<'a> Solver<'a> {
         let mut current: Option<Rank> = None;
         let mut previous: Option<Rank> = None;
         for card in cards.descending() {
-            if let (Some(higher), Some(_)) = (previous, current) {
-                let is_equivalent = RankSet::strictly_between(higher, card)
-                    .intersection(missing)
-                    .is_empty();
-                let is_touching = RankSet::strictly_between(higher, card)
-                    .intersection(unplayed)
-                    .is_empty();
+            if let Some(higher) = previous {
+                let between = RankSet::strictly_between(higher, card);
+                let is_equivalent = between.intersection(missing).is_empty();
+                let is_touching = between.intersection(unplayed).is_empty();
                 if !is_equivalent {
                     plays.extend(current);
                     current = Some(card);
@@ -691,7 +708,7 @@ impl<'a> Solver<'a> {
         contested: RankSet,
     ) -> RankSet {
         let blockers = self.missing_ranks(position).union(contested);
-        run_around(cards, card, blockers)
+        block_containing(cards, card, blockers)
     }
 
     /// The cards in `cards` that touch `card`, with no card at all left
@@ -709,34 +726,33 @@ impl<'a> Solver<'a> {
             .union(position.north)
             .union(position.south)
             .difference(cards);
-        run_around(cards, card, blockers)
+        block_containing(cards, card, blockers)
     }
 
-    /// The frontier after a defender's turn in `trick`: second hand's, or
-    /// else fourth hand's.
+    /// The frontier when a defender is due to play in `trick`: second hand,
+    /// or else fourth hand.
     pub fn defender_turn(&mut self, trick: Trick) -> Rc<Frontier> {
-        self.within_trick(trick, Self::defender_turn_uncached)
+        self.cached_trick_frontier(trick, Self::defender_turn_uncached)
     }
 
-    /// The frontier after a defender's turn in `trick`, computed afresh.
+    /// The frontier when a defender is due to play in `trick`, computed
+    /// afresh.
     fn defender_turn_uncached(&mut self, trick: Trick) -> Rc<Frontier> {
-        let live = self.live(trick.position);
-        let mut combined = Frontier::single(&vec![live; self.level_count]);
-        for (play, layouts) in self.defender_options(trick) {
+        let possible = self.possible_layouts(trick.position);
+        // Start from a result that wins in every possible layout, which
+        // combining leaves unchanged.
+        let mut combined = Frontier::single(&vec![possible; self.target_count]);
+        for (play, play_layouts) in self.defender_options(trick) {
             let child_trick = trick.with_defender_play(play);
             let child = if trick.second.is_none() {
                 self.third_hand_turn(child_trick)
             } else {
                 self.solve(child_trick.next_position(self.layouts))
             };
-            combined = combined.combined_with(&child, live.difference(layouts));
+            combined = combined
+                .combined_with(&child, possible.difference(play_layouts));
         }
         Rc::new(combined)
-    }
-
-    /// The frontier after a lead, before second hand plays.
-    fn after_lead(&mut self, trick: Trick) -> Rc<Frontier> {
-        self.defender_turn(trick)
     }
 
     /// Each play the defender due to play in `trick` could make, with the
@@ -747,23 +763,23 @@ impl<'a> Solver<'a> {
     ) -> Vec<(DefenderPlay, LayoutSet)> {
         let defender = trick.defender_to_play();
         let position = trick.position;
-        let live = self.live(position);
+        let possible = self.possible_layouts(position);
         if position.shown_out[defender as usize] {
-            return vec![(DefenderPlay::ShowOut, live)];
+            return vec![(DefenderPlay::ShowOut, possible)];
         }
         let played = position.played[defender as usize];
         let mut options = Vec::new();
         for group in 0..self.layouts.groups.len() {
-            let layouts = live.intersection(self.layouts.at_least(
+            let play_layouts = possible.intersection(self.layouts.at_least(
                 defender,
                 group,
                 played.get(group) + 1,
             ));
-            if !layouts.is_empty() {
-                options.push((DefenderPlay::Group(group), layouts));
+            if !play_layouts.is_empty() {
+                options.push((DefenderPlay::Group(group), play_layouts));
             }
         }
-        let void = live
+        let void = possible
             .intersection(self.layouts.with_length(defender, played.total()));
         if !void.is_empty() {
             options.push((DefenderPlay::ShowOut, void));
@@ -791,12 +807,12 @@ impl<'a> Solver<'a> {
 
     /// The frontier when the third hand is due to play in `trick`.
     pub fn third_hand_turn(&mut self, trick: Trick) -> Rc<Frontier> {
-        self.within_trick(trick, Self::third_hand_turn_uncached)
+        self.cached_trick_frontier(trick, Self::third_hand_turn_uncached)
     }
 
     /// The frontier when the third hand is due to play, computed afresh.
     fn third_hand_turn_uncached(&mut self, trick: Trick) -> Rc<Frontier> {
-        let mut frontier = Frontier::new(self.level_count);
+        let mut frontier = Frontier::new(self.target_count);
         for play in self.third_hand_options(trick) {
             let after = self.defender_turn(trick.with_third(play));
             frontier.merge(&after);
@@ -852,7 +868,7 @@ mod tests {
     }
 
     #[test]
-    fn distinct_plays_keep_one_card_per_equivalent_run() {
+    fn distinct_plays_keep_one_card_per_equivalent_set() {
         let problem = parse_problem("AQTx-J9x@4").expect("a valid problem");
         let layouts = Layouts::new(problem.combination);
         let solver = Solver::new(&layouts, 4, 4);

@@ -9,7 +9,7 @@
 //! hold the missing honors, and the simplest condition on the layout that
 //! matches where the line wins says what it hopes for.
 
-use crate::analysis::BestResult;
+use crate::analysis::{BestResult, percent_of_deals};
 use crate::cards::rank_symbol;
 use crate::describe::Finesse;
 use crate::layout_set::LayoutSet;
@@ -28,7 +28,7 @@ enum Holder {
 
 /// A simple fact about a layout, from which conditions are built.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Atom {
+enum Fact {
     /// The onside defender holds the group's card, or at least one of its
     /// cards; with `all`, every one of them.
     Onside { group: usize, all: bool },
@@ -48,42 +48,41 @@ enum Atom {
     HoldsAll(Defender),
 }
 
-/// A condition on the layout: an atom, by its index among the atoms tried,
+/// A condition on the layout: a fact, by its index among the facts tried,
 /// or two conditions joined.
 #[derive(Clone, PartialEq, Eq, Debug)]
-enum Condition {
-    Atom(usize),
-    And(Box<Condition>, Box<Condition>),
-    Or(Box<Condition>, Box<Condition>),
+enum LayoutCondition {
+    Fact(usize),
+    And(Box<LayoutCondition>, Box<LayoutCondition>),
+    Or(Box<LayoutCondition>, Box<LayoutCondition>),
 }
 
-impl Condition {
-    /// How many atoms the condition uses.
+impl LayoutCondition {
+    /// How many facts the condition uses.
     fn size(&self) -> usize {
         match self {
-            Condition::Atom(_) => 1,
-            Condition::And(left, right) | Condition::Or(left, right) => {
-                left.size() + right.size()
-            }
+            LayoutCondition::Fact(_) => 1,
+            LayoutCondition::And(left, right)
+            | LayoutCondition::Or(left, right) => left.size() + right.size(),
         }
     }
 }
 
-/// The atoms a remark may use, each with the layouts where it holds.
-struct Atoms {
-    atoms: Vec<Atom>,
-    layouts: Vec<LayoutSet>,
+/// The facts a remark may use, each with the layouts where it holds.
+struct Facts {
+    facts: Vec<Fact>,
+    holds_in: Vec<LayoutSet>,
 }
 
-impl Atoms {
+impl Facts {
     /// The layouts where `condition` holds.
-    fn layouts_of(&self, condition: &Condition) -> LayoutSet {
+    fn layouts_of(&self, condition: &LayoutCondition) -> LayoutSet {
         match condition {
-            Condition::Atom(index) => self.layouts[*index],
-            Condition::And(left, right) => {
+            LayoutCondition::Fact(index) => self.holds_in[*index],
+            LayoutCondition::And(left, right) => {
                 self.layouts_of(left).intersection(self.layouts_of(right))
             }
-            Condition::Or(left, right) => {
+            LayoutCondition::Or(left, right) => {
                 self.layouts_of(left).union(self.layouts_of(right))
             }
         }
@@ -116,19 +115,19 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
 
     let finesses: Vec<Finesse> = best[0]
         .line
-        .main_path()
+        .usual_path()
         .iter()
         .filter_map(|step| step.finesse)
         .collect();
     let onside = finesses.first().map(|finesse| finesse.onside);
-    let atoms = atoms(layouts, onside);
-    let found = simplest_condition(layouts, &atoms, wins);
-    let condition = found.as_ref().map(|(condition, _)| condition.clone());
+    let facts = facts_worth_trying(layouts, onside);
+    let success = simplest_condition(layouts, &facts, wins);
+    let condition = success.as_ref().map(|(condition, _)| condition.clone());
     // Extra chances are extra to a condition; with none, there's nothing for
     // them to add to.
     let extras_words = match &condition {
         Some(condition) => {
-            extras_words(layouts, wins.difference(atoms.layouts_of(condition)))
+            extras_words(layouts, wins.difference(facts.layouts_of(condition)))
         }
         None => String::new(),
     };
@@ -136,7 +135,7 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
     let is_two_way = best.iter().any(|result| {
         let other = result
             .line
-            .main_path()
+            .usual_path()
             .iter()
             .find_map(|step| step.finesse)
             .map(|finesse| finesse.onside);
@@ -164,8 +163,8 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
     match condition {
         // A line with no finesse that needs only an even split is playing
         // for that split, not for a card to drop.
-        Some(Condition::Atom(index))
-            if finesses.is_empty() && atoms.atoms[index] == Atom::EvenSplit =>
+        Some(LayoutCondition::Fact(index))
+            if finesses.is_empty() && facts.facts[index] == Fact::EvenSplit =>
         {
             let missing = layouts.missing_count();
             format!(
@@ -175,38 +174,39 @@ pub fn remark(layouts: &Layouts, best: &[BestResult]) -> String {
             )
         }
         _ if let Some(failure) =
-            failure_words(layouts, &atoms, wins, found.as_ref()) =>
+            failure_words(layouts, &facts, wins, success.as_ref()) =>
         {
             format!("{technique}; it fails only when {failure}")
         }
         Some(condition) => format!(
             "{technique} hoping {}{extras_words}",
-            condition_words(layouts, &atoms.atoms, &condition)
+            layout_condition_words(layouts, &facts.facts, &condition)
         ),
         None => technique.to_string(),
     }
 }
 
-/// When the line fails, in words, if that says more than when it succeeds:
-/// for a line that succeeds more often than not, a condition holding in
-/// every layout where it fails, and in few others, that is exact where the
-/// success condition `found` is not, or simpler.
+/// When the line fails, in words, if that says more than when it succeeds.
+/// It applies only to a line that succeeds more often than not. The failure
+/// condition must hold in every layout where the line fails and in few
+/// others, and be exact where the success condition `success` is not, or be
+/// simpler.
 fn failure_words(
     layouts: &Layouts,
-    atoms: &Atoms,
+    facts: &Facts,
     wins: LayoutSet,
-    found: Option<&(Condition, u64)>,
+    success: Option<&(LayoutCondition, u64)>,
 ) -> Option<String> {
     if 2 * layouts.weight(wins) < DEAL_COUNT {
         return None;
     }
     let losses = layouts.all.difference(wins);
-    let (failure, error) = simplest_condition(layouts, atoms, losses)?;
+    let (failure, error) = simplest_condition(layouts, facts, losses)?;
     // "Fails only when" must cover every loss.
-    if !atoms.layouts_of(&failure).is_superset(losses) {
+    if !facts.layouts_of(&failure).is_superset(losses) {
         return None;
     }
-    let is_better = match found {
+    let is_better = match success {
         None => true,
         Some((success, success_error)) => {
             (*success_error > 0
@@ -215,36 +215,36 @@ fn failure_words(
                 || failure.size() < success.size()
         }
     };
-    is_better.then(|| condition_words(layouts, &atoms.atoms, &failure))
+    is_better.then(|| layout_condition_words(layouts, &facts.facts, &failure))
 }
 
-/// The atoms worth trying for a line whose finesses need the `onside`
+/// The facts worth trying for a line whose finesses need the `onside`
 /// defender, if any, to hold the cards they play against.
-fn atoms(layouts: &Layouts, onside: Option<Defender>) -> Atoms {
-    let mut atoms = Vec::new();
+fn facts_worth_trying(layouts: &Layouts, onside: Option<Defender>) -> Facts {
+    let mut facts = Vec::new();
     // The lowest group holds the small cards, never worth naming.
-    let named_groups = layouts.groups.len().saturating_sub(1);
+    let named_group_count = layouts.groups.len().saturating_sub(1);
     if onside.is_some() {
-        for group in 0..named_groups {
+        for group in 0..named_group_count {
             for all in [false, true] {
                 if !all || layouts.groups[group].size() > 1 {
-                    atoms.push(Atom::Onside { group, all });
-                    atoms.push(Atom::Offside { group, all });
+                    facts.push(Fact::Onside { group, all });
+                    facts.push(Fact::Offside { group, all });
                 }
             }
         }
     }
-    atoms.push(Atom::EvenSplit);
+    facts.push(Fact::EvenSplit);
     let holders: &[Holder] = if onside.is_some() {
         &[Holder::Onside, Holder::Offside]
     } else {
         &[Holder::Either]
     };
-    for group in 0..named_groups {
+    for group in 0..named_group_count {
         if layouts.groups[group].size() == 1 {
             for length in 1..=2 {
                 for &holder in holders {
-                    atoms.push(Atom::Short {
+                    facts.push(Fact::Short {
                         group,
                         length,
                         holder,
@@ -253,50 +253,50 @@ fn atoms(layouts: &Layouts, onside: Option<Defender>) -> Atoms {
             }
         }
     }
-    atoms.push(Atom::HoldsAll(Defender::West));
-    atoms.push(Atom::HoldsAll(Defender::East));
-    let sets = atoms
+    facts.push(Fact::HoldsAll(Defender::West));
+    facts.push(Fact::HoldsAll(Defender::East));
+    let sets = facts
         .iter()
-        .map(|&atom| atom_layouts(layouts, onside, atom))
+        .map(|&fact| fact_layouts(layouts, onside, fact))
         .collect();
-    Atoms {
-        atoms,
-        layouts: sets,
+    Facts {
+        facts,
+        holds_in: sets,
     }
 }
 
-/// The simplest condition matching `target` to within
-/// `MAX_CONDITION_ERROR`, and more closely than saying nothing would,
-/// preferring a simpler one within
-/// `SIMPLICITY_TOLERANCE`, built from up to three of `atoms`, if any comes
-/// that close. Returns the condition with its error, in deals.
+/// The simplest condition, built from up to three of `facts`, that matches
+/// `to_match` to within `MAX_CONDITION_ERROR` and more closely than saying
+/// nothing would. A simpler condition wins over a closer one when it misses
+/// by at most `SIMPLICITY_TOLERANCE` more. Returns the condition with its
+/// error, in deals, or None when nothing comes that close.
 fn simplest_condition(
     layouts: &Layouts,
-    atoms: &Atoms,
-    target: LayoutSet,
-) -> Option<(Condition, u64)> {
+    facts: &Facts,
+    to_match: LayoutSet,
+) -> Option<(LayoutCondition, u64)> {
     // A condition holding in every layout, or in none, says nothing.
-    let error = |condition: &Condition| {
-        let matched = atoms.layouts_of(condition);
+    let error = |condition: &LayoutCondition| {
+        let matched = facts.layouts_of(condition);
         if matched == layouts.all || matched.is_empty() {
             return u64::MAX;
         }
-        layouts.weight(target.difference(matched))
-            + layouts.weight(matched.difference(target))
+        layouts.weight(to_match.difference(matched))
+            + layouts.weight(matched.difference(to_match))
     };
-    let single: Vec<Condition> =
-        (0..atoms.atoms.len()).map(Condition::Atom).collect();
-    let mut scored: Vec<(u64, Condition)> = single
+    let single_facts: Vec<LayoutCondition> =
+        (0..facts.facts.len()).map(LayoutCondition::Fact).collect();
+    let mut scored: Vec<(u64, LayoutCondition)> = single_facts
         .iter()
         .map(|condition| (error(condition), condition.clone()))
         .collect();
-    let is_exact = |scored: &[(u64, Condition)]| {
+    let is_exact = |scored: &[(u64, LayoutCondition)]| {
         scored.iter().any(|(error, _)| *error == 0)
     };
     // Larger conditions can only help when nothing smaller fits exactly.
     if !is_exact(&scored) {
-        for (index, first) in single.iter().enumerate() {
-            for second in &single[index + 1..] {
+        for (index, first) in single_facts.iter().enumerate() {
+            for second in &single_facts[index + 1..] {
                 for condition in [and(first, second), or(first, second)] {
                     scored.push((error(&condition), condition));
                 }
@@ -304,9 +304,9 @@ fn simplest_condition(
         }
     }
     if !is_exact(&scored) {
-        for first in &single {
-            for (index, second) in single.iter().enumerate() {
-                for third in &single[index + 1..] {
+        for first in &single_facts {
+            for (index, second) in single_facts.iter().enumerate() {
+                for third in &single_facts[index + 1..] {
                     if first == second || first == third {
                         continue;
                     }
@@ -322,39 +322,39 @@ fn simplest_condition(
     }
 
     // A condition must also miss less than saying nothing would: claiming
-    // that `target` never happens misses all of it, and claiming that it
+    // that `to_match` never happens misses all of it, and claiming that it
     // always happens misses everything else.
     let says_nothing = layouts
-        .weight(target)
-        .min(layouts.weight(layouts.all.difference(target)));
-    let usable = ((MAX_CONDITION_ERROR * DEAL_COUNT as f64) as u64)
+        .weight(to_match)
+        .min(layouts.weight(layouts.all.difference(to_match)));
+    let max_error = ((MAX_CONDITION_ERROR * DEAL_COUNT as f64) as u64)
         .min(says_nothing.saturating_sub(1));
     let tolerance = (SIMPLICITY_TOLERANCE * DEAL_COUNT as f64) as u64;
     let least = scored.iter().map(|(error, _)| *error).min()?;
-    if least > usable {
+    if least > max_error {
         return None;
     }
     scored
         .into_iter()
-        .filter(|(error, _)| *error <= usable.min(least + tolerance))
+        .filter(|(error, _)| *error <= max_error.min(least + tolerance))
         .min_by_key(|(error, condition)| (condition.size(), *error))
         .map(|(error, condition)| (condition, error))
 }
 
-fn and(left: &Condition, right: &Condition) -> Condition {
-    Condition::And(Box::new(left.clone()), Box::new(right.clone()))
+fn and(left: &LayoutCondition, right: &LayoutCondition) -> LayoutCondition {
+    LayoutCondition::And(Box::new(left.clone()), Box::new(right.clone()))
 }
 
-fn or(left: &Condition, right: &Condition) -> Condition {
-    Condition::Or(Box::new(left.clone()), Box::new(right.clone()))
+fn or(left: &LayoutCondition, right: &LayoutCondition) -> LayoutCondition {
+    LayoutCondition::Or(Box::new(left.clone()), Box::new(right.clone()))
 }
 
-/// The layouts where `atom` holds, with `onside` the defender the line's
+/// The layouts where `fact` holds, with `onside` the defender the line's
 /// finesses need to hold the honors.
-fn atom_layouts(
+fn fact_layouts(
     layouts: &Layouts,
     onside: Option<Defender>,
-    atom: Atom,
+    fact: Fact,
 ) -> LayoutSet {
     let other = |defender: Defender| match defender {
         Defender::West => Defender::East,
@@ -362,10 +362,10 @@ fn atom_layouts(
     };
     let mut set = LayoutSet::EMPTY;
     for layout in layouts.all.indices() {
-        let holds = match atom {
-            Atom::Onside { group, all } | Atom::Offside { group, all } => {
-                let onside = onside.expect("these atoms need a defender");
-                let defender = if matches!(atom, Atom::Onside { .. }) {
+        let holds = match fact {
+            Fact::Onside { group, all } | Fact::Offside { group, all } => {
+                let onside = onside.expect("these facts need a defender");
+                let defender = if matches!(fact, Fact::Onside { .. }) {
                     onside
                 } else {
                     other(onside)
@@ -377,12 +377,12 @@ fn atom_layouts(
                     count > 0
                 }
             }
-            Atom::EvenSplit => {
+            Fact::EvenSplit => {
                 let west = layouts.length_of(Defender::West, layout);
                 let east = layouts.length_of(Defender::East, layout);
                 west.abs_diff(east) <= 1
             }
-            Atom::Short {
+            Fact::Short {
                 group,
                 length,
                 holder,
@@ -397,7 +397,7 @@ fn atom_layouts(
                         && layouts.length_of(defender, layout) <= length
                 })
             }
-            Atom::HoldsAll(defender) => {
+            Fact::HoldsAll(defender) => {
                 layouts.length_of(defender, layout) == layouts.missing_count()
             }
         };
@@ -409,19 +409,19 @@ fn atom_layouts(
 }
 
 /// The condition in words, such as "the K or J is onside".
-fn condition_words(
+fn layout_condition_words(
     layouts: &Layouts,
-    atoms: &[Atom],
-    condition: &Condition,
+    facts: &[Fact],
+    condition: &LayoutCondition,
 ) -> String {
     let card = |group: usize| rank_symbol(layouts.groups[group].top());
     // A single honor that one side must hold, with that side's name.
-    let single = |condition: &Condition| match condition {
-        Condition::Atom(index) => match atoms[*index] {
-            Atom::Onside { group, .. } if layouts.groups[group].size() == 1 => {
+    let single_honor = |condition: &LayoutCondition| match condition {
+        LayoutCondition::Fact(index) => match facts[*index] {
+            Fact::Onside { group, .. } if layouts.groups[group].size() == 1 => {
                 Some((group, "onside"))
             }
-            Atom::Offside { group, .. }
+            Fact::Offside { group, .. }
                 if layouts.groups[group].size() == 1 =>
             {
                 Some((group, "offside"))
@@ -430,15 +430,16 @@ fn condition_words(
         },
         _ => None,
     };
-    // A run of equal honors, one of which one side must hold.
-    let group_either = |condition: &Condition| match condition {
-        Condition::Atom(index) => match atoms[*index] {
-            Atom::Onside { group, all: false }
+    // A group of equal honors, such as the K and Q, one of which one side
+    // must hold.
+    let group_either = |condition: &LayoutCondition| match condition {
+        LayoutCondition::Fact(index) => match facts[*index] {
+            Fact::Onside { group, all: false }
                 if layouts.groups[group].size() > 1 =>
             {
                 Some((group, "onside"))
             }
-            Atom::Offside { group, all: false }
+            Fact::Offside { group, all: false }
                 if layouts.groups[group].size() > 1 =>
             {
                 Some((group, "offside"))
@@ -448,10 +449,10 @@ fn condition_words(
         _ => None,
     };
     match condition {
-        Condition::Or(left, right) => {
-            if let (Some((first, side)), Some((second, other))) =
-                (single(left), single(right))
-                && side == other
+        LayoutCondition::Or(left, right) => {
+            if let (Some((first, side)), Some((second, second_side))) =
+                (single_honor(left), single_honor(right))
+                && side == second_side
             {
                 return format!(
                     "the {} or {} is {side}",
@@ -459,10 +460,10 @@ fn condition_words(
                     card(second)
                 );
             }
-            if let (Some((first, side)), Condition::And(middle, last)) =
-                (single(left), right.as_ref())
+            if let (Some((first, side)), LayoutCondition::And(middle, last)) =
+                (single_honor(left), right.as_ref())
                 && let (Some((second, middle_side)), Some((third, last_side))) =
-                    (single(middle), single(last))
+                    (single_honor(middle), single_honor(last))
                 && side == middle_side
                 && side == last_side
             {
@@ -474,12 +475,12 @@ fn condition_words(
                 );
             }
         }
-        Condition::And(left, right) => {
+        LayoutCondition::And(left, right) => {
             // One of a pair of equal honors on each side.
-            if let (Some((first, side)), Some((second, other))) =
+            if let (Some((first, side)), Some((second, second_side))) =
                 (group_either(left), group_either(right))
                 && first == second
-                && side != other
+                && side != second_side
                 && layouts.groups[first].size() == 2
             {
                 let cards: Vec<String> = layouts.groups[first]
@@ -489,22 +490,22 @@ fn condition_words(
                     .collect();
                 return format!("the {} are split", cards.join(" and "));
             }
-            let pairing = match (single(left), group_either(right)) {
+            let pairing = match (single_honor(left), group_either(right)) {
                 (Some(first), Some(group)) => Some((first, group)),
-                _ => single(right).zip(group_either(left)),
+                _ => single_honor(right).zip(group_either(left)),
             };
-            if let Some(((first, side), (group, other))) = pairing
-                && side == other
+            if let Some(((first, side), (group, second_side))) = pairing
+                && side == second_side
             {
                 return format!(
                     "the {} and either {} are {side}",
                     card(first),
-                    either_words(layouts, group)
+                    alternatives_words(layouts, group)
                 );
             }
-            if let (Some((first, side)), Some((second, other))) =
-                (single(left), single(right))
-                && side == other
+            if let (Some((first, side)), Some((second, second_side))) =
+                (single_honor(left), single_honor(right))
+                && side == second_side
             {
                 return format!(
                     "the {} and {} are both {side}",
@@ -512,10 +513,10 @@ fn condition_words(
                     card(second)
                 );
             }
-            if let Some((first, side)) = single(left)
-                && let Condition::Or(middle, last) = right.as_ref()
+            if let Some((first, side)) = single_honor(left)
+                && let LayoutCondition::Or(middle, last) = right.as_ref()
                 && let (Some((second, middle_side)), Some((third, last_side))) =
-                    (single(middle), single(last))
+                    (single_honor(middle), single_honor(last))
                 && side == middle_side
                 && side == last_side
             {
@@ -527,16 +528,17 @@ fn condition_words(
                 );
             }
         }
-        Condition::Atom(_) => {}
+        LayoutCondition::Fact(_) => {}
     }
-    let words =
-        |condition: &Condition| condition_words(layouts, atoms, condition);
+    let words = |condition: &LayoutCondition| {
+        layout_condition_words(layouts, facts, condition)
+    };
     match condition {
-        Condition::Atom(index) => atom_words(layouts, atoms[*index]),
+        LayoutCondition::Fact(index) => fact_words(layouts, facts[*index]),
         // "Either" marks where the alternatives start, which a comma alone
         // leaves open.
-        Condition::And(left, right) => match right.as_ref() {
-            Condition::Or(first, second) => format!(
+        LayoutCondition::And(left, right) => match right.as_ref() {
+            LayoutCondition::Or(first, second) => format!(
                 "{}, and either {} or {}",
                 words(left),
                 words(first),
@@ -544,17 +546,17 @@ fn condition_words(
             ),
             _ => format!("{} and {}", words(left), words(right)),
         },
-        Condition::Or(left, right) => {
+        LayoutCondition::Or(left, right) => {
             format!("{}, or {}", words(left), words(right))
         }
     }
 }
 
-/// An atom in words, such as "the K is onside".
-fn atom_words(layouts: &Layouts, atom: Atom) -> String {
-    match atom {
-        Atom::Onside { group, all } | Atom::Offside { group, all } => {
-            let side = if matches!(atom, Atom::Onside { .. }) {
+/// A fact in words, such as "the K is onside".
+fn fact_words(layouts: &Layouts, fact: Fact) -> String {
+    match fact {
+        Fact::Onside { group, all } | Fact::Offside { group, all } => {
+            let side = if matches!(fact, Fact::Onside { .. }) {
                 "onside"
             } else {
                 "offside"
@@ -567,17 +569,17 @@ fn atom_words(layouts: &Layouts, atom: Atom) -> String {
             if cards.len() == 1 {
                 format!("the {} is {side}", cards[0])
             } else if !all {
-                format!("{} is {side}", either_words(layouts, group))
+                format!("{} is {side}", alternatives_words(layouts, group))
             } else {
                 let quantity = if cards.len() == 2 { "both" } else { "all" };
                 format!("the {} are {quantity} {side}", cards.join(" and "))
             }
         }
-        Atom::EvenSplit => {
+        Fact::EvenSplit => {
             let missing = layouts.missing_count();
             format!("the suit splits {}-{}", missing.div_ceil(2), missing / 2)
         }
-        Atom::Short {
+        Fact::Short {
             group,
             length,
             holder,
@@ -594,7 +596,7 @@ fn atom_words(layouts: &Layouts, atom: Atom) -> String {
             };
             format!("the {card} is {shortness}{place}")
         }
-        Atom::HoldsAll(defender) => holds_all_words(layouts, defender),
+        Fact::HoldsAll(defender) => holds_all_words(layouts, defender),
     }
 }
 
@@ -613,7 +615,7 @@ fn holds_all_words(layouts: &Layouts, defender: Defender) -> String {
 }
 
 /// A group's cards as alternatives, such as "the K or Q".
-fn either_words(layouts: &Layouts, group: usize) -> String {
+fn alternatives_words(layouts: &Layouts, group: usize) -> String {
     let cards: Vec<String> = layouts.groups[group]
         .ranks
         .descending()
@@ -629,18 +631,18 @@ fn extras_words(layouts: &Layouts, extras: LayoutSet) -> String {
     if extras.is_empty() {
         return String::new();
     }
-    let named_groups = layouts.groups.len().saturating_sub(1);
+    let named_group_count = layouts.groups.len().saturating_sub(1);
     for length in 1..=2 {
-        for group in 0..named_groups {
+        for group in 0..named_group_count {
             if layouts.groups[group].size() != 1 {
                 continue;
             }
-            let short = Atom::Short {
+            let short = Fact::Short {
                 group,
                 length,
                 holder: Holder::Either,
             };
-            if atom_layouts(layouts, None, short).is_superset(extras) {
+            if fact_layouts(layouts, None, short).is_superset(extras) {
                 let card = rank_symbol(layouts.groups[group].top());
                 return match length {
                     1 => format!(
@@ -655,7 +657,7 @@ fn extras_words(layouts: &Layouts, extras: LayoutSet) -> String {
         }
     }
     for defender in [Defender::West, Defender::East] {
-        let holds_all = atom_layouts(layouts, None, Atom::HoldsAll(defender));
+        let holds_all = fact_layouts(layouts, None, Fact::HoldsAll(defender));
         if holds_all.is_superset(extras) {
             return format!(
                 ", with a small extra chance when {}",
@@ -663,7 +665,7 @@ fn extras_words(layouts: &Layouts, extras: LayoutSet) -> String {
             );
         }
     }
-    let percent = 100.0 * layouts.weight(extras) as f64 / DEAL_COUNT as f64;
+    let percent = percent_of_deals(layouts.weight(extras));
     if percent < 100.0 * SMALL_CHANCE {
         format!(
             ", plus a small extra chance ({percent:.2}%) from rarer layouts"

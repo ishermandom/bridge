@@ -77,7 +77,7 @@ fn line_keeps_the_usual_case_as_otherwise_over_one_that_saves_a_part() {
 }
 
 #[test]
-fn line_lets_the_most_parts_go_when_that_leaves_far_fewer() {
+fn line_removes_the_most_parts_when_that_leaves_at_least_two_fewer() {
     // Leaving the usual case as "Otherwise" would split four ways after the
     // 7, two of the ways reading the same.
     assert_eq!(
@@ -98,7 +98,7 @@ fn line_says_second_hand_won_only_when_its_card_did() {
 }
 
 #[test]
-fn line_too_long_to_spell_out_says_so_rather_than_shortening() {
+fn line_too_long_to_spell_out_says_so_rather_than_leaving_cases_out() {
     assert_eq!(line("AQTxxx-xxx@5"), TOO_MANY_CASES);
 }
 

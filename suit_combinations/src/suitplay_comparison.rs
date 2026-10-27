@@ -203,7 +203,7 @@ fn compare_targets(
 ) -> Result<Vec<TargetComparison>, String> {
     let notation_error = |error: NotationError| error.to_string();
     // Any holding has a 1-trick problem, whose combination gives the length.
-    let longest = parse_problem(&format!("{holding}@1"))
+    let most_tricks = parse_problem(&format!("{holding}@1"))
         .map_err(notation_error)?
         .combination
         .longer_hand_length();
@@ -213,7 +213,7 @@ fn compare_targets(
     else {
         unreachable!("a holding's answer starts with one listed target");
     };
-    (1..=longest)
+    (1..=most_tricks)
         .map(|target| {
             let listed_percent = listed
                 .iter()

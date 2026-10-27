@@ -189,9 +189,7 @@ impl Combination {
             south,
         })
     }
-}
 
-impl Combination {
     /// How many cards the longer hand holds: the most tricks the suit can win.
     pub fn longer_hand_length(&self) -> u8 {
         self.north.len().max(self.south.len())
@@ -211,6 +209,27 @@ pub struct Problem {
     pub combination: Combination,
     /// The number of tricks wanted.
     pub target: u8,
+}
+
+impl Problem {
+    /// The problem of winning `target` tricks with `combination`. The target
+    /// must be from 1 up to the longer hand's length.
+    pub fn new(
+        combination: Combination,
+        target: u8,
+    ) -> Result<Problem, NotationError> {
+        let most_tricks = combination.longer_hand_length();
+        if target == 0 || target > most_tricks {
+            return Err(NotationError(format!(
+                "target {target} for {combination} is outside 1 to \
+                 {most_tricks}, the longer hand's length"
+            )));
+        }
+        Ok(Problem {
+            combination,
+            target,
+        })
+    }
 }
 
 impl fmt::Display for Problem {
@@ -249,17 +268,7 @@ pub fn parse_problem(text: &str) -> Result<Problem, NotationError> {
              tricks"
         ))
     })?;
-    let longest = combination.longer_hand_length();
-    if target == 0 || target > longest {
-        return Err(NotationError(format!(
-            "problem {text:?} wants {target} tricks; its longer hand can win \
-             1 to {longest}"
-        )));
-    }
-    Ok(Problem {
-        combination,
-        target,
-    })
+    Problem::new(combination, target)
 }
 
 #[cfg(test)]

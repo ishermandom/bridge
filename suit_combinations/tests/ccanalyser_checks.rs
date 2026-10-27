@@ -36,6 +36,6 @@ fn kqxxx_opposite_at9x_always_makes_5_tricks() {
 }
 
 #[test]
-fn k1084_opposite_q32_makes_2_tricks_86_percent_of_the_time() {
+fn kt84_opposite_q32_makes_2_tricks_86_percent_of_the_time() {
     assert_eq!(success_percent("KT84-Q32@2"), "85.93");
 }
