@@ -27,21 +27,42 @@ package="$repo_root/club_sites/palo_alto"
 # rebuilding it, so the wreckage would otherwise look newer than the lockfile.
 installed_lockfile="$package/node_modules/.package-lock.json"
 
-# `-nt` is "newer than": a source lockfile edited since the last install means
-# the installed tree no longer matches what the branch asks for.
-if [ ! -f "$installed_lockfile" ] \
-  || [ "$package/package-lock.json" -nt "$installed_lockfile" ]; then
-  # `--prefix` points npm at that package without changing directory, and `ci`
-  # installs the lockfile exactly — failing on drift from package.json, where
-  # `install` would quietly rewrite the lockfile to match. The remaining flags
-  # keep the common case fast and quiet: reuse the download cache, and skip the
-  # audit and funding reports.
-  npm --prefix "$package" ci --prefer-offline --no-audit --no-fund
-  install_status=$?
-  if [ "$install_status" -ne 0 ]; then
-    exit "$install_status"
+# Only one run at a time checks and installs. Runs of this script can overlap: a
+# session entering a worktree starts one in the background to build what the
+# checks need, and the Stop hook or a mid-turn run can start before it ends. Two
+# `npm ci` runs into one node_modules break each other, and can leave a tree
+# that is broken yet carries the completion marker, which no later run repairs.
+# With the lock, the second run waits for the first, then finds the install
+# done.
+#
+# The braces open the lock file on descriptor 9 (any unused number would do) for
+# the install alone, so the checks after it never wait on the lock, and the
+# system drops the lock if a run is killed holding it. flock(1), on Linux, and
+# lockf(1), on macOS and the BSDs, each lock an open descriptor that way; where
+# neither exists, the install runs unguarded.
+{
+  if command -v flock > /dev/null; then
+    flock 9
+  elif command -v lockf > /dev/null; then
+    lockf -s 9
   fi
-fi
+
+  # `-nt` is "newer than": a source lockfile edited since the last install means
+  # the installed tree no longer matches what the branch asks for.
+  if [ ! -f "$installed_lockfile" ] \
+    || [ "$package/package-lock.json" -nt "$installed_lockfile" ]; then
+    # `--prefix` points npm at that package without changing directory, and `ci`
+    # installs the lockfile exactly — failing on drift from package.json, where
+    # `install` would quietly rewrite the lockfile to match. The remaining flags
+    # keep the common case fast and quiet: reuse the download cache, and skip
+    # the audit and funding reports.
+    npm --prefix "$package" ci --prefer-offline --no-audit --no-fund
+    install_status=$?
+    if [ "$install_status" -ne 0 ]; then
+      exit "$install_status"
+    fi
+  fi
+} 9> "$package/node_modules.lock"
 
 # The userscript's checks run in the background while pytest runs: together they
 # take about a second, which pytest's longer run hides. Each side writes to its

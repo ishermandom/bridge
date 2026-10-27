@@ -14,6 +14,7 @@ venv/
 
 # Node
 node_modules/
+node_modules.lock
 
 # Captured page HTML — may include other members' names; keep local.
 club_sites/palo_alto/fixtures/raw/
