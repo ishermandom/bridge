@@ -15,63 +15,23 @@ Worktree: `.claude/worktrees/card-combination-flashcards`, branch
 `suit-combination-analyzer`, holds the analyzer, unlanded until the user reviews
 it and gives the go-ahead.
 
-- [~] Extend the tests with progressively harder combinations, such as long
-  suits and safety plays, pinning answers CCAnalyser confirms.
-- [-] Check results against CCAnalyser, the user's reference tool
-  (https://bridge.esmarkkappel.dk/main/main.html).
-  - Note: stopped for good, as agreed, at the first error. Six analyses all
-    matched the analyzer exactly; the seventh, KT84-Q32@3, timed out in the
-    driver waiting for a result after a reset, most likely a fault in the driver
-    rather than a block. Resuming needs the user's go-ahead, and a new driver:
-    the old one lived in a job's scratch folder, and should wait for the
-    result's text to change rather than for a button to become visible. The
-    matches: KQT-xxx@2 54.84%, KJxx-A9xx@3 100%, AQxxx-J9xx@5 32.78%,
-    AQ8xx-J9xx@4 100%, KQxxx-AT9x@5 100%, and KT84-Q32@2 85.93%.
-  - Note: drive a real browser (Playwright), never disguised, within the user's
-    limits: at most 100 examples in all, 3 per minute, and 10 per 30 minutes.
-    Stop for good at the first block or error rather than retry. A plain `curl`
-    download was refused with HTTP 455 ("ModSecurity Action"); a real browser
-    loads the page normally.
-  - Note: CCAnalyser computes on its server, so each analysis is one request
-    there. Its defaults match the analyzer's model: South on lead, 13 side
-    entries each, no known side cards, and a 10 HCP cap that no suit exceeds.
-- [x] Compare the analyzer with SuitPlay across a wide sample, looking for
-      combinations that trip the analyzer up; `suitplay/` and `compare-suitplay`
-      do the running and comparing, as spec.md #suitplay describes.
-  - Note: SuitPlay 2.1.2 is a 32-bit Windows program with no web version. The
-    user keeps it outside the repo, at
-    `/Users/Shared/data/bridge/suitplay/SuitPlay.exe`. The user accepted its
-    license agreement on 2026-10-20; a rebuilt machine shows it again, and one
-    rebuild used `--accept-license` on the strength of that acceptance.
-  - Rationale: the user treats SuitPlay as the gold standard. Newer analyzers
-    that run locally, such as jdh8/suit-combination and Quaestio, didn't seem
-    reliable enough to interest them.
-  - Note: as of 2026-10-22, every compared target agreed: 16,438 targets across
-    3,285 holdings, covering the spreadsheet's and tests' holdings, 772
-    published holdings (bridgehands.com, Warmerdam's corrections to the Official
-    Encyclopedia of Bridge, Pavlicek, Wikipedia and others), 1,492 random ones,
-    and 1,000 balanced ones rich in the T to 7. SuitPlay rejects A opposite x
-    and AQ opposite Qx, and an hour each wasn't enough for 4 opposite KJ97,
-    QJ974 opposite a void, or KJ974 opposite a void; fifteen minutes wasn't
-    enough for KJ76 opposite 94. Where a published figure disagreed, SuitPlay
-    sided with the analyzer; `tests/suitplay_checks.rs` pins eight such cases.
-  - Note: the runs' holdings and results are in the job's scratch folder
-    (`/Users/claude-sandbox/.claude/jobs/a4e2783b/tmp/published/`):
-    `suitplay_full.tsv` holds every holding at five minutes each, and
-    `suitplay_timed_out.tsv` the 21 that timed out, rerun at an hour each, and
-    `suitplay_tricky.tsv` the balanced ones. Most of those 21 had been waiting
-    on a SuitPlay warning, which the script now dismisses.
-- [ ] Solve every combination within 30 seconds, the user's fallback limit, or
-      else cache the slow ones. Three of 12,336 targets sampled exceed it: KJ974
-      opposite a void for 1 trick takes 391 seconds, QT864 opposite a void for 1
-      trick 256, and 4 opposite KJ97 for 1 trick 39. The next slowest takes 7.
-  - Note: all three hold one long hand against a void or a singleton, with eight
-    cards missing and a target that lets declarer lose several tricks. Nearly
-    all the time goes to `Frontier::insert`, keeping huge frontiers free of
-    beaten results; balanced holdings rarely take a tenth of a second.
-  - Note: for some, describing and checking the lines takes far longer than
-    solving: analyzing 4 opposite KJ97 for 1 trick takes over 600 seconds in
-    all.
+- [ ] Analyze every combination within 30 seconds end to end, the user's
+      fallback limit, or else cache the slow ones. The limit covers everything a
+      problem takes: solving, then describing, shortening, and checking its
+      lines.
+  - Rationale: the user, 2026-10-27: the target is the end-to-end time. Timing
+    the stages separately is still useful, to show where the time goes.
+  - Note: solving alone runs past the limit for three of 12,336 targets sampled:
+    KJ974 opposite a void for 1 trick takes 391 seconds, QT864 opposite a void
+    for 1 trick 256, and 4 opposite KJ97 for 1 trick 39. The next slowest
+    takes 7. All three hold one long hand against a void or a singleton, with
+    eight cards missing and a target that lets declarer lose several tricks.
+    Nearly all of their solving time goes to `Frontier::insert`, keeping huge
+    frontiers free of beaten results.
+  - Note: describing and checking can take far longer than solving: 4 opposite
+    KJ97 for 1 trick takes over 600 seconds end to end. The rest of two samples,
+    nearly 6,000 problems, took under 90 seconds in all; KJ974 and QT864
+    opposite a void haven't been timed end to end.
 
 ---
 
@@ -166,9 +126,8 @@ it and gives the go-ahead.
     more layouts (22.95% to 18.33%); in K1087 opposite Q32, eight lines beat
     each other in a circle, so the best matchpoint strategy picks one at random
     (Wikipedia, "Suit combination").
-  - Open question: can the line that averages the most tricks differ from the
-    best line for every trick target? Likely yes for K1084 opposite Q32: by
-    Wikipedia's figures, the ten finesse makes 2 tricks 83.1% of the time and 3
-    tricks 28.7%, while the analyzer's best lines reach 85.93% and 31.83%.
-    CCAnalyser confirmed the 85.93%; its check of 3 tricks timed out, so that
-    target is still open.
+  - Note: the line that averages the most tricks can differ from the best line
+    for every trick target. In K1084 opposite Q32, by Wikipedia's figures, the
+    ten finesse makes 2 tricks 83.1% of the time and 3 tricks 28.7%, while the
+    analyzer's best lines reach 85.93% and 31.83%, both of which SuitPlay
+    confirms.

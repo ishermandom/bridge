@@ -357,7 +357,10 @@ declarer below the target, the remark says just that, in place of all of these.
   checks, including 300 random combinations with up to six cards missing, run
   only when asked, to keep the default run fast: `cargo test -- --ignored`.
 - **CCAnalyser**: `tests/ccanalyser_checks.rs` pins the harder combinations it
-  confirmed, checked within the limits in [tasks.md](tasks.md).
+  confirmed. CCAnalyser computes on its own server, so checking more needs the
+  user's go-ahead and stays within these limits: a real browser that doesn't
+  disguise itself, at most 100 analyses in all, 3 a minute and 10 per 30
+  minutes, and a stop for good at the first block or error.
 - **SuitPlay**: the reference the user trusts most, run locally on as many
   holdings as wanted, as #suitplay describes.
 
@@ -367,9 +370,13 @@ before a test pins them.
 
 ### SuitPlay {#suitplay}
 
-SuitPlay is a Windows program, so `suitplay/` runs it under Wine in a small
-Linux virtual machine that Lima builds from `suitplay/lima.yaml`.
-`suitplay/run.sh` feeds it a file of holdings, and
+The user treats SuitPlay as the gold standard. Newer analyzers that run locally,
+such as jdh8/suit-combination and Quaestio, didn't seem reliable enough to
+interest them.
+
+SuitPlay 2.1.2 is a 32-bit Windows program with no web version, so `suitplay/`
+runs it under Wine in a small Linux virtual machine that Lima builds from
+`suitplay/lima.yaml`. `suitplay/run.sh` feeds it a file of holdings, and
 `suit_combinations compare-suitplay` compares every trick target of each holding
 with the analyzer.
 
@@ -385,7 +392,23 @@ with the analyzer.
   reading screenshots could misread a digit.
 - **The license stays the user's decision**: SuitPlay shows its license
   agreement on a fresh machine, and the scripts accept it only when run with
-  `--accept-license`.
+  `--accept-license`. The user accepted it on 2026-10-20, so the first run on a
+  rebuilt machine may pass `--accept-license` without asking again.
 - **Every target is compared**: SuitPlay answers each holding for every target
   at once, so one run checks them all, including the sure and impossible ones it
   leaves unlisted.
+
+In October 2026, the analyzer and SuitPlay agreed on every target compared:
+16,438 targets across 3,285 holdings. The holdings came from four sources:
+
+- the input file and the tests;
+- 772 published holdings, from bridgehands.com, Pavlicek, Wikipedia and others;
+- 1,492 random holdings;
+- 1,000 more random holdings, with two to five cards in each hand and at least
+  one of the T through 7 in declarer's hands, to exercise the middle spot cards.
+
+Where a published figure disagreed with the analyzer, SuitPlay sided with the
+analyzer; `tests/suitplay_checks.rs` pins eight such cases. SuitPlay rejects A
+opposite x and AQ opposite Qx. It couldn't finish 4 opposite KJ97, QJ974
+opposite a void, or KJ974 opposite a void within an hour each, or KJ76 opposite
+94 within fifteen minutes.
