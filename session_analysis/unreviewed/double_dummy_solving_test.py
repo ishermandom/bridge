@@ -11,6 +11,12 @@ The deals themselves, and the reasoning their answers rest on, are in
 rather than restating the search is made.
 """
 
+import subprocess
+import sys
+import textwrap
+from dataclasses import dataclass
+from pathlib import Path
+
 import pytest
 
 from session_analysis.enums import Direction, Rank, Strain, Suit
@@ -146,3 +152,65 @@ def test_a_table_cell_assumes_the_defenses_best_lead() -> None:
   # A heart lead holds South to nine in notrump, where any other lets South take
   # all thirteen; the table states the count the best lead holds declarer to.
   assert table[Direction.SOUTH][Strain.NOTRUMP] == 9
+
+
+# --- importing the solver ---
+
+
+@dataclass(frozen=True)
+class FreshImport:
+  """What a fresh interpreter holds after importing the solver module."""
+
+  lazy_import_mode: str
+  has_lazy_import_filter: bool
+  loaded_modules: frozenset[str]
+
+
+@pytest.fixture(scope='module')
+def fresh_import() -> FreshImport:
+  """The solver module imported once, in a fresh interpreter.
+
+  The test process can't show what one import loads, since every test module's
+  imports land in that same process.
+  """
+  script = textwrap.dedent("""
+    import sys
+    import session_analysis.unreviewed.double_dummy_solving
+    print(sys.get_lazy_imports())
+    print(sys.get_lazy_imports_filter() is not None)
+    print(*sorted(sys.modules), sep='\\n')
+  """)
+  # The repo root, from which `session_analysis` is importable.
+  repo_root = Path(__file__).parents[2]
+  completed = subprocess.run(
+    [sys.executable, '-c', script],
+    cwd=repo_root,
+    capture_output=True,
+    text=True,
+    check=True,
+  )
+  mode, has_filter, *modules = completed.stdout.splitlines()
+  return FreshImport(
+    lazy_import_mode=mode,
+    has_lazy_import_filter=has_filter == 'True',
+    loaded_modules=frozenset(modules),
+  )
+
+
+@pytest.mark.slow
+def test_importing_the_solver_loads_no_plotting_library(
+  fresh_import: FreshImport,
+) -> None:
+  # The plotting stack endplay's deal generator imports; the solver never uses
+  # it.
+  plotting = {'matplotlib', 'numpy', 'pyparsing', 'tqdm'}
+
+  assert not plotting & fresh_import.loaded_modules
+
+
+@pytest.mark.slow
+def test_importing_the_solver_leaves_later_imports_eager(
+  fresh_import: FreshImport,
+) -> None:
+  assert fresh_import.lazy_import_mode == 'normal'
+  assert not fresh_import.has_lazy_import_filter

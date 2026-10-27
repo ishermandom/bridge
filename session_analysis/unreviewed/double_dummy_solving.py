@@ -23,10 +23,9 @@ the two compare directly and their difference is what the opening lead cost.
 """
 
 import functools
-from collections.abc import Mapping
-
-import endplay.dds
-import endplay.types
+import sys
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 
 from session_analysis import notation
 from session_analysis.enums import Direction, Strain
@@ -35,6 +34,51 @@ from session_analysis.models import (
   Deal,
   SolvedDoubleDummyTricks,
 )
+
+
+@contextmanager
+def _imports_deferred_within(package: str) -> Iterator[None]:
+  """Defers each import that `package`'s own modules make while the block runs.
+
+  A deferred import binds its name to a placeholder, and the module loads only
+  if code later uses that name. Imports made by any other module load at once,
+  as usual.
+
+  The deferral works through Python's lazy-import mode and filter, which apply
+  to the whole process, so the block restores both when it exits. Left on, they
+  would slow every later import, and the slowdowns would add up to more than the
+  deferral saves.
+  """
+
+  def is_within_package(
+    importer: str | None, imported: str, fromlist: tuple[str, ...] | None
+  ) -> bool:
+    # An import made by code run through `exec` names no importing module, and
+    # stays eager.
+    if importer is None:
+      return False
+    return importer == package or importer.startswith(f'{package}.')
+
+  previous_mode = sys.get_lazy_imports()
+  previous_filter = sys.get_lazy_imports_filter()
+  # "all" lets any import be deferred, and the filter narrows that to the
+  # imports made from within the package.
+  sys.set_lazy_imports_filter(is_within_package)
+  sys.set_lazy_imports('all')
+  try:
+    yield
+  finally:
+    sys.set_lazy_imports(previous_mode)
+    sys.set_lazy_imports_filter(previous_filter)
+
+
+# endplay's `__init__` star-imports its deal generator, and the deal generator
+# imports matplotlib, numpy, pyparsing and tqdm, a plotting stack that takes
+# about 0.16s to load. This module never deals or plots, so endplay's own
+# imports are deferred, and the plotting stack never loads.
+with _imports_deferred_within('endplay'):
+  import endplay.dds
+  import endplay.types
 
 _SOLVER_SEATS: Mapping[Direction, endplay.types.Player] = {
   Direction.NORTH: endplay.types.Player.north,
