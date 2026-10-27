@@ -17,7 +17,7 @@ from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
-from renderer.fonts import DEFAULT_TEXT_FONT_PATH
+from renderer.fonts import default_text_font_path
 from renderer.private_paths import discover_private_assets
 
 # The printed sheet embeds the entry font, so it stays in the bridge-private
@@ -43,7 +43,7 @@ def _symbol_size_factor() -> float:
     for glyph in (SPADE, HEART, DIAMOND, CLUB)
   )
 
-  entry = MetricsFont(DEFAULT_TEXT_FONT_PATH)
+  entry = MetricsFont(default_text_font_path())
   cap_height = entry['OS/2'].sCapHeight / entry['head'].unitsPerEm
   return cap_height / suit_height
 
@@ -218,7 +218,7 @@ SAMPLE_RUNS = [
 PAGE_WIDTH, PAGE_HEIGHT = 612, 792
 LEFT = 40
 
-registerFont(TTFont('Entry', str(DEFAULT_TEXT_FONT_PATH)))
+registerFont(TTFont('Entry', str(default_text_font_path())))
 registerFont(TTFont('Symbols', SYMBOL_FONT))
 canvas = Canvas(str(OUT_PATH), pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
 

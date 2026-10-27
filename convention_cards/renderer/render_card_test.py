@@ -28,6 +28,7 @@ from pypdf.generic import DictionaryObject, NameObject, NullObject
 from renderer.fonts import register_entry_fonts
 from renderer.geometry import CARD_HEIGHT, CARD_WIDTH
 from renderer.overlay import DEFAULT_SIZE_FLOOR
+from renderer.private_paths import discover_private_assets
 from renderer.regenerate_goldens import (
   FULL_EXPORT_GOLDEN_PATH,
   renderable_full_export,
@@ -36,7 +37,6 @@ from renderer.regenerate_goldens import (
   rasterize as rasterize_at_golden_scale,
 )
 from renderer.render_card import (
-  DEFAULT_BASE_PDF_PATH,
   BaseCard,
   RenderResult,
   load_base_card,
@@ -46,7 +46,7 @@ from renderer.render_card import (
 from renderer.rule_positions import RULE_TOPS
 from renderer.vocabulary import UNRENDERED_KEYS, VOCABULARY
 
-_BASE_PDF_BYTES = DEFAULT_BASE_PDF_PATH.read_bytes()
+_BASE_PDF_BYTES = discover_private_assets().base_acbl_card_pdf.read_bytes()
 
 # Parsed once and shared, as `BaseCard` allows: parsing the card costs several
 # times what a render does.

@@ -21,8 +21,8 @@ import pypdfium2
 from PIL import Image
 
 from renderer.fonts import register_entry_fonts
+from renderer.private_paths import discover_private_assets
 from renderer.render_card import (
-  DEFAULT_BASE_PDF_PATH,
   load_base_card,
   render_card,
 )
@@ -58,7 +58,7 @@ def rasterize(pdf_bytes: bytes) -> Image.Image:
 
 def main() -> int:
   """Render the fixture card and overwrite the committed golden raster."""
-  with DEFAULT_BASE_PDF_PATH.open('rb') as base_pdf:
+  with discover_private_assets().base_acbl_card_pdf.open('rb') as base_pdf:
     base_card = load_base_card(base_pdf)
   result = render_card(
     StringIO(renderable_full_export()), base_card, register_entry_fonts()

@@ -18,14 +18,19 @@ from reportlab.pdfbase.ttfonts import TTFont
 from renderer.markup import Suit, TextRun
 from renderer.private_paths import discover_private_assets
 
-# The pinned entry face: Google Sans Flex at 6pt optical size, SuperCondensed
-# width, Regular weight graded up to Medium's stroke (GRAD 100). The cut lives
-# in the bridge-private sibling repo, whose `fonts/README.md` records its
-# provenance and measurements.
-DEFAULT_TEXT_FONT_PATH = (
-  discover_private_assets().fonts_directory
-  / 'GoogleSansFlex-opsz6-SuperCondensed-Grad100.ttf'
-)
+
+def default_text_font_path() -> Path:
+  """The pinned entry face, in the bridge-private sibling repo's fonts.
+
+  Google Sans Flex at 6pt optical size, SuperCondensed width, Regular weight
+  graded up to Medium's stroke (GRAD 100). The repo's `fonts/README.md` records
+  its provenance and measurements.
+  """
+  return (
+    discover_private_assets().fonts_directory
+    / 'GoogleSansFlex-opsz6-SuperCondensed-Grad100.ttf'
+  )
+
 
 # Which face within the font file to render: reportlab's "subfont" index. The
 # pinned cut is a plain .ttf holding a single face, so the index is 0.
@@ -80,14 +85,15 @@ class EntryFonts:
 
 
 def register_entry_fonts(
-  text_font_path: Path = DEFAULT_TEXT_FONT_PATH,
+  text_font_path: Path | None = None,
   subfont_index: int = DEFAULT_TEXT_FONT_SUBFONT,
 ) -> EntryFonts:
   """Register the text and suit-symbol fonts with reportlab.
 
-  `subfont_index` selects a face within a TrueType collection (.ttc); plain
-  .ttf/.otf files use index 0.
+  `text_font_path` defaults to the pinned entry face. `subfont_index` selects a
+  face within a TrueType collection (.ttc); plain .ttf/.otf files use index 0.
   """
+  text_font_path = text_font_path or default_text_font_path()
   for path in (text_font_path, _SYMBOL_FONT_PATH):
     if not path.exists():
       raise FileNotFoundError(f'font file not found: {path}')

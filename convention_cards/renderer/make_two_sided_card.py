@@ -51,7 +51,6 @@ from reportlab.pdfgen import canvas
 from renderer.fonts import register_entry_fonts
 from renderer.private_paths import discover_private_assets
 from renderer.render_card import (
-  DEFAULT_BASE_PDF_PATH,
   RenderResult,
   load_base_card,
   print_resized_entries,
@@ -86,8 +85,6 @@ CUT_Y = PAGE_HEIGHT - HARD_MARGIN - CARD_BUDGET - CUT_ALLOWANCE
 ACBL_CARD_WIDTH = 576
 ACBL_CARD_HEIGHT = 612
 ACBL_CARD_SCALE = CARD_BUDGET / max(ACBL_CARD_WIDTH, ACBL_CARD_HEIGHT)
-
-_FONTS_DIRECTORY = discover_private_assets().fonts_directory
 
 # ---------------------------------------------------------------------------
 # HTML-to-PDF conversion
@@ -137,10 +134,11 @@ def _stack_font_faces() -> str:
   the font data inlined as a data URI, so the injected styles carry no file
   references.
   """
+  fonts_directory = discover_private_assets().fonts_directory
   rules = []
   for family, files in _WEB_FAMILY_FONT_FILES.items():
     for style, file_name in files.items():
-      font = (_FONTS_DIRECTORY / file_name).read_bytes()
+      font = (fonts_directory / file_name).read_bytes()
       encoded = base64.b64encode(font).decode('ascii')
       rules.append(
         '@font-face {\n'
@@ -210,7 +208,7 @@ def render_acbl_card(json_path: pathlib.Path) -> RenderResult:
   """Render the Bridgodex JSON through the ACBL card renderer, in process."""
   fonts = register_entry_fonts()
   with (
-    DEFAULT_BASE_PDF_PATH.open('rb') as base_pdf,
+    discover_private_assets().base_acbl_card_pdf.open('rb') as base_pdf,
     json_path.open(encoding='utf-8') as card_json,
   ):
     return render_card(card_json, load_base_card(base_pdf), fonts)

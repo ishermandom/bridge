@@ -13,13 +13,12 @@ from reportlab.pdfgen.canvas import Canvas
 from renderer.geometry import CardField, FieldKind, load_card_fields
 from renderer.private_paths import discover_private_assets
 
-_BASE_PDF_PATH = discover_private_assets().base_acbl_card_pdf
-
 
 @functools.cache
 def _load_real_card() -> Mapping[str, CardField]:
   """The real card's fields, loaded once and shared across these tests."""
-  return load_card_fields(BytesIO(_BASE_PDF_PATH.read_bytes()))
+  base_pdf = discover_private_assets().base_acbl_card_pdf.read_bytes()
+  return load_card_fields(BytesIO(base_pdf))
 
 
 def test_every_widget_on_the_card_is_loaded() -> None:

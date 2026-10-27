@@ -32,9 +32,9 @@ from pypdf.generic import (
 from reportlab.lib.colors import HexColor
 
 from renderer.fonts import (
-  DEFAULT_TEXT_FONT_PATH,
   DEFAULT_TEXT_FONT_SUBFONT,
   EntryFonts,
+  default_text_font_path,
   register_entry_fonts,
 )
 from renderer.geometry import CardField, load_card_fields
@@ -47,8 +47,6 @@ from renderer.overlay import (
 )
 from renderer.private_paths import discover_private_assets
 from renderer.vocabulary import resolve_settings
-
-DEFAULT_BASE_PDF_PATH = discover_private_assets().base_acbl_card_pdf
 
 # The name the output page's resources give the overlay's form XObject.
 _OVERLAY_FORM_NAME = NameObject('/CardOverlay')
@@ -229,7 +227,7 @@ def main(argv: Sequence[str] | None = None, stdin: TextIO = sys.stdin) -> int:
   parser.add_argument(
     '--base-pdf',
     type=Path,
-    default=DEFAULT_BASE_PDF_PATH,
+    default=discover_private_assets().base_acbl_card_pdf,
     help='blank ACBL card PDF (default: %(default)s)',
   )
   parser.add_argument(
@@ -260,7 +258,7 @@ def main(argv: Sequence[str] | None = None, stdin: TextIO = sys.stdin) -> int:
   if args.font is None and args.font_subfont is not None:
     parser.error('--font-subfont requires --font')
   if args.font is None:
-    font_path, subfont = DEFAULT_TEXT_FONT_PATH, DEFAULT_TEXT_FONT_SUBFONT
+    font_path, subfont = default_text_font_path(), DEFAULT_TEXT_FONT_SUBFONT
   else:
     font_path, subfont = args.font, args.font_subfont or 0
 
