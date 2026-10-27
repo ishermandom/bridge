@@ -189,6 +189,9 @@ output, parsed into the canonical model.
     to resolve a difference the message hides.
   - Note: seen in the Sonnet 5.5 comparison on the 9/24 sheet's boards 9 and 15.
     The same gap holds for anything the vote compares that `raw` leaves out.
+- [ ] Tell the extraction prompt that a crossed-out circle counts as no circle.
+  - Rationale: its `#markup` rule drops scratched-out content but names no
+    marks, and on 2026-10-26 a crossed-out circle was transcribed as a real one.
 
 ---
 
@@ -975,6 +978,10 @@ rationale lives in the design docs' open-question sections —
   - Rationale: with every call written, the two sides take turns, so a break in
     the alternation means a misplaced circle or a missing pass. It caught a
     crossed-out circle transcribed as a real one on 2026-10-26.
+- [ ] Derive the declarer when the sheet writes every pass.
+  - Rationale: models.md `#validation` declines to derive it because passes
+    usually go unwritten. With every pass written, the dealer, known from the
+    board number, replays the seat rotation.
 
 ---
 
