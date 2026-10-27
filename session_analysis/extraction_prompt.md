@@ -120,7 +120,10 @@ marks inline exactly as they appear on the sheet:
   both: `1C_2`, `1N_SF`, `1H_S`, `1N^0_2`.
 - **Double / redouble** → its own token, transcribed as written: `*`, `**`, or
   the handwritten `x`, `xx`.
-- **Pass** → lowercase `p`.
+- **Pass** → a period `.` for each dot written as a pass, or lowercase `p` where
+  the letter is written. A dot's height in the handwritten notes doesn't matter.
+  Dots often run together or touch the calls beside them; give each dot its own
+  token, so two dots, a circled 1C, then 2C become `. . (1C) 2C`.
 
 A scratched-out call is omitted the same way as anywhere else — see #markup
 above.

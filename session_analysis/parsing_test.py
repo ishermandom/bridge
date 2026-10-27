@@ -157,6 +157,26 @@ def test_double_glued_to_a_circled_call_splits_off() -> None:
   assert third.call == Call(kind=CallKind.DOUBLE)
 
 
+def test_run_of_dots_splits_into_one_pass_per_dot() -> None:
+  first, second = parse_auction('..')
+  assert first.call == Call(kind=CallKind.PASS)
+  assert second.call == Call(kind=CallKind.PASS)
+
+
+def test_dot_glued_between_bids_splits_off_as_a_pass() -> None:
+  first, second, third = parse_auction('2C.3S')
+  assert first.call == Call(kind=CallKind.BID, level=2, strain=Strain.CLUBS)
+  assert second.call == Call(kind=CallKind.PASS)
+  assert third.call == Call(kind=CallKind.BID, level=3, strain=Strain.SPADES)
+
+
+def test_dot_glued_to_announcement_text_splits_off_as_a_pass() -> None:
+  # Announcement text is free-form, but a dot after it is the next call.
+  first, second = parse_auction('1N_SF.')
+  assert first.raw == '1N_SF'
+  assert second.call == Call(kind=CallKind.PASS)
+
+
 def test_glued_calls_inside_a_box_all_carry_its_flag() -> None:
   first, second = parse_auction('[(1D)(1S)]')
   assert first.flagged_for_discussion is True
@@ -414,8 +434,9 @@ def test_redouble_may_be_written_as_stars_or_x(written: str) -> None:
   assert entry.call == Call(kind=CallKind.REDOUBLE)
 
 
-def test_written_pass_is_a_pass_call() -> None:
-  (entry,) = parse_auction('p')
+@pytest.mark.parametrize('written', ['.', 'p', 'P'])
+def test_pass_may_be_written_as_a_dot_or_p(written: str) -> None:
+  (entry,) = parse_auction(written)
   assert entry.call == Call(kind=CallKind.PASS)
 
 
@@ -449,9 +470,10 @@ def test_struck_through_auction_resolves_to_no_entries() -> None:
 
 def test_parses_a_realistic_competitive_auction() -> None:
   # One line composing the markup the per-feature tests cover in isolation:
-  # circles (opponents' calls), an `x` double, an alert, a box, and passes. The
-  # bids are rank-legal, so the fixture reads like a real auction.
-  entries = parse_auction('1H (x) 2H! (2S) [3H] (p) p')
+  # circles (opponents' calls), an `x` double, an alert, a box, and passes in
+  # both spellings. The bids are rank-legal, so the fixture reads like a real
+  # auction.
+  entries = parse_auction('1H (x) 2H! (2S) [3H] (p) .')
 
   assert [e.by_opponents for e in entries] == [
     False,

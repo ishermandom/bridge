@@ -106,7 +106,8 @@ inline markers; it does not interpret them.
 - **Double / redouble** → `*` / `**`, or the handwritten `x` / `xx`, each its
   own token: `(1H) * 2S`.
 - **Scratched-out** calls → omitted by the vision model entirely.
-- **Passes** → lowercase `p`, on the rare occasions they are written.
+- **Passes** → `.` for each dot the sheet writes as a pass, or `p` where it
+  writes the letter. A sheet may also leave passes unwritten.
 
 Glyph mistakes are expected and tolerated: a misread `3D` written `ED` is passed
 through verbatim and flagged downstream, leaving the rest of the auction intact.
@@ -143,15 +144,18 @@ multiple space-separated calls. The grammar:
 - A **box** `[ … ]` opens a to-discuss span covering every call inside it; the
   span may contain circled calls.
 - A **circle** `( … )` wraps exactly one call.
+- A **dot** `.` stands for a pass and is always a call by itself: `..` is two
+  passes.
 - A **call core** is the remaining text: bid glyphs, an optional trailing `!`,
-  an optional `_…` and/or `^…` announcement, or a standalone `*` / `**` / `p`.
+  an optional `_…` and/or `^…` announcement, or a standalone `*` / `**` / `.` /
+  `p`.
 
 The parser strips the structural markup — which is reliable, since it is
 explicit in the string — into booleans, then parses the core. A bid core is
 expected to match a level `1`–`7` and a strain (`C`/`D`/`H`/`S`, and notrump as
 `N` or `NT`); anything else is kept as `raw` with an `unparseable_call` issue.
 
-Worked example — the rank-legal string `1H (x) 2H! (2S) [3H] (p) p` parses to:
+Worked example — the rank-legal string `1H (x) 2H! (2S) [3H] (p) .` parses to:
 
 | Token  | by_opp | discuss | alert | kind   | level | strain | announcement | issue |
 | ------ | ------ | ------- | ----- | ------ | ----- | ------ | ------------ | ----- |
@@ -161,7 +165,7 @@ Worked example — the rank-legal string `1H (x) 2H! (2S) [3H] (p) p` parses to:
 | `(2S)` | yes    | no      | no    | bid    | 2     | S      | —            | —     |
 | `[3H]` | no     | yes     | no    | bid    | 3     | H      | —            | —     |
 | `(p)`  | yes    | no      | no    | pass   | —     | —      | —            | —     |
-| `p`    | no     | no      | no    | pass   | —     | —      | —            | —     |
+| `.`    | no     | no      | no    | pass   | —     | —      | —            | —     |
 
 An artificial-suit or notrump-range announcement (`1H_S`, `1N^0_2`) is decoded
 by [Announcement decoding](#announcement-decoding) below; an unreadable core

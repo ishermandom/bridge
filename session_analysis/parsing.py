@@ -128,7 +128,9 @@ _BID_START = rf'[1-7]{ANY_STRAIN}'
 # What one call looks like inside a glued auction chunk (see
 # `_split_glued_calls`). Every call is a body and the markup riding on it, and
 # the body is where the seams are: a circle closes one, a penalty mark opens
-# one, and any other call runs until it meets either.
+# one, and any other call runs until it meets either. A dot representing a pass
+# is the exception: a dot is always a whole call by itself, so its seams fall on
+# both sides, even right after free-form announcement text.
 #
 # Both spellings of a penalty mark seam. The model writes `x` where the sheet
 # says `*` often enough that seaming only on `*` would lose real doubles. A
@@ -145,12 +147,14 @@ _GLUED_CALL_PIECE_PATTERN = re.compile(
   rf"""
     \( [^()]* \)                # a circled call: the opponents', circle and all
   |
+    \.                          # a dot representing a pass: a call by itself
+  |
     (?: [*xX]+                  # a double or redouble, in either spelling
-      | [^()*xX_^]+             # or any other call's own glyphs
+      | [^()*xX_^.]+            # or any other call's own glyphs
     )
     (?: [_^]                    # then the markup it carries: an announcement,
         (?: (?!{_BID_START})    #   whose free-form text gives way to the next
-            [^()*]              #   call rather than swallowing it
+            [^()*.]             #   call rather than swallowing it
         )*
       | !                       # or an alert
     )*
@@ -455,10 +459,11 @@ def _split_glued_calls(chunk_core: str) -> Sequence[str]:
 
   The vision model sometimes omits the space between adjacent calls, always at a
   markup seam: between circled calls (`(1D)(1S)`), or between a call and a
-  penalty mark in either spelling (`1H*`, `1Hx`, `(1D)(1H)*`). Splitting at
-  those seams here keeps flag counts stable instead of depending on the model to
-  police its spacing. A seam-free chunk passes through as the single token it
-  already is.
+  penalty mark in either spelling (`1H*`, `1Hx`, `(1D)(1H)*`). Dots representing
+  passes split the same way (`..`, `2C.3S`), since the sheet runs them together.
+  Splitting at those seams here keeps flag counts stable instead of depending on
+  the model to police its spacing. A seam-free chunk passes through as the
+  single token it already is.
 
   The split must be lossless — a chunk the piece scan cannot fully cover (an
   unbalanced circle, say) is returned whole so the call parser flags it with the
@@ -499,7 +504,7 @@ def _parse_call_core(core: str) -> _ParsedCore:
   """Parse a call core (structural markup stripped) into a `Call`.
 
   The core is a bid (`2H`, with an optional trailing `!` alert and `_`/`^`
-  announcement), or a standalone pass (`p`), double (`*`/`x`), or redouble
+  announcement), or a standalone pass (`.`/`p`), double (`*`/`x`), or redouble
   (`**`/`xx`). A bid whose glyphs don't match yields no call and an
   `unparseable_call` issue.
   """
@@ -519,7 +524,7 @@ def _parse_call_core(core: str) -> _ParsedCore:
     )
     body = body.replace('!', '')
 
-  if body in ('p', 'P'):
+  if body in ('.', 'p', 'P'):
     return _ParsedCore(Call(kind=CallKind.PASS), alerted, issues)
 
   # A double or redouble may be annotated like a bid — `*_H` doubles to show
