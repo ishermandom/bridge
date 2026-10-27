@@ -19,10 +19,11 @@ from "planned" to "working" as they're built.
 
 `suit_combinations/` — Rust
 
-Given a single suit held between two hands and a number of tricks wanted, work
-out the line of play most likely to take them against best defense, how often it
-succeeds, and why it works. This is the classic "how do I play this suit"
-question, answered exhaustively rather than from memory.
+The analyzer answers the classic question "how do I play this suit?" — not from
+memory, but by working through every way the defenders' cards can lie. Given the
+number of tricks wanted, it finds the line of play most likely to take at least
+that many tricks against best defense. It also reports how often that line
+succeeds, and why.
 
 It is both a library and a small command-line tool. Name North's and South's
 cards and the tricks wanted:
@@ -37,16 +38,18 @@ Low to the T, then low to the Q
 Finesse hoping the K or J is onside
 ```
 
-Unlike existing tools such as https://bridge.esmarkkappel.dk/main/main.html, it
-explains the line alongside the percentage. For now it assumes unlimited entries
-and nothing known about the defenders' hands; constraints such as limited
-entries, and playing for the most tricks on average, are planned.
+Major kudos to the excellent pre-existing tools in this space, notably including
+[Bridge CCAnalyser](https://bridge.esmarkkappel.dk) and
+[SuitPlay](https://jeroenwarmerdam.pythonanywhere.com/suitplay/). Unlike these
+existing tools, this repo's analyzer explains the line the way a teacher would,
+in a sentence or two of English, alongside the percentage. For now it assumes
+unlimited entries and nothing known about the defenders' hands.
 
-Its chances can be checked against SuitPlay, a long-established Windows
-analyzer. `suit_combinations/suitplay/run.sh` runs SuitPlay inside a small Linux
-virtual machine on a file of holdings, one per line such as `AQT-xx`, and prints
-SuitPlay's chance of each trick target; `compare-suitplay` then lists every
-target where the two disagree:
+Its reported percentages can be checked against SuitPlay, a Windows program.
+`suit_combinations/suitplay/run.sh` runs SuitPlay inside a small Linux virtual
+machine on a file of holdings, one per line such as `AQT-xx`, and prints
+SuitPlay's best-line percentage for each trick target; `compare-suitplay` then
+lists every target where the two disagree:
 
 ```sh
 suit_combinations/suitplay/run.sh holdings.txt > suitplay.tsv
@@ -59,8 +62,8 @@ This needs [Lima](https://lima-vm.io/) (`brew install lima`) and a copy of
 the virtual machine, which takes a few minutes and about 5 GB of disk. SuitPlay
 first shows its license agreement; `run.sh holdings.txt --accept-license`
 accepts it. SuitPlay takes a few seconds for most holdings, but can take minutes
-when many cards are missing; `run.sh` gives up on a holding after five minutes,
-or after the number given with `--minutes-per-holding`.
+when many cards are missing; `--minutes-per-holding` sets how long `run.sh`
+waits on one holding before giving up on it.
 
 ### Double-dummy solver
 
