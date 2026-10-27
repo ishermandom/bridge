@@ -751,7 +751,10 @@ argued in `unreviewed.double_dummy_comparison`.
     regrouped by one-off scripts outside the repo, so regenerating any of them
     with the transcript command reverts it to seats. For 2026-10-19 the user
     gave the seating in chat at review — a route the open question below doesn't
-    list: real data, per session, with nothing changed on the sheet.
+    list: real data, per session, with nothing changed on the sheet. For
+    2026-10-26 the user gave it as `NW`, a seat for each direction, and each
+    board's side from the recap then placed every board, though the pair changed
+    direction three times.
   - Open question: which route to take. Seating could be configured beside
     `player_name` — but a pair changes direction mid-session, as the 2026-08-31
     session does over boards 13 to 15, so the setting would have to say which
@@ -894,6 +897,9 @@ rationale lives in the design docs' open-question sections —
     against the travellers twice, one of those boards after a lead out of turn,
     as that record's board notes say. What the lead can do is say which
     candidate it fits, in one issue rather than two.
+  - Note: the lead has backed the sheet as well as the travellers. On
+    2026-10-26, board 1's lead fit the sheet's North against the recap's South,
+    and North was right.
 - [ ] Judge whether swap detection earns its keep, and whether transpositions
       are the right search. Trigger: several digitized sheets reconciled.
       {#swap-detection-in-practice}
