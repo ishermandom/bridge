@@ -1,11 +1,11 @@
 // Copyright 2026 Ilya Sherman (ishermandom@)
 // SPDX-License-Identifier: MIT
 
-//! Lines that are complete when followed as written, as
-//! `suit_combinations/spec.md` #describing-lines describes: every card
-//! second hand might play is answered, by the trick's name or a stated
-//! answer, and every condition holds as it reads. Shortened, they leave the
-//! usual case as "Otherwise", as #shortening-lines describes.
+//! Lines as `suit_combinations/spec.md` #describing-lines describes them:
+//! complete when followed as written, with every card second hand might play
+//! answered, by the trick's name or a stated answer, and every condition
+//! holding as it reads. Shortened as #shortening-lines describes, they
+//! usually leave the usual case as "Otherwise".
 
 use suit_combinations::analysis::{TOO_MANY_CASES, analyze, line_errors};
 use suit_combinations::notation::parse_problem;
@@ -26,6 +26,12 @@ fn line_ignores_low_cards_held_only_where_it_fails() {
         "Cash the A, then low to the 8. If West plays the J or the 9, low to \
          the 8. Otherwise, low to the T."
     );
+}
+
+#[test]
+fn line_implies_winning_second_hands_honor_as_cheaply_as_it_can() {
+    // "Low to the Q" plays the A when West plays the K.
+    assert_eq!(line("AQ-xx@2"), "Low to the Q");
 }
 
 #[test]
@@ -88,12 +94,98 @@ fn line_removes_the_most_parts_when_that_leaves_at_least_two_fewer() {
 }
 
 #[test]
+fn line_drops_an_answer_the_target_doesnt_need() {
+    // Winning East's J with the A makes 2 tricks too, so "(if East plays the
+    // J, play the Q)" goes.
+    assert_eq!(line("T86-AQ5@2"), "Lead the 8 to the A, then low to the Q");
+}
+
+#[test]
+fn line_drops_a_part_where_the_otherwise_play_also_wins() {
+    // After the Q holds, the part where both defenders play low cards goes,
+    // since leading the 6 to the 8 and cashing the A reaches the target there
+    // too.
+    assert_eq!(
+        line("97652-AQT8@5"),
+        "Lead the 5 to the Q. If East plays the K, cash the Q. Otherwise, lead \
+         the 6 to the 8, then cash the A."
+    );
+}
+
+#[test]
 fn line_says_second_hand_won_only_when_its_card_did() {
     // North plays low under West's A, which can't be beaten, keeping the K.
     assert_eq!(
         line("KT9xxx-xxx@5"),
         "Low to the K. If West wins with the A, cash the K. Otherwise, duck a \
          round."
+    );
+}
+
+#[test]
+fn line_shares_a_play_that_finesses_in_one_branch_and_cashes_in_another() {
+    // If the K wins, low to the Q finesses against West's A. If East takes the
+    // K with the A, low to the Q cashes the Q, hoping the J falls so that the
+    // T makes the second trick. Declarer plays the same cards either way, and
+    // the play takes the finesse's name.
+    assert_eq!(line("KQT-97@2"), "Lead the 9 to the K, then low to the Q");
+}
+
+#[test]
+fn line_runs_a_sequence_as_its_first_card_alone() {
+    // Running the Q means going on with the J and the T.
+    assert_eq!(line("Axx-QJT@3"), "Run the Q");
+}
+
+#[test]
+fn line_spells_out_each_run_when_partners_card_breaks_the_sequence() {
+    // North's T lies between South's 9 and J, so running the J is a run of
+    // its own.
+    assert_eq!(
+        line("AQTx-J9x@4"),
+        "Run the 9, then run the J, then low to the Q"
+    );
+}
+
+#[test]
+fn line_that_splits_within_a_split_reads_as_an_outline() {
+    // The nested parts tell apart only the branches of the part they sit
+    // under, and "it" is the 9 that "low to the 9" names.
+    assert_eq!(
+        line("Q9532-AT74@3"),
+        "Cash the A, then run the T.\n\
+         - If West shows out and East wins with the J, or West plays the J, \
+         low to the 9.\n  \
+         - If it loses, cash the Q.\n  \
+         - Otherwise, duck a round.\n\
+         - Otherwise, duck a round, then duck a round."
+    );
+}
+
+#[test]
+fn line_takes_a_finesse_another_branch_needs_for_a_free_overtrick() {
+    // After East's J takes the T, the line needs the Q finesse to make 2
+    // tricks. After the T wins, the A already makes the second trick, and the
+    // same finesse may win a third. Once East's K takes the T, the A and Q are
+    // sure winners, so the line has nothing more to say.
+    assert_eq!(line("AQT-xx@2"), "Low to the T, then low to the Q");
+}
+
+#[test]
+fn line_prefers_spelling_out_fewer_tricks() {
+    // Starting with "Run the 5" needs no more entries but spells out three
+    // tricks.
+    assert_eq!(line("A4-J95@2"), "Cash the A, then low to the 9");
+}
+
+#[test]
+fn line_offers_each_tied_strategy_that_wins_in_different_layouts() {
+    // A two-way finesse: either defender may hold the Q.
+    assert_eq!(
+        line("AJ3-KT2@3"),
+        "Either:\n\
+         * Cash the A, then low to the T\n\
+         * Cash the K, then lead the T to the J"
     );
 }
 

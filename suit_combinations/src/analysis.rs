@@ -192,7 +192,10 @@ fn best_results(layouts: &Layouts, problem: Problem) -> Vec<BestResult> {
     // the most parts instead pays only in two cases: the usual case leaves
     // the whole description, with tied lines counted together as
     // `Analysis::line_words` shows them, past the limit; or it leaves at
-    // least `MIN_PARTS_SAVED` more conditions to read.
+    // least `MIN_PARTS_SAVED` more conditions to read. Both are judged on the
+    // whole description rather than split by split, because the part chosen
+    // as "Otherwise" in one split can push the branching to a later trick,
+    // where the line splits into more parts than before.
     let mut lines = shorten_all(OtherwiseRule::Usual);
     let usual_length = either_words(&lines, layouts).chars().count();
     let usual_parts: usize = lines.iter().map(Line::part_count).sum();

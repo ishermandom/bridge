@@ -1,24 +1,27 @@
 # Suit-combination analyzer spec
 
 The analyzer answers the classic question of how to play a single suit: given
-declarer's two holdings and a target number of tricks, which line of play
-succeeds most often against best defense, how often it succeeds, and why. It
-aims to explain the line the way a teacher would, in a sentence or two of
-English, rather than only report it. The user's reference is CCAnalyser
-(https://bridge.esmarkkappel.dk/main/main.html), which reports the best lines
-and their chances but no explanation.
+declarer's and dummy's holdings and a target number of tricks, which line of
+play succeeds most often against best defense, how often it succeeds, and why.
+It aims to explain the line the way a teacher would, in a sentence or two of
+English, rather than only to report it. Two best-in-class existing analyzers,
+[CCAnalyser](https://bridge.esmarkkappel.dk/main/main.html) and
+[SuitPlay](https://jeroenwarmerdam.pythonanywhere.com/suitplay/), report the
+best lines and their chances but give no explanation.
 
 The analyzer starts with pure suit combinations: unlimited entries to both
 hands, and nothing known about the defenders' cards. Constraints such as limited
 entries come later; see [tasks.md](tasks.md).
+
+This spec describes what the analyzer should do. Where the code still falls
+short, a task in tasks.md tracks the difference.
 
 ## Notation {#notation}
 
 A problem is written `North-South@target`, such as `AQT-xx@2`. Each holding uses
 the notation of the flashcards' input file,
 `flashcards/input/suit_combinations.csv` (`anki/spec.md` #holding-notation), so
-the analyzer reads that file's holdings unchanged. North is the hand shown on
-top of a diagram, and South the one below it. Prose examples such as "AQT
+the analyzer reads that file's holdings unchanged. Prose examples such as "AQT
 opposite xx" name North first too.
 
 Each `x` is a card too low to matter. The analyzer gives the `x`s the lowest
@@ -26,90 +29,292 @@ ranks neither hand names, which leaves every defender's card above every `x`.
 
 ## Model {#model}
 
-- **Layouts**: every way the missing cards can divide between West and East is
-  possible, weighted by how many deals produce it, with no other information
-  about the defenders' hands. A division with West holding `w` of the `k`
-  missing cards arises in `C(26 − k, 13 − w)` of the `C(26, 13)` deals.
+The analyzer solves a simplified version of the play:
+
+- **Layouts**: a layout is one way the defenders' cards in the suit can be
+  divided between West and East. Nothing is known about the defenders' hands
+  beyond what the play reveals, so every layout is possible, weighted by how
+  many deals produce it. If West holds `w` particular cards of the `k` the
+  defenders hold in the suit, West's other `13 − w` cards come from the `26 − k`
+  the defenders hold in other suits. So that layout arises in
+  `C(26 − k, 13 − w)` of the `C(26, 13)` = 10,400,600 ways to divide the
+  defenders' 26 cards. A strategy's chance of success is the total weight of the
+  layouts where it succeeds, divided by `C(26, 13)`.
 - **Entries**: declarer can lead from either hand at every trick, standing for
   unlimited entries in other suits.
 - **The defenders never lead the suit**: a defender who wins a trick exits in
   another suit, and declarer leads next from either hand.
+- **Declarer's information**: declarer sees every card played, including a
+  defender's show-out, and nothing else. Declarer never sees the layout itself,
+  only what the play so far reveals about it.
+- **Strategies**: a strategy is declarer's complete plan, saying which card to
+  lead or play in every situation declarer could face. Since declarer can't see
+  the layout, a strategy can depend only on the cards played so far.
 - **Best defense**: the defenders see every card and know declarer's strategy,
   and in each layout they play to hold declarer to the fewest tricks. That
-  covers ducking, hold-ups, and choosing between cards of equal rank in the way
-  that tells declarer least.
-- **Declarer's information**: declarer sees every card played, including a
-  defender's show-out, and nothing else.
+  covers ducking, hold-ups, and choosing among equal cards
+  (#interchangeable-cards) in the way that tells declarer least. So in each
+  layout, a strategy takes a definite number of tricks: the tricks it takes in
+  that layout against the defenders' best reply.
 
 ## Goal {#goal}
 
-The best strategy reaches the target in the most deals. Among strategies that
-tie, the best makes the most overtricks, comparing the chance of one extra trick
-first, then of two, and so on. Strategies that win in exactly the same layouts
-count as one. Strategies that tie in every respect yet win in different layouts,
-such as finessing West or East for the same card, are all best, and the
+A best strategy is one that no other strategy improves on.
+
+A continuation is a strategy for the rest of the play from some position, such
+as after West's card to the first trick. One continuation strictly dominates
+another from the same position when it wins in every layout where the other
+wins, at the target and at every overtrick, and in more layouts besides.
+
+One strategy improves on another in either of two ways:
+
+- **Against best defense**: it reaches the target in more deals, which is a
+  higher chance of success (#model); or it ties at the target and does better on
+  overtricks.
+- **After a defender's mistake**: it is the same as the other except for its
+  continuation from one position, which strictly dominates the other's.
+
+Among strategies that tie at the target, doing better on overtricks means a
+higher chance of one overtrick, or with that tied too, of two, and so on. So a
+strategy that makes one overtrick 90% of the time improves on one that makes
+three overtricks 85% of the time and otherwise none. This tiebreak is
+provisional, until `tasks.md` #strategy-tiebreak settles it.
+
+Improving after a defender's mistake matters only for a gain that best defense
+hides; a gain that showed against best defense would count there already. Best
+defense hides the gain when, in every layout where the dominating continuation
+wins and the other loses, it keeps the play from ever reaching that
+continuation. A best strategy still takes such a gain. Take AQ9 opposite 32 for
+2 tricks, where West holds KJ87654 and East the singleton T, and declarer leads
+low toward AQ9. Against best defense, West plays low, and declarer takes two
+tricks. If West plays the K instead, winning with the A takes three tricks where
+ducking with the 9 takes two. The two answers give the strategy the same chances
+against best defense, which never plays the K in this layout, but only winning
+with the A is best.
+
+The line the analyzer reports describes the strategy for best defense. Followed
+as written, it still reaches the target in every layout where its strategy does,
+whatever the defenders play there (#describing-lines). But it spends no words on
+profiting from a mistake in a layout it would otherwise lose, such as West's K
+above.
+
+Strategies that win in exactly the same layouts, at the target and at every
+overtrick, count as one. Strategies that tie at the target and at every
+overtrick yet win in different layouts, such as finessing West or East for the
+same card, don't improve on each other, so several can be best, and the
 description offers each of them.
 
 ## Search {#search}
 
-A strategy's result is, for each target from the problem's up to the longer
-hand's length, the set of layouts where the strategy reaches it. The search
-keeps every result that no other strategy's result contains at every target.
+Listing and scoring every available strategy would find the best, but this naive
+approach is inefficient to the point of being impractical. A strategy says what
+declarer does at every position where declarer decides, however the play goes,
+so each of declarer's decisions multiplies the number of strategies. The naive
+approach results in a combinatorial explosion.
 
-- **Declarer's turn**: declarer makes one choice for every layout still
-  possible, so the results gather those of each choice.
-- **A defender's turn**: the defenders choose separately in each layout, so a
-  strategy succeeds in a layout only if it succeeds after every play that
-  defender could make there. Declarer may plan differently after each play, so
-  combining one result for each play, in every combination, covers every
-  strategy.
-- **Memo**: the position at the start of each trick determines everything after
-  it, so each position is solved once.
-- **Settled positions**: a position needs no search once every target is either
-  assured by declarer's top cards or out of reach in the rounds left.
+The search instead breaks the play into subproblems, each the rest of the play
+from one position (#positions), and solves them backward from the end. It first
+solves the subproblems where few cards are left, whose strategies are few and
+cheap to list. It prunes every strategy that another strictly dominates, leaving
+a few candidates. It then builds each earlier subproblem's candidates from those
+of the subproblems that can follow it, and prunes again.
 
-The combinations at a defender's turn can multiply quickly; keeping only the
-results no other contains holds them down. Most combinations solve in
-milliseconds, but many interleaved spot cards can leave over a thousand results
-that no other contains, as for one trick from 3 opposite QT86, which takes
-seconds. Each result therefore carries a cheap signature, its size and a folded
-word of its first set, that rules out most containment tests before the full
-one, and each frontier stays sorted by size: a result can only be contained in
-one at least as large, so a new result is checked against the results at least
-as large for whether it adds anything, and against the smaller ones for what it
-replaces.
+If declarer could see all four hands, the search could keep just one candidate
+per subproblem: the one that takes the most tricks. But declarer can't see the
+layout, so each choice has to serve every layout still possible. A strategy wins
+in some of those layouts and loses in others, and no single number says which.
+Nor can each strategy be judged on its own. Take a layout where West holds both
+the K and a low card. West plays whichever is worse for declarer, so declarer
+wins that layout only if the strategies after both cards win it. Against best
+defense, winning that layout after the low card counts only if the strategy
+after the K wins there too; otherwise it helps only after a defender's mistake.
+So the search can't rank the strategies after the low card on their own: how
+much each is worth depends on the strategy after the K.
+
+Each strategy is therefore described by the layouts where it wins, which is all
+that strict dominance (#goal) compares. Pruning dominated strategies never loses
+a best overall strategy (#building-frontiers). Usually only a few candidates
+survive in each subproblem, so the search stays fast (#speed). The last
+subproblem solved is the whole problem, from the start of the play. So its
+candidates include every strategy that could be best, and #goal picks among
+them.
+
+### Positions {#positions}
+
+Within a trick, play passes through four turns: the lead, second hand's card,
+third hand's card, and fourth hand's card. A position is the state of play
+between two turns: at the start of a trick, or after any of its first three
+cards. A continuation (#goal) is a strategy for the subproblem that starts at a
+position. A position records:
+
+- the cards left in North's and South's hands;
+- the cards each defender has played;
+- whether each defender has shown out;
+- the tricks declarer has won;
+- within a trick, which hand led and the cards played to the trick so far.
+
+A position is exactly what declarer knows, since declarer sees every card
+played. It also fixes which layouts are still possible: those where each
+defender held every card they have played, and where a defender who has shown
+out held no cards beyond those.
+
+### Winning layouts {#winning-layouts}
+
+The search judges a continuation by its winning layouts. A continuation has a
+set of winning layouts at each target, from the problem's own target up to the
+most tricks the suit can produce, which is the longer hand's length. Its winning
+layouts at a target are the layouts still possible where, against best defense,
+declarer ends the play with at least that many tricks, counting tricks already
+won. A layout winning at one target is winning at every lower one too. The
+targets above the problem's are its overtricks, which #goal uses to break ties.
+
+For example, from the start of AQ opposite xx, finessing the Q has these winning
+layouts:
+
+- **1 trick**: every layout.
+- **2 tricks**: every layout where West holds the K.
+
+Strict dominance (#goal) compares these sets target by target. Among
+continuations that never make an overtrick, for instance, one that makes the
+target whenever the K is onside strictly dominates another that makes it only
+when the K is onside and singleton. Continuations that trade a better chance at
+one target for a worse one at another, as the two strategies in #goal's example
+do, don't dominate each other.
+
+### Frontiers {#frontiers}
+
+The frontier at a position lists the winning layouts of each continuation from
+there that no other continuation strictly dominates. Each entry on a frontier is
+one continuation's winning layouts at every target. Continuations with exactly
+the same winning layouts at every target share one entry, since #goal counts
+them as one. A frontier holds only these sets of winning layouts, not the plays
+that produce them. #describing-lines recovers the plays afterward.
+#building-frontiers ends with why dropping strictly dominated continuations
+never loses a best strategy.
+
+### Building frontiers {#building-frontiers}
+
+The search starts from the first position and works depth first: for each turn,
+it first finishes the frontier at every position the turn can lead to, and only
+then builds the frontier at the position where the turn is made. Each frontier
+is built from the next ones in one of three ways.
+
+- **Settled positions**: at the start of a trick, once every target is either
+  assured by declarer's top cards or out of reach in the rounds left, play no
+  longer matters. The winning layouts are every layout still possible for the
+  assured targets, and none for the rest. Every position at the end of the play
+  is settled, since no rounds are left, so this is where the search stops going
+  deeper.
+- **Declarer's turns**, the lead and third hand's card: declarer can't tell
+  apart the layouts still possible, so plays the same card in all of them. A
+  defender's card can instead differ from layout to layout. A continuation from
+  here is one card followed by some continuation after that card. So the
+  frontier here pools the frontiers after each card declarer could play,
+  dropping whatever is strictly dominated. A lead from either hand is a separate
+  choice. Equal cards in one hand count as one choice, as #interchangeable-cards
+  describes.
+- **The defenders' turns**, second and fourth hand's cards: the defender can
+  play any card they may still hold, or show out if they may have none left.
+  Equal cards count as one play, as #interchangeable-cards describes. A defender
+  who has shown out can only show out again. Each play is possible only in the
+  layouts where the defender holds such a card. Declarer sees which card comes
+  and may continue differently after each, so a continuation from before this
+  turn is a combination: one continuation after each possible play. In each
+  layout the defender makes whichever possible play is worst for declarer. So a
+  combination wins in a layout only if, for every play the defender could make
+  in that layout, the continuation chosen for that play wins there. The search
+  builds every combination and drops those strictly dominated. For example,
+  suppose second hand might play the K or a low card, and the frontier after the
+  K holds two entries and the frontier after the low card three. Each
+  combination pairs one entry after the K with one after the low card, so there
+  are 2 × 3 = 6 combinations to build.
+
+Dropping a strictly dominated continuation never loses a best strategy. Suppose
+that from some position, continuation X strictly dominates continuation Y. Take
+any strategy for the whole problem that uses Y from that position, and swap in
+X, keeping every other decision the same. The swap never loses a winning layout,
+because of how frontiers combine:
+
+- **At declarer's turns**, declarer can choose X wherever Y could be chosen, so
+  whatever Y won, X wins too.
+- **At the defenders' turns**, a layout counts as won only where every
+  continuation in the combination wins it. Swapping in one that wins in more
+  layouts never makes the combination win in fewer.
+
+So the swap never makes a strategy worse, and since X strictly dominates Y,
+#goal counts the swap as an improvement. No best strategy uses Y, so the search
+can forget Y as soon as the frontier at that position is built.
+
+### Choosing the best {#choosing-the-best}
+
+The frontier at the first position holds the winning layouts of every strategy
+that could be best. #goal ranks them by the total weight of their winning
+layouts, target by target.
+
+### Speed {#speed}
+
+Every problem should take at most 30 seconds end to end: solving, then
+describing, shortening, and checking its lines.
+
+The search drops a continuation only after working out everything that follows
+it, so dropping it saves none of that work. (A chess engine's pruning, by
+contrast, skips moves without exploring them.) The saving comes at the earlier
+positions, which combine only the continuations that survive: each one dropped
+means fewer combinations to build. Frontiers usually stay small, so the
+combinations at the defenders' turns stay few, whereas listing whole strategies
+would multiply the choices at every decision. Most suit combinations solve in
+milliseconds. Spot cards that alternate between declarer and the defenders can
+leave over a thousand entries on a frontier, though. In a singleton 3 opposite
+QT86, declarer's Q, T, 8, and 6 split the defenders' cards into six groups (AK,
+J, 9, 7, 54, and 2), and one trick takes seconds.
 
 Some speedups were tried and dropped, as not worth their complexity:
 
-- **A floor from a quick first search**, dropping results that couldn't beat a
-  strategy a narrow search found: 13% faster on the hardest combinations, but
-  60% slower on easy ones.
-- **Skipping duplicate results** with a hash set before the containment tests:
-  20% faster on the hardest, 14% slower on easy ones, once frontiers were
-  sorted.
+- **A floor from a quick first search**: a narrow search first finds a good
+  strategy, and the full search drops entries that couldn't beat it. It was 13%
+  faster on the hardest suit combinations, but 60% slower on easy ones.
+- **Skipping duplicate entries** with a hash set before the full comparisons:
+  measured once frontiers were kept sorted by size, 20% faster on the hardest,
+  but 14% slower on easy ones.
 
 ### Interchangeable cards {#interchangeable-cards}
 
-Two of the defenders' cards with no declarer card between them beat and lose to
-exactly the same declarer cards, so the search treats them as one group: a
-layout records only how many of each group West holds, and a defender's play is
-just a group. Which card of a group a defender plays does carry information, but
-the defenders choose it, and they can always choose so as to tell declarer
-nothing more than the group. Treating the group as one card therefore never
-changes how often declarer succeeds.
+Two of the defenders' cards with none of declarer's cards ranked between them
+beat and lose to exactly the same declarer cards. Against declarer's AJ9, for
+example, the K and Q each beat the J and lose to the A, so it makes no
+difference to declarer which of the two a defender holds or plays. The search
+treats such cards as one group:
 
-The groups are fixed at the start. Groups that a played declarer card no longer
-separates could merge mid-play, but the argument above needs the merged cards to
-be interchangeable in every layout from the start, which such groups aren't, so
-the search keeps them apart and treats a play from either as its own.
+- **A layout** records only how many cards of each group West holds. It stands
+  for every division of the defenders' actual cards that gives West those
+  counts, and its weight counts them all: the count from #model, times the
+  number of ways to choose West's cards from each group.
+- **A defender's play** is just a group.
 
-Declarer's own cards merge the same way: cards in one hand with no defender card
-left between them take the same tricks. The search tries one of them, the top of
-the lowest run of cards that touch with nothing at all left between them. Within
-a run every card is the same in every respect, and starting from the lowest run
-keeps the higher cards, which may win the trick in the other hand's stead, for
-later. A defender's card already played to the current trick still counts as
-left, since declarer's next card may beat it.
+Which card of a group a defender plays does carry information, but the defenders
+choose it, and they can always choose so as to tell declarer nothing more than
+the group. Treating the group as one card therefore never changes how often
+declarer succeeds.
+
+The groups are fixed at the start. Once declarer plays a card, two groups it
+separated could in principle merge: against AJ9, once the J is gone, nothing
+separates the defenders' T from the K and Q. But the argument above needs the
+merged cards to have been interchangeable from the start of play, and these
+weren't: while declarer still held the J, the K and Q beat it and the T didn't.
+So the search keeps the groups apart and treats a play from either as a play of
+its own.
+
+Declarer's own cards merge the same way: two cards in one hand with no defender
+card left between them take the same tricks, so the search tries only one of
+them. A defender's card already played to the current trick still counts as
+left, since declarer's next card may beat it. The merging relies on unlimited
+entries (#model): declarer can lead from either hand at every trick, so it never
+matters which hand wins a trick, and the suit can never block. With limited
+entries (`tasks.md` #constraints), equal cards could differ in which hand they
+leave the lead in.
+
+Which of the equal cards stands for the rest makes no difference to the search,
+only to how the line reads. `Solver::distinct_plays` says which card it is.
 
 ## Describing lines {#describing-lines}
 
@@ -121,173 +326,70 @@ to the Q", and names each trick by what declarer leads and what the other hand
 plays when second hand plays low:
 
 - **Cash the A**: win with a card no defender can beat.
-- **Low to the Q**: lead low toward the Q and play it.
-- **Run the J**: lead the J and play low from the other hand.
+- **Low to the Q**: lead low toward the Q and play it, unless second hand plays
+  a higher card.
+- **Run the J**: lead the J and play low from the other hand, unless second hand
+  plays a higher card.
 - **Duck a round**: play low from both hands.
 
-"Second hand plays low" means its lowest card below the card declarer means to
-win the trick with, among the cards it might play where the line can still
-succeed; declarer's answer to any other card changes nothing. In QT85 opposite
-A742 for 4 tricks, which needs East's K to be singleton, East's low cards don't
-count, and the first trick reads "Cash the A" rather than naming a low card no
-winning layout holds. When second hand has no such card, as when West holds only
-the A and Q against a lead of the 9, the play still matches a sibling branch's
-"run the 9" by its plan; on its own it ranks below a play named by the card it
-really plays, here covering with the K.
+The search keeps only winning layouts, not plays (#frontiers), so the describer
+recovers them afterward. At each of declarer's turns, it chooses among the plays
+from which declarer can still win in every layout the strategy wins.
 
-The line answers every other card second hand might play where it can still
-succeed, and the trick's name implies most answers:
+A line means what a bridge player would take it to mean:
 
-- the named card, while it still wins the trick, and over a show-out;
-- otherwise the cheapest card that wins the trick;
-- otherwise a low card.
+- **Implied answers**: a trick's name also answers second hand's other cards.
+  Declarer plays the named card if it still wins the trick or second hand shows
+  out, otherwise the cheapest card that wins, or else a low card. So in AQ
+  opposite xx, "Low to the Q" wins West's K with the A. A trick named as a duck
+  plays low throughout.
+- **Stated answers**: any other answer is stated with the trick, as in "Cash the
+  A (if West plays the T, play the Q)".
+- **Sequences**: running a sequence means running it card by card, so "Run the
+  Q" from Axx opposite QJT goes on with the J and the T.
+- **Cashes**: "cash" says the card is a sure winner, so a play is called a cash
+  only when no defender can beat the card.
+- **Conditions**: when the play after a trick depends on how it went, the line
+  splits into parts, each opening with a condition such as "If West plays the
+  K". Every way the trick could end falls under exactly one part. A condition
+  reads literally: "wins with" names the card that took the trick, and "it", as
+  in "If it loses", is the card the trick is named by. A line that splits within
+  a split reads as an outline, one bullet per condition, so the reader can see
+  which condition each part answers.
 
-A trick named as ducked plays low throughout, so it never shares a play with a
-trick that isn't. An answer the name doesn't imply is stated with the trick:
-"Cash the A (if West plays the J, play the Q)". Each answer is recorded as an
-instruction, such as "the cheapest card that wins" or "play low", rather than as
-a particular card, so branches whose cheapest winning card differs can still
-share a play. Playing the named card over a show-out, when that works, means the
-card declarer plays is the card the line names: AQJ opposite xx reads "Low to
-the Q", where answering West's show-out with the A would go on to "run the Q",
-naming the Q twice.
+The line stops once the target is safe on sure winners, and a reader stops
+following it there too, cashing the winners. Overtricks shape a line only where
+they come free. So "Low to the T, then low to the Q" for AQT opposite xx for 2
+tricks takes the second finesse after the T wins, for an overtrick.
 
-After each trick, the next is joined with "then" when one play suits every way
-the trick might have gone; otherwise the line splits into groups that share a
-play. A play matches across those branches by its cards rather than its name, so
-"low to the Q" still matches once the K has gone and the Q has become a winner;
-the description then uses the name that says more.
+Among lines that work equally well, the description prefers fewer entries, then
+fewer tricks spelled out. South counts as on lead at the start. When tied best
+strategies win in different layouts, such as the two-way finesse in AJ3 opposite
+KT2 for 3 tricks, the description offers each, after "Either:".
 
-A condition reads literally: it holds after whatever second hand played unless
-it names second hand's card. So when second hand's card differs between the
-branches a split covers, every condition names second hand's card, as in "If
-West plays the K or the J, low to the T", and a condition uses "wins with" only
-for the card that took the trick. "If that wins" and "If it loses" appear only
-when declarer played the named card in every branch, since "it" refers to that
-card. In KT9xxx opposite xxx, for example, the trick is named "low to the K",
-but when West rises with the A, North plays low and keeps the K, so the
-condition reads "If West wins with the A, cash the K". When a group splits
-again, its conditions nest under the group's own condition, since they tell
-apart only that group's branches.
-
-Running a card and then the next cards down the same sequence reads as the first
-run alone, "Run the Q" for Axx opposite QJT, since running a sequence means
-running it card by card; the input file writes such lines this way too. A card
-in the other hand between them breaks the sequence, so each run stays spelled
-out: "Run the 9, then run the J" from AQTx opposite J9x.
-
-The line stops once its target is safe on sure winners, and a reader stops
-following it there too, cashing the winners. Overtricks shape it only where they
-come free: a branch whose target is already safe goes along with the other
-branches' play when that play keeps its target safe, which is how "Low to the T,
-then low to the Q" keeps its second finesse after the T wins.
-
-Among lines that work equally well, the description prefers:
-
-1. **Fewer entries**: leading from the hand that just won the trick, with South
-   on lead at the start. That picks "Run the 9, then run the J" from AQTx
-   opposite J9x, which stays in South, and "Cash the K, then run the J" from Axx
-   opposite KJT.
-2. **Fewer tricks spelled out.**
-3. **The lower card first**, so the deeper finesse comes first, as in "Low to
-   the T, then low to the Q". Among equal cards in one hand, the lower sequence
-   comes first, and within a sequence the top card leads. A card played under a
-   winner is always the lowest of its equals, keeping the others.
-
-When tied best strategies win in different layouts, such as a two-way finesse,
-the description offers each: "Either:" and one line per strategy.
-
-### Long lines
-
-A line that splits within a split reads as an outline instead of run-on
-sentences, one bullet per condition, since a sentence can't show which condition
-each part answers. Each way the trick could have ended must fall under exactly
-one part's condition; where merging branches would make their later conditions
-overlap, the describer splits them earlier instead, while they can still be told
-apart.
-
-A complete line can run long when the strategy branches a lot, even once
-shortened as #shortening-lines describes. Past 400 characters, about as much as
-a flashcard's answer holds, the line says instead that the best play depends on
-too many cases to describe, rather than cutting it into something that leaves
-cases out.
+Every line should fit in a flashcard's answer (`MAX_LINE_LENGTH` in
+`analysis.rs`). A line still too long after shortening says instead that the
+best play depends on too many cases to describe, rather than leaving cases out.
 
 ### Shortening lines {#shortening-lines}
 
 The describer spells out every case, which is complete but often longer than a
-teacher would put it. A teacher states the unusual cases and lets "Otherwise"
-cover the rest, as in this line for AQT opposite xx for 3 tricks: "Low to the T.
-If West plays the K or the J, low to the T. Otherwise, low to the Q." The line
-is shortened by rewrites like that one, and each rewrite stands only if the line
-still passes its check (#checking-lines). A shortened line is therefore exactly
-as complete as the full one; shortening never trades accuracy for brevity.
-
-- **Unneeded answers**: an answer stated with a trick is removed when the reader
-  reaches the target without it.
-- **"Otherwise"**: one part of a split takes "Otherwise" as its condition and
-  moves last. Then each other part is removed if the "Otherwise" line also
-  reaches the target in that part's branches, and a split left with only
-  "Otherwise" becomes that part's line.
-
-The part that says "Otherwise" is the usual case, the one a teacher would leave
-unstated. The usual case is the part holding the most deals in which declarer
-played the card the trick is named by, as declarer does when second hand plays
-low. Among parts as usual as one another, the one with the longest condition
-takes "Otherwise", saving the most words. In AQxxx opposite J9xx for 5 tricks,
-once the Q holds, the usual case reads "Otherwise, cash the A", dropping West's
-doubleton K. Making "run the J" the "Otherwise" instead would save a part, but
-it repeats the finesse against a K the A would drop. The remark (#remarks),
-which follows the line's usual path, would then call the play a repeated
-finesse.
-
-In two cases the describer sets the usual case aside and removes the most parts
-instead: in each split, it tries the six most usual parts as "Otherwise", and
-keeps the one that removes the most other parts, the more usual of any that tie.
-The two cases are:
-
-- **Past the limit**: the usual case leaves the whole description, with tied
-  lines counted together, past the length limit. A line in less usual terms is
-  better than no line at all. Of 2,652 sampled lines too long before shortening,
-  the usual case alone brought 810 within the limit, and removing the most parts
-  brought 1,409.
-- **Two parts fewer**: removing the most parts leaves the whole description at
-  least two parts shorter than the usual case does. In JT97 opposite K83 for 3
-  tricks, it leaves "If East plays the Q, ... Otherwise, run the J, then low to
-  the T", whereas the usual case splits four ways, two of them reading the same.
-  A single part fewer reads better about as often as it reads worse. In T53
-  opposite AKQ94 for 4 tricks, for example, the usual case names West's
-  show-out, whereas removing the most parts would name every card West might
-  follow with instead.
-
-The describer judges both cases on the whole description rather than split by
-split, because the part chosen as "Otherwise" in one split can push the
-branching to a later trick, where the line splits into more parts than before.
+teacher would put it. Shortening rewrites the line to read more like a
+teacher's, keeping each rewrite only if the line still passes its check
+(#checking-lines), so a shortened line is exactly as complete as the full one.
+Where reading naturally and fitting the length limit pull apart, fitting wins: a
+line in less natural terms is better than no line at all.
 
 ### Checking lines {#checking-lines}
 
-`suit_combinations check` plays each line the way a reader would, against every
-layout where its strategy reaches the target. In each trick it follows the plan,
-the answers the line states, and the answers the trick's name implies. After
-each trick it reads every condition literally and follows the part whose
-condition matches how the trick ended; "Otherwise" takes every ending that no
-other condition in its split matches. It reports where a line stops short, plays
-a card already gone, or routes a trick's ending to no condition, or to two
-conditions whose lines differ. Equal cards stand in for the low cards a line
-leaves unnamed, as they would for a reader, but a card the line names must be
-that card.
-
-It also reports a "cash" of a card a defender can still beat. Every other name
-says only what declarer plays, which stays true whatever the defenders hold, but
-"cash" also says the card is a sure winner. When several branches share a play,
-its name comes from the branch where that name explains the play best, and a
-cash explains least, so a shared play is called a cash only when it is a cash in
-every branch. Shortening merges parts into the one that says "Otherwise", whose
-play names then cover the merged parts' branches too, so the check holds a
-shortened line to the same rule.
-
-Every line is checked after shortening. A line that fails the check is replaced
-by the same message as an over-long line, that the best play depends on too many
-cases, so that no line shown misleads.
+`suit_combinations check` plays each line the way a reader would, by the rules
+above, against every layout where its strategy reaches the target. It reports
+where the line stops short, plays a card already gone, cashes a card a defender
+can still beat, or leaves a trick's ending under no condition or under two that
+disagree. Every line is checked after shortening. The describer should write
+only lines that pass; the check guards against its mistakes. A line that fails
+anyway is replaced by the same message as an over-long line, so that no line
+shown misleads.
 
 ## Remarks {#remarks}
 
@@ -299,12 +401,15 @@ the K or J is onside".
   card, as KQx takes against the A, is a "Repeated finesse"; anything else is a
   "Finesse". Tied lines that finesse different defenders make "A two-way
   finesse". At each split, the path takes the part the most deals reach after
-  declarer played the card the trick is named by, as the usual case does
-  (#shortening-lines). So AQT opposite xx for 3 tricks is a "Finesse" of the T
-  and then the Q, though more deals reach the part where West plays the K or the
-  J.
-- **Onside**: a card is onside when it lies with the defender who plays before
-  declarer's finessing card in the line's first finesse.
+  declarer played the card the trick is named by. So AQT opposite xx for 3
+  tricks is a "Finesse" of the T and then the Q, though more deals reach the
+  part where West plays the K or the J.
+- **Onside**: a card is onside when it lies where the line's finesse against it
+  picks it up, with the defender who plays before declarer's finessing card, and
+  offside when it lies with the other defender. Each card is placed by its own
+  finesse, so a line that finesses West for the K and East for the J calls both
+  onside when both finesses work. A card the line drops rather than finesses is
+  placed by naming its defender instead, as in "hoping East's K is singleton".
 - **Success condition**: the simplest statement, built from up to three facts,
   that matches the layouts where the line wins. The facts are:
   - an honor lying onside or offside, or, for equal honors such as the K and Q,
@@ -314,22 +419,17 @@ the K or J is onside".
     line without a finesse, with either defender);
   - one defender holding every missing card.
 
-  A success condition may miss by up to 10% of deals; a simpler one is preferred
-  when it misses by at most 5% more, which keeps "Repeated finesse hoping the A
-  is onside" for KQT opposite xxx rather than adding a clause for a short J.
+  Like a teacher, the condition may give up a little accuracy for simplicity, so
+  KQT opposite xxx reads "Repeated finesse hoping the A is onside", leaving a
+  short J to an extra chance. `remark.rs` sets how far a condition may stray. A
+  condition no closer to the line's wins than claiming that the line always
+  wins, or never wins, says nothing, so the remark goes without one.
 
-  A success condition that holds in every layout, or in none, says nothing and
-  is never chosen. Nor is one that misses as many deals as the claim that the
-  line always wins, or the claim that it never wins, would miss. For AKT9
-  opposite xx for 4 tricks, a line that wins 5.17% of the time, the condition
-  "West holds all seven" holds in almost none of the line's wins, so the remark
-  is just "Finesse".
-
-- **Extras**: what the success condition misses becomes an extra chance, such as
-  "with a small chance to drop a singleton Q", or a percentage when no simple
-  pattern fits; above 5% of deals it is no longer called small. A remark with no
-  success condition has nothing for extras to add to, so it names only the
-  technique, such as "A two-way finesse".
+- **Extras**: what the success condition leaves out of the line's wins becomes
+  an extra chance, such as "with a small chance to drop a singleton Q", or a
+  percentage when no simple pattern fits. A remark with no success condition has
+  nothing for extras to add to, so it names only the technique, such as "A
+  two-way finesse".
 - **Failure**: a line that succeeds more often than not may instead say when it
   fails, if the failure condition is exact where the success condition is not,
   or is simpler: "Finesse; it fails only when East holds all four" for KQ964
@@ -370,9 +470,8 @@ before a test pins them.
 
 ### SuitPlay {#suitplay}
 
-The user treats SuitPlay as the gold standard. Newer analyzers that run locally,
-such as jdh8/suit-combination and Quaestio, didn't seem reliable enough to
-interest them.
+SuitPlay has long been regarded as the gold standard for suit combination
+analysis.
 
 SuitPlay 2.1.2 is a 32-bit Windows program with no web version, so `suitplay/`
 runs it under Wine in a small Linux virtual machine that Lima builds from
@@ -392,8 +491,9 @@ with the analyzer.
   reading screenshots could misread a digit.
 - **The license stays the user's decision**: SuitPlay shows its license
   agreement on a fresh machine, and the scripts accept it only when run with
-  `--accept-license`. The user accepted it on 2026-10-20, so the first run on a
-  rebuilt machine may pass `--accept-license` without asking again.
+  `--accept-license`. ishermandom accepted it on 2026-10-20, so the first run on
+  a rebuilt machine owned by this user may pass `--accept-license` without
+  asking again.
 - **Every target is compared**: SuitPlay answers each holding for every target
   at once, so one run checks them all, including the sure and impossible ones it
   leaves unlisted.
@@ -409,6 +509,9 @@ In October 2026, the analyzer and SuitPlay agreed on every target compared:
 
 Where a published figure disagreed with the analyzer, SuitPlay sided with the
 analyzer; `tests/suitplay_checks.rs` pins eight such cases. SuitPlay rejects A
-opposite x and AQ opposite Qx. It couldn't finish 4 opposite KJ97, QJ974
-opposite a void, or KJ974 opposite a void within an hour each, or KJ76 opposite
-94 within fifteen minutes.
+opposite x, and AQ opposite Qx, an invalid holding the tests include on purpose.
+It couldn't finish the singleton 4 opposite KJ97, QJ974 opposite a void, or
+KJ974 opposite a void within an hour each, or KJ76 opposite 94 within fifteen
+minutes. The holdings and SuitPlay's results are kept outside the repo, in
+`/Users/Shared/data/bridge/suitplay/comparison-2026-10/`, so `compare-suitplay`
+can check them again without SuitPlay.

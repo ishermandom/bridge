@@ -5,8 +5,17 @@
 //!
 //! Each rewrite is kept only if the line still passes `crate::check`, which
 //! reads it the way a reader would, so a shortened line stays as complete as
-//! the one it came from. The rewrites are set out in
-//! `suit_combinations/spec.md` #shortening-lines.
+//! the one it came from. `suit_combinations/spec.md` #shortening-lines says
+//! what shortening is for.
+//!
+//! There are two rewrites:
+//!
+//! - **Unneeded answers**: an answer stated with a trick goes when the line
+//!   reaches the target without it.
+//! - **"Otherwise"**: one part of a split takes "Otherwise" as its condition
+//!   and moves last, and each other part goes if the "Otherwise" line also
+//!   wins in that part's branches. A split left with only "Otherwise" becomes
+//!   that part's line. `OtherwiseRule` says which part takes "Otherwise".
 
 use std::cmp::Reverse;
 

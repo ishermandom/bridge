@@ -12,6 +12,16 @@
 //! description stops once the rest is cashing winners, or once nothing can
 //! still succeed. `crate::check` reads a line back the way a reader would, to
 //! confirm it's complete.
+//!
+//! The search keeps only each strategy's winning layouts, not its plays, so
+//! the description works forward from the start, each branch carrying the
+//! layouts where the strategy must still reach each target. At declarer's
+//! turns it chooses among the plays after which the solver still achieves
+//! that, and at the defenders' turns it follows every card a defender might
+//! play where the line can still succeed. Branches share a step when declarer
+//! plays the same cards in each (`PlanKey`), even if the play does a
+//! different job in each, and the step takes its name from the branch where
+//! that name explains the play best (`naming_rank`).
 
 use crate::cards::{Rank, RankSet, rank_symbol};
 use crate::check;

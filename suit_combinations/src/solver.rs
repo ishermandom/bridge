@@ -477,6 +477,8 @@ pub struct Solver<'a> {
     /// How many targets each result tracks.
     pub target_count: usize,
     /// The frontier from each position reached at the start of a trick.
+    /// Different orders of play often reach the same position, such as
+    /// cashing the A and then the K, or the K and then the A.
     position_cache: FxHashMap<Position, Rc<Frontier>>,
     /// The frontier from each point within a trick, kept only once
     /// `enable_trick_cache` is called. The search reaches each such point
@@ -658,11 +660,14 @@ impl<'a> Solver<'a> {
     /// so one stands for all; a card already played to the trick still
     /// counts as left, since declarer's card may yet beat it.
     ///
-    /// Among equivalent cards, the one chosen is the top of the lowest
-    /// sequence, a sequence being cards with nothing at all left between
-    /// them: within a sequence every card is the same in every respect, and
-    /// starting from the lowest sequence keeps the higher cards for later,
-    /// since they may win in the other hand's stead.
+    /// Among equivalent cards, the one chosen is the lowest, or, when the
+    /// lowest touches higher cards, with no card at all left between them,
+    /// the highest card it touches. The choice never changes a chance, but
+    /// the describer chooses among these plays too, so it shows in the line.
+    /// With KQ87 opposite T9, for example, once the J has fallen, North's K,
+    /// Q, 8, and 7 all take the same tricks, since only South's T and 9 lie
+    /// between them. The lowest is the 7, which touches the 8, so the line
+    /// plays the 8.
     pub fn distinct_plays(
         &self,
         position: Position,
@@ -684,8 +689,9 @@ impl<'a> Solver<'a> {
                     plays.extend(current);
                     current = Some(card);
                 } else if !is_touching {
-                    // This card starts a lower sequence of equivalent cards,
-                    // so it replaces the play so far.
+                    // This card doesn't touch the one above it, so it starts
+                    // a lower run of touching cards, whose top replaces the
+                    // play so far.
                     current = Some(card);
                 }
             } else {
