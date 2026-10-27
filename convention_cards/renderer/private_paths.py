@@ -15,6 +15,7 @@ repoint at a different checkout.
 """
 
 import dataclasses
+import functools
 import subprocess
 from pathlib import Path
 
@@ -50,6 +51,7 @@ class PrivateAssets:
     return self.root / 'convention_cards' / 'palette'
 
 
+@functools.cache
 def discover_private_assets() -> PrivateAssets:
   """The private checkout beside this one, located through git.
 
@@ -58,6 +60,11 @@ def discover_private_assets() -> PrivateAssets:
   this file's own path, because a worktree under `.claude/worktrees/` has no
   such sibling of its own — the common directory is shared by the main checkout
   and every worktree, so it names the same place from all of them.
+
+  The answer is looked up once per process and shared by every later call: each
+  lookup starts a `git` process, and the checkout's location does not change
+  while a process runs. A lookup that fails is not remembered, so the next call
+  tries again.
 
   Raises:
     RuntimeError: if git cannot report the checkout.
