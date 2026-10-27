@@ -373,13 +373,6 @@ lane settles the sheet with the user in chat:
    text and as a page in the private tree's `transcripts/`, where the user opens
    it (#page-reaches-user).
 
-- [~] Migrate the stored session records off `source_quad`, in the same step
-  that lands the branch removing the field. {#source-quad-migration}
-  - Worktree: dewarp-still-needed
-  - Note: from the repo root, run `scratch/source_quad_migration.py` as a dry
-    run, then with `--write`, and commit the rewritten records in
-    `bridge-private`. Its docstring says why the run and the landing go
-    together.
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
     panels reported flush against each other pass — and a single table read as
