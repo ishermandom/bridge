@@ -26,7 +26,8 @@ around them. The auction runs straight on into the contract cell: where its
 final bid is the contract, the cell adds only what the bid leaves out — the
 doubling, the declarer and the result — so a final double is written once, as
 the contract's `*`. The result counts tricks beyond book, the convention spec.md
-`#notation` settles.
+`#notation` settles. Passes are left out, even where the sheet writes them: with
+every pass spelled out, a line grows too busy to scan.
 
 The transcript deliberately leaves out two kinds of annotation that the record
 keeps. One is for coming back to a board later: a circled board number, the
@@ -42,11 +43,11 @@ record supports. Nor does any record say which partner took which seat, so the
 summary names seats where a reader would want players.
 
 Each value is rendered from its parse rather than from the envelope's `raw`, so
-one spelling reaches the reader however the sheet happened to write it — `p` and
-`P` both arrive here as `PASS`, `x` and `*` as `DBL`, `1N` and `1NT` alike as
-`1N`. Where a parse failed there is nothing to spell, and the raw transcription
-stands in its place, wrapped in `?…?`: a call dropped for being unreadable would
-leave a line reading as though the sheet had said nothing there.
+one spelling reaches the reader however the sheet happened to write it — `x` and
+`*` both arrive here as `DBL`, `1N` and `1NT` alike as `1N`. Where a parse
+failed there is nothing to spell, and the raw transcription stands in its place,
+wrapped in `?…?`: a call dropped for being unreadable would leave a line reading
+as though the sheet had said nothing there.
 
 Two last columns set each result beside what the deal allowed, from our own
 side's point of view: `DD+1` says the board went a trick our way against what
@@ -134,10 +135,9 @@ from session_analysis.unreviewed.transcript_layout import (
   as_web_page,
 )
 
-# How a call that is not a bid is written. A bid is spelled from its own level
-# and strain instead.
+# How a double or redouble is written. A bid is spelled from its own level and
+# strain instead, and a pass is not written at all.
 _CALL_SPELLINGS: Mapping[CallKind, str] = {
-  CallKind.PASS: 'PASS',
   CallKind.DOUBLE: 'DBL',
   CallKind.REDOUBLE: 'RDBL',
 }
@@ -570,15 +570,13 @@ def _spell_bidding(board: Board) -> str:
   final bid leaves out, joined onto it: `4S (5C)` and `5CN-1` read `4S (5C)N-1`.
   Anywhere else — a passed-out board, an auction left unfinished, a contract
   cell disagreeing with the auction — the two are written out in full, side by
-  side, so that nothing either recorded goes unseen.
+  side, so that nothing but a pass goes unseen.
   """
   resolution = board.outcome.resolution if board.outcome else None
   if isinstance(resolution, PlayedContract):
     final_bid = _final_bid_position(board.auction, resolution.contract)
     if final_bid is not None:
-      calls = ' '.join(
-        _spell_entry(entry) for entry in board.auction[: final_bid + 1]
-      )
+      calls = _spell_auction(board.auction[: final_bid + 1])
       return calls + _contract_suffix(resolution)
 
   spelled = (
@@ -617,8 +615,14 @@ def _final_bid_position(
 
 
 def _spell_auction(entries: Sequence[AuctionEntry]) -> str:
-  """The auction as one space-separated run of calls."""
-  return ' '.join(_spell_entry(entry) for entry in entries)
+  """The auction as one space-separated run of calls, its passes left out."""
+  # An unread call stays in, since it might not have been a pass.
+  written_entries = (
+    entry
+    for entry in entries
+    if not entry.call or entry.call.kind != CallKind.PASS
+  )
+  return ' '.join(_spell_entry(entry) for entry in written_entries)
 
 
 def _spell_entry(entry: AuctionEntry) -> str:

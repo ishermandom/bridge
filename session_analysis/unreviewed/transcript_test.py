@@ -279,16 +279,25 @@ def test_a_circled_call_is_written_in_parentheses() -> None:
   assert '1C (1D)' in _board_line(board)
 
 
-def test_a_pass_double_and_redouble_are_spelled_out() -> None:
+def test_a_double_and_redouble_are_spelled_out() -> None:
+  board = _make_board(
+    auction=[_make_call(CallKind.DOUBLE), _make_call(CallKind.REDOUBLE)]
+  )
+
+  assert 'DBL RDBL' in _board_line(board)
+
+
+def test_a_pass_is_left_out() -> None:
   board = _make_board(
     auction=[
       _make_call(CallKind.PASS),
-      _make_call(CallKind.DOUBLE),
-      _make_call(CallKind.REDOUBLE),
+      _make_bid(1, Strain.CLUBS),
+      _make_call(CallKind.PASS, by_opponents=True),
+      _make_bid(1, Strain.SPADES),
     ]
   )
 
-  assert 'PASS DBL RDBL' in _board_line(board)
+  assert _board_line(board) == '#5\t1C 1S'
 
 
 def test_an_alerted_call_is_written_without_its_alert_mark() -> None:
@@ -444,6 +453,30 @@ def test_an_auction_ending_in_the_contract_runs_into_it() -> None:
 
   # The final bid already says `3N`, so the cell adds only declarer and result.
   assert _board_line(board) == '#5\t1N 3NS+3'
+
+
+def test_a_pass_before_the_final_bid_is_left_out() -> None:
+  board = _make_board(
+    auction=[
+      _make_bid(1, Strain.HEARTS),
+      _make_call(CallKind.PASS, by_opponents=True),
+      _make_bid(4, Strain.HEARTS),
+    ],
+    outcome=_make_outcome(
+      level=4, strain=Strain.HEARTS, declarer=Direction.WEST, tricks_taken=10
+    ),
+  )
+
+  assert _board_line(board) == '#5\t1H 4HW+4'
+
+
+def test_a_passed_out_board_writes_none_of_its_passes() -> None:
+  board = _make_board(
+    auction=[_make_call(CallKind.PASS)] * 4,
+    outcome=Outcome(raw='---', resolution=Passout()),
+  )
+
+  assert _board_line(board) == '#5\tPASSED OUT'
 
 
 def test_an_opponents_final_bid_keeps_its_parentheses() -> None:
