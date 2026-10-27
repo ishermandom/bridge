@@ -372,11 +372,6 @@ lane settles the sheet with the user in chat:
    text and as a page in the private tree's `transcripts/`, where the user opens
    it (#page-reaches-user).
 
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-scan-oct-26
-  - Note: the scan waiting in the inbox is `Scanned_20261026-1502.pdf`.
-  - Note: the user gave their seat as "NW", which names no single seat. Confirm
-    with them what it means before relying on it.
 - [ ] Straighten a scan by the direction its printed lines run, not by a
       row-count vote. {#dewarp-without-the-vote}
   - Rationale: `dewarp_sheet` fits the grid's edges through the slices that win
