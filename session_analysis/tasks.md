@@ -631,6 +631,21 @@ parsed value.
     — which have no board to hang on and no image to crop beside, since they are
     about a file rather than a scoresheet row. Triage needs somewhere to show
     them, or they reach nobody.
+- [ ] Flag a played board whose row on the sheet reads blank.
+      {#blank-row-for-played-board}
+  - Rationale: if the model reads a played board's row as blank, the travellers
+    still fill in its deal and matchpoints, and nothing flags the missing
+    contract. `_cross_check` skips a row with no outcome, and
+    `board_not_in_travellers` fires only where no traveller covers the board, so
+    the miss is silent.
+  - Note: the same change could unflag the converse, which is mild clutter. The
+    form has 28 rows and most games play 24, so nearly every pending record
+    carries four rows with nothing written, each flagged
+    `board_not_in_travellers`. That flag is low severity, so triage ranks them
+    last; a blank row no traveller covers is simply an unplayed board.
+  - Note: blank rows reach assembly by design: the extraction prompt has the
+    model emit an object for every printed row, so strips line up with board
+    numbers.
 - [ ] Row-level fixups (swap, renumber, reorder) as first-class operations.
   - Worktree: review-ui
 - [ ] Re-validate after edits; auto-open or notify after a sheet is processed.
