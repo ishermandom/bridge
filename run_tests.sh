@@ -15,7 +15,8 @@ repo_root="$(dirname "$0")"
 # cargo at the crate without changing directory, and `--quiet` cuts a passing
 # run down to its summary lines. It runs before the userscript's checks start in
 # the background below, so a failure here exits with nothing left running.
-cargo test --quiet --manifest-path "$repo_root/suit_combinations/Cargo.toml"
+cargo test --quiet \
+  --manifest-path "$repo_root/suit_combinations/unreviewed/Cargo.toml"
 suit_combinations_status=$?
 if [ "$suit_combinations_status" -ne 0 ]; then
   exit "$suit_combinations_status"

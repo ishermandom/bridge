@@ -12,16 +12,18 @@ about the defenders' hands, well enough to reproduce every row of
 English, and the intuition behind it.
 
 Worktree: `.claude/worktrees/card-combination-flashcards`, branch
-`suit-combination-analyzer`, holds the analyzer, unlanded until the user reviews
-it and gives the go-ahead.
+`suit-combination-analyzer`, holds the analyzer, unlanded until the user gives
+the go-ahead.
 
-- [~] The user's review of the branch before landing {#branch-review}. Done: the
-  top-level README.md, run_tests.sh and tasks.md, flashcards/tasks.md,
-  everything under `suitplay/`, Cargo.toml and rustfmt.toml. Cargo.lock goes
-  unreviewed, since cargo generates it.
-  - Note: next, remind the user to review spec.md in full, starting over from
-    the top, since much of it was rewritten on 2026-10-27; the Rust sources and
-    tests come after. Offer `/ownership-walkthrough` for the Rust review.
+- [x] The user's review of the branch before landing {#branch-review}. Done: the
+      top-level README.md, run_tests.sh and tasks.md, flashcards/tasks.md,
+      everything under `suitplay/`, spec.md, this tracker, and Cargo.toml and
+      rustfmt.toml, which sit in `unreviewed/` only because cargo expects them
+      beside `src/`. Cargo.lock goes unreviewed, since cargo generates it. The
+      rest of `unreviewed/` waits for #rust-review, after landing.
+- [ ] High priority: review the Rust code in `unreviewed/`, then move it back up
+      into `suit_combinations/` {#rust-review}.
+  - Note: Cargo.toml and rustfmt.toml are already reviewed.
 - [ ] Bring the code's terms in line with the spec's {#code-terms}: spec.md
       #search speaks of positions, continuations, winning layouts, frontier
       entries, and one entry strictly dominating another. The code calls an

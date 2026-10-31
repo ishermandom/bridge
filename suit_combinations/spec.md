@@ -441,26 +441,28 @@ declarer below the target, the remark says just that, in place of all of these.
 
 ## Testing {#testing}
 
-- **The input file's rows**: `tests/spreadsheet_rows.rs` pins the analyzer's
-  answer for each row of `flashcards/input/suit_combinations.csv`. Where the
-  analyzer and the row disagree, the test says how, and the user decides which
-  is right.
+- **The input file's rows**: `unreviewed/tests/spreadsheet_rows.rs` pins the
+  analyzer's answer for each row of `flashcards/input/suit_combinations.csv`.
+  Where the analyzer and the row disagree, the test says how, and the user
+  decides which is right.
 - **Hand-worked cases**: small cases whose answers follow from a short argument,
   such as a simple finesse's 50%.
-- **Published results**: `tests/published_examples.rs` pins the worked examples
-  in Wikipedia's "Suit combination" article and SuitPlay's help pages.
-- **A brute-force solver**: `tests/brute_force.rs` solves combinations with no
-  grouping of interchangeable cards at all, every missing card dealt on its own
-  and every card a play of its own, and must agree with the analyzer exactly.
-  That checks #interchangeable-cards empirically. It is too slow for some
-  combinations, such as AQT opposite xx, so it covers a sample. Its slower
-  checks, including 300 random combinations with up to six cards missing, run
-  only when asked, to keep the default run fast: `cargo test -- --ignored`.
-- **CCAnalyser**: `tests/ccanalyser_checks.rs` pins the harder combinations it
-  confirmed. CCAnalyser computes on its own server, so checking more needs the
-  user's go-ahead and stays within these limits: a real browser that doesn't
-  disguise itself, at most 100 analyses in all, 3 a minute and 10 per 30
-  minutes, and a stop for good at the first block or error.
+- **Published results**: `unreviewed/tests/published_examples.rs` pins the
+  worked examples in Wikipedia's "Suit combination" article and SuitPlay's help
+  pages.
+- **A brute-force solver**: `unreviewed/tests/brute_force.rs` solves
+  combinations with no grouping of interchangeable cards at all, every missing
+  card dealt on its own and every card a play of its own, and must agree with
+  the analyzer exactly. That checks #interchangeable-cards empirically. It is
+  too slow for some combinations, such as AQT opposite xx, so it covers a
+  sample. Its slower checks, including 300 random combinations with up to six
+  cards missing, run only when asked, to keep the default run fast:
+  `cargo test -- --ignored`.
+- **CCAnalyser**: `unreviewed/tests/ccanalyser_checks.rs` pins the harder
+  combinations it confirmed. CCAnalyser computes on its own server, so checking
+  more needs the user's go-ahead and stays within these limits: a real browser
+  that doesn't disguise itself, at most 100 analyses in all, 3 a minute and 10
+  per 30 minutes, and a stop for good at the first block or error.
 - **SuitPlay**: the reference the user trusts most, run locally on as many
   holdings as wanted, as #suitplay describes.
 
@@ -508,10 +510,10 @@ In October 2026, the analyzer and SuitPlay agreed on every target compared:
   one of the T through 7 in declarer's hands, to exercise the middle spot cards.
 
 Where a published figure disagreed with the analyzer, SuitPlay sided with the
-analyzer; `tests/suitplay_checks.rs` pins eight such cases. SuitPlay rejects A
-opposite x, and AQ opposite Qx, an invalid holding the tests include on purpose.
-It couldn't finish the singleton 4 opposite KJ97, QJ974 opposite a void, or
-KJ974 opposite a void within an hour each, or KJ76 opposite 94 within fifteen
-minutes. The holdings and SuitPlay's results are kept outside the repo, in
-`/Users/Shared/data/bridge/suitplay/comparison-2026-10/`, so `compare-suitplay`
-can check them again without SuitPlay.
+analyzer; `unreviewed/tests/suitplay_checks.rs` pins eight such cases. SuitPlay
+rejects A opposite x, and AQ opposite Qx, an invalid holding the tests include
+on purpose. It couldn't finish the singleton 4 opposite KJ97, QJ974 opposite a
+void, or KJ974 opposite a void within an hour each, or KJ76 opposite 94 within
+fifteen minutes. The holdings and SuitPlay's results are kept outside the repo,
+in `/Users/Shared/data/bridge/suitplay/comparison-2026-10/`, so
+`compare-suitplay` can check them again without SuitPlay.

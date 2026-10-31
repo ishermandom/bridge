@@ -29,7 +29,8 @@ It is both a library and a small command-line tool. Name North's and South's
 cards and the tricks wanted:
 
 ```sh
-cargo run --release --manifest-path suit_combinations/Cargo.toml -- AQT-xx@2
+cargo run --release \
+  --manifest-path suit_combinations/unreviewed/Cargo.toml -- AQT-xx@2
 ```
 
 ```text
@@ -53,7 +54,8 @@ lists every target where the two disagree:
 
 ```sh
 suit_combinations/suitplay/run.sh holdings.txt > suitplay.tsv
-cargo run --release --manifest-path suit_combinations/Cargo.toml -- \
+cargo run --release \
+  --manifest-path suit_combinations/unreviewed/Cargo.toml -- \
   compare-suitplay suitplay.tsv
 ```
 

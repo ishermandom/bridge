@@ -11,4 +11,4 @@ license = "MIT"
 publish = false
 
 [dependencies]
-suit_combinations = { path = "../.." }
+suit_combinations = { path = "../../unreviewed" }
