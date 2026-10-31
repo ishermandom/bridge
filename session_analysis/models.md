@@ -310,6 +310,8 @@ travellers at reconciliation, not read from the sheet (see
 - `auction` — an ordered tuple of `AuctionEntry`.
 - `notes` — freetext cursive annotations (the inline questions), or null.
 - `issues` — board-level issues.
+- `settled_issues` — board-level issues a person settled in review without
+  changing either side, which reconciliation therefore does not raise again.
 
 A board's boxed calls aren't a separate field: each boxed call's `AuctionEntry`
 carries `flagged_for_discussion`, and the "calls to discuss with partner" list

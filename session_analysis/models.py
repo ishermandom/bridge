@@ -294,6 +294,13 @@ class Board(FrozenModel):
   opponents: PairIdentity | None = None
   notes: str | None = None
   issues: tuple[Issue, ...] = ()
+  # Findings a person reviewed and settled without changing either side of them,
+  # as when the sheet and the travellers disagree and the sheet is right.
+  # Reconciliation derives its findings afresh on every run, so it leaves out
+  # any equal to one of these rather than raising it again. Equal means the
+  # whole finding, message included: once the facts behind a settled finding
+  # change, it is a new finding, and it comes back for review.
+  settled_issues: tuple[Issue, ...] = ()
 
 
 class SheetImage(FrozenModel):

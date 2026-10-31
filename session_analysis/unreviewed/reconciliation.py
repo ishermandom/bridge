@@ -1001,6 +1001,23 @@ def _findings_of_other_stages(issues: Iterable[Issue]) -> tuple[Issue, ...]:
   return tuple(issue for issue in issues if issue.code not in _OUR_CODES)
 
 
+def _without_resurfaced_findings(board: Board) -> Board:
+  """A board without the findings that came back after review settled them.
+
+  Takes them out of `issues` only; `settled_issues` keeps them, so the next run
+  leaves them out too.
+  """
+  if not board.settled_issues:
+    return board
+  return board.model_copy(
+    update={
+      'issues': tuple(
+        issue for issue in board.issues if issue not in board.settled_issues
+      )
+    }
+  )
+
+
 def _enrich(board: Board, enrichment: BoardEnrichment) -> Board:
   """Copy the traveller-sourced fields onto a board, with its findings.
 
@@ -1150,7 +1167,9 @@ def reconcile_session(
         }
       )
 
-    boards.append(board)
+    # Last, so that a finding settled in review stays settled whichever check
+    # above raised it again.
+    boards.append(_without_resurfaced_findings(board))
 
   source = session.source.model_copy(
     update={

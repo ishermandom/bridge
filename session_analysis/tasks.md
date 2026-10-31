@@ -619,6 +619,8 @@ parsed value.
 - [ ] Triage-ranked field list with image crop beside the parsed value and
       keyboard accept/fix. {#triage}
   - Worktree: review-ui
+  - Note: accepting a finding moves it into `Board.settled_issues`, the one
+    place a settled finding survives the next reconciliation run.
   - Note: an unresolved auction token is currently flagged twice with no shared
     identity — once as `unparseable_call` on the `AuctionEntry` itself
     (parsing.py) and again as `unresolved_call` at the board level

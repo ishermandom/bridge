@@ -1071,3 +1071,56 @@ def test_a_second_run_keeps_what_earlier_stages_found() -> None:
   again = reconcile_session(session, travellers, our_name=OUR_NAME)
 
   assert again.boards[0].issues == (earlier,)
+
+
+def _make_settled_declarer_disagreement(
+  *, sheet_declarer: Direction, traveller_declarer: Direction
+) -> Session:
+  """A declarer disagreement as reconciled, then settled by hand in review."""
+  travellers = [
+    _make_traveller(
+      boards=[_our_board(resolution=_played(declarer=traveller_declarer))]
+    )
+  ]
+  reconciled = reconcile_session(
+    _make_session([_sheet_board(resolution=_played(declarer=sheet_declarer))]),
+    travellers,
+    our_name=OUR_NAME,
+  )
+  board = reconciled.boards[0]
+  settled = board.model_copy(
+    update={'issues': (), 'settled_issues': board.issues}
+  )
+  return reconciled.model_copy(update={'boards': (settled,)})
+
+
+def test_a_second_run_leaves_a_settled_finding_settled() -> None:
+  settled = _make_settled_declarer_disagreement(
+    sheet_declarer=Direction.SOUTH, traveller_declarer=Direction.NORTH
+  )
+  travellers = [
+    _make_traveller(
+      boards=[_our_board(resolution=_played(declarer=Direction.NORTH))]
+    )
+  ]
+
+  again = reconcile_session(settled, travellers, our_name=OUR_NAME)
+
+  assert again == settled
+
+
+def test_a_settled_finding_whose_facts_change_is_raised_again() -> None:
+  settled = _make_settled_declarer_disagreement(
+    sheet_declarer=Direction.SOUTH, traveller_declarer=Direction.NORTH
+  )
+  # A corrected capture now names a different declarer, so the disagreement
+  # settled in review is no longer the one this run finds.
+  travellers = [
+    _make_traveller(
+      boards=[_our_board(resolution=_played(declarer=Direction.EAST))]
+    )
+  ]
+
+  again = reconcile_session(settled, travellers, our_name=OUR_NAME)
+
+  assert _codes(again.boards[0].issues) == ['sheet_declarer_disagreement']
