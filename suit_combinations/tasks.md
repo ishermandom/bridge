@@ -248,3 +248,50 @@ it and gives the go-ahead.
     ten finesse makes 2 tricks 83.1% of the time and 3 tricks 28.7%, while the
     analyzer's best lines reach 85.93% and 31.83%, both of which SuitPlay
     confirms.
+- [ ] A command that scores a line the user names {#score-line}: the chance of
+      each target, from the start or from a position partway through the play.
+  - Open question: how to name a line, whether in the descriptions' own wording,
+    such as "low to the Q, then low to the 9", or in a terser notation; and how
+    to name a position partway through, such as by the cards each hand played to
+    the first trick.
+  - Open question: what to play where the named line says nothing: past its end,
+    after a defender's card it gives no answer to, or once a card it names is
+    gone. A scratch prototype let the solver play its best in all three.
+  - Note: the prototype, in `scratch/line_scoring/`, reimplemented `Frontier`'s
+    combining outside the crate, since `Frontier::new`, `single`, `merge`, and
+    `combined_with` are private to `solver.rs`. Its `compare` produced the
+    figures below.
+  - Note: the prototype's figures for AQ942 opposite J73, as 4 tricks / 5
+    tricks. From the start: the best line, low to the Q, 87.61% / 13.57%; low to
+    the 9, then the solver's best, 71.22% / 13.57%. After low to the Q with
+    West's 6 and East's 5, over the layouts still possible: low from North
+    toward the J 100% / 0%; lead the J and play the 9, 89.13% / 13.04%; low to
+    the 9, 89.13% / 13.04%; cash the A, 78.26% / 26.09%.
+- [ ] Decide what a line should play after a defender's mistake that the rule in
+      spec.md #goal doesn't settle {#passed-up-guarantee}. In AQ942 opposite J73
+      for 4 tricks, after low to the Q with West's 6 and East's 5, leading low
+      from North toward the J guarantees 4 tricks: play the 7 if East plays the
+      K, and the J otherwise. The analyzer's line leads the J from South
+      instead.
+  - Note: the analyzer's line doesn't guarantee 4 tricks from there. It makes
+    them in 89.13% of the layouts still possible, failing when East holds KT85,
+    and in exchange makes 5 tricks when West holds K86, which the sure play
+    never does (#score-line has the figures).
+  - Note: why, checked 2026-10-31 with `scratch/line_scoring`'s `falsecard`:
+    East's 5 from KT85 is a mistake. Winning North's Q with the K leaves no way
+    to make 4 tricks in that layout, so against best defense the layout is lost
+    whatever declarer does after the 6 and 5, and the overtrick tiebreak
+    (spec.md #goal) prefers the J. So the analyzer does count on a defender's
+    play to the first trick, as the user asked: East winning the Q from KT85.
+  - Note: the rule in spec.md #goal for improving on a strategy after a
+    defender's mistake doesn't reach this case, since neither continuation beats
+    the other in every layout.
+  - Open question: whether, after a defender's mistake, a line should play its
+    best for the layouts still possible, as a player at the table would, putting
+    the target ahead of overtricks. That is a stronger form of the rule in
+    spec.md #goal, and it would change which strategy #strategy-tiebreak's
+    ranking picks.
+  - Rationale: the user, 2026-10-31: the best line here is situational, since
+    the defenders might be inexperienced, or might be trying to throw declarer
+    off to force a misguess in another suit. The analyzer's line is the right
+    one to report for now.

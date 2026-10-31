@@ -1,0 +1,14 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+
+# Prototypes for scoring a line the user names (tasks.md #score-line). Run one
+# with `cargo run --release --bin <name>` from this directory.
+[package]
+name = "line_scoring"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+suit_combinations = { path = "../.." }
