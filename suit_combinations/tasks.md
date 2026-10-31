@@ -203,6 +203,42 @@ it and gives the go-ahead.
       AKT74 opposite a void for 3 tricks gets "Finesse hoping the suit splits
       4-4, plus 7.34% more", though with nothing to lead from in the other hand
       no finesse is possible; the line ducks a round first.
+- [ ] Keep a remark's success condition from claiming deals the line loses:
+      AQ942 opposite J73 for 5 tricks, which wins 13.57% of the time, reads
+      "Repeated finesse hoping the K is onside and the T is singleton or
+      doubleton offside, with a small extra chance when the K is singleton or
+      doubleton". Five strategies tie, and the remark fits the first, which wins
+      when West holds K8x, Kxx, or KT. It loses when West holds K8xx and East
+      the singleton T, a layout the condition claims; none of the five wins
+      there.
+  - Rationale: the user, 2026-10-31: "Remarks should probably not claim lost
+    deals."
+  - Note: spec.md #remarks says only that a condition may give up a little
+    accuracy for simplicity; once this settles, say there which way.
+  - Note: the remark follows spec.md #remarks, checked 2026-10-31. Its condition
+    misses 6.22% of deals, within the 10% that `MAX_CONDITION_ERROR` in
+    `remark.rs` allows: 2.83% where East's singleton T loses, and 3.39% won with
+    West's KT, outside the condition. The facts in #remarks have no "exactly
+    doubleton", which would fit better.
+  - Note: common, checked 2026-10-31 on the SuitPlay comparison's 4,121 tricky
+    problems: of 494 remarks stating a success condition, 92 claim deals the
+    line loses, 29 of them more than 5% of all deals. 98 opposite AKT65 for 4
+    tricks, which wins 66.78%, reads "Finesse hoping the Q or J is onside",
+    though the line loses in 9.22% of deals where the Q or J is onside. Wins the
+    condition leaves out are mentioned as extras; claimed losses never are.
+  - Open question: a tolerance relative to the line's chance, rather than in
+    deals, would reject this condition, and the remark would name only the
+    technique.
+  - Note: the user, 2026-10-31, plans to review remarks against the flashcards
+    as they build them up, for practical examples to compare against.
+- [ ] Leave out a part that the "Otherwise" plays correctly too
+      {#otherwise-parts}: AKJ87 opposite 965 for 4 tricks reads "Cash the A",
+      then "If West plays the T and East plays a low card, low to the 8, then
+      cash the K, then lead low", beside an "Otherwise" of "low to the J" with
+      its own two parts.
+  - Note: checked by hand, 2026-10-31: in each of the six layouts where West
+    plays the T and East a low card, the "Otherwise" and its parts make 4 tricks
+    too, so the line can drop the T's part.
 
 ---
 
