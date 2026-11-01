@@ -261,17 +261,32 @@ English, and the intuition behind it.
   - Note: the frontier keeps both kinds of strategy, as spec.md #search says, so
     a different tiebreak changes only which strategy is picked at the end, not
     the search.
-- [ ] Explore whether the analyzer should model randomized plays by either side
-      {#randomized-plays}. spec.md #model has declarer commit to one strategy
-      that the defenders know, so a line that reacts to a defender's card can be
-      beaten by any card that steers it wrong. Declarer varying the play, or the
-      defenders varying theirs, could change both the best line and its chance.
+- [~] Explore whether the analyzer should model randomized plays by either side
+  {#randomized-plays}. spec.md #model has declarer commit to one strategy that
+  the defenders know, so a line that reacts to a defender's card can be beaten
+  by any card that steers it wrong. Declarer varying the play, or the defenders
+  varying theirs, could change both the best line and its chance.
   - Note: the test case, worked out by hand 2026-10-31: KQT opposite 97 for 2
     tricks reads "Lead the 9 to the K, then low to the Q". After East takes the
     K with the A, cashing the Q hopes the J falls, where finessing the T would
     win whenever West holds the J. Against defenders who know the line, the cash
     is right: holding the A with West holding the J, East would duck the K, so a
     finesse planned for after the A never comes up.
+  - Worktree: `randomized-plays-prototype`
+  - Note: the user, 2026-11-01: start with a prototype in `scratch/`, aimed only
+    at understanding KQT opposite xxx for 2 tricks. The user will check in on it
+    and decide whether to move the implementation toward production.
+  - Note: KQT opposite xxx for 2 tricks, from the flashcard review, 2026-11-01.
+    The flashcard's line, "Low to the K. If that wins, low to the Q. If it
+    loses, low to the T.", wins 54.60% against defenders who know the line, and
+    76.00% against an East who always takes the K with the A. The analyzer's
+    "Low to the K, then low to the Q" wins 54.84% against both. So the card's
+    line is better once more than about 1.1% of East players fail to duck. A
+    scratch script found these by brute force, scoring each plan in every
+    layout.
+  - Note: Wikipedia's "Suit combination" article analyzes this exact holding, in
+    its section "Exploiting defensive errors", and Larry Cohen's article
+    "Defensive ducking" (larryco.com) covers East's duck from East's side.
 - [ ] A most-tricks-on-average goal, beside the chance of a target.
   - Note: a test case for goals. In K1084 opposite Q32, finessing the 10
     averages the most tricks (2.12), yet a deeper finesse of the 8 beats it on
