@@ -81,7 +81,6 @@ _STEP_ORDER = (
   'ruff-lint.sh',
 )
 _SINGLE_PROGRAMS = {
-  'cargo',
   'readlink',
   'dirname',
   'realpath',
@@ -165,28 +164,32 @@ def read_trace(label: str) -> list[Event]:
   return events
 
 
-def background_pid(trace: Iterable[Event]) -> int:
-  """The process ID of the subshell running `run_tests.sh`'s background checks.
+def background_pids(trace: Iterable[Event]) -> frozenset[int]:
+  """The process IDs of the subshells running `run_tests.sh`'s background jobs.
 
-  The checks run as one group sent to the background with `&`, so bash traces
-  every command in the group from that one subshell, the type check among them.
+  Each job is sent to the background with `&`, so bash traces every command in a
+  job from that job's one subshell: the Rust tests' from the one running cargo,
+  and the JavaScript checks' from the one running the type check.
   """
-  return next(
+  return frozenset(
     event.pid
     for event in trace
     if event.source == 'run_tests.sh'
-    and any('/node_modules/.bin/tsc' in word for word in event.command.split())
+    and (
+      event.command.startswith('cargo test')
+      or any('/node_modules/.bin/tsc' in word for word in event.command.split())
+    )
   )
 
 
-def is_background(event: Event, background: int) -> bool:
+def is_background(event: Event, background: frozenset[int]) -> bool:
   """Whether `event` belongs to the checks running beside pytest.
 
-  A `$(...)` in the group runs in a subshell of its own, so the one `realpath`
-  the group makes is matched by its command instead.
+  A `$(...)` in a job runs in a subshell of its own, so the one `realpath` the
+  JavaScript checks make is matched by its command instead.
   """
   return event.source == 'run_tests.sh' and (
-    event.pid == background
+    event.pid in background
     or event.command == 'realpath ./club_sites/palo_alto'
   )
 
@@ -232,7 +235,7 @@ def item_label(event: Event) -> str:
 
 def critical_path(run: TracedRun) -> list[Event]:
   """The run's events in time order, less the background checks."""
-  background = background_pid(run.trace)
+  background = background_pids(run.trace)
   events = [
     event for event in run.trace if not is_background(event, background)
   ]
@@ -528,19 +531,22 @@ def main() -> None:
     in_hook_phases.append(pytest_phases(run.timeline, pytest_launch))
   print_rows(per_run_rows)
 
-  # Each background check runs from its own start to the next one's; the last
-  # check's end goes untraced.
+  # Within a background job, each check runs from its own start to the next
+  # one's. A job's last check's end goes untraced, so the cargo job, a single
+  # command, reports nothing.
   background_spans: dict[str, list[float]] = defaultdict(list)
   for run in traced:
-    background = background_pid(run.trace)
-    group = [
-      event
-      for event in run.trace
-      if event.source == 'run_tests.sh' and event.pid == background
-    ]
-    for current, following in itertools.pairwise(group):
-      program = current.command.split(' ')[0].split('/')[-1]
-      background_spans[program].append(following.timestamp - current.timestamp)
+    for background in background_pids(run.trace):
+      job = [
+        event
+        for event in run.trace
+        if event.source == 'run_tests.sh' and event.pid == background
+      ]
+      for current, following in itertools.pairwise(job):
+        program = current.command.split(' ')[0].split('/')[-1]
+        background_spans[program].append(
+          following.timestamp - current.timestamp
+        )
   print(
     '\nbackground checks, each start to the next one (mean ms): '
     + ', '.join(
