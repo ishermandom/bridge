@@ -233,6 +233,13 @@ the go-ahead.
     technique.
   - Note: the user, 2026-10-31, plans to review remarks against the flashcards
     as they build them up, for practical examples to compare against.
+- [ ] Name the defender in an extra chance when the condition names one: 976
+      opposite QT for 1 trick reads "Finesse hoping the J is singleton or
+      doubleton offside, with a small extra chance when the J is singleton or
+      doubleton", which reads as repeating the condition.
+  - Note: `extras_words` in `remark.rs` places a short card with either
+    defender, never one side; noticed 2026-10-31 in the SuitPlay comparison's
+    tricky holdings, where T98 opposite Q7 and its kin read the same way.
 - [ ] Leave out a part that the "Otherwise" plays correctly too
       {#otherwise-parts}: AKJ87 opposite 965 for 4 tricks reads "Cash the A",
       then "If West plays the T and East plays a low card, low to the 8, then
