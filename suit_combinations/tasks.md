@@ -11,16 +11,6 @@ about the defenders' hands, well enough to reproduce every row of
 `flashcards/input/suit_combinations.csv`: the success %, the best line in
 English, and the intuition behind it.
 
-Worktree: `.claude/worktrees/card-combination-flashcards`, branch
-`suit-combination-analyzer`, holds the analyzer, unlanded until the user gives
-the go-ahead.
-
-- [x] The user's review of the branch before landing {#branch-review}. Done: the
-      top-level README.md, run_tests.sh and tasks.md, flashcards/tasks.md,
-      everything under `suitplay/`, spec.md, this tracker, and Cargo.toml and
-      rustfmt.toml, which sit in `unreviewed/` only because cargo expects them
-      beside `src/`. Cargo.lock goes unreviewed, since cargo generates it. The
-      rest of `unreviewed/` waits for #rust-review, after landing.
 - [ ] High priority: review the Rust code in `unreviewed/`, then move it back up
       into `suit_combinations/` {#rust-review}.
   - Note: Cargo.toml and rustfmt.toml are already reviewed.
