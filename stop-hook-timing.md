@@ -200,6 +200,49 @@ As of 2026-10-27 the project defines no finalizers and uses no weak references,
 so neither the finalizer gap nor the difference from production touches its own
 code.
 
+## The Rust tests' step {#cargo-step}
+
+Measured on 2026-11-01 on `main`, with `cargo test` run alone over a copy of the
+crate unless a figure says otherwise. `run_tests.sh` runs the step as its own
+background job beside pytest.
+
+- **Warm, about 400ms**: the brute-force tests the crate does not `#[ignore]`
+  take ~210ms, a doc-test pass over a crate with no doc examples ~47ms, cargo's
+  up-to-date check ~24ms, and the other test programs with their launches the
+  rest.
+- **Over the 25ms per-test budget**, each run alone: all six brute-force tests
+  the crate runs by default, from `a_finesse_against_two_honors_agrees` (241ms)
+  down to `a_simple_finesse_agrees` (38ms), and
+  `lines::aq76_opposite_t853_for_2_reaches_its_target` (43ms). Skipping the
+  seven halves the step, from ~406ms to ~195ms.
+- **After an edit**: the tests build at `opt-level = 3`, so touching a source
+  file makes the step 2.35–2.55s and touching a test file ~0.68s. A new
+  worktree's first build takes ~6.2s.
+
+Where the step runs, as the whole hook's median over 12 interleaved rounds:
+
+| Runner                            | Warm    | After touching `src/describe.rs` |
+| --------------------------------- | ------- | -------------------------------- |
+| No Rust step at all               | 3,417ms | 3,467ms                          |
+| Cargo first                       | 3,820ms | 5,993ms                          |
+| Cargo as its own background job   | 3,470ms | 4,178ms                          |
+| Own job, skipping the seven tests | 3,462ms | 4,206ms                          |
+
+An earlier batch, on the branch the crate landed from, also timed cargo leading
+the JavaScript chain: +46ms warm against no Rust step, and +1,286ms after an
+edit, where its own job measured +426ms in the same batch. Leading that chain,
+the rebuild and the ~1s of JavaScript checks run in series and outlast pytest;
+as its own job, the rebuild overlaps them.
+
+Once cargo runs in the background, skipping the seven tests saves nothing on
+either kind of turn, so the hook runs them all. After an edit, what the
+background job still costs is most likely the rebuild competing with pytest for
+the processor rather than cargo outlasting it, since a shorter test run does not
+shorten it.
+
+Skipping the doc-test pass (`doctest = false`) was set aside: it saves ~47ms,
+and a doc example added later would silently never run.
+
 ## A fresh worktree's first Stop {#fresh-worktree}
 
 Each worktree builds its own caches, so its first Stop pays for all of them: on
