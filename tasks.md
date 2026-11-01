@@ -153,3 +153,15 @@ production signatures for the tests' benefit.
       in [stop-hook-timing.md](stop-hook-timing.md#freeze-variants).
   - Note: Claude's lean is the variant that runs one full garbage collection
     before the freeze.
+
+- [ ] **Cut the formatting step's cost** {#formatting-step} — about a second of
+      every Stop, broken down in
+      [stop-hook-timing.md](stop-hook-timing.md#formatting). The scripts live in
+      dotfiles, so the changes happen in a dotfiles worktree and need the user's
+      permission to commit there.
+  - Worktree: stop-hook-runtime (planning only; the code lands in dotfiles)
+  - Note: candidates: the dotfiles `find *.ts` probe walking `.claude/`, the two
+    `prettier --find-config-path` launches, prettier's `**/*` expansion walking
+    ignored folders, `is-third-party-repo.sh` running twice, and `uv run`
+    overhead across seven calls. Prewarming prettier's cache would also save the
+    ~0.6s it costs a fresh worktree's first Stop.

@@ -86,7 +86,7 @@ Means of the traced runs; untraced runs average 3,426ms.
   the pytest rows already include that cost: 26ms in collection, 32ms in the
   test loop, and 3ms elsewhere.
 
-## Formatting: 1,082ms
+## Formatting: 1,082ms {#formatting}
 
 | Part                                                                         |  Bridge | Dotfiles |
 | ---------------------------------------------------------------------------- | ------: | -------: |
@@ -199,6 +199,27 @@ Both variants share three tradeoffs:
 As of 2026-10-27 the project defines no finalizers and uses no weak references,
 so neither the finalizer gap nor the difference from production touches its own
 code.
+
+## A fresh worktree's first Stop {#fresh-worktree}
+
+Each worktree builds its own caches, so its first Stop pays for all of them: on
+the suit-combination-analyzer branch, 25.5s against 4.3s for the next Stop. One
+cold run against one warm run, by command:
+
+| What                                                   | Extra on the cold run |
+| ------------------------------------------------------ | --------------------- |
+| mypy, with no cache yet                                | +8.8s                 |
+| Cargo, building the crate and its dependencies         | +6.3s                 |
+| pytest's first imports, most likely compiling bytecode | +2.7s                 |
+| The first `uv run`, most likely creating `.venv`       | +2.2s                 |
+| `npm ci`                                               | +0.7s                 |
+| prettier, with an empty cache                          | +0.5s                 |
+
+Entering a worktree now prewarms the checks (dotfiles `claude/docs/design.md`
+#prewarm). On main without the Rust step, the prewarm took ~17s, and the first
+Stop after it 4.4s against 3.5s fully warm. The remaining ~0.9s is prettier's
+cache and a cold `find *.ts` in the formatting step, which the prewarm leaves to
+the Stop hook.
 
 ## Levers set aside {#set-aside}
 
