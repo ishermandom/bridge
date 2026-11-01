@@ -11,17 +11,6 @@
 # directory is the root no matter where the caller ran it from.
 repo_root="$(dirname "$0")"
 
-# suit_combinations: a Rust crate, tested with cargo. `--manifest-path` points
-# cargo at the crate without changing directory, and `--quiet` cuts a passing
-# run down to its summary lines. It runs before the userscript's checks start in
-# the background below, so a failure here exits with nothing left running.
-cargo test --quiet \
-  --manifest-path "$repo_root/suit_combinations/unreviewed/Cargo.toml"
-suit_combinations_status=$?
-if [ "$suit_combinations_status" -ne 0 ]; then
-  exit "$suit_combinations_status"
-fi
-
 # club_sites/palo_alto: a Tampermonkey userscript tested with vitest + jsdom.
 package="$repo_root/club_sites/palo_alto"
 
@@ -75,15 +64,31 @@ installed_lockfile="$package/node_modules/.package-lock.json"
   fi
 } 9> "$package/node_modules.lock"
 
-# The userscript's checks run in the background while pytest runs: together they
-# take about a second, which pytest's longer run hides. Each side writes to its
-# own file, printed once both finish, so the two never interleave.
+# The Rust and JavaScript checks run in the background while pytest runs, which
+# hides most of their time. Each check writes to its own file, printed once all
+# of them finish, so their outputs never interleave.
 #
 # TODO: restore color for a run in a terminal. Writing to a file, each tool
 # finds no terminal and prints without color.
+cargo_output="$(mktemp)"
 javascript_output="$(mktemp)"
 pytest_output="$(mktemp)"
-trap 'rm -f "$javascript_output" "$pytest_output"' EXIT
+trap 'rm -f "$cargo_output" "$javascript_output" "$pytest_output"' EXIT
+
+# suit_combinations: a Rust crate, tested with cargo. `--manifest-path` points
+# cargo at the crate without changing directory, and `--quiet` cuts a passing
+# run down to its summary lines.
+#
+# The Rust tests start before the other checks because an edit to the crate
+# makes them the slowest check, rebuilding before they run. They start after the
+# install above, though: a failed install exits the script, and a check already
+# running would run on with its output lost.
+#
+# The trailing `&` runs cargo in the background, and `$!` is its process ID.
+cargo test --quiet \
+  --manifest-path "$repo_root/suit_combinations/unreviewed/Cargo.toml" \
+  > "$cargo_output" 2>&1 &
+cargo_pid=$!
 
 # Both Node tools are called by their path in the package's node_modules rather
 # than through npm scripts, to avoid adding npm's own startup latency to every
@@ -101,7 +106,7 @@ bin="$package/node_modules/.bin"
 # as `./club_sites/palo_alto` when the script runs as `./run_tests.sh`, vitest
 # fails to load the test files that run under jsdom.
 #
-# The trailing `&` runs the group in the background, and `$!` is its process ID.
+# The trailing `&` runs the group in the background, as with cargo above.
 {
   "$bin/tsc" -p "$package/jsconfig.json" \
     && "$bin/vitest" run --root "$(realpath "$package")"
@@ -143,8 +148,8 @@ if [ -n "${PYTEST_FROM_HOOK:-}" ]; then
 fi
 
 # pytest runs in the foreground so that Ctrl-C reaches it: a script's background
-# jobs ignore Ctrl-C, which leaves only the second-long JavaScript side to run
-# on after an interrupt.
+# jobs ignore Ctrl-C, which leaves only the Rust and JavaScript checks to run on
+# after an interrupt.
 #
 # `--disable-plugin-autoload` keeps pytest from loading every plugin an
 # installed package advertises, which slows each run even when no test uses the
@@ -163,16 +168,20 @@ uv run --project "$repo_root" pytest \
   > "$pytest_output" 2>&1
 pytest_status=$?
 
+wait "$cargo_pid"
+cargo_status=$?
 wait "$javascript_pid"
 javascript_status=$?
 
-# JavaScript first, as in a run in sequence, so the last line is pytest's
-# summary — the one line the Stop hook's runner shows on a pass.
-cat "$javascript_output" "$pytest_output"
+# The checks print in the order they start, so the last line is pytest's summary
+# — the one line the Stop hook's runner shows on a pass.
+cat "$cargo_output" "$javascript_output" "$pytest_output"
 
-# Either side's failure fails the run; when both fail, the status is the
-# JavaScript side's.
-if [ "$javascript_status" -ne 0 ]; then
-  exit "$javascript_status"
-fi
-exit "$pytest_status"
+# Any check's failure fails the run; when several fail, the status is the first
+# failing check's, in that same order.
+for status in "$cargo_status" "$javascript_status" "$pytest_status"; do
+  if [ "$status" -ne 0 ]; then
+    exit "$status"
+  fi
+done
+exit 0
