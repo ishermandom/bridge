@@ -349,6 +349,21 @@ rather than a fault.
   - Note: a change to what the store writes needs the same re-read. Adding the
     solved double-dummy tables to every stored record took a hand-written
     `store_travellers(tree, refresh=True)` script again.
+- [ ] Retire an ACBL club capture that a corrected upload supersedes.
+      {#superseded-acbl-upload}
+  - Rationale: ACBL publishes a corrected upload at a new results address, so a
+    re-fetch stores the correction beside the stale capture rather than over it.
+    Both then match the session, and the join withholds whatever the two
+    disagree on. The 2026-11-02 session hit this: a corrected result on board 19
+    re-scored the board, and our matchpoints on it stayed unfilled until the
+    stale capture was removed by hand. travellers.md `#acquisition` calls a
+    re-fetch the whole fix, which holds for the club site's republishing at the
+    same address.
+  - Note: the fetch already sees which upload is current. On the re-fetch,
+    ACBL's index for the date listed only the corrected one, so a fetch could
+    retire any stored capture of that date the index no longer lists.
+  - Open question: delete the stale capture, or set it aside where the store and
+    the matcher skip it?
 
 ---
 
