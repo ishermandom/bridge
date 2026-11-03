@@ -376,12 +376,6 @@ lane settles the sheet with the user in chat:
    text and as a page in the private tree's `transcripts/`, where the user opens
    it (#page-reaches-user).
 
-- [~] Ingest the latest scoresheet, settling it with the user in chat.
-  - Worktree: ingest-scan-nov-2
-  - Note: the scan waiting in the inbox is `Scanned_20261102-1433.pdf`.
-  - Note: the row-band cropping on worktree `dewarp-still-needed` is still
-    unlanded, so this sheet goes through `main`'s cropping, as the 2026-10-30
-    sheet did.
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
     panels reported flush against each other pass — and a single table read as
