@@ -387,9 +387,10 @@ lane settles the sheet with the user in chat:
 1. Run the whole path first — ingest, the traveller fetch, and reconciliation.
 2. While the review UI (`#review-ui`) has not landed, raise any detail that
    needs clarifying or review in chat, and apply the user's fixes there.
-3. Hold the sheet's transcript until every detail is settled, then save it as
-   text and as a page in the private tree's `transcripts/`, where the user opens
-   it (#page-reaches-user).
+3. Once every detail is settled, re-fetch the travellers: a site can publish a
+   correction hours after the game, as both did on 2026-11-02.
+4. Only then save the sheet's transcript as text and as a page in the private
+   tree's `transcripts/`, where the user opens it (#page-reaches-user).
 
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
@@ -1014,6 +1015,9 @@ rationale lives in the design docs' open-question sections —
   - Rationale: models.md `#validation` declines to derive it because passes
     usually go unwritten. With every pass written, the dealer, known from the
     board number, replays the seat rotation.
+  - Note: on 2026-11-02 a one-off script replayed all 24 auctions from their
+    dealers, and every one fit: each circled bid fell to the opponents, and each
+    auction named the travellers' declarer.
 
 ---
 
