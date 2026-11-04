@@ -151,10 +151,17 @@ h3 .suit {
    Explicit glyphs rather than the disc/circle/square keywords, which the two
    media draw differently. */
 ul, ol {
-  /* Lists nest deeply in the notes, so each depth indents about half as far as
-     a browser's default 2.5em (40px at the reader's default text size). */
-  padding-left: 1.3em;
   margin: 0.25em 0;
+}
+ul {
+  /* Each depth indents by one marker, so a child's marker starts directly under
+     its parent's text. A full-size marker is a Source Sans shape 0.60em wide
+     and the word space after it, 0.23em. */
+  padding-left: 0.83em;
+}
+ol {
+  /* A number runs wider than a bullet, so a numbered list indents further. */
+  padding-left: 1.3em;
 }
 li {
   margin: 0.12em 0;
@@ -245,13 +252,14 @@ a.xref {
   }
 }
 
-/* Phone width: a tighter top and bottom margin, and a shallower indent per list
-   depth so deep lists keep usable width. */
+/* Phone width: a tighter top and bottom margin, and a shallower indent per
+   numbered-list depth so deep lists keep usable width. A bulleted list already
+   indents by no more than its markers need. */
 @media screen and (max-width: 600px) {
   body {
     margin: 1rem auto;
   }
-  ul, ol {
+  ol {
     padding-left: 1em;
   }
 }

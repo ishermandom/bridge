@@ -197,6 +197,9 @@ wants something different.
   against Source Sans 3's coverage, never the disc/circle/square keywords:
   browsers draw the keywords as shapes while WeasyPrint substitutes glyphs of
   its own choosing, and the two media would drift apart.
+- **An indent of one marker**: each list depth indents by exactly the width of
+  one marker, so a child's marker starts directly under its parent's text in
+  every output format.
 - **Suit bids align on their own; notrump does not.** Plex's digits are tabular
   by default and STIX's four suits share one advance width, so every suit bid
   comes out the same width with no styling at all, and a run of list items
