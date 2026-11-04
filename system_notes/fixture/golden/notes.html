@@ -194,6 +194,23 @@ content: "▲";
 .callout {
 color: var(--muted);
 }
+
+.todo-callout {
+margin: 1em 0;
+padding: 0.5em 0.9em;
+border-left: 4px solid #d9a400; 
+border-radius: 0 4px 4px 0;
+background: #fff6d6; 
+}
+.todo-callout p {
+margin: 0;
+}
+.todo-label {
+margin-right: 0.3em;
+color: #6b4f00; 
+font-weight: 700;
+letter-spacing: 0.04em;
+}
 a {
 color: var(--accent);
 text-decoration: none;
@@ -270,6 +287,10 @@ string-set: section-title content();
 }
 h2, h3, h4 {
 break-after: avoid;
+}
+
+.todo-callout {
+break-inside: avoid;
 }
 
 #TOC {
@@ -375,6 +396,10 @@ or second seat.</li>
 <li>Strong, artificial <span class="bid">2<span class="strain suit club">♣</span></span> — see <a href="#strong-two-clubs" class="xref">The strong <span class="bid">2<span class="strain suit club">♣</span></span>
 opening</a>.</li>
 </ul>
+<div class="todo-callout">
+<p><span class="todo-label">TODO</span> Settle how light a third-seat
+opening may be at favorable vulnerability, and whether <a href="#drury" class="xref">Drury</a> still applies after one.</p>
+</div>
 </section>
 <section id="notrump" class="level2">
 <h2>Notrump openings</h2>

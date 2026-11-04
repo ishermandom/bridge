@@ -396,6 +396,55 @@ def test_callout_nested_under_no_item_fails_the_render(pandoc: Pandoc) -> None:
   assert 'is nested under no item' in error
 
 
+# --- TODO callouts ---
+
+
+def test_todo_paragraph_becomes_a_labeled_callout(pandoc: Pandoc) -> None:
+  html = pandoc.output(
+    'TODO: Fill in the response steps\n', 'todo_callouts.lua'
+  )
+  assert html == (
+    '<div class="todo-callout">\n'
+    '<p><span class="todo-label">TODO</span> Fill in the response steps</p>\n'
+    '</div>\n'
+  )
+
+
+def test_plain_text_keeps_a_todo_paragraph_as_typed(pandoc: Pandoc) -> None:
+  text = pandoc.output(
+    'TODO: Fill in the response steps\n', 'todo_callouts.lua', to='plain'
+  )
+  assert text.strip() == 'TODO: Fill in the response steps'
+
+
+@pytest.mark.parametrize(
+  'markdown',
+  [
+    'todo: lowercase\n',
+    'TODO without a colon\n',
+    'A paragraph that mentions TODO: later on\n',
+  ],
+)
+def test_paragraph_not_opening_on_todo_colon_stays_plain(
+  pandoc: Pandoc, markdown: str
+) -> None:
+  assert 'todo-callout' not in pandoc.output(markdown, 'todo_callouts.lua')
+
+
+def test_list_item_opening_on_todo_stays_an_ordinary_item(
+  pandoc: Pandoc,
+) -> None:
+  html = pandoc.output(
+    """
+    - 3S=relay
+      - TODO: confirm the relay
+    """,
+    'todo_callouts.lua',
+  )
+  assert 'todo-callout' not in html
+  assert '<li>TODO: confirm the relay</li>' in html
+
+
 # --- tight lists ---
 
 

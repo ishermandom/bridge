@@ -275,6 +275,29 @@ ul ul ul ul ul ul ul ul ul ul ul ul > li::before {
   color: var(--muted);
 }
 
+/* A TODO callout marks an open item, something the partnership has yet to
+   settle, so it stands out from the agreements around it: a pale yellow panel
+   with a gold bar down its left edge. No suit is colored yellow, so the panel
+   never reads as one, and the fill keeps it distinct from the gray-ruled
+   blockquote. `todo_callouts.lua` builds the callout from a paragraph opening
+   with `TODO:`. */
+.todo-callout {
+  margin: 1em 0;
+  padding: 0.5em 0.9em;
+  border-left: 4px solid #d9a400; /* gold */
+  border-radius: 0 4px 4px 0;
+  background: #fff6d6; /* pale yellow */
+}
+.todo-callout p {
+  margin: 0;
+}
+.todo-label {
+  margin-right: 0.3em;
+  color: #6b4f00; /* dark gold */
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 a {
   color: var(--accent);
   text-decoration: none;
@@ -367,9 +390,14 @@ a.xref {
   h2, h3, h4 {
     break-after: avoid;
   }
+  /* A wide section's body flows through page-wide columns, and a TODO callout
+     split at a column edge would leave two fragments of one panel. */
+  .todo-callout {
+    break-inside: avoid;
+  }
 
   /* The table of contents packs into a column like any section, so it needs no
-     columns of its own; a margin below sets it off from the section after it. */
+     columns of its own; a bottom margin sets it off from the next section. */
   #TOC {
     margin-bottom: 1em;
   }

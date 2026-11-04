@@ -188,6 +188,8 @@ The Markdown is ordinary Pandoc Markdown plus a few conventions:
   (`## Stayman {#stayman}`) so references survive retitling.
 - Card-count ranges such as `15–17` and slashed shorthand such as `P/C` never
   break across lines; other hyphenated and slashed words wrap normally.
+- A paragraph opening with `TODO:` marks an open item and renders as a tinted
+  callout panel labeled `TODO`.
 - The YAML block needs a `title`. Heading levels must not skip (no `###`
   directly under a `#`), and every internal link must point at a heading that
   exists.

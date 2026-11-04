@@ -34,7 +34,10 @@ Disclaimer                                                      plus spades.
    to exercise the renderer — nesting, cross-                  The strong 2♣ opening (p. 7).
    references, suit symbols — from public
    descriptions of standard conventions. No
+                                                               TODO Settle how light a third-seat opening
    human has reviewed or verified any of it.
+                                                               may be at favorable vulnerability, and
+                                                               whether Drury (p. 6) still applies after one.
 
 
 

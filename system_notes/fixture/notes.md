@@ -32,6 +32,9 @@ Maintainer notes — editing this fixture:
   outside four-card major in first or second seat.
 - Strong, artificial 2C — see [](#strong-two-clubs).
 
+TODO: Settle how light a third-seat opening may be at favorable vulnerability,
+and whether [](#drury) still applies after one.
+
 # Notrump openings {#notrump}
 
 ## The 1NT opening {#one-notrump}

@@ -30,8 +30,8 @@ TOOL_DIRECTORY = Path(__file__).resolve().parent
 TEMPLATE = TOOL_DIRECTORY / 'template.html'
 STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 
-# Filter order matters. Each filter below works on what the ones before it leave
-# behind, and three constraints fix the order they run in:
+# Filter order matters: each filter works on what the ones before it leave
+# behind. Three constraints fix the order:
 #
 # - `metadata.lua` runs first, so a document missing its title fails before
 #   anything has rewritten it.
@@ -40,10 +40,13 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 # - `headings.lua` runs last, because it copies titles into cross-references,
 #   and every copy should carry the spans the earlier filters put there.
 #
-# `bids.lua` may run at any point in the order: it rewrites only inline text
-# that no other filter touches. So may `callouts.lua`, which moves whole list
-# items and rewrites nothing inside them, and `tight_lists.lua`, which only
-# checks how each list item opens.
+# The other four may run at any point in the order:
+#
+# - `tight_lists.lua` only checks how each list item opens.
+# - `bids.lua` rewrites only inline text that no other filter touches.
+# - `callouts.lua` moves whole list items and rewrites nothing inside them.
+# - `todo_callouts.lua` wraps whole paragraphs and rewrites only their opening
+#   `TODO:`.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
@@ -51,6 +54,7 @@ FILTERS = tuple(
     'tight_lists.lua',
     'bids.lua',
     'callouts.lua',
+    'todo_callouts.lua',
     'nowrap.lua',
     'shorthand.lua',
     'headings.lua',
