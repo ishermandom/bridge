@@ -18,7 +18,7 @@ shorthand are written, but nothing about what they mean.
 - **Input**: one `notes.md` per partnership, in Pandoc Markdown plus this tool's
   small notation: bids written plainly (`4S`, `2NT`), `!S !H !D !C` for suits
   outside bids, `[](#section-id)` for cross-references, a list item wholly in
-  italic for a callout (an aside on the bid above it), and a paragraph opening
+  italic for an aside (a callout on the bid above it), and a paragraph opening
   with `TODO:` for a TODO callout. A YAML block at the top carries the title
   (required) and an optional date.
 - **Real notes** are private partnership agreements, so they live in
@@ -122,24 +122,26 @@ syntax the plain-text output must survive:
   holding a capital or a digit (so `and/or` stays prose). Whole auctions may
   still break at a column edge; keeping them intact is deferred until a real
   page shows a bad break.
-- **Callouts**: a callout is an aside on a bid rather than a bid itself. It is
-  written as a list item wholly in italic, nested under the bid it explains:
-  `- _Note: …_`. It renders without a list marker, since a marker would place it
-  in a round of the auction. It sits in a muted color under the text of the item
-  it annotates, and the plain text likewise gives it a line of its own with no
-  marker. Italic already marks such asides, so recognizing them costs the author
-  no new syntax. A fenced div or a blockquote would need new syntax, and pandoc
-  wants either set off by a blank line, which makes every item in the list
-  around it a separate paragraph. An item that merely opens on an italic term
-  (`_Fast denies, slow shows_: …`) stays an ordinary item. A callout must stand
-  alone under the item it annotates. One that shares its list with other items,
-  or is nested under no item, fails the render: nothing there settles which item
-  it annotates or where it would sit, so the author decides when a real case
-  first comes up.
-- **TODO callouts**: a paragraph opening with `TODO:` marks an open item,
-  something the partnership has yet to settle, and renders as a labeled callout
-  that stands out from the agreements around it. Print keeps it, so a partner
-  reading the paper copy sees what remains unsettled.
+- **Callouts**: a callout is a note set apart from the agreements around it,
+  opening on a label such as `Note:` or `TODO:`. The notes have two kinds:
+  - **Asides**: an aside comments on a bid and is not itself a bid. It is
+    written as a list item wholly in italic, nested under the bid it explains:
+    `- _Note: …_`. It renders without a list marker, since a marker would place
+    it in a round of the auction. It sits in a muted color under the text of the
+    item it annotates, and the plain text likewise gives it a line of its own
+    with no marker. Italic already marks such asides, so recognizing them costs
+    the author no new syntax. A fenced div or a blockquote would need new
+    syntax, and pandoc wants either set off by a blank line, which makes every
+    item in the list around it a separate paragraph. An item that merely opens
+    on an italic term (`_Fast denies, slow shows_: …`) stays an ordinary item.
+    An aside must stand alone under the item it annotates. One that shares its
+    list with other items, or is nested under no item, fails the render: nothing
+    there settles which item it annotates or where it would sit, so the author
+    decides when a real case first comes up.
+  - **TODO callouts**: a TODO callout is a paragraph opening with `TODO:`. It
+    marks an open item, something the partnership has yet to settle, so where an
+    aside recedes, a TODO callout stands out. Print keeps it, so a partner
+    reading the paper copy sees what remains unsettled.
 
 ## Appearance {#appearance}
 

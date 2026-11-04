@@ -44,7 +44,7 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 #
 # - `tight_lists.lua` only checks how each list item opens.
 # - `bids.lua` rewrites only inline text that no other filter touches.
-# - `callouts.lua` moves whole list items and rewrites nothing inside them.
+# - `asides.lua` moves whole list items and rewrites nothing inside them.
 # - `todo_callouts.lua` wraps whole paragraphs and rewrites only their opening
 #   `TODO:`.
 FILTERS = tuple(
@@ -53,7 +53,7 @@ FILTERS = tuple(
     'metadata.lua',
     'tight_lists.lua',
     'bids.lua',
-    'callouts.lua',
+    'asides.lua',
     'todo_callouts.lua',
     'nowrap.lua',
     'shorthand.lua',

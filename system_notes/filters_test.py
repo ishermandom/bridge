@@ -300,10 +300,10 @@ def test_plain_text_keeps_shorthand_as_typed(pandoc: Pandoc) -> None:
   assert text.strip() == 'OM and 4cM'
 
 
-# --- callouts ---
+# --- asides ---
 
 
-def test_italic_item_becomes_a_callout_inside_the_item_above_it(
+def test_italic_item_becomes_an_aside_inside_the_item_above_it(
   pandoc: Pandoc,
 ) -> None:
   html = pandoc.output(
@@ -311,25 +311,25 @@ def test_italic_item_becomes_a_callout_inside_the_item_above_it(
     - 3S=relay
       - _Note: always 3S_
     """,
-    'callouts.lua',
+    'asides.lua',
   )
   assert html == (
     '<ul>\n'
     '<li>3S=relay\n'
-    '<div class="callout">\n'
+    '<div class="aside">\n'
     '<em>Note: always 3S</em>\n'
     '</div></li>\n'
     '</ul>\n'
   )
 
 
-def test_plain_text_gives_a_callout_no_marker(pandoc: Pandoc) -> None:
+def test_plain_text_gives_an_aside_no_marker(pandoc: Pandoc) -> None:
   text = pandoc.output(
     """
     - 3S=relay
       - _Note: always 3S_
     """,
-    'callouts.lua',
+    'asides.lua',
     to='plain',
   )
   assert text.splitlines() == [
@@ -354,7 +354,7 @@ def test_plain_text_gives_a_callout_no_marker(pandoc: Pandoc) -> None:
 def test_item_not_wholly_one_italic_paragraph_stays_a_list_item(
   pandoc: Pandoc, markdown: str
 ) -> None:
-  assert 'callout' not in pandoc.output(markdown, 'callouts.lua')
+  assert 'class="aside"' not in pandoc.output(markdown, 'asides.lua')
 
 
 @pytest.mark.parametrize(
@@ -382,17 +382,17 @@ def test_item_not_wholly_one_italic_paragraph_stays_a_list_item(
       - _Note: two_
     """,
   ],
-  ids=['first', 'between', 'last', 'beside another callout'],
+  ids=['first', 'between', 'last', 'beside another aside'],
 )
-def test_callout_beside_other_items_fails_the_render(
+def test_aside_beside_other_items_fails_the_render(
   pandoc: Pandoc, markdown: str
 ) -> None:
-  error = pandoc.error(markdown, 'callouts.lua')
+  error = pandoc.error(markdown, 'asides.lua')
   assert 'shares its list with other items' in error
 
 
-def test_callout_nested_under_no_item_fails_the_render(pandoc: Pandoc) -> None:
-  error = pandoc.error('- _Note: stray_\n', 'callouts.lua')
+def test_aside_nested_under_no_item_fails_the_render(pandoc: Pandoc) -> None:
+  error = pandoc.error('- _Note: stray_\n', 'asides.lua')
   assert 'is nested under no item' in error
 
 
