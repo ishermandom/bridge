@@ -113,15 +113,15 @@ def test_list_markers_follow_depth() -> None:
     '  ● b\n'
     '    □ c\n'
     '      ■ d\n'
-    '        △ e\n'
-    '          ▲ f\n'
-    '            ▷ g\n'
-    '              ▶ h\n'
-    '                ▽ i\n'
-    '                  ▼ j\n'
-    '                    ◦ k\n'
-    '                      • l\n'
-    '                        • m\n'
+    '        ▷ e\n'
+    '          ▶ f\n'
+    '            ⬠ g\n'
+    '              ⬟ h\n'
+    '                ◇ i\n'
+    '                  ◆ j\n'
+    '                    △ k\n'
+    '                      ▲ l\n'
+    '                        ▲ m\n'
   )
 
 
@@ -328,10 +328,10 @@ def test_print_geometry_tracks_the_stylesheet() -> None:
 def test_text_marker_ladder_tracks_the_stylesheet() -> None:
   """notes.css owns the list-marker ladder; the text rendering must follow."""
   # The markers come back in the order the stylesheet declares them, which is
-  # depth order: each rule nests one `ul` deeper than the rule above it.
-  markers = re.findall(
-    r'list-style-type: "(.) ";', read(render_notes.STYLESHEET)
-  )
+  # depth order: each rule nests one `ul` deeper than the rule above it. Only a
+  # marker's `content` is a single quoted character, so the pattern matches the
+  # markers and nothing else.
+  markers = re.findall(r'content: "(.)";', read(render_notes.STYLESHEET))
   assert tuple(markers) == render_notes.LIST_MARKERS
 
 

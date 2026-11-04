@@ -112,7 +112,9 @@ margin: 0.25em 0;
 }
 ul {
 
-padding-left: 0.83em;
+--marker-width: 0.83em;
+padding-left: var(--marker-width);
+list-style: none;
 }
 ol {
 
@@ -121,41 +123,72 @@ padding-left: 1.3em;
 li {
 margin: 0.12em 0;
 }
-ul {
-list-style-type: "○ ";
+
+ul > li::before {
+display: inline-block;
+position: relative;
+width: var(--marker-width);
+margin-left: calc(-1 * var(--marker-width));
+line-height: 0;
+font-family: "Source Sans 3";
+content: "○";
 }
-ul ul {
-list-style-type: "● ";
+ul ul > li::before {
+content: "●";
 }
-ul ul ul {
-list-style-type: "□ ";
+ul ul ul > li::before {
+content: "□";
 }
-ul ul ul ul {
-list-style-type: "■ ";
+ul ul ul ul > li::before {
+content: "■";
 }
-ul ul ul ul ul {
-list-style-type: "△ ";
+
+ul ul ul ul ul > li::before {
+font-size: 1.25em;
+width: calc(var(--marker-width) / 1.25);
+margin-left: calc(-1 * var(--marker-width) / 1.25);
+left: -0.07em; 
+vertical-align: -0.081em; 
+content: "▷";
 }
-ul ul ul ul ul ul {
-list-style-type: "▲ ";
+ul ul ul ul ul ul > li::before {
+content: "▶";
 }
-ul ul ul ul ul ul ul {
-list-style-type: "▷ ";
+
+ul ul ul ul ul ul ul > li::before {
+font-family: "STIX Two Math";
+font-size: 0.58em; 
+width: calc(var(--marker-width) / 0.58);
+margin-left: calc(-1 * var(--marker-width) / 0.58);
+left: 0.051em; 
+vertical-align: 0.269em; 
+content: "⬠";
 }
-ul ul ul ul ul ul ul ul {
-list-style-type: "▶ ";
+ul ul ul ul ul ul ul ul > li::before {
+content: "⬟";
 }
-ul ul ul ul ul ul ul ul ul {
-list-style-type: "▽ ";
+ul ul ul ul ul ul ul ul ul > li::before {
+font-size: 0.6em; 
+width: calc(var(--marker-width) / 0.6);
+margin-left: calc(-1 * var(--marker-width) / 0.6);
+left: -0.044em; 
+vertical-align: 0.295em; 
+content: "◇";
 }
-ul ul ul ul ul ul ul ul ul ul {
-list-style-type: "▼ ";
+ul ul ul ul ul ul ul ul ul ul > li::before {
+content: "◆";
 }
-ul ul ul ul ul ul ul ul ul ul ul {
-list-style-type: "◦ ";
+ul ul ul ul ul ul ul ul ul ul ul > li::before {
+font-family: "Source Sans 3";
+font-size: 1.25em;
+width: calc(var(--marker-width) / 1.25);
+margin-left: calc(-1 * var(--marker-width) / 1.25);
+left: -0.06em; 
+vertical-align: -0.086em; 
+content: "△";
 }
-ul ul ul ul ul ul ul ul ul ul ul ul {
-list-style-type: "• ";
+ul ul ul ul ul ul ul ul ul ul ul ul > li::before {
+content: "▲";
 }
 
 .callout {
@@ -172,8 +205,10 @@ font-style: italic;
 }
 
 #TOC ul {
-list-style: none;
 padding-left: 0;
+}
+#TOC li::before {
+content: none;
 }
 #TOC a {
 display: block;

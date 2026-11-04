@@ -64,9 +64,9 @@ Stayman
       ■ 3S: minimum, no slam interest. Responder may still continue with
         4C, 4D, or 4H as control bids.
       ■ 4C, 4D, 4H: control bid, accepting the try.
-        △ Responder continues with 4NT (see Roman key card 1430) or bids
+        ▷ Responder continues with 4NT (see Roman key card 1430) or bids
           the cheapest control.
-        △ Responder signs off in 4S with nothing further to show.
+        ▷ Responder signs off in 4S with nothing further to show.
       ■ 4S: maximum but no side-suit control worth showing.
     □ 4S: to play.
 ○ After a 2D reply to Stayman, 3NT still lets opener correct to a

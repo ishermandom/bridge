@@ -184,19 +184,22 @@ wants something different.
   and are told apart by underline and weight. The notes nest too deeply for each
   level to claim a size of its own.
 - **A marker per list depth, paired by round of the auction**
-  (`○ ● □ ■ △ ▲ ▷ ▶ ▽ ▼ ◦ •`): the two depths of one round share a shape, the
+  (`○ ● □ ■ ▷ ▶ ⬠ ⬟ ◇ ◆ △ ▲`): the two depths of one round share a shape, the
   unfilled marker for the seat that calls first and the filled one for the seat
   that answers, so a line's shape says which round it belongs to and its fill
-  says which seat. The full-size shapes take the first five rounds and the two
-  small bullets close the ladder, so markers lose prominence only past the
-  depths real outlines use; the right-pointing pair sits between the upward and
-  downward pairs, keeping those mirror images apart. The ladder runs six rounds
-  deep, past anything a real outline reaches; a deeper list repeats the last
-  marker, since CSS cannot count nesting depth and the stylesheet's deepest
-  selector matches everything below it. The markers are explicit glyphs, checked
-  against Source Sans 3's coverage, never the disc/circle/square keywords:
-  browsers draw the keywords as shapes while WeasyPrint substitutes glyphs of
-  its own choosing, and the two media would drift apart.
+  says which seat. Each shape must stay distinct at marker size. Hexagons were
+  passed over because, that small, they read as circles; pentagons keep their
+  corners. The diamond markers echo the ♦ suit symbol, but the symbol's color
+  and larger size tell the two apart. The ladder runs six rounds deep, past
+  anything a real outline reaches; a deeper list repeats the last marker, since
+  CSS cannot count nesting depth and the stylesheet's deepest selector matches
+  everything below it. The markers are explicit glyphs, never the
+  disc/circle/square keywords: browsers draw the keywords as shapes while
+  WeasyPrint substitutes glyphs of its own choosing, and the two media would
+  drift apart.
+- **Shapes of equal weight on one center**: whatever its shape or font, every
+  marker should look about as prominent as a circle and sit centered where a
+  circle does.
 - **An indent of one marker**: each list depth indents by exactly the width of
   one marker, so a child's marker starts directly under its parent's text in
   every output format.
