@@ -33,7 +33,11 @@ fn holding(layouts: &Layouts, defender: Defender, index: usize) -> String {
             text.push_str(&"x".repeat(usize::from(count)));
         }
     }
-    if text.is_empty() { "-".to_string() } else { text }
+    if text.is_empty() {
+        "-".to_string()
+    } else {
+        text
+    }
 }
 
 fn percent(layouts: &Layouts, set: LayoutSet, base: LayoutSet) -> f64 {
@@ -115,10 +119,11 @@ fn main() {
             None => println!("  no continuation makes 4 against KT85"),
         }
         for index in possible.indices() {
-            let mark = |set: LayoutSet| if set.contains(index) { "yes" } else { "no " };
-            let with_kt85 = best_with_kt85
-                .map(|entry| mark(entry[0]))
-                .unwrap_or("-  ");
+            let mark = |set: LayoutSet| {
+                if set.contains(index) { "yes" } else { "no " }
+            };
+            let with_kt85 =
+                best_with_kt85.map(|entry| mark(entry[0])).unwrap_or("-  ");
             println!(
                 "    West {:5} East {:5} weight {:8}  best makes 4: {}  \
                  best-with-KT85 makes 4: {}",

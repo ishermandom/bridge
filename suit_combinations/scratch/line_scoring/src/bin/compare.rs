@@ -69,7 +69,11 @@ impl Search<'_, '_> {
             let hand = position.hand(forced.leader);
             let partner = position.hand(forced.leader.partner());
             let lead = forced.lead.filter(|&r| hand.contains(r)).or(
-                if forced.lead.is_none() { hand.lowest() } else { None },
+                if forced.lead.is_none() {
+                    hand.lowest()
+                } else {
+                    None
+                },
             );
             if let Some(lead) = lead {
                 if partner.contains(forced.target) {
@@ -109,9 +113,14 @@ impl Search<'_, '_> {
             };
             let mut options: Front = Vec::new();
             for third in thirds {
-                options.extend(self.fourth_hand(child.with_third(third), depth));
+                options
+                    .extend(self.fourth_hand(child.with_third(third), depth));
             }
-            acc = combine(&acc, &prune(options), possible.difference(play_layouts));
+            acc = combine(
+                &acc,
+                &prune(options),
+                possible.difference(play_layouts),
+            );
         }
         acc
     }
@@ -120,7 +129,8 @@ impl Search<'_, '_> {
         let possible = self.solver.possible_layouts(trick.position);
         let mut acc: Front = vec![vec![possible; self.solver.target_count]];
         for (play, play_layouts) in self.solver.defender_options(trick) {
-            let next = trick.with_defender_play(play).next_position(self.layouts);
+            let next =
+                trick.with_defender_play(play).next_position(self.layouts);
             let child = self.start_of_trick(next, depth + 1);
             acc = combine(&acc, &child, possible.difference(play_layouts));
         }
@@ -132,15 +142,9 @@ fn rank(symbol: char) -> Rank {
     rank_for_symbol(symbol).expect("a rank symbol")
 }
 
-fn report(
-    label: &str,
-    front: &Front,
-    layouts: &Layouts,
-    base: u64,
-) {
-    let percent = |set: LayoutSet| {
-        100.0 * layouts.weight(set) as f64 / base as f64
-    };
+fn report(label: &str, front: &Front, layouts: &Layouts, base: u64) {
+    let percent =
+        |set: LayoutSet| 100.0 * layouts.weight(set) as f64 / base as f64;
     let best = front
         .iter()
         .max_by_key(|r| (layouts.weight(r[0]), layouts.weight(r[1])))
@@ -174,12 +178,22 @@ fn main() {
     let lines: Vec<(&str, Vec<Forced>)> = vec![
         ("best line", vec![]),
         ("low to the Q, then best", vec![low_to('Q')]),
-        ("low to the Q, then low to the 9", vec![low_to('Q'), low_to('9')]),
+        (
+            "low to the Q, then low to the 9",
+            vec![low_to('Q'), low_to('9')],
+        ),
         ("low to the 9, then best", vec![low_to('9')]),
-        ("low to the 9, then low to the Q", vec![low_to('9'), low_to('Q')]),
+        (
+            "low to the 9, then low to the Q",
+            vec![low_to('9'), low_to('Q')],
+        ),
     ];
     for (label, plan) in lines {
-        let mut search = Search { solver: &mut solver, layouts: &layouts, plan };
+        let mut search = Search {
+            solver: &mut solver,
+            layouts: &layouts,
+            plan,
+        };
         let front = search.start_of_trick(start, 0);
         report(label, &front, &layouts, all);
     }
@@ -200,12 +214,20 @@ fn main() {
         ("best continuation", vec![]),
         (
             "lead the J and play the 9",
-            vec![Forced { leader: Hand::South, lead: Some(rank('J')), target: rank('9') }],
+            vec![Forced {
+                leader: Hand::South,
+                lead: Some(rank('J')),
+                target: rank('9'),
+            }],
         ),
         ("low to the 9", vec![low_to('9')]),
     ];
     for (label, plan) in continuations {
-        let mut search = Search { solver: &mut solver, layouts: &layouts, plan };
+        let mut search = Search {
+            solver: &mut solver,
+            layouts: &layouts,
+            plan,
+        };
         let front = search.start_of_trick(after_first, 0);
         report(label, &front, &layouts, base);
     }
@@ -218,7 +240,10 @@ fn main() {
             .map(|r| r.to_vec())
             .collect();
         report(
-            &format!("{leader:?} leads the {}", suit_combinations::cards::rank_symbol(lead)),
+            &format!(
+                "{leader:?} leads the {}",
+                suit_combinations::cards::rank_symbol(lead)
+            ),
             &front,
             &layouts,
             base,
@@ -230,7 +255,9 @@ fn main() {
             let name = match play {
                 DefenderPlay::Group(g) => format!(
                     "{}",
-                    suit_combinations::cards::rank_symbol(layouts.groups[g].top())
+                    suit_combinations::cards::rank_symbol(
+                        layouts.groups[g].top()
+                    )
                 ),
                 DefenderPlay::ShowOut => "shows out".to_string(),
             };
@@ -241,7 +268,10 @@ fn main() {
                     .map(|r| r.to_vec())
                     .collect();
                 let third_name = match third {
-                    FollowPlay::Card(card) => format!("{}", suit_combinations::cards::rank_symbol(card)),
+                    FollowPlay::Card(card) => format!(
+                        "{}",
+                        suit_combinations::cards::rank_symbol(card)
+                    ),
                     FollowPlay::Discard => "discard".to_string(),
                 };
                 report(

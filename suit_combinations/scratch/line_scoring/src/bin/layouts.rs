@@ -21,7 +21,11 @@ fn holding(layouts: &Layouts, defender: Defender, index: usize) -> String {
             text.push_str(&"x".repeat(usize::from(count)));
         }
     }
-    if text.is_empty() { "-".to_string() } else { text }
+    if text.is_empty() {
+        "-".to_string()
+    } else {
+        text
+    }
 }
 
 fn main() {
