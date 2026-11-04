@@ -48,7 +48,7 @@ from playwright.sync_api import sync_playwright
 from pypdf import PdfReader, PdfWriter, Transformation
 from reportlab.pdfgen import canvas
 
-from renderer.fonts import register_entry_fonts
+from renderer.fonts import FONTS_DIRECTORY, register_entry_fonts
 from renderer.private_paths import discover_private_assets
 from renderer.render_card import (
   RenderResult,
@@ -105,40 +105,40 @@ _FONT_STACK = (
 # Headless Chromium on macOS gives up on glyph fallback (suit symbols render as
 # missing-glyph boxes) when a stack names a family that resolves to nothing, so
 # every family in the stack must resolve. The conversion injects @font-face
-# rules for each web family under its own name, backed by the private repo's
-# font files: a roman and an italic variable file each, serving every weight the
-# card asks for through one variable-range descriptor. Injected unconditionally
-# — these are the same files the families install from, and a declared face
-# shadowing an installed family keeps the conversion identical on every machine.
+# rules for each web family under its own name, backed by the repo's font files
+# (paths relative to `FONTS_DIRECTORY`): a roman and an italic variable file
+# each, serving every weight the card asks for through one variable-range
+# descriptor. Injected unconditionally — these are the same files the families
+# install from, and a declared face shadowing an installed family keeps the
+# conversion identical on every machine.
 _WEB_FAMILY_FONT_FILES: Mapping[str, Mapping[str, str]] = {
   'Roboto Condensed': {
-    'normal': 'RobotoCondensed-variable.ttf',
-    'italic': 'RobotoCondensed-Italic-variable.ttf',
+    'normal': 'roboto-condensed/RobotoCondensed-variable.ttf',
+    'italic': 'roboto-condensed/RobotoCondensed-Italic-variable.ttf',
   },
   'Source Sans 3': {
-    'normal': 'SourceSans3-variable.ttf',
-    'italic': 'SourceSans3-Italic-variable.ttf',
+    'normal': 'source-sans-3/SourceSans3-variable.ttf',
+    'italic': 'source-sans-3/SourceSans3-Italic-variable.ttf',
   },
   'IBM Plex Sans': {
-    'normal': 'IBMPlexSans-variable.ttf',
-    'italic': 'IBMPlexSans-Italic-variable.ttf',
+    'normal': 'ibm-plex/IBMPlexSans-variable.ttf',
+    'italic': 'ibm-plex/IBMPlexSans-Italic-variable.ttf',
   },
 }
 
 
 def _stack_font_faces() -> str:
-  """CSS `@font-face` rules serving the stack families from private-repo files.
+  """CSS `@font-face` rules serving the stack families from the repo's fonts.
 
   Each family gets a roman and an italic face carrying a full variable weight
   range — Chromium clamps a requested weight to the file's actual axis — with
   the font data inlined as a data URI, so the injected styles carry no file
   references.
   """
-  fonts_directory = discover_private_assets().fonts_directory
   rules = []
   for family, files in _WEB_FAMILY_FONT_FILES.items():
-    for style, file_name in files.items():
-      font = (fonts_directory / file_name).read_bytes()
+    for style, relative_path in files.items():
+      font = (FONTS_DIRECTORY / relative_path).read_bytes()
       encoded = base64.b64encode(font).decode('ascii')
       rules.append(
         '@font-face {\n'

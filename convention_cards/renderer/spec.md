@@ -140,17 +140,14 @@ function of (text, font, rectangle) — unit-testable with no rendering involved
     tested, this version is the narrowest that keeps both the tallest lowercase
     and Medium's stroke; the narrower candidates have shorter lowercase and
     thinner strokes. Raising the grade instead of the weight is what gives it
-    Medium's stroke at Regular's width. Measurements and provenance live in
-    bridge-private's `convention_cards/fonts/README.md`.
+    Medium's stroke at Regular's width. Measurements and provenance live in the
+    repo's `fonts/README.md`.
   - Optical size: a font axis that reshapes letters for the size they print at;
     small settings give up large-size refinement for the taller lowercase and
     sturdier strokes small print needs. 6pt is the axis's minimum, not the size
     entries print at — every entry on the card falls in that small-print range.
   - Fallback: if the pick proves unworkable in practice, Roboto Condensed
     Medium, the runner-up on the same measurements.
-  - Location: fonts are not committed to this repo. The default lives in
-    bridge-private and is found at run time, like the base artwork, so a missing
-    font is a hard error naming the path that was tried.
 - **Vertical placement** {#vertical-placement}: an entry's baseline sits just
   above its printed rule — about 1pt of daylight — the way a hand writes on a
   line, with descenders crossing the rule. Two alternatives were rejected:
@@ -229,8 +226,9 @@ content is pushing the limits.
   renderer must reproduce.
 - **Filled-card goldens**: committed rasters of representative placeholder
   cards, regenerated when the vocabulary or font changes (churn accepted for the
-  regression coverage). Because fonts live outside the repo, these goldens
-  reproduce only on a machine with the same font files installed.
+  regression coverage). The entry font is committed, but the suit symbols come
+  from the machine's Apple Symbols, so these goldens reproduce only on a machine
+  with the same copy of that font.
 - **Golden resolution** {#golden-resolution}: both whole-card comparisons
   rasterize at the filled goldens' scale, `GOLDEN_SCALE` in
   `regenerate_goldens.py`. Resolution matters for one kind of change: text

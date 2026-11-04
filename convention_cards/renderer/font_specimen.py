@@ -14,73 +14,91 @@ from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
+from renderer.fonts import FONTS_DIRECTORY
 from renderer.markup import parse_suit_markup
 from renderer.overlay import DEFAULT_PALETTE
 from renderer.private_paths import discover_private_assets
 
-# The candidate collection and the printed sheet live in the bridge-private
-# sibling repo, whose `fonts/README.md` records each file's provenance.
-FONTS_DIR = discover_private_assets().fonts_directory
-OUT_PATH = FONTS_DIR / 'specimen.pdf'
+# The candidates come from the repo's font collection, whose `README.md` records
+# each file's provenance. The printed sheet goes to the bridge-private sibling
+# repo, as the palette specimen's does.
+OUT_PATH = discover_private_assets().font_specimen_directory / 'specimen.pdf'
+
+# Each candidate family's folder in the collection.
+GOOGLE_SANS_FLEX = FONTS_DIRECTORY / 'google-sans-flex'
+IBM_PLEX = FONTS_DIRECTORY / 'ibm-plex'
+PT_SANS = FONTS_DIRECTORY / 'pt-sans'
+ROBOTO_CONDENSED = FONTS_DIRECTORY / 'roboto-condensed'
+ROBOTO_FLEX = FONTS_DIRECTORY / 'roboto-flex'
 
 # (label, path, subfont index, extra letter spacing as a fraction of size)
 #
 # Ordered as pairs: each face's regular cut, then its stronger variant.
 CANDIDATES = [
-  ('Roboto Flex (8pt caption cut)', FONTS_DIR / 'RobotoFlex-opsz8.ttf', 0, 0.0),
+  (
+    'Roboto Flex (8pt caption cut)',
+    ROBOTO_FLEX / 'RobotoFlex-opsz8.ttf',
+    0,
+    0.0,
+  ),
   (
     'Roboto Flex 8pt GRADE+50 (weight, same width)',
-    FONTS_DIR / 'RobotoFlex-opsz8-grad50.ttf',
+    ROBOTO_FLEX / 'RobotoFlex-opsz8-grad50.ttf',
     0,
     0.0,
   ),
   (
     'Google Sans Flex (6pt Condensed)',
-    FONTS_DIR / 'GoogleSansFlex-opsz6-Condensed.ttf',
+    GOOGLE_SANS_FLEX / 'GoogleSansFlex-opsz6-Condensed.ttf',
     0,
     0.0,
   ),
   (
     'Google Sans Flex 6pt Condensed MEDIUM',
-    FONTS_DIR / 'GoogleSansFlex-opsz6-Condensed-Medium.ttf',
+    GOOGLE_SANS_FLEX / 'GoogleSansFlex-opsz6-Condensed-Medium.ttf',
     0,
     0.0,
   ),
   (
     'Google Sans Flex 6pt SuperCondensed MEDIUM',
-    FONTS_DIR / 'GoogleSansFlex-opsz6-SuperCondensed-Medium.ttf',
+    GOOGLE_SANS_FLEX / 'GoogleSansFlex-opsz6-SuperCondensed-Medium.ttf',
     0,
     0.0,
   ),
   (
     'Google Sans Flex 6pt SuperCondensed GRADE100 (Medium stroke, narrower)',
-    FONTS_DIR / 'GoogleSansFlex-opsz6-SuperCondensed-Grad100.ttf',
+    GOOGLE_SANS_FLEX / 'GoogleSansFlex-opsz6-SuperCondensed-Grad100.ttf',
     0,
     0.0,
   ),
   (
     'IBM Plex Sans Condensed',
-    FONTS_DIR / 'IBMPlexSansCondensed-Regular.ttf',
+    IBM_PLEX / 'IBMPlexSansCondensed-Regular.ttf',
     0,
     0.0,
   ),
   (
     'IBM Plex Condensed MEDIUM',
-    FONTS_DIR / 'IBMPlexSansCondensed-Medium.ttf',
+    IBM_PLEX / 'IBMPlexSansCondensed-Medium.ttf',
     0,
     0.0,
   ),
-  ('PT Sans Narrow', FONTS_DIR / 'PTSansNarrow-Regular.ttf', 0, 0.0),
+  ('PT Sans Narrow', PT_SANS / 'PTSansNarrow-Regular.ttf', 0, 0.0),
   (
     'PT Sans Narrow TRACKED +1.5% (opened spacing)',
-    FONTS_DIR / 'PTSansNarrow-Regular.ttf',
+    PT_SANS / 'PTSansNarrow-Regular.ttf',
     0,
     0.015,
   ),
-  ('Roboto Condensed', FONTS_DIR / 'RobotoCondensed-Regular.ttf', 0, 0.0),
+  (
+    'Roboto Condensed',
+    ROBOTO_CONDENSED / 'RobotoCondensed-Regular.ttf',
+    0,
+    0.0,
+  ),
   (
     'Roboto Condensed MEDIUM',
-    FONTS_DIR / 'RobotoCondensed-Medium.ttf',
+    ROBOTO_CONDENSED / 'RobotoCondensed-Medium.ttf',
     0,
     0.0,
   ),

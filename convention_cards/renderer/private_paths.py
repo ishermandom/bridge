@@ -3,11 +3,9 @@
 
 """Where the assets kept in the private sibling repo live on disk.
 
-The renderer's base artwork is ACBL's copyrighted card, and its fonts include
-cuts that are not freely redistributable, so neither is committed to this public
-repository. They live in the `bridge-private` checkout beside this one instead,
-and the specimen scripts write their printed sheets back there, next to the
-collections they compare.
+The renderer's base artwork is ACBL's copyrighted card, so it is not committed
+to this public repository. It lives in the `bridge-private` checkout beside this
+one instead, and the specimen scripts write their printed sheets back there.
 
 One location covers all of it: the paths below are fixed subpaths of one
 discovered checkout, so they cannot drift apart and there is a single thing to
@@ -38,11 +36,8 @@ class PrivateAssets:
     return self.root / 'convention_cards' / 'acbl.pdf'
 
   @property
-  def fonts_directory(self) -> Path:
-    """The font collection: entry-face candidates and the HTML card's stack.
-
-    `fonts/README.md` there records each file's provenance.
-    """
+  def font_specimen_directory(self) -> Path:
+    """Where the font specimen writes its printed comparison sheet."""
     return self.root / 'convention_cards' / 'fonts'
 
   @property

@@ -176,9 +176,9 @@ wants something different.
 - **Fonts are installed, not bundled.** The stylesheet names families,
   WeasyPrint finds them through fontconfig, and the README documents the
   install. Only publicly available, open-licensed fonts are used, so any machine
-  can be set up identically; the exact files are captured in `bridge-private`
-  alongside its other fonts, in case an upstream copy vanishes or drifts. The
-  public repo carries no font files.
+  can be set up identically. The exact files are also kept in the repo's
+  `fonts/` directory, in case an upstream copy vanishes or drifts, but the
+  renderer never reads them from there.
 - **No font fallback goes unnoticed.** Every render inspects the PDF's embedded
   fonts and fails if a family outside the chosen set appears — the sign that
   something fell back to whatever fontconfig found: a glyph the chosen fonts

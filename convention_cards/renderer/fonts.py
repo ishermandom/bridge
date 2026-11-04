@@ -3,9 +3,9 @@
 
 """Font registration and measurement for entry text.
 
-Entry text renders in a swappable text font, supplied as a font file path and
-never committed to the repo. Suit symbols always come from Apple Symbols
-instead, which reliably covers ♠♥♦♣ where text faces often don't.
+Entry text renders in a swappable text font, supplied as a font file path. Suit
+symbols always come from Apple Symbols instead, which reliably covers ♠♥♦♣ where
+text faces often don't.
 """
 
 from collections.abc import Mapping
@@ -16,18 +16,22 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 from renderer.markup import Suit, TextRun
-from renderer.private_paths import discover_private_assets
+
+# The repo's font collection, at the repo root, with one folder per family.
+# `README.md` there records each file's provenance.
+FONTS_DIRECTORY = Path(__file__).resolve().parents[2] / 'fonts'
 
 
 def default_text_font_path() -> Path:
-  """The pinned entry face, in the bridge-private sibling repo's fonts.
+  """The pinned entry face, from the repo's font collection.
 
   Google Sans Flex at 6pt optical size, SuperCondensed width, Regular weight
-  graded up to Medium's stroke (GRAD 100). The repo's `fonts/README.md` records
-  its provenance and measurements.
+  graded up to Medium's stroke (GRAD 100). `fonts/README.md` records its
+  provenance and measurements.
   """
   return (
-    discover_private_assets().fonts_directory
+    FONTS_DIRECTORY
+    / 'google-sans-flex'
     / 'GoogleSansFlex-opsz6-SuperCondensed-Grad100.ttf'
   )
 

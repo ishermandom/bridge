@@ -226,13 +226,16 @@ memorized layout. Currently a prototype under `practice/squeezes/scratch/`; see
 
 ## Licensing
 
-This repository is dual-licensed to reflect the difference between code and
-educational content:
+Different parts of this repository carry different licenses, reflecting the
+difference between code, educational content, and third-party fonts:
 
 - **Code** is licensed under the [MIT License](LICENSE).
 - **The publishable flashcard content** in `flashcards/` is licensed under
   [Creative Commons Attribution 4.0 International (CC-BY-4.0)](flashcards/LICENSE)
   — free to use, share, and adapt, including commercially, as long as you give
   credit.
+- **The fonts** in `fonts/` belong to their own authors, each family under the
+  [SIL Open Font License 1.1](https://openfontlicense.org) in the `OFL.txt`
+  beside its files; see [`fonts/README.md`](fonts/README.md).
 
-Copyright 2026 Ilya Sherman (ishermandom@).
+Copyright 2026 Ilya Sherman (ishermandom@), except for the fonts.
