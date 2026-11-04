@@ -197,23 +197,27 @@ ul ul ul ul > li::before {
    every depth below it too, so a new shape restates every property the shape
    above it set.
 
-   Each rung also moves its glyph so the glyph's ink centers where a circle's
-   does: 0.30em in from the box's left edge and 0.33em above the baseline, in
-   the body's em. `left` and `vertical-align` measure in the glyph's own em, so
-   each offset is the circle's center divided by the rung's font size, less the
-   glyph's own ink center. An ink center is the midpoint of a glyph's outline
-   bounds in its font file, as fontTools' BoundsPen measures them. A filled
-   glyph has the same bounds as its unfilled twin, so it keeps the twin's
-   offsets.
+   Each rung also moves its glyph into line with a circle. Across, the glyph's
+   ink starts where a circle's does, 0.062em in from the box's left edge, which
+   is about where a digit's ink starts in the text above. Up, its ink centers
+   where a circle's does, 0.33em above the baseline. Both measures are in the
+   body's em, while `left` and `vertical-align` measure in the glyph's own em,
+   so each offset is the circle's measure divided by the rung's font size, less
+   the glyph's own. A glyph's measures come from its outline bounds in its font
+   file, as fontTools' BoundsPen reports them: the ink's left edge, and the
+   midpoint of its top and bottom. A filled glyph has the same bounds as its
+   unfilled twin, so it keeps the twin's offsets.
 
    A triangle fills only half its bounding box, where a circle fills most of its
-   own, so the triangles draw 1.25 times as large to carry a circle's weight. */
+   own, so the triangles draw 1.1 times as large to carry more of a circle's
+   weight. Any larger, and a triangle that starts where a circle does crowds its
+   own text. */
 ul ul ul ul ul > li::before {
-  font-size: 1.25em;
-  width: calc(var(--marker-width) / 1.25);
-  margin-left: calc(-1 * var(--marker-width) / 1.25);
-  left: -0.07em; /* 0.30 / 1.25 - 0.310, ▷'s ink center across */
-  vertical-align: -0.081em; /* 0.33 / 1.25 - 0.345, ▷'s ink center up */
+  font-size: 1.1em;
+  width: calc(var(--marker-width) / 1.1);
+  margin-left: calc(-1 * var(--marker-width) / 1.1);
+  left: -0.006em; /* 0.062 / 1.1 - 0.062, ▷'s ink left edge */
+  vertical-align: -0.045em; /* 0.33 / 1.1 - 0.345, ▷'s ink center height */
   content: "▷";
 }
 ul ul ul ul ul ul > li::before {
@@ -224,14 +228,14 @@ ul ul ul ul ul ul > li::before {
    its shapes larger than Source Sans 3 does, so these rungs shrink them. The
    pentagon shrinks until its ink stands about as tall as a circle's, 0.47em. A
    diamond fills half its bounding box, as a triangle does, so it shrinks only
-   to about the enlarged triangles' height, 0.61em. */
+   to 0.61em. */
 ul ul ul ul ul ul ul > li::before {
   font-family: "STIX Two Math";
   font-size: 0.58em; /* 0.47 / 0.81, ⬠'s ink height */
   width: calc(var(--marker-width) / 0.58);
   margin-left: calc(-1 * var(--marker-width) / 0.58);
-  left: 0.051em; /* 0.30 / 0.58 - 0.466, ⬠'s ink center across */
-  vertical-align: 0.269em; /* 0.33 / 0.58 - 0.30, ⬠'s ink center up */
+  left: 0.07em; /* 0.062 / 0.58 - 0.037, ⬠'s ink left edge */
+  vertical-align: 0.269em; /* 0.33 / 0.58 - 0.30, ⬠'s ink center height */
   content: "⬠";
 }
 ul ul ul ul ul ul ul ul > li::before {
@@ -241,8 +245,8 @@ ul ul ul ul ul ul ul ul ul > li::before {
   font-size: 0.6em; /* 0.61 / 1.01, ◇'s ink height */
   width: calc(var(--marker-width) / 0.6);
   margin-left: calc(-1 * var(--marker-width) / 0.6);
-  left: -0.044em; /* 0.30 / 0.6 - 0.544, ◇'s ink center across */
-  vertical-align: 0.295em; /* 0.33 / 0.6 - 0.255, ◇'s ink center up */
+  left: 0.063em; /* 0.062 / 0.6 - 0.040, ◇'s ink left edge */
+  vertical-align: 0.295em; /* 0.33 / 0.6 - 0.255, ◇'s ink center height */
   content: "◇";
 }
 ul ul ul ul ul ul ul ul ul ul > li::before {
@@ -250,11 +254,11 @@ ul ul ul ul ul ul ul ul ul ul > li::before {
 }
 ul ul ul ul ul ul ul ul ul ul ul > li::before {
   font-family: "Source Sans 3";
-  font-size: 1.25em;
-  width: calc(var(--marker-width) / 1.25);
-  margin-left: calc(-1 * var(--marker-width) / 1.25);
-  left: -0.06em; /* 0.30 / 1.25 - 0.300, △'s ink center across */
-  vertical-align: -0.086em; /* 0.33 / 1.25 - 0.35, △'s ink center up */
+  font-size: 1.1em;
+  width: calc(var(--marker-width) / 1.1);
+  margin-left: calc(-1 * var(--marker-width) / 1.1);
+  left: -0.006em; /* 0.062 / 1.1 - 0.062, △'s ink left edge */
+  vertical-align: -0.05em; /* 0.33 / 1.1 - 0.35, △'s ink center height */
   content: "△";
 }
 ul ul ul ul ul ul ul ul ul ul ul ul > li::before {

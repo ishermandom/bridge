@@ -197,9 +197,9 @@ wants something different.
   disc/circle/square keywords: browsers draw the keywords as shapes while
   WeasyPrint substitutes glyphs of its own choosing, and the two media would
   drift apart.
-- **Shapes of equal weight on one center**: whatever its shape or font, every
-  marker should look about as prominent as a circle and sit centered where a
-  circle does.
+- **Shapes of equal weight, in line**: whatever its shape or font, every marker
+  should look about as prominent as a circle, with its left edge where a
+  circle's is and its center at a circle's height.
 - **An indent of one marker**: each list depth indents by exactly the width of
   one marker, so a child's marker starts directly under its parent's text in
   every output format. Bulleted lists must be tight, with no blank lines between
