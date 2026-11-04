@@ -394,3 +394,60 @@ def test_callout_beside_other_items_fails_the_render(
 def test_callout_nested_under_no_item_fails_the_render(pandoc: Pandoc) -> None:
   error = pandoc.error('- _Note: stray_\n', 'callouts.lua')
   assert 'is nested under no item' in error
+
+
+# --- tight lists ---
+
+
+def test_tight_list_renders_unchanged(pandoc: Pandoc) -> None:
+  html = pandoc.output(
+    """
+    - 1D=negative
+    - 1H=positive
+      - 1S=relay
+    """,
+    'tight_lists.lua',
+  )
+  assert html == (
+    '<ul>\n'
+    '<li>1D=negative</li>\n'
+    '<li>1H=positive\n'
+    '<ul>\n'
+    '<li>1S=relay</li>\n'
+    '</ul></li>\n'
+    '</ul>\n'
+  )
+
+
+def test_loose_list_fails_the_render(pandoc: Pandoc) -> None:
+  error = pandoc.error(
+    """
+    - 1D=negative
+
+    - 1H=positive
+    """,
+    'tight_lists.lua',
+  )
+  assert 'loose list' in error
+  assert '"1D=negative"' in error
+
+
+def test_item_opening_with_a_nested_list_fails_the_render(
+  pandoc: Pandoc,
+) -> None:
+  error = pandoc.error('- - 1D=negative\n', 'tight_lists.lua')
+  assert 'opens with a block of type BulletList' in error
+
+
+def test_loose_numbered_list_renders(pandoc: Pandoc) -> None:
+  # A numbered list keeps the standard list marker, which sits beside an item's
+  # paragraph as readily as beside its plain text.
+  html = pandoc.output(
+    """
+    1. Against suits
+
+    2. Against notrump
+    """,
+    'tight_lists.lua',
+  )
+  assert '<li><p>Against suits</p></li>' in html

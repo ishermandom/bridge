@@ -202,7 +202,8 @@ wants something different.
   circle does.
 - **An indent of one marker**: each list depth indents by exactly the width of
   one marker, so a child's marker starts directly under its parent's text in
-  every output format.
+  every output format. Bulleted lists must be tight, with no blank lines between
+  items; the renderer fails on a loose one rather than guess at its layout.
 - **Suit bids align on their own; notrump does not.** Plex's digits are tabular
   by default and STIX's four suits share one advance width, so every suit bid
   comes out the same width with no styling at all, and a run of list items

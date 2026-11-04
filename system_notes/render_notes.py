@@ -42,11 +42,13 @@ STYLESHEET = TOOL_DIRECTORY / 'notes.css'
 #
 # `bids.lua` may run at any point in the order: it rewrites only inline text
 # that no other filter touches. So may `callouts.lua`, which moves whole list
-# items and rewrites nothing inside them.
+# items and rewrites nothing inside them, and `tight_lists.lua`, which only
+# checks how each list item opens.
 FILTERS = tuple(
   TOOL_DIRECTORY / 'filters' / name
   for name in (
     'metadata.lua',
+    'tight_lists.lua',
     'bids.lua',
     'callouts.lua',
     'nowrap.lua',
