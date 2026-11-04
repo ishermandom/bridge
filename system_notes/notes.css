@@ -154,11 +154,14 @@ ul, ol {
   margin: 0.25em 0;
 }
 ul {
-  /* Each depth indents by one marker box, so a child's marker starts directly
-     under its parent's text. The box is as wide as a Source Sans circle and the
-     word space after it: 0.60em and 0.23em. */
+  /* Each depth indents by one marker box and a hair more, so a child's marker
+     starts just inside its parent's text. A marker's left side carries more ink
+     than the serif, curve, or crossbar tip that commonly opens a line of text;
+     so set flush with that text, the marker would look to stick out past it.
+     The box is as wide as a Source Sans circle and the word space after it:
+     0.60em and 0.23em. */
   --marker-width: 0.83em;
-  padding-left: var(--marker-width);
+  padding-left: calc(var(--marker-width) + 0.04em);
   list-style: none;
 }
 ol {
@@ -168,8 +171,8 @@ ol {
 li {
   margin: 0.12em 0;
 }
-/* Each marker is a box exactly one indent wide, hung in the indent at the start
-   of its item's first line. A standard list marker (`list-style-type`) would
+/* Each marker is a box of fixed width, hung in the indent right before its
+   item's first line of text. A standard list marker (`list-style-type`) would
    take its glyph's own width instead, so an enlarged glyph, or one from another
    font, would fall out of line with the rest. The box takes no height in its
    line, so a large glyph never pushes the line apart. The body font has none of
@@ -198,15 +201,14 @@ ul ul ul ul > li::before {
    above it set.
 
    Each rung also moves its glyph into line with a circle. Across, the glyph's
-   ink starts where a circle's does, 0.062em in from the box's left edge, which
-   is about where a digit's ink starts in the text above. Up, its ink centers
-   where a circle's does, 0.33em above the baseline. Both measures are in the
-   body's em, while `left` and `vertical-align` measure in the glyph's own em,
-   so each offset is the circle's measure divided by the rung's font size, less
-   the glyph's own. A glyph's measures come from its outline bounds in its font
-   file, as fontTools' BoundsPen reports them: the ink's left edge, and the
-   midpoint of its top and bottom. A filled glyph has the same bounds as its
-   unfilled twin, so it keeps the twin's offsets.
+   ink starts where a circle's does, 0.062em in from the box's left edge. Up,
+   its ink centers where a circle's does, 0.33em above the baseline. Both
+   measures are in the body's em, while `left` and `vertical-align` measure in
+   the glyph's own em, so each offset is the circle's measure divided by the
+   rung's font size, less the glyph's own. A glyph's measures come from its
+   outline bounds in its font file, as fontTools' BoundsPen reports them: the
+   ink's left edge, and the midpoint of its top and bottom. A filled glyph has
+   the same bounds as its unfilled twin, so it keeps the twin's offsets.
 
    A triangle fills only half its bounding box, where a circle fills most of its
    own, so the triangles draw 1.1 times as large to carry more of a circle's

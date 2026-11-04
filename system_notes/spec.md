@@ -200,10 +200,11 @@ wants something different.
 - **Shapes of equal weight, in line**: whatever its shape or font, every marker
   should look about as prominent as a circle, with its left edge where a
   circle's is and its center at a circle's height.
-- **An indent of one marker**: each list depth indents by exactly the width of
-  one marker, so a child's marker starts directly under its parent's text in
-  every output format. Bulleted lists must be tight, with no blank lines between
-  items; the renderer fails on a loose one rather than guess at its layout.
+- **An indent of one marker**: each list depth indents by the width of one
+  marker and a hair more, so a child's marker starts just inside its parent's
+  text, where its solid edge looks in line with the lighter strokes that open
+  the text. Bulleted lists must be tight, with no blank lines between items; the
+  renderer fails on a loose one rather than guess at its layout.
 - **Suit bids align on their own; notrump does not.** Plex's digits are tabular
   by default and STIX's four suits share one advance width, so every suit bid
   comes out the same width with no styling at all, and a run of list items
