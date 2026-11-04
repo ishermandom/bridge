@@ -15,7 +15,7 @@ fn holding(layouts: &Layouts, defender: Defender, index: usize) -> String {
         let count = layouts.count_of(defender, group_index, index);
         if group.size() == 1 {
             if count == 1 {
-                text.push_str(&rank_symbol(group.top()).to_string());
+                text.push(rank_symbol(group.top()));
             }
         } else {
             text.push_str(&"x".repeat(usize::from(count)));

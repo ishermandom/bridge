@@ -75,10 +75,10 @@ impl Search<'_, '_> {
                     None
                 },
             );
-            if let Some(lead) = lead {
-                if partner.contains(forced.target) {
-                    return self.forced_trick(position, forced, lead, depth);
-                }
+            if let Some(lead) = lead
+                && partner.contains(forced.target)
+            {
+                return self.forced_trick(position, forced, lead, depth);
             }
         }
         self.solver
