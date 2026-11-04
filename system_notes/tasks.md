@@ -51,6 +51,13 @@ Design decisions live in `spec.md`; this file tracks the work.
   - Note: the endnotes open with a rule rather than a heading, so a block of
     them taller than a column needs its own answer for a wide page, which sets
     the heading across the page.
+- [ ] **Test the marker offsets against the font outlines**
+      {#marker-offset-test} — the resized markers' `left` and `vertical-align`
+      values in `notes.css` come from glyph bounds measured by hand with
+      fontTools, so a font update would move the glyphs without anything
+      noticing, and retuning a marker means rebuilding the measuring script.
+      Recompute the offsets from the installed fonts in a test, as
+      `test_suit_skew_tracks_the_body_font_italic_angle` does for the suit skew.
 - [ ] **Per-level list markers in the source** {#source-list-markers} — an
       autoformatter giving each indentation depth its own list marker, so the
       Markdown source reads like the rendered page.
