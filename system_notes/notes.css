@@ -235,8 +235,9 @@ ul ul ul ul ul ul > li::before {
    diamonds come from STIX Two Math, which the suits already require. STIX draws
    its shapes larger than Source Sans 3 does, so these rungs shrink them. The
    pentagon shrinks until its ink stands about as tall as a circle's, 0.47em. A
-   diamond fills half its bounding box, as a triangle does, so it shrinks only
-   to 0.61em. */
+   diamond fills half its bounding box, as a triangle does, so it draws as large
+   as one: its square ink box covers the same area as a triangle's 0.546em by
+   0.523em, which makes it 0.534em on a side. */
 ul ul ul ul ul ul ul > li::before {
   font-family: "STIX Two Math";
   font-size: 0.58em; /* 0.47 / 0.81, ⬠'s ink height */
@@ -250,11 +251,11 @@ ul ul ul ul ul ul ul ul > li::before {
   content: "⬟";
 }
 ul ul ul ul ul ul ul ul ul > li::before {
-  font-size: 0.6em; /* 0.61 / 1.01, ◇'s ink height */
-  width: calc(var(--marker-width) / 0.6);
-  margin-left: calc(-1 * var(--marker-width) / 0.6);
-  left: 0.063em; /* 0.062 / 0.6 - 0.040, ◇'s ink left edge */
-  vertical-align: 0.295em; /* 0.33 / 0.6 - 0.255, ◇'s ink center height */
+  font-size: 0.53em; /* 0.534 / 1.01, ◇'s ink height */
+  width: calc(var(--marker-width) / 0.53);
+  margin-left: calc(-1 * var(--marker-width) / 0.53);
+  left: 0.077em; /* 0.062 / 0.53 - 0.040, ◇'s ink left edge */
+  vertical-align: 0.366em; /* 0.33 / 0.53 - 0.257, ◇'s ink center height */
   content: "◇";
 }
 ul ul ul ul ul ul ul ul ul ul > li::before {
