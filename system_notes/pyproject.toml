@@ -21,8 +21,12 @@ dev = [
   # The tests read heading pages from the PDF's bookmarks through pypdf; the
   # renderer itself does not need it.
   "pypdf",
-  # The tests read digit widths from the body font through fontTools.
+  # The tests measure the installed fonts through fontTools: the body font's
+  # digit widths, and the list markers' outlines.
   "fonttools",
+  # The tests read the list-marker rules from the stylesheet through tinycss2,
+  # the CSS parser WeasyPrint itself uses.
+  "tinycss2",
   # The type stubs below install with the dev tools.
   { include-group = "types" },
 ]
@@ -30,6 +34,7 @@ dev = [
 # repo's stub packages (../stubs, see the README there).
 types = [
   "fonttools-stubs",
+  "tinycss2-stubs",
   "tinyhtml5-stubs",
   "weasyprint-stubs",
 ]
@@ -41,5 +46,6 @@ package = false
 # Editable, so an edited stub takes effect on the next check without a
 # reinstall — see ../stubs/README.md.
 fonttools-stubs = { path = "../stubs/fonttools", editable = true }
+tinycss2-stubs = { path = "../stubs/tinycss2", editable = true }
 tinyhtml5-stubs = { path = "../stubs/tinyhtml5", editable = true }
 weasyprint-stubs = { path = "../stubs/weasyprint", editable = true }

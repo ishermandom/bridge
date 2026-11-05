@@ -1543,11 +1543,14 @@ dev = [
     { name = "fonttools" },
     { name = "fonttools-stubs" },
     { name = "pypdf" },
+    { name = "tinycss2" },
+    { name = "tinycss2-stubs" },
     { name = "tinyhtml5-stubs" },
     { name = "weasyprint-stubs" },
 ]
 types = [
     { name = "fonttools-stubs" },
+    { name = "tinycss2-stubs" },
     { name = "tinyhtml5-stubs" },
     { name = "weasyprint-stubs" },
 ]
@@ -1563,11 +1566,14 @@ dev = [
     { name = "fonttools" },
     { name = "fonttools-stubs", editable = "stubs/fonttools" },
     { name = "pypdf" },
+    { name = "tinycss2" },
+    { name = "tinycss2-stubs", editable = "stubs/tinycss2" },
     { name = "tinyhtml5-stubs", editable = "stubs/tinyhtml5" },
     { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
 ]
 types = [
     { name = "fonttools-stubs", editable = "stubs/fonttools" },
+    { name = "tinycss2-stubs", editable = "stubs/tinycss2" },
     { name = "tinyhtml5-stubs", editable = "stubs/tinyhtml5" },
     { name = "weasyprint-stubs", editable = "stubs/weasyprint" },
 ]
@@ -1583,6 +1589,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/a3/ae/2ca4913e5c0f09781
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/45/c7b5c3168458db837e8ceab06dc77824e18202679d0463f0e8f002143a97/tinycss2-1.5.1-py3-none-any.whl", hash = "sha256:3415ba0f5839c062696996998176c4a3751d18b7edaaeeb658c9ce21ec150661", size = 28404, upload-time = "2025-11-23T10:29:08.676Z" },
 ]
+
+[[package]]
+name = "tinycss2-stubs"
+version = "0.1.0"
+source = { editable = "stubs/tinycss2" }
 
 [[package]]
 name = "tinyhtml5"

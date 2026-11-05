@@ -215,6 +215,10 @@ ul ul ul ul > li::before {
    BoundsPen reports them: the ink's left edge, and the midpoint of its top and
    bottom. A filled glyph has the same bounds as its unfilled twin, so it keeps
    the twin's offsets, except that ▶ restates `left` to start where ■ does.
+   test_a_resized_marker_starts_its_ink_where_its_reference_does and
+   test_a_resized_marker_centers_its_ink_at_a_circles_height redo this
+   arithmetic from the installed fonts, and fail with the values to set when a
+   font or a rung's size changes.
 
    A triangle fills only half its bounding box, where a circle fills most of its
    own, so the triangles draw 1.1 times as large to carry more of a circle's
@@ -237,7 +241,10 @@ ul ul ul ul ul ul > li::before {
    pentagon shrinks until its ink stands about as tall as a circle's, 0.47em. A
    diamond fills half its bounding box, as a triangle does, so it draws as large
    as one: its square ink box covers the same area as a triangle's 0.546em by
-   0.523em, which makes it 0.534em on a side. */
+   0.523em, which makes it 0.534em on a side.
+   test_the_pentagon_stands_as_tall_as_a_circle and
+   test_the_diamond_covers_as_much_as_a_triangle recompute both sizes from the
+   installed fonts. */
 ul ul ul ul ul ul ul > li::before {
   font-family: "STIX Two Math";
   font-size: 0.58em; /* 0.47 / 0.81, ⬠'s ink height */

@@ -2,19 +2,26 @@
 # SPDX-License-Identifier: MIT
 """The fixture rendered end to end: goldens, embedded fonts, page references."""
 
+import functools
 import html
+import math
 import re
 import shutil
 import string
 import struct
-import subprocess
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Literal
 
 import pytest
 from fontTools.ttLib import TTFont
 
-from system_notes import pdf_inspection, print_layout, render_notes
+from system_notes import (
+  font_inspection,
+  marker_ladder,
+  pdf_inspection,
+  print_layout,
+  render_notes,
+)
 
 FIXTURE = Path(__file__).resolve().parent / 'fixture'
 GOLDEN_DIRECTORY = FIXTURE / 'golden'
@@ -191,16 +198,8 @@ def _italic_angle(font: Path) -> float:
   raise ValueError(f'{font} has no post table')
 
 
-# fontconfig's names for a face's slant, as a pattern like `Family:italic` asks.
-type Slant = Literal['roman', 'italic']
-
-
-def _installed_body_font(slant: Slant) -> Path:
-  """The font file fontconfig serves for the stylesheet's body family.
-
-  `slant` is fontconfig's name for the upright or the italic face. A fallback to
-  another family fails here, since a test reading it would check the wrong face.
-  """
+def _installed_body_font(slant: font_inspection.Slant) -> Path:
+  """The font file fontconfig serves for the stylesheet's body family."""
   stylesheet = read(render_notes.STYLESHEET)
   body_rule = re.search(r'body \{(?P<declarations>[^}]*)\}', stylesheet)
   assert body_rule, 'no body rule in the stylesheet'
@@ -208,22 +207,7 @@ def _installed_body_font(slant: Slant) -> Path:
     r'font-family: "(?P<family>[^"]+)"', body_rule['declarations']
   )
   assert family, 'no quoted font family in the body rule'
-
-  matched_font = subprocess.run(
-    ['fc-match', '-f', '%{family}\t%{file}', f'{family["family"]}:{slant}'],
-    capture_output=True,
-    text=True,
-    encoding='utf-8',
-    check=True,
-  ).stdout
-  matched_family, _, font_file = matched_font.partition('\t')
-  # A font can carry several family names; fc-match then reports them
-  # comma-joined.
-  assert family['family'] in matched_family.split(','), (
-    f'no installed {slant} face for the body font: fontconfig offered '
-    f'{matched_family!r}'
-  )
-  return Path(font_file)
+  return font_inspection.installed_font(family['family'], slant)
 
 
 def test_suit_skew_tracks_the_body_font_italic_angle() -> None:
@@ -259,7 +243,7 @@ def test_no_digit_is_wider_than_the_page_number_stand_in() -> None:
   test fails until the stand-in follows. Both faces count: the table of contents
   prints its numbers upright, and a cross-reference prints its in italic.
   """
-  slants: tuple[Slant, ...] = ('roman', 'italic')
+  slants: tuple[font_inspection.Slant, ...] = ('roman', 'italic')
   for slant in slants:
     face = TTFont(_installed_body_font(slant))
     glyph_names = face.getBestCmap()
@@ -271,6 +255,178 @@ def test_no_digit_is_wider_than_the_page_number_stand_in() -> None:
     assert widths['8'] == max(widths.values()), (
       f'a {slant} digit is wider than the stand-in `8`: {widths}'
     )
+
+
+# --- list marker placement and size ---
+
+
+@functools.cache
+def _upright_face(family: str) -> TTFont:
+  """The installed upright face of `family`, parsed once per test run.
+
+  Each lookup starts an `fc-match` process and each parse takes milliseconds,
+  while the installed fonts hold still for the run. The tests only read the
+  face.
+  """
+  return TTFont(font_inspection.installed_font(family, 'roman'))
+
+
+@functools.cache
+def _marker_ladder() -> Mapping[str, marker_ladder.MarkerStyle]:
+  """The list-marker ladder notes.css declares, parsed once per test run.
+
+  Each parse takes about a millisecond, and every marker case reads several
+  styles, while the stylesheet holds still for the run.
+  """
+  return marker_ladder.marker_styles(read(render_notes.STYLESHEET))
+
+
+def _marker_style(character: str) -> marker_ladder.MarkerStyle:
+  """The style notes.css gives the list marker drawn as `character`."""
+  return _marker_ladder()[character]
+
+
+def _marker_ink(character: str) -> font_inspection.InkBounds:
+  """Where the list marker drawn as `character` puts its ink, in its own em."""
+  face = _upright_face(_marker_style(character).font_family)
+  return font_inspection.ink_bounds(face, character)
+
+
+@pytest.mark.parametrize(
+  'marker',
+  [
+    pytest.param('○', id='circle'),
+    pytest.param('●', id='filled-circle'),
+    pytest.param('□', id='square'),
+    pytest.param('■', id='filled-square'),
+  ],
+)
+def test_an_unresized_marker_keeps_its_font_placement(marker: str) -> None:
+  """○, ●, □, and ■ draw at the body's size, where their font sets them.
+
+  The tests below line up the resized markers with these four by their glyphs'
+  raw measures, which holds only while these keep that placement. spec.md
+  #markers-in-line says why they do.
+  """
+  style = _marker_style(marker)
+
+  assert (style.font_size, style.left, style.vertical_align) == (1, 0, 0)
+
+
+@pytest.mark.parametrize(
+  ('marker', 'reference'),
+  [
+    pytest.param('▷', '□', id='right-triangle'),
+    pytest.param('▶', '■', id='filled-right-triangle'),
+    pytest.param('⬠', '○', id='pentagon'),
+    pytest.param('⬟', '○', id='filled-pentagon'),
+    pytest.param('◇', '○', id='diamond'),
+    pytest.param('◆', '○', id='filled-diamond'),
+    pytest.param('△', '○', id='up-triangle'),
+    pytest.param('▲', '○', id='filled-up-triangle'),
+  ],
+)
+def test_a_resized_marker_starts_its_ink_where_its_reference_does(
+  marker: str, reference: str
+) -> None:
+  """A resized marker's `left` must track the outlines in the installed fonts.
+
+  A right-pointing triangle's flat left side starts where the square of its fill
+  does, and any other shape starts where a circle does (spec.md
+  #markers-in-line). The stylesheet derives each `left` from glyph outlines,
+  which a font update can move, so this test recomputes it.
+  """
+  font_size = _marker_style(marker).font_size
+
+  # The reference draws at the body's size, so its ink's left edge is already in
+  # the body's em. Dividing by the marker's font size restates that edge in the
+  # marker's own em, the unit `left` measures in.
+  left = _marker_ink(reference).left / font_size - _marker_ink(marker).left
+
+  # The stylesheet rounds its arithmetic, so its values may stray by 0.005em:
+  # about 0.05pt at the 11pt print size, half a dot on a 600 dpi printer.
+  assert _marker_style(marker).left == pytest.approx(left, abs=0.005), (
+    f'{marker} should set left: {left:.3f}em'
+  )
+
+
+@pytest.mark.parametrize(
+  'marker',
+  [
+    pytest.param('▷', id='right-triangle'),
+    pytest.param('▶', id='filled-right-triangle'),
+    pytest.param('⬠', id='pentagon'),
+    pytest.param('⬟', id='filled-pentagon'),
+    pytest.param('◇', id='diamond'),
+    pytest.param('◆', id='filled-diamond'),
+    pytest.param('△', id='up-triangle'),
+    pytest.param('▲', id='filled-up-triangle'),
+  ],
+)
+def test_a_resized_marker_centers_its_ink_at_a_circles_height(
+  marker: str,
+) -> None:
+  """A resized marker's `vertical-align` must track the installed fonts.
+
+  Every marker's ink centers where a circle's does. The stylesheet derives each
+  `vertical-align` from glyph outlines, which a font update can move, so this
+  test recomputes it.
+  """
+  font_size = _marker_style(marker).font_size
+
+  # A circle draws at the body's size, so its ink's center height is already in
+  # the body's em. Dividing by the marker's font size restates that height in
+  # the marker's own em, the unit `vertical-align` measures in.
+  vertical_align = (
+    _marker_ink('○').center_height / font_size
+    - _marker_ink(marker).center_height
+  )
+
+  # The stylesheet rounds its arithmetic, so its values may stray by 0.005em:
+  # about 0.05pt at the 11pt print size, half a dot on a 600 dpi printer.
+  assert _marker_style(marker).vertical_align == pytest.approx(
+    vertical_align, abs=0.005
+  ), f'{marker} should set vertical-align: {vertical_align:.3f}em'
+
+
+def test_the_pentagon_stands_as_tall_as_a_circle() -> None:
+  """The pentagon's font size must keep its ink as tall as a circle's.
+
+  STIX Two Math draws its pentagon larger than Source Sans 3 draws its circle,
+  so the stylesheet shrinks the pentagon until the two stand equally tall. A
+  font update can change either height, so this test recomputes the size.
+  """
+  # A circle draws at the body's size, so its ink height is already in the
+  # body's em.
+  font_size = _marker_ink('○').height / _marker_ink('⬠').height
+
+  # The stylesheet writes font sizes to two decimal places.
+  assert _marker_style('⬠').font_size == pytest.approx(font_size, abs=0.005), (
+    f'⬠ should set font-size: {font_size:.2f}em, and restate its box width in '
+    f'that em'
+  )
+
+
+def test_the_diamond_covers_as_much_as_a_triangle() -> None:
+  """The diamond's font size must keep its ink box as large as a triangle's.
+
+  A diamond fills half its bounding box, as a triangle does, so the stylesheet
+  sizes the diamond's ink box to cover the same area as ▷'s. A font update can
+  change either box, so this test recomputes the size.
+  """
+  triangle = _marker_ink('▷')
+  triangle_font_size = _marker_style('▷').font_size
+  diamond = _marker_ink('◇')
+
+  # ▷'s ink box scaled to the body's em, against the diamond's in its own em.
+  triangle_area = triangle.width * triangle.height * triangle_font_size**2
+  font_size = math.sqrt(triangle_area / (diamond.width * diamond.height))
+
+  # The stylesheet writes font sizes to two decimal places.
+  assert _marker_style('◇').font_size == pytest.approx(font_size, abs=0.005), (
+    f'◇ should set font-size: {font_size:.2f}em, and restate its box width in '
+    f'that em'
+  )
 
 
 # --- stylesheet coupling ---
@@ -327,12 +483,10 @@ def test_print_geometry_tracks_the_stylesheet() -> None:
 
 def test_text_marker_ladder_tracks_the_stylesheet() -> None:
   """notes.css owns the list-marker ladder; the text rendering must follow."""
-  # The markers come back in the order the stylesheet declares them, which is
-  # depth order: each rule nests one `ul` deeper than the rule above it. Only a
-  # marker's `content` is a single quoted character, so the pattern matches the
-  # markers and nothing else.
-  markers = re.findall(r'content: "(.)";', read(render_notes.STYLESHEET))
-  assert tuple(markers) == render_notes.LIST_MARKERS
+  styles = marker_ladder.marker_styles(read(render_notes.STYLESHEET))
+
+  # The ladder lists its markers outermost depth first.
+  assert tuple(styles) == render_notes.LIST_MARKERS
 
 
 # --- page references ---
