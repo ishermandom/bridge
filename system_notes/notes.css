@@ -186,6 +186,9 @@ ul > li::before {
   font-family: "Source Sans 3";
   content: "○";
 }
+/* ●, □, and ■ take no offset: their font already starts their ink a little
+   inside a circle's, where a solid or flat left side looks in line
+   (spec.md #markers-in-line). */
 ul ul > li::before {
   content: "●";
 }
@@ -200,29 +203,32 @@ ul ul ul ul > li::before {
    every depth below it too, so a new shape restates every property the shape
    above it set.
 
-   Each rung also moves its glyph into line with a circle. Across, the glyph's
-   ink starts where a circle's does, 0.062em in from the box's left edge. Up,
-   its ink centers where a circle's does, 0.33em above the baseline. Both
-   measures are in the body's em, while `left` and `vertical-align` measure in
-   the glyph's own em, so each offset is the circle's measure divided by the
-   rung's font size, less the glyph's own. A glyph's measures come from its
-   outline bounds in its font file, as fontTools' BoundsPen reports them: the
-   ink's left edge, and the midpoint of its top and bottom. A filled glyph has
-   the same bounds as its unfilled twin, so it keeps the twin's offsets.
+   Each rung also moves its glyph into line with the rungs above it. Across, the
+   glyph's ink starts where a circle's does, 0.062em in from the box's left
+   edge, except that a right-pointing triangle's flat left side starts where the
+   square of its fill does: 0.073em in for □ and 0.087em for ■
+   (spec.md #markers-in-line). Up, its ink centers where a circle's does, 0.33em
+   above the baseline. These measures are in the body's em, while `left` and
+   `vertical-align` measure in the glyph's own em, so each offset is the measure
+   to match divided by the rung's font size, less the glyph's own. A glyph's
+   measures come from its outline bounds in its font file, as fontTools'
+   BoundsPen reports them: the ink's left edge, and the midpoint of its top and
+   bottom. A filled glyph has the same bounds as its unfilled twin, so it keeps
+   the twin's offsets, except that ▶ restates `left` to start where ■ does.
 
    A triangle fills only half its bounding box, where a circle fills most of its
    own, so the triangles draw 1.1 times as large to carry more of a circle's
-   weight. Any larger, and a triangle that starts where a circle does crowds its
-   own text. */
+   weight. Any larger, and a triangle crowds its own text. */
 ul ul ul ul ul > li::before {
   font-size: 1.1em;
   width: calc(var(--marker-width) / 1.1);
   margin-left: calc(-1 * var(--marker-width) / 1.1);
-  left: -0.006em; /* 0.062 / 1.1 - 0.062, ▷'s ink left edge */
+  left: 0.004em; /* 0.073 / 1.1 - 0.062, □'s and ▷'s ink left edges */
   vertical-align: -0.045em; /* 0.33 / 1.1 - 0.345, ▷'s ink center height */
   content: "▷";
 }
 ul ul ul ul ul ul > li::before {
+  left: 0.017em; /* 0.087 / 1.1 - 0.062, ■'s and ▶'s ink left edges */
   content: "▶";
 }
 /* Source Sans 3 has no pentagon or outline diamond, so the pentagons and

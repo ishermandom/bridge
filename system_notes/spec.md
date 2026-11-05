@@ -204,9 +204,18 @@ wants something different.
   disc/circle/square keywords: browsers draw the keywords as shapes while
   WeasyPrint substitutes glyphs of its own choosing, and the two media would
   drift apart.
-- **Shapes of equal weight, in line**: whatever its shape or font, every marker
-  should look about as prominent as a circle, with its left edge where a
-  circle's is and its center at a circle's height.
+- **Shapes of equal weight, in line** {#markers-in-line}: whatever its shape or
+  font, every marker should look about as prominent as a circle, with its center
+  at a circle's height and its left edge looking in line with the text above it.
+  A flat left side or a solid curve carries more ink at its leftmost edge than a
+  circle's outline, so it must sit a little further in than a circle to look in
+  line. Source Sans 3 draws ●, □, and ■ slightly smaller than ○ around the same
+  center, which starts their ink a little inside a circle's, and the stylesheet
+  keeps that placement rather than moving their ink out to a circle's measured
+  edge. A resized marker, or one from another font, keeps no such relation, so
+  the stylesheet places it by its left side: the right-pointing triangles' flat
+  side starts where the square of the same fill does, and the shapes that open
+  on a point or a corner start where a circle does.
 - **An indent of one marker**: each list depth indents by the width of one
   marker and a hair more, so a child's marker starts just inside its parent's
   text, where its solid edge looks in line with the lighter strokes that open

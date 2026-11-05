@@ -133,6 +133,7 @@ line-height: 0;
 font-family: "Source Sans 3";
 content: "○";
 }
+
 ul ul > li::before {
 content: "●";
 }
@@ -147,11 +148,12 @@ ul ul ul ul ul > li::before {
 font-size: 1.1em;
 width: calc(var(--marker-width) / 1.1);
 margin-left: calc(-1 * var(--marker-width) / 1.1);
-left: -0.006em; 
+left: 0.004em; 
 vertical-align: -0.045em; 
 content: "▷";
 }
 ul ul ul ul ul ul > li::before {
+left: 0.017em; 
 content: "▶";
 }
 
