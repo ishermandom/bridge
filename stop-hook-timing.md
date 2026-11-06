@@ -16,6 +16,10 @@ every timing below.
 - **Interleaved rounds**: 16 rounds, each running the hook untraced, the hook
   traced, and the hook's pytest invocation alone, so drift over time touches
   every variant alike. Untraced runs took 3,391–3,514ms.
+- **Rotating the order** (added 2026-11-03): a variant that leaves work behind
+  slows whichever runs next. Run right after pytest-rs on 4 workers, whose
+  temporary directories the next pytest deletes, plain pytest measured ~120ms
+  slower. Later batches rotate the order each round.
 - **Tracing**: bash's command trace timestamped every command in every script
   the hook runs, and a pytest plugin timestamped pytest's phases. The gaps
   between consecutive events split each run into back-to-back segments, each
@@ -409,6 +413,38 @@ within a batch only.
 With no arrangement winning on both kinds of turn, the hook keeps running
 everything in parallel.
 
+## pytest-rs, a faster runner to revisit {#pytest-rs}
+
+Measured on 2026-11-03 with pytest-rs 0.0.12, an alpha that reimplements
+pytest's machinery in Rust and runs the tests on an embedded CPython. On the
+hook's selection it reports exactly what pytest does, 1,359 passed and 31
+deselected. Medians of 12 rounds, the order rotated each round:
+
+| Runner               | Run alone | Whole Stop, concurrent chain |
+| -------------------- | --------: | ---------------------------: |
+| pytest               |   1,853ms |                      2,375ms |
+| pytest-rs            |   1,655ms |                      2,158ms |
+| pytest-rs, 4 workers |   1,050ms |                      1,808ms |
+
+pytest runs alone here as a direct call, without `uv run`. In the chain, four
+workers compete with cargo, the JavaScript checks and mypy for cores, which
+takes back about a third of what they save alone. pytest-rs's workers do not
+each repeat the imports, as pytest-xdist's do.
+
+Adopting it would take:
+
+- **A source build**: it publishes no prebuilt package for Python 3.15, so it
+  built with Rust, in about 50 seconds per install or update.
+- **Replacing pytest everywhere**: it installs an importable `pytest` package,
+  which reports itself as pytest 9.0.3, and cannot share an environment with
+  real pytest. Every run would use it, mid-turn and by hand as well as the
+  hook's.
+- **Unsetting `VIRTUAL_ENV`** for the hook's call: pytest-rs honors it where
+  `uv run` ignores it, and the session's points at an unrelated Python 3.14
+  environment, where 40 test files then fail to import.
+- **Accepting a bundled pytest-benchmark plugin**, which it loads even with
+  plugin autoloading off.
+
 ## A fresh worktree's first Stop {#fresh-worktree}
 
 Each worktree builds its own caches, so its first Stop pays for all of them: on
@@ -471,6 +507,18 @@ prettier and finishes first.
   pytest, so any speedup to pytest would leave the hook waiting on them.
 - **Leaving out the two test files whose every test the hook deselects**: no
   saving, since other test files import the same modules.
+- **Python 3.15's lazy imports** (measured 2026-11-03): making every import lazy
+  with `-X lazy_imports=all` breaks pytest's own import hook, and reportlab's
+  fallback imports. Narrowed by an import filter to the imports the project's
+  own code makes, every selected test still passes, but collection takes as long
+  as before: the tests the hook runs use every heavy library they import, so
+  deferring an import only moves its cost into the test loop.
+- **Switching off pytest's unused built-in plugins** (measured 2026-11-03), such
+  as `cacheprovider`, `doctest` and `legacypath`: collection runs ~14ms shorter,
+  and the whole run is unchanged within noise.
+- **A speed-oriented replacement for pytest** (surveyed 2026-11-03): none is a
+  mature drop-in yet. The closest, pytest-rs, is measured in #pytest-rs; the
+  others drop plugins, hooks or fixtures.
 
 ## What isn't attributed
 

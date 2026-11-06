@@ -154,6 +154,16 @@ production signatures for the tests' benefit.
   - Note: Claude's lean is the variant that runs one full garbage collection
     before the freeze.
 
+- [ ] **[maybe] Revisit pytest-rs once it matures** {#revisit-pytest-rs} — on
+      the hook's tests it ran up to ~40% faster than pytest:
+      [stop-hook-timing.md](stop-hook-timing.md#pytest-rs). The user is watching
+      it passively, and wants it past alpha, with reasonable confidence in its
+      quality, before it replaces pytest.
+  - Note: the signs of maturity that would build confidence include: established
+    projects outside its authors' own using it in their test runs, and a
+    conda-forge or Linux distribution package of it. A prebuilt package for the
+    repo's Python is a practical prerequisite.
+
 - [~] **Cut the formatting step's cost** {#formatting-step} — about a second of
   every Stop, broken down in
   [stop-hook-timing.md](stop-hook-timing.md#formatting). The scripts live in
