@@ -42,6 +42,12 @@ Design decisions live in `spec.md`; this file tracks the work.
     `fc-match` through `font_inspection.installed_font`, and would read the repo
     files instead), the Brewfile's three font casks (dropped), and `spec.md`
     #appearance's "Fonts are installed, not bundled" (reversed).
+  - Note: Google's standard subsets omit the suit symbols, STIX Two Math's
+    included, so a plain link leaves the screen's suits to a system fallback.
+    Request the suits and any other missing symbols by name in a second link
+    (`text=`), across the full weight and italic ranges, as `bridge-private`'s
+    HTML card does; then confirm through Chromium's
+    `CSS.getPlatformFontsForNode` that every glyph draws from a web font.
 
 ---
 
