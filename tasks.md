@@ -164,20 +164,6 @@ production signatures for the tests' benefit.
     conda-forge or Linux distribution package of it. A prebuilt package for the
     repo's Python is a practical prerequisite.
 
-- [~] **Cut the formatting step's cost** {#formatting-step} — about a second of
-  every Stop, broken down in
-  [stop-hook-timing.md](stop-hook-timing.md#formatting). The scripts live in
-  dotfiles, so the changes happen in a dotfiles worktree and need the user's
-  permission to commit there.
-  - Note: the cut landed on dotfiles `main` 2026-11-04, measured in
-    [stop-hook-timing.md](stop-hook-timing.md#concurrent-chain); the speedups
-    considered and rejected are in
-    [stop-hook-timing.md](stop-hook-timing.md#set-aside).
-  - Open question: whether to prewarm prettier's cache when a session enters a
-    worktree, which would save ~0.6s of a fresh worktree's first Stop
-    ([stop-hook-timing.md](stop-hook-timing.md#fresh-worktree)). A check-only
-    prettier run fills the same cache without touching any file.
-
 - [ ] **Revisit prettier's experimental command line**
       {#prettier-experimental-cli} — under Bun it checks files in ~24ms, against
       ~62ms for prettier's usual command line, measured in

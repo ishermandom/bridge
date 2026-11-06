@@ -463,12 +463,16 @@ cold run against one warm run, by command:
 Entering a worktree now prewarms the checks (dotfiles `claude/docs/design.md`
 #prewarm). On main without the Rust step, the prewarm took ~17s, and the first
 Stop after it 4.4s against 3.5s fully warm. The remaining ~0.9s was prettier's
-cache and a cold `find *.ts` in the formatting step, which the prewarm leaves to
-the Stop hook. Since the formatting step hands prettier the files git lists,
-only prettier's cache remains: over a fresh worktree of bridge `main`, medians
-of 10 rounds on 2026-11-05, the step took ~850ms with prettier's cache empty
-against ~280ms warm. An empty ruff cache added nothing, since ruff runs beside
-prettier and finishes first.
+cache and a cold `find *.ts` in the formatting step. Since the formatting step
+hands prettier the files git lists, only prettier's cache remained: over a fresh
+worktree of bridge `main`, medians of 10 rounds on 2026-11-05, the step took
+~850ms with prettier's cache empty against ~280ms warm. An empty ruff cache
+added nothing, since ruff runs beside prettier and finishes first.
+
+The prewarm now fills prettier's cache too, with a check that rewrites nothing
+(dotfiles `claude/hooks/prewarm_checks.sh`). Over a fresh worktree of bridge
+`main`, medians of 9 rounds on 2026-11-05, the formatting step took ~271ms after
+that check, against ~854ms with prettier's cache empty and ~267ms fully warm.
 
 ## The same hook over the dotfiles repo {#dotfiles-repo}
 
