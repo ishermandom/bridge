@@ -5,11 +5,7 @@
 
 The renderer's base artwork is ACBL's copyrighted card, so it is not committed
 to this public repository. It lives in the `bridge-private` checkout beside this
-one instead, and the specimen scripts write their printed sheets back there.
-
-One location covers all of it: the paths below are fixed subpaths of one
-discovered checkout, so they cannot drift apart and there is a single thing to
-repoint at a different checkout.
+one instead.
 """
 
 import dataclasses
@@ -34,16 +30,6 @@ class PrivateAssets:
   def base_acbl_card_pdf(self) -> Path:
     """The official fillable ACBL card the renderer overlays entries onto."""
     return self.root / 'convention_cards' / 'acbl.pdf'
-
-  @property
-  def font_specimen_directory(self) -> Path:
-    """Where the font specimen writes its printed comparison sheet."""
-    return self.root / 'convention_cards' / 'fonts'
-
-  @property
-  def palette_directory(self) -> Path:
-    """Where the palette specimen writes its printed comparison sheet."""
-    return self.root / 'convention_cards' / 'palette'
 
 
 @functools.cache

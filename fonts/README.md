@@ -16,6 +16,11 @@ Whether a font may live anywhere in this repository depends on its license:
   not qualify.
 - **Non-free licenses are ruled out**: no font under one may be adopted.
 
+A generated document, such as a specimen sheet, may embed subsets of system
+fonts under other licenses, as long as each font's license allows that embedding
+and the document's distribution. macOS's license defers to each font's own
+embedding permission, which Font Book shows.
+
 Each OFL family's folder holds the family's upstream `OFL.txt`, copied verbatim,
 because the OFL allows redistribution only as long as the license travels with
 every copy. The repository's MIT license does not cover these fonts.
@@ -57,8 +62,8 @@ These files fall into two groups: candidates for the ACBL renderer's entry text,
 and the hand-built HTML card's font stack.
 `convention_cards/renderer/spec.md #appearance` records which candidate won, and
 `convention_cards/renderer/font_specimen.py` writes a sheet comparing every
-candidate to `bridge-private`. The list below is grouped by where each file came
-from.
+candidate to `convention_cards/renderer/specimens/`. The list below is grouped
+by where each file came from.
 
 - **Static downloads** (`ibm-plex/IBMPlexSansCondensed-*.ttf`,
   `pt-sans/PTSansNarrow-Regular.ttf`) come straight from

@@ -17,14 +17,11 @@ from reportlab.pdfgen.canvas import Canvas
 from renderer.fonts import FONTS_DIRECTORY
 from renderer.markup import parse_suit_markup
 from renderer.overlay import DEFAULT_PALETTE
-from renderer.private_paths import discover_private_assets
 
-# The candidates come from the repo's font collection, whose `README.md` records
-# each file's provenance. The printed sheet goes to the bridge-private sibling
-# repo, as the palette specimen's does.
-OUT_PATH = discover_private_assets().font_specimen_directory / 'specimen.pdf'
+OUT_PATH = Path(__file__).parent / 'specimens' / 'font_specimen.pdf'
 
-# Each candidate family's folder in the collection.
+# Each candidate family's folder in the repo's font collection, whose
+# `README.md` records each file's provenance.
 GOOGLE_SANS_FLEX = FONTS_DIRECTORY / 'google-sans-flex'
 IBM_PLEX = FONTS_DIRECTORY / 'ibm-plex'
 PT_SANS = FONTS_DIRECTORY / 'pt-sans'

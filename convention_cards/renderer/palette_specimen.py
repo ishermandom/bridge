@@ -11,6 +11,8 @@ silhouette identifies it. Candidates keep each suit's exact hue
 (chromaticity-preserving rescaling) and differ only in the target lightness.
 """
 
+from pathlib import Path
+
 from fontTools.ttLib import TTFont as MetricsFont
 from reportlab.lib.colors import HexColor
 from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
@@ -18,11 +20,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
 from renderer.fonts import default_text_font_path
-from renderer.private_paths import discover_private_assets
 
-# The printed sheet embeds the entry font, so it stays in the bridge-private
-# sibling repo like the font files themselves.
-OUT_PATH = discover_private_assets().palette_directory / 'specimen.pdf'
+OUT_PATH = Path(__file__).parent / 'specimens' / 'palette_specimen.pdf'
 
 SYMBOL_FONT = '/System/Library/Fonts/Apple Symbols.ttf'
 
