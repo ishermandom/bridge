@@ -185,3 +185,26 @@ production signatures for the tests' benefit.
       keep it out of `format.sh` for now: it exits 1 rather than 2 on a parse
       error or a missing file, which `format.sh` reads as a finding rather than
       breakage, and it has no `--find-config-path`.
+
+- [ ] **Keep the agent environment's `VIRTUAL_ENV` out of the Stop hook**
+      {#session-virtual-env} — dotfiles' `zsh/.zshrc` activates
+      `~/.venvs/default`, a Python 3.14 environment, in every interactive shell,
+      so sessions and the Stop hook inherit `VIRTUAL_ENV` pointing at it while
+      bridge runs on 3.15. Nothing reads the variable on purpose: `uv run`
+      ignores it with a warning that opens mypy's halt output, and pytest-rs
+      honors it, so 40 test files then fail to import.
+  - Open question: the user prefers retiring the environment outright if nothing
+    needs it, dotfiles `tasks.md` #retire-default-venv, and will come back to
+    this after reviewing the pending branches. Narrower fixes, should retiring
+    fall through: put the environment's `bin/` on PATH without activating it,
+    which drops only the variable, or unset the variable in `stop_checks.sh`,
+    which leaves mid-turn runs warning.
+  - Note: what still used the environment on 2026-11-03, as seen from this
+    account (the user's own was unreadable): crosswords' `clue-gen` command, and
+    its `cluegen/scratch/finetune/*.sh`, which name the environment's Python and
+    `optiq` by path; the synced pdf and skill-creator skills, whose scripts
+    import pypdf, reportlab and yaml through a bare `python3`; bridge-private's
+    font README, which names it for fontTools, now a bridge dependency; and
+    throwaway scripts in sessions, using Pillow and pypdf, last on 2026-09-14.
+  - Note: `uv run --no-active`, a flag uv accepts but leaves out of `--help`,
+    silences the warning for one call; `-q` silences every warning.
