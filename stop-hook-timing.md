@@ -337,6 +337,78 @@ milliseconds from the hook's launch, medians of 8 runs of a timestamped copy:
 In that copy the third-party checks still ran in series, ~33ms each, which the
 branch now overlaps.
 
+## What competes with pytest {#contention}
+
+Measured on 2026-11-03. In the dotfiles Stop chain, mypy and lint run beside
+`run_tests.sh`, whose cargo tests and JavaScript checks run beside pytest. With
+each started the moment pytest starts, pytest's whole run against running alone,
+medians of 8 interleaved rounds:
+
+| Beside pytest                   |   Slowdown |
+| ------------------------------- | ---------: |
+| mypy                            |      +17ms |
+| lint                            |       −1ms |
+| cargo's tests                   |      +18ms |
+| the JavaScript checks           |      +82ms |
+| mypy and lint                   |      +15ms |
+| cargo and the JavaScript checks |     +168ms |
+| all four                        | +195–213ms |
+
+The two that compound both spread across many cores: cargo runs its tests in
+parallel threads, and vitest in parallel workers after `tsc`.
+
+Arranging the four differently, the step ending with whichever arm finishes
+last:
+
+- **One arm in series, mypy and lint, then the JavaScript checks, then cargo**:
+  ~60ms faster warm, but ~1s slower after an edit to the crate, since cargo's
+  ~2.4s rebuild then waits its turn and the arm outlasts pytest.
+- **cargo capped at 2 test threads**: 62ms faster in one batch of 8 rounds, but
+  11ms in a second of 16, so within noise, and no slower after an edit. With no
+  gain to show, the cap was left out.
+
+## Performance and efficiency cores {#core-kinds}
+
+Measured on 2026-11-03. This machine has 4 performance cores and 6 efficiency
+cores. macOS has no command to pin a process to a core, only scheduling classes:
+`taskpolicy -c background` clamps a process and its children to the background
+class, which runs only on the efficiency cores, and slowly. A fixed
+single-threaded loop took ~2,000ms there against ~600ms at the default class.
+The utility class ran it at full speed, so it confines nothing.
+
+Moving jobs beside pytest into the background class, the step ending with
+whichever job finishes last, medians of 8 rotated rounds:
+
+| Moved to the efficiency cores     |    Warm | After touching `src/describe.rs` |
+| --------------------------------- | ------: | -------------------------------: |
+| Nothing                           | 2,090ms |                          3,050ms |
+| The JavaScript checks             | 2,502ms |                          4,146ms |
+| cargo                             | 2,017ms |                          4,679ms |
+| The JavaScript checks and cargo   | 2,586ms |                          4,992ms |
+| mypy and lint                     | 2,063ms |                          2,984ms |
+| cargo's test run, after its build | 2,048ms |                          4,685ms |
+
+The last row comes from a second batch, whose own "nothing" row read 2,134ms
+warm and 3,865ms after the touch. The batches after the touch ran at load
+averages of 13 to 15, partly the rebuilds themselves, so those columns compare
+within a batch only.
+
+- **The JavaScript checks** take ~2.5s on the efficiency cores and outlast
+  pytest.
+- **cargo** frees pytest most: after an edit pytest ran 656ms faster, so cargo's
+  rebuild is what competes with pytest then. But the rebuild itself moves to the
+  slow cores, and the step ends ~1.6s later.
+- **cargo's test run alone**, with the build left at the default class, keeps
+  the warm gain: 86ms, where moving all of cargo saved 73ms in both batches.
+  After an edit cargo is the last job to finish, so its slower test run still
+  adds ~0.8s.
+- **mypy and lint** are short enough that moving them gains within noise.
+- **vitest on one worker**, at the default class, came out within noise on both
+  kinds of turn.
+
+With no arrangement winning on both kinds of turn, the hook keeps running
+everything in parallel.
+
 ## A fresh worktree's first Stop {#fresh-worktree}
 
 Each worktree builds its own caches, so its first Stop pays for all of them: on
@@ -391,8 +463,8 @@ prettier and finishes first.
   [tasks.md](tasks.md#fake-filesystem) #fake-filesystem would do.
 - **The JavaScript checks at a lower priority**: under `taskpolicy -c utility`,
   pytest ran 42–45ms faster beside them in three batches, but 11ms slower in a
-  fourth of 16 rounds. The lower classes, `-c background` and `-b`, slow the
-  checks to about 4s, so the hook would wait on them, and `nice -n 20` makes no
+  fourth of 16 rounds. The background class confines them to the efficiency
+  cores, where they outlast pytest (#core-kinds), and `nice -n 20` makes no
   measurable difference.
 - **vitest on a single worker**: it eased the contention by 35–50ms in one
   batch, but the checks then take about 1.9s and finish only ~0.15s before
