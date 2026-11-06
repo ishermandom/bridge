@@ -99,10 +99,9 @@ by where each file came from.
   serving the exact value: 25 gets "SuperCondensed", 50 "UltraCondensed", and an
   in-between value like 65 gets both neighbors ("ExtraCondensed" and
   "Condensed"). On the standard sample line (`SAMPLE` in `font_specimen.py`) at
-  6pt, Medium weight, the four buckets from normal down measure Condensed 255,
-  ExtraCondensed 245, UltraCondensed 234, and SuperCondensed 212. These four are
-  the whole ladder, and the `*-{Super,Ultra}Condensed-Medium.ttf` files here are
-  its narrow end.
+  6pt, Medium weight, four of the buckets measure Condensed 255, ExtraCondensed
+  245, UltraCondensed 234, and SuperCondensed 212, and the
+  `*-{Super,Ultra}Condensed-Medium.ttf` files here are the narrowest two.
 
   The API silently ignores the GRAD axis (range 0–100), so graded instances must
   be cut locally, as the next bullet describes.
