@@ -470,6 +470,90 @@ of 10 rounds on 2026-11-05, the step took ~850ms with prettier's cache empty
 against ~280ms warm. An empty ruff cache added nothing, since ruff runs beside
 prettier and finishes first.
 
+## The same hook over the dotfiles repo {#dotfiles-repo}
+
+Measured on 2026-11-03 over a clean worktree of dotfiles `main`, as a session in
+that repo runs the hook: one formatting pass, and the dotfiles suite as the
+tests. The whole Stop, medians of 6 rotated rounds, with the shell tests and
+with the test step told to run pytest alone:
+
+| Chain                                       | Whole Stop | Without the shell tests |
+| ------------------------------------------- | ---------: | ----------------------: |
+| Installed (prettier on Homebrew's Node)     |   18,340ms |                 2,514ms |
+| The dotfiles branch, everything in parallel |   17,873ms |                 2,081ms |
+
+Each step alone, medians of 4 rounds: formatting 160ms, mypy 134ms, lint 34ms,
+the third-party check 13ms, and the tests 17,853ms. The dotfiles `run_tests.sh`
+runs its 12 shell tests one after another, 15,897ms together, then pytest,
+1,857ms. The slowest shell tests:
+
+| Shell test                       |   Alone |
+| -------------------------------- | ------: |
+| `quiet-prettier-test.sh`         | 3,280ms |
+| `stop_checks-test.sh`            | 2,916ms |
+| `format-test.sh`                 | 2,798ms |
+| `worktree-test.sh`               | 1,813ms |
+| `python-stdlib-bytecode-test.sh` | 1,263ms |
+| `prewarm_checks-test.sh`         |   987ms |
+| The other six together           | 2,840ms |
+
+Each shell test builds its fixtures under a temporary directory of its own, so
+they can run together. All 12 in parallel took 3,789ms, and 3,945ms beside
+pytest, medians of 6 rotated rounds, every test passing.
+
+Without the shell tests, the same chain takes 1,140ms over the dotfiles branch's
+own tree, against 2,074ms over `main`, in one batch of 6 rounds. The branch's
+`reflow_prose.py` runs prettier under Bun, and on `main` the suite's ten tests
+that run real prettier took ~107ms each, where under Bun they take ~36ms. Over
+the branch's tree, the test step's ~940ms breaks down as:
+
+- **Start-up, ~130ms**: the runner scripts, `uv run` (~11ms), Python, importing
+  pytest (~60ms), and its configuration.
+- **Collection, 24ms.**
+- **The ten real-prettier tests, ~360ms**: half the test loop.
+- **Three tests that run the hook end to end, ~167ms.**
+- **One `gate_git_test.py` case, 44ms**: the first deny-list entry, most likely
+  paying for bashlex's deferred import on behalf of the whole file.
+- **The other 346 tests, ~180ms together**, ~50ms of it a few tests that ask the
+  real ruff for a project's line width.
+- **Shutdown, ~42ms.**
+
+The suite under other runners, over the branch's tree, medians of 8 rotated
+rounds, every runner passing the same 360 tests. "Suite alone" calls each runner
+directly; the whole Stop has the runner in the test step, also called directly,
+except in the installed row:
+
+| Runner                                      | Suite alone | Whole Stop, no shell tests |
+| ------------------------------------------- | ----------: | -------------------------: |
+| pytest, through `run_tests.sh` and `uv run` |             |                    1,157ms |
+| pytest                                      |       918ms |                    1,112ms |
+| pytest-xdist, 2 workers                     |       819ms |                            |
+| pytest-xdist, 4 workers                     |       779ms |                    1,012ms |
+| pytest-rs                                   |       866ms |                    1,077ms |
+| pytest-rs, 2 workers                        |       711ms |                            |
+| pytest-rs, 4 workers                        |       592ms |                      806ms |
+
+pytest-xdist helps here because this suite spends its time waiting on prettier
+rather than importing, so the imports each worker repeats cost less than the
+waits they overlap.
+
+Since dotfiles `036bf09`, the hook's run leaves out the shell tests, and every
+Python test that costs 25ms or more. Measured on that change's branch, that
+takes a Stop from 18,730ms to 1,104ms on the installed chain, and to 650ms with
+the formatting branch's chain, medians of 8 rotated rounds.
+
+Each test was charged its own time plus a share of the costs it shares with
+other tests. Its own time was its wall time less any cache misses it paid, as
+the cheaper of its medians over 8 runs in the usual order and 8 reversed. A
+plugin wrapping each `functools.cache` function found one shared cost, bashlex's
+deferred import, at 44ms a run over 157 `gate_git_test.py` tests, 0.28ms each;
+with it taken out, no test's cost differed between the orders by more than ~2ms.
+The 13 over 25ms, the same on `main` and under Bun, are all in
+`reflow_prose_test.py`: the ten that run real prettier and three that run the
+hook end to end. Four more sit between the 10ms target and the cutoff, at
+10–14ms: three that ask the real ruff for a line width, and one that reads a
+file with CRLF line endings.
+
 ## Speedups considered and rejected {#set-aside}
 
 - **Dropping prettier's config check**: it costs two prettier launches a Stop,
