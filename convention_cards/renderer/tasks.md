@@ -43,3 +43,31 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` droppe
       proposal (2026-08-24): let the render script take the target print mode
       and color entry text and suit symbols to match — the full palette for a
       color print, black or darkened tones for black and white.
+
+---
+
+## Suit symbols
+
+- [ ] **Compare STIX Two Math with Apple Symbols for the suits** {#stix-suits}:
+      the card draws its suit symbols in Apple Symbols, the one font the
+      renderer still takes from the machine rather than the repo's `fonts/`.
+      STIX Two Math, already in `fonts/`, draws the system notes' suits; print a
+      card in each and compare legibility, size, and the open (outlined) forms
+      the card uses.
+  - Note: a switch moves more than the glyphs — the suit-size calibration in
+    `fonts.py`, the palette specimen's ~0.56 em assumption, and the filled-card
+    goldens all follow the face.
+
+---
+
+## HTML card
+
+- [ ] **Load the HTML card's fonts from Google Fonts on screen**
+      {#html-card-web-fonts}: the hand-built HTML card in `bridge-private` names
+      Roboto Condensed, Source Sans 3, and IBM Plex Sans but loads none of them,
+      so a browser shows whichever the machine has installed. Link the three
+      families from Google Fonts in the card's HTML; Google's versions may drift
+      from the repo's, which is fine for screen viewing.
+  - Note: `make_two_sided_card.py` renders the same HTML in Chromium, so it must
+    block requests to Google's font servers, leaving the printout on the repo
+    files it already injects.

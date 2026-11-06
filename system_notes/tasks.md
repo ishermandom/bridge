@@ -30,6 +30,18 @@ Design decisions live in `spec.md`; this file tracks the work.
     `test_suit_skew_tracks_the_body_font_italic_angle`, which fails until the
     stylesheet matches the installed italic.
 
+- [ ] **Render the PDF from the repo's fonts** {#repo-fonts-in-pdf} — give
+      WeasyPrint `@font-face` rules pointing at the repo's `fonts/` files, so
+      PDF builds and the goldens stop depending on installed fonts. The
+      on-screen HTML keeps naming the families and loads them from Google Fonts;
+      Google's versions may drift from the repo's, which is fine for screen
+      viewing.
+  - Note: a PDF build must never fetch the Google Fonts rules, so they go where
+    WeasyPrint's print rendering skips them.
+  - Note: the change reaches the italic-angle test (it reads the repo file
+    instead of asking `fc-match`), the Brewfile's three font casks (dropped),
+    and `spec.md` #appearance's "Fonts are installed, not bundled" (reversed).
+
 ---
 
 ## Backlog
