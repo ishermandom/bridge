@@ -264,7 +264,7 @@ Stop after it 4.4s against 3.5s fully warm. The remaining ~0.9s is prettier's
 cache and a cold `find *.ts` in the formatting step, which the prewarm leaves to
 the Stop hook.
 
-## Levers set aside {#set-aside}
+## Speedups considered and rejected {#set-aside}
 
 - **Ending the process with `os._exit` after pytest's last cleanup**: it would
   save most of Python's shutdown, about 87ms with pytest alone. But it skips
