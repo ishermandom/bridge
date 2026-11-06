@@ -157,8 +157,11 @@ def convert_html_card(html: str) -> bytes:
   The page renders in Playwright's bundled headless Chromium from the given
   string, so the maintained file is never modified: the font faces are added to
   the live page as a style tag, and `document.fonts.ready` holds the print until
-  they finish applying. The PDF prints letter-size with zero margins, standing
-  in for the margin-free print-dialog settings the card was proofed with.
+  they finish applying. Every network request is blocked, so the print depends
+  on nothing beyond the HTML and the repo's own font files, even where the HTML
+  links web fonts for screen viewing. The PDF prints letter-size with zero
+  margins, standing in for the margin-free print-dialog settings the card was
+  proofed with.
 
   Raises:
     ValueError: if the HTML lacks the font-family declaration this script
@@ -176,6 +179,9 @@ def convert_html_card(html: str) -> bytes:
     browser = playwright.chromium.launch()
     try:
       page = browser.new_page()
+      # Abort every request before the HTML loads; the injected faces arrive as
+      # data URIs, which never reach the network.
+      page.route('**/*', lambda route: route.abort())
       page.set_content(html)
       page.add_style_tag(content=_stack_font_faces())
       page.evaluate('document.fonts.ready')
