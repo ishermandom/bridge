@@ -154,14 +154,24 @@ production signatures for the tests' benefit.
   - Note: Claude's lean is the variant that runs one full garbage collection
     before the freeze.
 
-- [ ] **Cut the formatting step's cost** {#formatting-step} — about a second of
-      every Stop, broken down in
-      [stop-hook-timing.md](stop-hook-timing.md#formatting). The scripts live in
-      dotfiles, so the changes happen in a dotfiles worktree and need the user's
-      permission to commit there.
-  - Worktree: stop-hook-runtime (planning only; the code lands in dotfiles)
-  - Note: candidates: the dotfiles `find *.ts` probe walking `.claude/`, the two
-    `prettier --find-config-path` launches, prettier's `**/*` expansion walking
-    ignored folders, `is-third-party-repo.sh` running twice, and `uv run`
-    overhead across seven calls. Prewarming prettier's cache would also save the
-    ~0.6s it costs a fresh worktree's first Stop.
+- [~] **Cut the formatting step's cost** {#formatting-step} — about a second of
+  every Stop, broken down in
+  [stop-hook-timing.md](stop-hook-timing.md#formatting). The scripts live in
+  dotfiles, so the changes happen in a dotfiles worktree and need the user's
+  permission to commit there.
+  - Note: the cut landed on dotfiles `main` 2026-11-04, measured in
+    [stop-hook-timing.md](stop-hook-timing.md#concurrent-chain); the speedups
+    considered and rejected are in
+    [stop-hook-timing.md](stop-hook-timing.md#set-aside).
+  - Open question: whether to prewarm prettier's cache when a session enters a
+    worktree, which would save ~0.6s of a fresh worktree's first Stop
+    ([stop-hook-timing.md](stop-hook-timing.md#fresh-worktree)). A check-only
+    prettier run fills the same cache without touching any file.
+
+- [ ] **Revisit prettier's experimental command line**
+      {#prettier-experimental-cli} — under Bun it checks files in ~24ms, against
+      ~62ms for prettier's usual command line, measured in
+      [stop-hook-timing.md](stop-hook-timing.md#prettier-launches). Two gaps
+      keep it out of `format.sh` for now: it exits 1 rather than 2 on a parse
+      error or a missing file, which `format.sh` reads as a finding rather than
+      breakage, and it has no `--find-config-path`.

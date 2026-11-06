@@ -112,6 +112,67 @@ Means of the traced runs; untraced runs average 3,426ms.
   its ignore rules: handed the same files as an explicit list, the write pass
   runs 48ms faster in bridge and 82ms faster in dotfiles.
 
+### Prettier's launches {#prettier-launches}
+
+Measured on 2026-11-01. The dotfiles branch `worktree-formatting-step` (at
+`16b8108`) hands prettier the files `git ls-files` lists, which removes both
+walks above and takes the step from ~1,045ms to ~693ms. Most of what remains is
+prettier starting up: four launches a Stop, a config check and a formatting run
+per repo, at ~99ms each under Homebrew's Node.
+
+- **Why a launch costs ~99ms**: Homebrew's `node` spends ~73ms before its
+  JavaScript engine starts, as `node --version` shows. It links 99 shared
+  libraries, 93 of them Homebrew's and 72 of those abseil's, because Homebrew's
+  formula builds Node as a shared library and swaps every bundled dependency for
+  the Homebrew formula of it. That follows Homebrew policy, and no option
+  changes it. The official nodejs.org build links four system libraries and
+  starts in ~18ms. Prettier's own code adds ~15ms.
+- **Bun 1.4.4** formats byte for byte as Node does: 1,106 files, from the user's
+  repos plus a sample of third-party ones, under four option sets.
+  `quiet-prettier-test.sh` passes with prettier under Bun. Prettier's cache key
+  includes the Node version the runtime reports, so every launch sharing a cache
+  must use the same runtime.
+- **Prettier's experimental command line** (`--experimental-cli`) checks the
+  same files in ~24ms under Bun. But it exits 1, not 2, on a parse error or a
+  missing file, which `format.sh` reads as a finding rather than breakage, and
+  it has no `--find-config-path`.
+
+| One prettier launch | `--version` | `--check`, 39 cached files |
+| ------------------- | ----------: | -------------------------: |
+| Homebrew Node       |        99ms |                      143ms |
+| Official Node       |        39ms |                       85ms |
+| Bun                 |        25ms |                       62ms |
+
+Replacement formatters, against prettier 3.9.10 at the house settings. The
+corpus is the same 1,106 files; the user's own Markdown is 111 of them.
+
+| Tool                    | User's Markdown that differs | Whole corpus | One repo's pass |
+| ----------------------- | ---------------------------: | -----------: | --------------: |
+| oxfmt 0.75              |                     3 of 111 |        0.07s |            ~8ms |
+| Biome 2.6.4             |                    61 of 111 |        0.20s |         29–70ms |
+| dprint, its own plugins |                    44 of 111 |         2.1s |                 |
+| dprint, prettier plugin |                     5 of 111 |         8.0s |                 |
+
+- **oxfmt** is built against prettier 3.9.10 and documents each divergence. Its
+  three differing files differ only in where a line breaks. Its standalone
+  binary reads no stdin, which `reflow_prose.py` relies on.
+- **The dprint plugin** bundles prettier 3.8.4, whose Markdown parser reads the
+  underscores in `a_b_c` as emphasis and rewrites them as asterisks.
+
+The whole step, median of 12 interleaved rounds:
+
+| Setup                                   | Formatting |
+| --------------------------------------- | ---------: |
+| `main`                                  |    1,045ms |
+| The file list                           |      693ms |
+| The file list, prettier under Bun       |      393ms |
+| oxfmt in prettier's place, only checked |      222ms |
+
+The config check answers "no project config" in every repo the hook formats. The
+one repo of the user's with a prettier config of its own, google-photos-deduper,
+also loads an import-sorting plugin that no replacement runs, and the hook skips
+it as third-party.
+
 ## mypy, lint, and the third-party check
 
 - **mypy, 232ms**: uv's overhead ~20ms; mypy's startup ~81ms; loading its cached
@@ -243,6 +304,39 @@ shorten it.
 Skipping the doc-test pass (`doctest = false`) was set aside: it saves ~47ms,
 and a doc example added later would silently never run.
 
+## The concurrent Stop chain {#concurrent-chain}
+
+Measured 2026-11-02 to 2026-11-03, over a bridge worktree. The dotfiles branch
+`worktree-formatting-step`, now on `main`, hands prettier the files git lists,
+runs it under Bun, makes the third-party check cheaper, and runs in parallel
+whatever cannot collide: the two formatting passes, prettier beside ruff within
+each, and mypy, the tests and lint, with the third-party checks overlapping work
+that does not wait on them. The whole Stop, medians of 12 interleaved rounds:
+
+| Chain                                   | Whole Stop |
+| --------------------------------------- | ---------: |
+| Installed (prettier on Homebrew's Node) |    3,426ms |
+| File list and Bun, steps one at a time  |    2,824ms |
+| The branch, with everything concurrent  |    2,352ms |
+
+The rows come from batches at load averages of 4 to 6, so they compare within a
+batch rather than across batches. Where the concurrent chain's time goes,
+milliseconds from the hook's launch, medians of 8 runs of a timestamped copy:
+
+| Span                                                      |  From |    To |
+| --------------------------------------------------------- | ----: | ----: |
+| Formatting, both passes in parallel; prettier ~130ms each |     9 |   213 |
+| mypy, beside the tests                                    |   249 |   555 |
+| lint, beside the tests                                    |   255 |   296 |
+| The tests, from `run_tests.sh` starting                   |   252 | 2,346 |
+| … pytest's plugins loaded                                 |   407 |       |
+| … collection, 477ms                                       |   425 |   902 |
+| … the test loop, 1,240ms                                  |   902 | 2,142 |
+| … pytest's last exit hook, then shutdown and uv's exit    | 2,237 | 2,346 |
+
+In that copy the third-party checks still ran in series, ~33ms each, which the
+branch now overlaps.
+
 ## A fresh worktree's first Stop {#fresh-worktree}
 
 Each worktree builds its own caches, so its first Stop pays for all of them: on
@@ -260,12 +354,32 @@ cold run against one warm run, by command:
 
 Entering a worktree now prewarms the checks (dotfiles `claude/docs/design.md`
 #prewarm). On main without the Rust step, the prewarm took ~17s, and the first
-Stop after it 4.4s against 3.5s fully warm. The remaining ~0.9s is prettier's
+Stop after it 4.4s against 3.5s fully warm. The remaining ~0.9s was prettier's
 cache and a cold `find *.ts` in the formatting step, which the prewarm leaves to
-the Stop hook.
+the Stop hook. Since the formatting step hands prettier the files git lists,
+only prettier's cache remains: over a fresh worktree of bridge `main`, medians
+of 10 rounds on 2026-11-05, the step took ~850ms with prettier's cache empty
+against ~280ms warm. An empty ruff cache added nothing, since ruff runs beside
+prettier and finishes first.
 
 ## Speedups considered and rejected {#set-aside}
 
+- **Dropping prettier's config check**: it costs two prettier launches a Stop,
+  ~55ms under Bun. The user kept it to avoid a hard-to-diagnose correctness
+  issue, over relying on the global config or remembering its answer per
+  directory.
+- **oxfmt in prettier's place**: ~170ms less a Stop, at the cost of a formatter
+  outside Homebrew. Adopting it would cover `reflow_prose.py` too, which hands
+  prettier its text on stdin; oxfmt's standalone binary reads no stdin, so
+  `reflow_prose.py` would need another way in (#prettier-launches). ruff,
+  through `uv run`, would then be the slower half of each formatting pass. The
+  user judged formatting at ~200ms a Stop fast enough.
+- **Caching the third-party verdict**: the cheaper check leaves only ~5ms for a
+  cache to save. A cached verdict could also go stale when a checkout's remotes
+  change, and then either rewrite someone else's checkout or silently skip the
+  checks in the user's own.
+- **Calling tools from `.venv/bin` rather than through `uv run`**: skipping uv's
+  ~10–20ms a call saved nothing once the checks ran in parallel.
 - **Ending the process with `os._exit` after pytest's last cleanup**: it would
   save most of Python's shutdown, about 87ms with pytest alone. But it skips
   every exit handler and finalizer still pending, and the exit status would have
