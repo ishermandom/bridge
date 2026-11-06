@@ -146,6 +146,16 @@ Regenerate that file after any dependency change:
     uv export --format requirements.txt --package convention-cards --no-dev \
       --no-hashes -o convention_cards/requirements.txt
 
+Render keeps the service's settings in its dashboard; they are recorded here so
+the repo has a copy:
+
+- **Root directory**: blank, meaning the repo root, so the app can read the
+  repo's `fonts/`.
+- **Build and start commands**: each begins with `cd convention_cards &&`, so
+  Streamlit runs where it finds `.streamlit/config.toml`.
+- **Build filters**: `convention_cards/**` and `fonts/**`, so changes elsewhere
+  in the repo don't redeploy the app.
+
 ### System notes renderer
 
 `system_notes/` — Python

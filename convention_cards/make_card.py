@@ -23,7 +23,9 @@ import pathlib
 from io import BytesIO
 
 from pypdf import PdfReader, PdfWriter, Transformation
-from reportlab.pdfbase.pdfmetrics import stringWidth
+from renderer.fonts import FONTS_DIRECTORY
+from reportlab.pdfbase.pdfmetrics import registerFont, stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 # ---------------------------------------------------------------------------
@@ -61,10 +63,19 @@ TY_page = -85  # card vertical offset; tune if card is misaligned
 # Reminders strip typography
 # ---------------------------------------------------------------------------
 
-ITEM_FONT = 'Helvetica'
-ITEM_FONT_BOLD = 'Helvetica-Bold'
-ITEM_FONT_SIZE = 6.5
-SECTION_FONT_SIZE = 7.5  # section headers — larger than bullet items
+# Source Sans 3 from the repo's font collection, embedded in the PDF so every
+# viewer and printer draws the same glyphs.
+_SOURCE_SANS_3_DIRECTORY = FONTS_DIRECTORY / 'source-sans-3'
+ITEM_FONT = 'SourceSans3'
+ITEM_FONT_BOLD = 'SourceSans3-Bold'
+registerFont(
+  TTFont(ITEM_FONT, str(_SOURCE_SANS_3_DIRECTORY / 'SourceSans3-Regular.ttf'))
+)
+registerFont(
+  TTFont(ITEM_FONT_BOLD, str(_SOURCE_SANS_3_DIRECTORY / 'SourceSans3-Bold.ttf'))
+)
+ITEM_FONT_SIZE = 7
+SECTION_FONT_SIZE = 8  # section headers — larger than bullet items
 SECTION_COLOR = 0.45  # gray level for section headers (0=black, 1=white)
 SECTION_GAP = 4  # extra pt above a header (except first in column)
 ITEM_LEADING = 9  # pt between baselines
@@ -220,7 +231,7 @@ def build_overlay(reminders: list[str]) -> BytesIO:
   c.line(CUT_GUIDE_X, 0, CUT_GUIDE_X, PAGE_H)
   c.setDash()
 
-  c.setFont(ITEM_FONT, 5.5)
+  c.setFont(ITEM_FONT, 6)
   c.setFillColorRGB(0.55, 0.55, 0.55)
   c.drawRightString(CUT_GUIDE_X - 2, FOLD_LINE_Y + 3, 'v fold here')
   c.drawString(CUT_GUIDE_X + 2, 40, '< cut')
