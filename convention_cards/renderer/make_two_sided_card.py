@@ -98,8 +98,7 @@ ACBL_CARD_SCALE = CARD_BUDGET / max(ACBL_CARD_WIDTH, ACBL_CARD_HEIGHT)
 # guards the font table below: without it, a drifted stack would silently stop
 # matching the table.
 _FONT_STACK = (
-  'font-family: "Roboto Condensed", "Source Sans 3", "IBM Plex Sans",'
-  ' "Verdana", sans-serif;'
+  'font-family: "Roboto Condensed", "Source Sans 3", "Verdana", sans-serif;'
 )
 
 # Headless Chromium on macOS gives up on glyph fallback (suit symbols render as
@@ -119,10 +118,6 @@ _WEB_FAMILY_FONT_FILES: Mapping[str, Mapping[str, str]] = {
   'Source Sans 3': {
     'normal': 'source-sans-3/SourceSans3-variable.ttf',
     'italic': 'source-sans-3/SourceSans3-Italic-variable.ttf',
-  },
-  'IBM Plex Sans': {
-    'normal': 'ibm-plex/IBMPlexSans-variable.ttf',
-    'italic': 'ibm-plex/IBMPlexSans-Italic-variable.ttf',
   },
 }
 

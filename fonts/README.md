@@ -69,12 +69,12 @@ by where each file came from.
   `pt-sans/PTSansNarrow-Regular.ttf`) come straight from
   `github.com/google/fonts`.
 - **The HTML card's stack** (`roboto-condensed/RobotoCondensed-variable.ttf`,
-  `source-sans-3/SourceSans3-variable.ttf`, `ibm-plex/IBMPlexSans-variable.ttf`,
-  and each one's `-Italic-variable` partner): the variable releases from
-  `github.com/google/fonts`. `convention_cards/renderer/make_two_sided_card.py`
-  embeds them in the page as it prints the card, so printing needs no installed
-  fonts. `RobotoCondensed-variable.ttf` is also the source the static Roboto
-  Condensed cuts below were made from.
+  `source-sans-3/SourceSans3-variable.ttf`, and each one's `-Italic-variable`
+  partner): the variable releases from `github.com/google/fonts`.
+  `convention_cards/renderer/make_two_sided_card.py` embeds them in the page as
+  it prints the card, so printing needs no installed fonts.
+  `RobotoCondensed-variable.ttf` is also the source the static Roboto Condensed
+  cuts below were made from.
 
   Source Sans 3 is the first family in the stack with suit symbols, so it draws
   the card's suits. The outlined suits reuse those glyphs: the card's CSS gives
