@@ -172,22 +172,6 @@ production signatures for the tests' benefit.
       error or a missing file, which `format.sh` reads as a finding rather than
       breakage, and it has no `--find-config-path`.
 
-- [~] **Salvage the paused dotfiles lane `stop-hook-timing`**
-  {#salvage-timing-lane} — carry onto dotfiles `main` whatever of that lane's
-  branch still applies, then remove its worktree and branch after a final pass,
-  which the user wants before anything is removed.
-  - Note: every piece carried over so far has landed, so the final pass is what
-    remains.
-  - Note: the review-pass tracker entry, in dotfiles worktree
-    `review-pass-fold-task`, is deferred: the user expects its wording to take
-    some iteration.
-  - Note: the detached dotfiles worktree `stop-latency-check`, left from the
-    dotfiles timing, can be removed along with the lane.
-  - Note: Claude's assessment, not yet confirmed in the final pass: the rest is
-    obsolete. That covers the Rust port of the chain and statusline,
-    `gh-protect` in Rust, remembering which suites passed, and the lane's ANSI
-    and `cargo test` tasks.
-
 - [ ] **Keep the agent environment's `VIRTUAL_ENV` out of the Stop hook**
       {#session-virtual-env} — dotfiles' `zsh/.zshrc` activates
       `~/.venvs/default`, a Python 3.14 environment, in every interactive shell,
