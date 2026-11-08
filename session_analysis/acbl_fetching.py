@@ -74,6 +74,9 @@ class _Surface:
     date_format: the `strptime` format of the table's first (date) column.
     link_prefix: a traveller link's site-relative path starts with this,
     link_suffix: and ends with this (empty when it has no fixed suffix).
+    has_section_pages: whether a traveller shows one section of the session at
+      a time, so that the player's own section may need fetching apart from
+      the page the index links to.
   """
 
   base_url: str
@@ -82,10 +85,12 @@ class _Surface:
   date_format: str
   link_prefix: str
   link_suffix: str
+  has_section_pages: bool
 
 
 # Tournaments: the date reads `MM/DD/YYYY` and a session's traveller is the
-# `.../summary` view under `event/<id>/<session>/<n>/`.
+# `.../summary` view under `event/<id>/<session>/<n>/`, which shows one section
+# at a time.
 _TOURNAMENTS = _Surface(
   base_url='https://live.acbl.org/',
   index_path='player-results/',
@@ -93,6 +98,7 @@ _TOURNAMENTS = _Surface(
   date_format='%m/%d/%Y',
   link_prefix='event/',
   link_suffix='/summary',
+  has_section_pages=True,
 )
 
 # Club games: the date reads `YYYY-MM-DD` and a game's traveller is a
@@ -104,7 +110,12 @@ _CLUBS = _Surface(
   date_format='%Y-%m-%d',
   link_prefix='club-results/details/',
   link_suffix='',
+  has_section_pages=False,
 )
+
+# The query parameter a tournament summary takes to show a section other than
+# its first, as in `.../summary?section=B`.
+_SECTION_PARAMETER = 'section'
 
 # Cloudflare serves this interstitial title until the challenge is solved.
 _CHALLENGE_TITLE = 'Just a moment'
@@ -145,6 +156,14 @@ class _Session:
   date: datetime.date
   traveller_path: str
   label: str
+
+
+@dataclass(frozen=True)
+class _Page:
+  """A fetched page, beside the absolute URL it was fetched from."""
+
+  url: str
+  body: bytes
 
 
 def _index_url(surface: _Surface, player_number: str) -> str:
@@ -266,6 +285,70 @@ def _sessions(
   return sessions
 
 
+def _player_section(
+  summary: _Page, player_number: str, fetch: Callable[[str], bytes]
+) -> _Page:
+  """The section of a tournament session that the player's pair sat in.
+
+  A session played in several sections publishes each one's results on its own
+  page, and the index links only to the first. travellers.md `#acquisition` says
+  why only the player's section is kept.
+
+  Args:
+    summary: the summary page the index links to.
+    player_number: the ACBL player number whose section to find.
+    fetch: retrieves a URL's bytes, for the sections `summary` does not show.
+
+  Returns:
+    `summary` itself when it shows the player's section or offers no other, as
+    every single-section session's page does. When several sections are offered
+    and none lists the player, `summary` too, with a warning: the session is
+    still captured, and reconciliation reports the missing row.
+  """
+  soup = bs4.BeautifulSoup(summary.body, 'html.parser')
+  if _lists_player(soup, player_number):
+    return summary
+
+  # A single-section session's page has no section picker at all.
+  pickers = soup.select('a.section-select')
+  shown = {
+    picker.get_text(strip=True)
+    for picker in soup.select('a.section-select.selected')
+  }
+  for picker in pickers:
+    section = picker.get_text(strip=True)
+    if section in shown:
+      continue
+    url = _section_url(summary.url, section)
+    body = fetch(url)
+    if _lists_player(bs4.BeautifulSoup(body, 'html.parser'), player_number):
+      return _Page(url, body)
+
+  if pickers:
+    logger.warning(
+      f'no section of {summary.url} lists player {player_number}; saving the '
+      'section the page opens on'
+    )
+  return summary
+
+
+def _lists_player(soup: bs4.BeautifulSoup, player_number: str) -> bool:
+  """Whether the section a summary page shows lists `player_number`'s pair.
+
+  Read from the section's own recap table rather than the whole page: the
+  event-wide leaderboard above it lists every section's pairs on every section's
+  page.
+  """
+  selector = f'table.recaps-table [data-acbl="{player_number}"]'
+  return soup.select_one(selector) is not None
+
+
+def _section_url(summary_url: str, section: str) -> str:
+  """The URL of `section`'s page of the summary at `summary_url`."""
+  query = urllib.parse.urlencode({_SECTION_PARAMETER: section})
+  return urllib.parse.urlsplit(summary_url)._replace(query=query).geturl()
+
+
 def _capture_path(destination: Path, traveller_url: str) -> Path:
   """Where a traveller's HTML is saved beneath `destination`.
 
@@ -279,6 +362,12 @@ def _capture_path(destination: Path, traveller_url: str) -> Path:
   """
   parts = urllib.parse.urlsplit(traveller_url)
   base = destination / parts.netloc / parts.path.lstrip('/')
+
+  # A section's page shares its path with the session's first section, and
+  # differs only in the query, so the section goes into the name.
+  sections = urllib.parse.parse_qs(parts.query).get(_SECTION_PARAMETER)
+  if sections:
+    base = base.with_name(f'{base.name}-section-{sections[0]}')
   return base.with_suffix('.html')
 
 
@@ -659,9 +748,10 @@ def fetch_tournament_travellers(
 
   Reads the player's public tournament index
   (`live.acbl.org/player-results/<number>`), keeps the sessions played on
-  `date`, and saves each one's summary page beneath `destination`. A typical
-  tournament day plays more than one session, so several travellers can come
-  back for one date; a day the player did not play comes back empty.
+  `date`, and saves each one's summary page beneath `destination` — for a
+  session played in several sections, the page of the player's own section. A
+  typical tournament day plays more than one session, so several travellers can
+  come back for one date; a day the player did not play comes back empty.
 
   Args:
     player_number: the ACBL player number whose results to fetch.
@@ -749,11 +839,15 @@ def _fetch_travellers(
       traveller_url = urllib.parse.urljoin(
         surface.base_url, session.traveller_path
       )
-      path = _capture_path(destination, traveller_url)
-      write(path, fetch(traveller_url))
+      page = _Page(traveller_url, fetch(traveller_url))
+      if surface.has_section_pages:
+        page = _player_section(page, player_number, fetch)
+
+      path = _capture_path(destination, page.url)
+      write(path, page.body)
       write(
         capture_urls.sidecar_for(path),
-        capture_urls.sidecar_contents(traveller_url),
+        capture_urls.sidecar_contents(page.url),
       )
       written.append(path)
     return tuple(written)

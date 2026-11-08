@@ -125,6 +125,52 @@ def _club_row(
   )
 
 
+def _make_summary(
+  *,
+  sections: Sequence[str] = (),
+  shown: str = '',
+  recap_numbers: Sequence[str] = (),
+  leaderboard_numbers: Sequence[str] = (),
+) -> bytes:
+  """A tournament summary page, showing one section of its session.
+
+  Reproduces what the section search reads, in the real page's markup: the
+  event-wide leaderboard listing players of every section, the section picker
+  that a single-section session's page leaves out, and the shown section's recap
+  table. Board panels are left out, since nothing here reads them.
+
+  Args:
+    sections: the letters the picker offers; empty for no picker at all.
+    shown: the letter the picker marks selected.
+    recap_numbers: the player numbers the shown section's recap lists.
+    leaderboard_numbers: the player numbers the event-wide leaderboard lists.
+  """
+
+  def rows(numbers: Sequence[str]) -> str:
+    # A row per player, keyed by number as the real pages key their players.
+    return ''.join(
+      f'<tr><td class="p1 name" data-acbl="{number}"><span class=\'data\'>'
+      f"<a href='/set-player/{number}'>First Last</a></span></td></tr>"
+      for number in numbers
+    )
+
+  pickers = ''.join(
+    f"<li><a class='section-select {'selected' if letter == shown else ''}' "
+    f"href='#'>{letter}</a></li>"
+    for letter in sections
+  )
+  picker_list = f"<ul class='sections'>{pickers}</ul>" if sections else ''
+  return (
+    '<html><body>'
+    '<table class="tablesorter table results-table">'
+    f'<tbody>{rows(leaderboard_numbers)}</tbody></table>'
+    f'{picker_list}'
+    '<table class="tablesorter event table recaps-table">'
+    f'<tbody>{rows(recap_numbers)}</tbody></table>'
+    '</body></html>'
+  ).encode()
+
+
 def _make_club_index(*rows: str) -> str:
   """A `my.acbl.org/club-results/my-results` page holding `rows`."""
   return _make_index(
@@ -152,8 +198,8 @@ class _Recorder:
 
   `fetch` returns the index for any non-traveller URL, and for a traveller URL
   (a `.../summary` or `.../details/<id>` path) the scripted body `bodies`
-  supplies (keyed by host and path) or a stand-in. `write` records the saved
-  path and bytes.
+  supplies (keyed by host and path, plus `?` and the query when there is one) or
+  a stand-in. `write` records the saved path and bytes.
   """
 
   def __init__(
@@ -177,9 +223,8 @@ class _Recorder:
     is_traveller = parts.path.endswith('/summary') or '/details/' in parts.path
     if not is_traveller:
       return self._index
-    return self._bodies.get(
-      parts.netloc + parts.path, b'stand-in for ' + url.encode()
-    )
+    key = parts.netloc + parts.path + (f'?{parts.query}' if parts.query else '')
+    return self._bodies.get(key, b'stand-in for ' + url.encode())
 
   def write(self, path: Path, data: bytes) -> None:
     # The fetchers write a capture and its URL sidecar through this one writer,
@@ -298,6 +343,175 @@ def test_the_tournament_index_uses_the_player_results_path() -> None:
   )
 
   assert recorder.fetched[0] == 'https://live.acbl.org/player-results/7654321'
+
+
+# --- tournaments: finding the player's section ---
+
+
+def test_a_single_section_session_is_fetched_once() -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+  summary = _make_summary(recap_numbers=['7654321'])
+
+  recorder = _run(
+    fetch_tournament_travellers,
+    index,
+    date=_JUNE_27,
+    player_number='1234567',
+    bodies={'live.acbl.org/event/1000001/27OP/1/summary': summary},
+  )
+
+  # The page offers no section picker, so there is no other section to look at.
+  assert recorder.fetched == [
+    'https://live.acbl.org/player-results/1234567',
+    'https://live.acbl.org/event/1000001/27OP/1/summary',
+  ]
+
+
+def test_a_player_in_the_section_shown_first_keeps_that_page() -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+  summary = _make_summary(
+    sections=['A', 'B'], shown='A', recap_numbers=['1234567']
+  )
+
+  recorder = _run(
+    fetch_tournament_travellers,
+    index,
+    date=_JUNE_27,
+    player_number='1234567',
+    bodies={'live.acbl.org/event/1000001/27OP/1/summary': summary},
+  )
+
+  assert recorder.written == {
+    'live.acbl.org/event/1000001/27OP/1/summary.html': summary
+  }
+
+
+def test_a_player_in_a_later_section_is_saved_from_that_sections_page() -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+  section_a = _make_summary(
+    sections=['A', 'B'], shown='A', recap_numbers=['7654321']
+  )
+  section_b = _make_summary(
+    sections=['A', 'B'], shown='B', recap_numbers=['1234567']
+  )
+
+  recorder = _run(
+    fetch_tournament_travellers,
+    index,
+    date=_JUNE_27,
+    player_number='1234567',
+    bodies={
+      'live.acbl.org/event/1000001/27OP/1/summary': section_a,
+      'live.acbl.org/event/1000001/27OP/1/summary?section=B': section_b,
+    },
+  )
+
+  # Section A's page shares the deals but not the player's row, so only section
+  # B's is kept, under a name of its own.
+  assert recorder.written == {
+    'live.acbl.org/event/1000001/27OP/1/summary-section-B.html': section_b
+  }
+
+
+def test_a_later_sections_page_records_the_url_naming_its_section() -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+  section_a = _make_summary(sections=['A', 'B'], shown='A')
+  section_b = _make_summary(
+    sections=['A', 'B'], shown='B', recap_numbers=['1234567']
+  )
+
+  recorder = _run(
+    fetch_tournament_travellers,
+    index,
+    date=_JUNE_27,
+    player_number='1234567',
+    bodies={
+      'live.acbl.org/event/1000001/27OP/1/summary': section_a,
+      'live.acbl.org/event/1000001/27OP/1/summary?section=B': section_b,
+    },
+  )
+
+  assert recorder.urls == {
+    'live.acbl.org/event/1000001/27OP/1/summary-section-B.html': (
+      'https://live.acbl.org/event/1000001/27OP/1/summary?section=B'
+    )
+  }
+
+
+def test_the_event_wide_leaderboard_does_not_place_the_player() -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+  # Every section's page lists every section's players in its leaderboard; only
+  # the recap table says which section the page shows.
+  section_a = _make_summary(
+    sections=['A', 'B'],
+    shown='A',
+    recap_numbers=['7654321'],
+    leaderboard_numbers=['7654321', '1234567'],
+  )
+  section_b = _make_summary(
+    sections=['A', 'B'],
+    shown='B',
+    recap_numbers=['1234567'],
+    leaderboard_numbers=['7654321', '1234567'],
+  )
+
+  recorder = _run(
+    fetch_tournament_travellers,
+    index,
+    date=_JUNE_27,
+    player_number='1234567',
+    bodies={
+      'live.acbl.org/event/1000001/27OP/1/summary': section_a,
+      'live.acbl.org/event/1000001/27OP/1/summary?section=B': section_b,
+    },
+  )
+
+  assert list(recorder.written) == [
+    'live.acbl.org/event/1000001/27OP/1/summary-section-B.html'
+  ]
+
+
+def test_a_player_in_no_section_keeps_the_first_page_with_a_warning(
+  caplog: pytest.LogCaptureFixture,
+) -> None:
+  index = _make_tournament_index(
+    _tournament_row('06/27/2026', '/event/1000001/27OP/1/summary'),
+  )
+  section_a = _make_summary(
+    sections=['A', 'B'], shown='A', recap_numbers=['7654321']
+  )
+  section_b = _make_summary(
+    sections=['A', 'B'], shown='B', recap_numbers=['7777777']
+  )
+
+  with caplog.at_level('WARNING'):
+    recorder = _run(
+      fetch_tournament_travellers,
+      index,
+      date=_JUNE_27,
+      player_number='1234567',
+      bodies={
+        'live.acbl.org/event/1000001/27OP/1/summary': section_a,
+        'live.acbl.org/event/1000001/27OP/1/summary?section=B': section_b,
+      },
+    )
+
+  # The session is still captured, so reconciliation can report the missing row
+  # rather than the session going without a traveller unnoticed.
+  assert recorder.written == {
+    'live.acbl.org/event/1000001/27OP/1/summary.html': section_a
+  }
+  assert 'no section' in caplog.text
 
 
 # --- club games ---

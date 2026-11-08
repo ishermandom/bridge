@@ -154,7 +154,12 @@ records.
   `fetch_tournament_travellers` in `acbl_fetching.py`, which reads that index,
   keeps the sessions played on a date, and saves each session's rendered HTML —
   lean by construction, since driving the page ourselves skips the asset bundle
-  a browser's "save page" drags in.
+  a browser's "save page" drags in. A session played in several sections
+  publishes each section on a page of its own, and only the player's section is
+  kept rather than all of them. Another section's page shares the deals, so it
+  matches the sheet by its opening leads, but it holds no row of ours and scores
+  its matchpoints against a different field. Stored beside ours, it would only
+  raise `traveller_never_names_us` on every run.
 - **ACBL club games — the same fetch, one host over.** A player's club sessions
   are public too, listed by player number at
   `my.acbl.org/club-results/my-results/<number>` in the same shape as the
