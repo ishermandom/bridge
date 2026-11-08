@@ -623,6 +623,10 @@ parsed value.
     reaches the second path. It goes live with the first rename, and
     `session_keys.record_stem` says review renames the record either way, so
     this belongs before that lands.
+  - Note: a rename that rewrites the key and moves the file to the stem the new
+    key derives keeps the two agreeing, and the join then updates the record in
+    place. Review in chat has renamed that way so far, the 2026-11-07 afternoon
+    most recently; the copy needs a rename that changes only one of the two.
   - Note: the fix is to carry each record's own path out of
     `session_matching._read_records` and write back to it, which changes what
     `read_pending_sessions` and `read_stored_travellers` return.
