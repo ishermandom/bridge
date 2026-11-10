@@ -231,6 +231,10 @@ older one does not. The club capture route needs no browser at all, so a run
 that returns club captures and no ACBL ones may be reporting the environment
 rather than a fault.
 
+- [ ] Watch whether an ACBL fetch still freezes the screen.
+      {#acbl-fetch-hangs-windowserver}
+  - Note: findings, and what to capture if it recurs, are in
+    `/Users/Shared/data/bridge/acbl-fetch-freeze-2026-11/README.md`.
 - [ ] Stop every run from reporting the captures known to hold no boards.
       {#capture-diagnosis}
   - Rationale: `traveller_store` reports `capture_held_no_boards` for every

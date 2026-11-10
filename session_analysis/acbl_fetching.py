@@ -526,6 +526,12 @@ class _DesktopBrowser:
           '--no-startup-window',
           '--no-first-run',
           '--no-default-browser-check',
+          # Chrome encrypts its cookies with a key it keeps in the login
+          # keychain, and asking for that key from a binary the keychain does
+          # not trust raises a prompt in the desktop session, where nobody is
+          # watching to answer it. The mock keychain uses a fixed in-memory key
+          # instead, as Playwright's own launches do.
+          '--use-mock-keychain',
         ),
         check=True,
       )
