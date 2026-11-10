@@ -3,16 +3,15 @@
 # SPDX-License-Identifier: MIT
 #
 # Runs SuitPlay on every holding in a file, inside the Lima machine that
-# `lima.yaml` describes, and prints SuitPlay's results in the format
-# `suitplay.ahk` describes. Creates and starts the machine as needed, and stops
-# it afterward if it wasn't running before.
+# `vm/lima.yaml` describes, and prints SuitPlay's results in the format
+# `suitplay.ahk` describes. Creates and starts the machine as needed, and leaves
+# it running, since it stops itself once idle.
 #
 # Usage: `run.sh HOLDINGS [OPTIONS] > RESULTS`, where the options are those
 # `suitplay.ahk` describes, such as `--minutes-per-holding 60`.
 
 usage="usage: run.sh HOLDINGS [--accept-license]"
 usage+=" [--minutes-per-holding MINUTES] > RESULTS"
-instance=suitplay
 script_dir=$(dirname "$0")
 # SuitPlay itself is kept outside the repo.
 suitplay_exe=/Users/Shared/data/bridge/suitplay/SuitPlay.exe
@@ -39,15 +38,8 @@ if [ $# -gt 0 ]; then
   script_options=$(printf ' %q' "$@")
 fi
 
-# The machine's status, such as "Running" or "Stopped"; empty when there's no
-# machine yet.
-status=$(limactl list --format '{{.Status}}' "$instance" 2> /dev/null)
-if [ -z "$status" ]; then
-  limactl start --tty=false --name="$instance" "$script_dir/lima.yaml" \
-    || fail "creating the machine failed"
-elif [ "$status" != "Running" ]; then
-  limactl start --tty=false "$instance" || fail "starting the machine failed"
-fi
+instance=$(bash "$script_dir/../../vm/start.sh") \
+  || fail "readying the machine failed"
 
 guest_home=$(limactl shell "$instance" -- printenv HOME)
 work_dir="$guest_home/suitplay"
@@ -68,15 +60,13 @@ limactl shell "$instance" -- rm -f "$work_dir/results.tsv"
 # the session couldn't end until SuitPlay closed, and `run.sh` would wait that
 # long.
 #
-# `WINEDEBUG=-all` quiets Wine's own warnings.
-limactl shell --workdir "$work_dir" "$instance" -- sh -c \
+# With its output elsewhere, the script needs `keep-awake` to keep the machine
+# from powering off mid-run, as `vm/README.md` describes. `WINEDEBUG=-all`
+# quiets Wine's own warnings.
+limactl shell --workdir "$work_dir" "$instance" -- keep-awake sh -c \
   "DISPLAY=:1 WINEDEBUG=-all wine $autohotkey /ErrorStdOut suitplay.ahk \
   holdings.txt results.tsv$script_options > run.log 2>&1"
 run_status=$?
 limactl shell "$instance" -- cat "$work_dir/run.log" >&2
 limactl shell "$instance" -- cat "$work_dir/results.tsv"
-
-if [ "$status" != "Running" ]; then
-  limactl stop "$instance" > /dev/null 2>&1
-fi
 exit "$run_status"

@@ -1,0 +1,8 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+[Unit]
+Description=Power the machine off once it has been idle
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/idle-poweroff

@@ -1,0 +1,103 @@
+#!/bin/bash
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+#
+# Powers the machine off once nothing has needed it for `IDLE_SECONDS`, 600 by
+# default; `idle-poweroff.timer` runs the check each minute. What counts as
+# work:
+#
+# - a command run through `limactl shell`, while its ssh channel is open and
+#   its output or error stream still goes back through it;
+# - an interactive shell, while it runs a job, or until `IDLE_SECONDS` after its
+#   last input;
+# - anything wrapped in `keep-awake`, as work must be when it outlives its ssh
+#   session, such as under `nohup` or `tmux`, or sends both its output and its
+#   errors elsewhere;
+# - a boot still under way, for its first 15 minutes.
+#
+# A client about to start work touches `last_busy` to give itself a full idle
+# window to start in; `start.sh` does so.
+
+# `:-` falls back to 600 when `IDLE_SECONDS` is unset.
+idle_seconds=${IDLE_SECONDS:-600}
+# When the machine last had work. `/run` starts empty on each boot.
+last_busy=/run/idle-poweroff-last-busy
+boot_grace_seconds=900
+
+# Succeeds if process `$1` holds an open file whose link reads `$2`.
+holds() {
+  local fd
+  for fd in /proc/"$1"/fd/*; do
+    [[ $(readlink "$fd") == "$2" ]] && return 0
+  done
+  return 1
+}
+
+# Succeeds if ssh session `$1` still holds the read end of the pipe behind
+# command `$2`'s output or error stream: either is enough, since a shell running
+# `cmd > file` points its own output at the file until `cmd` ends.
+is_on_channel() {
+  local stream target
+  for stream in 1 2; do
+    target=$(readlink "/proc/$2/fd/$stream")
+    if [[ $target == pipe:* ]] && holds "$1" "$target"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Prints why the machine is busy, one reason per line; nothing if idle.
+busy_reasons() {
+  local now uptime_seconds state session child tty input_age
+  now=$(date +%s)
+  # Whole seconds since boot.
+  uptime_seconds=$(cut -d. -f1 /proc/uptime)
+  state=$(systemctl is-system-running)
+  if [[ $state == initializing || $state == starting ]] \
+    && ((uptime_seconds < boot_grace_seconds)); then
+    echo "boot still $state"
+  fi
+  # Each ssh connection has a user-side `sshd-session: USER@TTY` process; its
+  # children are the commands and shells clients run.
+  for session in $(pgrep -f '^sshd(-session)?: [^ []+@'); do
+    for child in $(pgrep -P "$session"); do
+      tty=$(ps -o tty= -p "$child" | tr -d ' ')
+      if [[ $tty == '?' ]]; then
+        # A command counts only while its ssh channel is open. Lima shares one
+        # ssh connection among its clients, so a killed client closes only its
+        # channel, and the command, with no terminal to hang up, runs on.
+        if is_on_channel "$session" "$child"; then
+          echo "command: $(ps -o args= -p "$child")"
+        fi
+      elif pgrep -P "$child" > /dev/null; then
+        echo "shell on $tty running a job"
+      else
+        # A terminal's access time moves with each keystroke read.
+        input_age=$((now - $(stat -c %X "/dev/$tty")))
+        if ((input_age < idle_seconds)); then
+          echo "shell on $tty, last input ${input_age}s ago"
+        fi
+      fi
+    done
+  done
+  systemd-inhibit --list --no-legend --no-pager \
+    | grep keep-awake | sed 's/^/keep-awake: /'
+}
+
+# The first check after boot starts the idle clock.
+[[ -f $last_busy ]] || touch "$last_busy"
+reasons=$(busy_reasons)
+if [[ -n $reasons ]]; then
+  touch "$last_busy"
+  # `//` replaces every newline, so the reasons log as one line.
+  echo "busy: ${reasons//$'\n'/; }"
+  exit 0
+fi
+idle_for=$(($(date +%s) - $(stat -c %Y "$last_busy")))
+if ((idle_for >= idle_seconds)); then
+  echo "idle for ${idle_for}s; powering off"
+  systemctl poweroff
+else
+  echo "idle for ${idle_for}s"
+fi

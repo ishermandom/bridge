@@ -3,7 +3,7 @@
 ;
 ; Analyzes holdings with SuitPlay by driving its window the way a person would,
 ; and writes SuitPlay's chance of making each trick target. Runs under Wine in
-; the machine `lima.yaml` describes, from the folder that holds SuitPlay.exe.
+; the machine `vm/lima.yaml` describes, from the folder that holds SuitPlay.exe.
 ;
 ; Usage: `AutoHotkey32.exe suitplay.ahk HOLDINGS RESULTS [--accept-license]
 ; [--minutes-per-holding MINUTES]`

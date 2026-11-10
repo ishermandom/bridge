@@ -1,0 +1,11 @@
+#!/bin/sh
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+#
+# Runs a command while holding the machine awake, for work `idle-poweroff`
+# can't see on its own: work that outlives its ssh session, such as under
+# `nohup` or `tmux`, or sends both its output and its errors elsewhere.
+# `idle-poweroff` counts the lock `keep-awake` takes as work.
+#
+# Usage: `keep-awake COMMAND [ARGUMENTS...]`
+exec systemd-inhibit --what=idle --who=keep-awake --why="$*" "$@"

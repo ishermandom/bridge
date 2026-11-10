@@ -477,7 +477,7 @@ analysis.
 
 SuitPlay 2.1.2 is a 32-bit Windows program with no web version, so `suitplay/`
 runs it under Wine in a small Linux virtual machine that Lima builds from
-`suitplay/lima.yaml`. `suitplay/run.sh` feeds it a file of holdings, and
+`vm/lima.yaml`. `suitplay/run.sh` feeds it a file of holdings, and
 `suit_combinations compare-suitplay` compares every trick target of each holding
 with the analyzer.
 

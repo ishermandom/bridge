@@ -1,0 +1,15 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+#
+# A virtual display, numbered by the unit's instance: `xvfb@2` runs `:2`.
+# Programs reach it with `DISPLAY=:2`.
+[Unit]
+Description=Virtual display :%i
+
+[Service]
+User=nobody
+ExecStart=/usr/bin/Xvfb :%i -screen 0 1280x1024x24 -nolisten tcp
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

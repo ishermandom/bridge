@@ -1,0 +1,67 @@
+# Copyright 2026 Ilya Sherman (ishermandom@)
+# SPDX-License-Identifier: MIT
+#
+# A small Debian machine for the repo's jobs that need Linux and a screen of
+# their own: SuitPlay, a Windows program that `suit_combinations` compares its
+# analyzer against, and the browser the ACBL fetch in `session_analysis` drives.
+# `start.sh` creates and starts the machine, which stops itself once idle, as
+# `README.md` describes.
+#
+# Lima reads every file named below when it creates the machine, so a change to
+# any of them takes effect only once the machine is deleted and created afresh.
+# Lima also expands `{{...}}` in those files as its own template syntax, so they
+# must contain none.
+base: template:debian-13
+cpus: 2
+memory: "2GiB"
+# A ceiling, not a reservation: the disk file on the Mac grows only as the
+# machine writes, and Debian's weekly `fstrim` hands freed space back.
+disk: "8GiB"
+# No shared folders: files move in and out with `limactl copy`.
+mounts: []
+# Lima's bundled container engine isn't needed, and would cost disk space.
+containerd:
+  system: false
+  user: false
+# Rules apply in order, and the first that matches a port wins.
+portForwards:
+  # Chrome's debugging port, which the ACBL fetch picks from this range. The
+  # port keeps its number on the Mac, so the addresses Chrome hands out stay
+  # correct there.
+  - guestIP: "127.0.0.1"
+    guestPortRange: [29220, 29229]
+    hostPortRange: [29220, 29229]
+  # Nothing else in the machine serves the Mac. `guestIPMustBeZero: false` makes
+  # `0.0.0.0` match a port bound to any address. By default it matches only a
+  # port bound to `0.0.0.0` itself, and Lima's built-in last rule forwards one
+  # bound to `127.0.0.1`.
+  - guestIP: "0.0.0.0"
+    guestIPMustBeZero: false
+    proto: any
+    ignore: true
+# On every boot, Lima writes the data files, then runs `setup.sh` as root, then
+# `wine_prefix.sh` as the machine's user.
+provision:
+  # The display unit is a template, which systemd marks with an `@` in its name.
+  # Lima refuses an `@` in a file's name, so the repo's copy goes without.
+  - mode: data
+    file: xvfb.service
+    path: /etc/systemd/system/xvfb@.service
+  - mode: data
+    file: idle-poweroff
+    path: /usr/local/sbin/idle-poweroff
+    permissions: 755
+  - mode: data
+    file: idle-poweroff.service
+    path: /etc/systemd/system/idle-poweroff.service
+  - mode: data
+    file: idle-poweroff.timer
+    path: /etc/systemd/system/idle-poweroff.timer
+  - mode: data
+    file: keep-awake
+    path: /usr/local/bin/keep-awake
+    permissions: 755
+  - mode: system
+    file: setup.sh
+  - mode: user
+    file: wine_prefix.sh
