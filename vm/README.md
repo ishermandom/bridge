@@ -70,9 +70,12 @@ limactl delete --force bridge
 - **Each job has its own display.** SuitPlay's automation types into whichever
   window has keyboard focus, and a Chrome window on the same display could take
   that focus mid-run.
-- **Downloads are pinned.** `setup.sh` checks Hangover, AutoHotkey, and Chrome
-  for Testing against fixed digests, so a rebuilt machine runs what the last one
-  did.
+- **Only Chrome follows new releases.** Chrome faces the open web and
+  Cloudflare's changing challenge, so `setup.sh` moves it to Chrome's stable
+  release on each boot. Hangover and AutoHotkey serve SuitPlay, a fixed program
+  that never goes online: a new version gains nothing and could upset
+  `suitplay.ahk`, so they stay pinned by digest, bumped by hand. Debian's own
+  packages take Debian's security updates.
 
 The trials behind this design are written up in
 `/Users/Shared/data/bridge/acbl-fetch-freeze-2026-11/README.md`. They cover

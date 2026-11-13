@@ -7,7 +7,8 @@
 # - Hangover, which runs Windows programs on ARM Linux by translating their
 #   Intel code;
 # - AutoHotkey, a Windows program that drives SuitPlay's window;
-# - Chrome for Testing, the browser the ACBL fetch drives;
+# - Chrome for Testing, the browser the ACBL fetch drives, kept at its stable
+#   release;
 # - a virtual display for each job's windows;
 # - the idle check, which powers the machine off once nothing needs it.
 #
@@ -15,6 +16,8 @@
 # then Lima has written the files `lima.yaml` names, among them the units
 # `start_services` enables.
 
+# Hangover and AutoHotkey are pinned, each to a version and its digest, as
+# `README.md` explains.
 hangover_version=11.16
 hangover_archive="hangover_${hangover_version}_debian13_trixie_arm64.tar"
 hangover_url="https://github.com/AndreRH/hangover/releases/download/hangover-${hangover_version}/${hangover_archive}"
@@ -25,15 +28,26 @@ autohotkey_url="https://github.com/AutoHotkey/AutoHotkey/releases/download/v${au
 autohotkey_sha256=1e0ece7ecb2d5646e55758150472677996a57f9db5c83d2996d8b47b9e2f31a4
 autohotkey_dir=/opt/autohotkey
 
-chrome_version=157.0.8103.50
-chrome_url="https://storage.googleapis.com/chrome-for-testing-public/${chrome_version}/linux-arm64/chrome-linux-arm64.zip"
-chrome_sha256=9539c1612121eb09c4b787f4f9d0c732357772eb22583620ffed64d50dd6c4cc
+# Chrome follows its stable release instead, which Chrome for Testing lists.
+chrome_versions_url=https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json
+# Reads that list on standard input, and prints the stable release's version and
+# its download for this machine, separated by a space.
+chrome_release_script='
+import json, sys
+stable = json.load(sys.stdin)["channels"]["Stable"]
+downloads = stable["downloads"]["chrome"]
+url = next(item["url"] for item in downloads if item["platform"] == "linux-arm64")
+print(stable["version"], url)
+'
 # The ACBL fetch launches `chrome` from here.
 chrome_dir=/opt/chrome-linux-arm64
+# The version of the Chrome in `chrome_dir`.
+chrome_version_file=$chrome_dir/version
 
-# Virtual displays, screenshots of them for debugging, and a tool to unpack
-# AutoHotkey's and Chrome's archives.
-debian_packages=(xvfb scrot unzip)
+# Virtual displays, screenshots of them for debugging, a tool to unpack
+# AutoHotkey's and Chrome's archives, and Python, to read Chrome's list of
+# releases.
+debian_packages=(xvfb scrot unzip python3)
 
 # Stop with a message naming the step that failed.
 fail() {
@@ -92,31 +106,74 @@ install_autohotkey() {
   rm "$archive_path"
 }
 
-# Unpack Chrome into `chrome_dir`, and install the Debian packages it needs,
-# unless it's already there.
-install_chrome() {
+# Report a failed Chrome install or update. The machine keeps a Chrome it
+# already has, so a boot without network still succeeds; with none, stop.
+chrome_failed() {
   if [ -x "$chrome_dir/chrome" ]; then
-    return
+    echo "setup.sh: $1; keeping the installed Chrome" >&2
+  else
+    fail "$1"
   fi
-  local download_dir
-  download_dir=$(mktemp -d)
-  download_verified "$chrome_url" "$chrome_sha256" "$download_dir/chrome.zip"
-  # Chrome unpacks beside the download and moves into place only once whole, so
-  # a failed unpack leaves no `chrome_dir` for the next boot to skip.
+}
+
+# Download Chrome `$1` from `$2` into the directory `$3`, unpack it there, and
+# install the Debian packages it needs. Prints why, and fails, if a step fails.
+stage_chrome() {
+  local version=$1
+  local url=$2
+  local download_dir=$3
+  curl --fail --silent --show-error --location \
+    --output "$download_dir/chrome.zip" "$url" \
+    || return 1
   unzip -q "$download_dir/chrome.zip" -d "$download_dir" \
-    || fail "unpacking Chrome failed"
-  mv "$download_dir/chrome-linux-arm64" "$chrome_dir" \
-    || fail "moving Chrome into $chrome_dir failed"
-  rm -r "$download_dir"
+    || return 1
+  echo "$version" > "$download_dir/chrome-linux-arm64/version"
 
   # `deb.deps` lists the packages Chrome needs, one per line, written as in a
   # package's own dependency list. `apt-get satisfy` takes them joined by
   # commas, and finds whichever package provides each on this Debian release.
+  # The lock timeout waits out Debian's own automatic updates.
   local dependencies
-  dependencies=$(paste -sd, "$chrome_dir/deb.deps")
+  dependencies=$(paste -sd, "$download_dir/chrome-linux-arm64/deb.deps")
   export DEBIAN_FRONTEND=noninteractive
-  apt-get satisfy --yes --no-install-recommends "$dependencies" \
-    || fail "installing Chrome's packages failed"
+  apt-get -o DPkg::Lock::Timeout=300 update \
+    && apt-get -o DPkg::Lock::Timeout=300 satisfy --yes \
+      --no-install-recommends "$dependencies"
+}
+
+# Install Chrome's current stable release into `chrome_dir`, unless it's already
+# there.
+install_chrome() {
+  local versions release version url download_dir
+  versions=$(curl --fail --silent --show-error --location \
+    "$chrome_versions_url")
+  if [ -z "$versions" ]; then
+    chrome_failed "looking up Chrome's stable release failed"
+    return
+  fi
+  # `<<<` feeds the string to the script's standard input.
+  release=$(python3 -c "$chrome_release_script" <<< "$versions")
+  if [ -z "$release" ]; then
+    chrome_failed "reading Chrome's stable release failed"
+    return
+  fi
+  read -r version url <<< "$release"
+  if [ "$(cat "$chrome_version_file" 2> /dev/null)" = "$version" ]; then
+    return
+  fi
+
+  # `/var/tmp` is on the same disk as `/opt`, so moving the staged Chrome into
+  # place renames it rather than copying it.
+  download_dir=$(mktemp -d --tmpdir=/var/tmp)
+  if ! stage_chrome "$version" "$url" "$download_dir"; then
+    rm -rf "$download_dir"
+    chrome_failed "installing Chrome $version failed"
+    return
+  fi
+  rm -rf "$chrome_dir"
+  mv "$download_dir/chrome-linux-arm64" "$chrome_dir" \
+    || fail "moving Chrome $version into $chrome_dir failed"
+  rm -rf "$download_dir"
   apt-get clean
 }
 
