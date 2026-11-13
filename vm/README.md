@@ -7,11 +7,12 @@ Linux and a screen of their own:
   for `suit_combinations` to compare its analyzer against.
   `suit_combinations/spec.md #suitplay` says why it needs Linux.
 - **The ACBL fetch's browser** runs on the virtual display `:2`, driven by
-  `session_analysis/acbl_fetching.py`. Cloudflare refuses headless browsers, so
-  the browser needs a screen, and a virtual one spares the Mac the need for a
-  logged in desktop session. A logged in Mac desktop session has two costs: it's
-  some hassle on every reboot to log in; and it proved somewhat unstable to
-  interact with the WindowServer over ssh for another account's UI session.
+  `session_analysis/cloudflare_fetching.py`. Cloudflare refuses headless
+  browsers, so the browser needs a screen, and a virtual one spares the Mac the
+  need for a logged in desktop session. A logged in Mac desktop session has two
+  costs: it's some hassle on every reboot to log in; and it proved somewhat
+  unstable to interact with the WindowServer over ssh for another account's UI
+  session.
 
 The two share one machine, since a second would cost several more gigabytes.
 

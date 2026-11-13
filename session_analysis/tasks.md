@@ -254,13 +254,12 @@ rather than a fault.
 - [ ] Share one browser across a run's two ACBL surfaces.
       {#share-one-acbl-browser}
   - Rationale: `fetch_club_travellers` and `fetch_tournament_travellers` each
-    build a `_BrowserFetcher` of their own, so a run that fetches both launches
+    build a `BrowserFetcher` of their own, so a run that fetches both launches
     two browsers and clears two challenges. The 8/24 run shows it plainly —
     "browser up" twice, on ports 55907 and 55955.
   - Note: the cost is about five seconds of a fifteen-second run, so this is
-    tidiness rather than a problem. Fixing it means making `_BrowserFetcher`
-    public so the command can open one and hand it to both surfaces; weigh that
-    widening against what it saves.
+    tidiness rather than a problem. `cloudflare_fetching.BrowserFetcher` is
+    public, so the command can open one and hand its `fetch` to both surfaces.
 - [ ] Reach an ACBL team game's per-board results. {#acbl-team-boards}
   - Note: a team game's page can list its session with no sections, and
     `acbl_club_parsing` then reports `no_per_board_results`. A team page that
