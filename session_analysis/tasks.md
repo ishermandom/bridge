@@ -225,12 +225,15 @@ covering it, as `unreviewed.ingest.reconcile_pending_sessions`. So neither a
 capture saved by hand nor the reconciliation a match sets off needs a command of
 its own.
 
-Every ACBL fetch needs a desktop session of this account's own to launch its
-browser into, which a session started through the ssh `claudify` has and an
-older one does not. The club capture route needs no browser at all, so a run
-that returns club captures and no ACBL ones may be reporting the environment
-rather than a fault.
+Every ACBL fetch launches its browser in a Linux virtual machine, which
+`vm/start.sh` builds on first use. The club capture route needs no browser at
+all, so a run that returns club captures and no ACBL ones may be reporting the
+environment rather than a fault.
 
+- [ ] Drop the sandbox's desktop session, now that the ACBL fetch's browser runs
+      in a Linux virtual machine. {#drop-desktop-session}
+  - Note: what this takes is the plan's last step, in
+    `/Users/Shared/data/bridge/acbl-fetch-freeze-2026-11/README.md`.
 - [ ] Watch whether an ACBL fetch still freezes the screen.
       {#acbl-fetch-hangs-windowserver}
   - Note: findings, and what to capture if it recurs, are in

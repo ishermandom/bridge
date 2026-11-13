@@ -9,7 +9,8 @@ attached: it puts a getter-instrumented payload through every `console` method
 and watches for the side effects of something serializing them. So a browser is
 launched and left alone to meet the challenge, and the debugger attaches only
 afterwards, to read the page. Headless is refused outright, whatever else is
-true, so the browser is a visible one in this account's own desktop session.
+true, so the browser is a visible one, on the virtual screen of a Linux virtual
+machine (see `vm/README.md`).
 
 `BrowserFetcher` is the entry point: a `fetch(url) -> bytes` that waits out the
 challenge, which `acbl_fetching` uses to fetch its pages.
@@ -18,7 +19,6 @@ challenge, which `acbl_fetching` uses to fetch its pages.
 import contextlib
 import json
 import logging
-import shutil
 import socket
 import subprocess
 import tempfile
@@ -27,7 +27,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol
+from typing import IO, Protocol
 
 from playwright.sync_api import (
   Error as PlaywrightError,
@@ -55,21 +55,36 @@ _PAGE_SOURCE_SCRIPT = (
 )
 
 _BROWSER_START_TIMEOUT_SECONDS = 30
+_BROWSER_EXIT_TIMEOUT_SECONDS = 30
 _CHALLENGE_TIMEOUT_SECONDS = 60
 _CHALLENGE_ATTEMPTS = 3
 _POLL_SECONDS = 1
 _DEVTOOLS_TIMEOUT_SECONDS = 20
 
+# The directory describing the browser's Linux virtual machine; its `start.sh`
+# readies the VM.
+_VIRTUAL_MACHINE_DIRECTORY = Path(__file__).resolve().parents[1] / 'vm'
+# Where `vm/setup.sh` installs Chrome in the VM.
+_VIRTUAL_MACHINE_CHROME = '/opt/chrome-linux-arm64/chrome'
+# The ports Chrome's debugging endpoint may use, each of which the VM forwards
+# to the same number on the Mac. `vm/lima.yaml` names the same range, so the two
+# change together.
+_DEBUGGING_PORTS = range(29220, 29230)
 
-def _browser_app(playwright: Playwright) -> Path:
-  """The application bundle to launch: the Chromium Playwright brings along.
-
-  Using the browser the project already depends on, rather than whatever the
-  machine happens to have installed, keeps the version pinned alongside the code
-  and asks nothing of the machine. `open` takes a bundle, which sits three
-  levels above the executable Playwright names.
-  """
-  return Path(playwright.chromium.executable_path).parents[2]
+# A shell script that runs Chrome in the VM until the script's input closes,
+# then ends Chrome and drops its throwaway profile. The input closes when the
+# fetch ends, even if it crashes, so Chrome ends with its fetch unless it
+# ignores the signal to exit. `$0` is Chrome's path and `$@` its flags; display
+# `:2` is the one `vm/setup.sh` reserves for session analysis fetches.
+_BROWSER_SESSION_SCRIPT = """
+profile=$(mktemp -d)
+DISPLAY=:2 "$0" --user-data-dir="$profile" "$@" &
+chrome=$!
+cat > /dev/null
+kill "$chrome" 2> /dev/null
+wait "$chrome"
+rm -rf "$profile"
+"""
 
 
 def _devtools_request(port: int, path: str, *, decode: bool = True) -> object:
@@ -93,15 +108,44 @@ def _devtools_request(port: int, path: str, *, decode: bool = True) -> object:
 
 
 def _free_port() -> int:
-  """A port nothing is listening on, for the browser's debugging endpoint.
+  """An unused debugging port from `_DEBUGGING_PORTS`.
 
-  Asking the kernel for one beats a fixed number, which would collide with a
-  browser the person at the keyboard is already debugging.
+  Checking the Mac alone suffices: the VM forwards each port Chrome listens on,
+  so a port another fetch's browser holds is taken on the Mac too. A fixed port
+  would instead let a second fetch reach the first one's browser.
+
+  Raises:
+    RuntimeError: if every port in `_DEBUGGING_PORTS` is taken.
   """
-  with socket.socket() as probe:
-    probe.bind(('127.0.0.1', 0))
-    port: int = probe.getsockname()[1]
-    return port
+  for port in _DEBUGGING_PORTS:
+    with socket.socket() as probe:
+      try:
+        probe.bind(('127.0.0.1', port))
+      except OSError:
+        continue
+      return port
+  raise RuntimeError(
+    f'every debugging port from {_DEBUGGING_PORTS.start} to '
+    f'{_DEBUGGING_PORTS.stop - 1} is taken on the Mac'
+  )
+
+
+def _start_virtual_machine() -> str:
+  """Ready the Linux virtual machine, returning its name for `limactl`.
+
+  Raises:
+    RuntimeError: if the VM will not start.
+  """
+  try:
+    started = subprocess.run(
+      ('bash', str(_VIRTUAL_MACHINE_DIRECTORY / 'start.sh')),
+      check=True,
+      stdout=subprocess.PIPE,
+      text=True,
+    )
+  except subprocess.CalledProcessError as error:
+    raise RuntimeError(f'could not ready the Linux VM: {error}') from error
+  return started.stdout.strip()
 
 
 class _Browser(Protocol):
@@ -139,15 +183,17 @@ class _Browser(Protocol):
     ...
 
 
-class _DesktopBrowser:
-  """A `_Browser` running in this account's own desktop session.
+class _VirtualMachineBrowser:
+  """A `_Browser` running in a Linux virtual machine.
 
-  Everything here follows from the one constraint the module docstring argues:
-  nothing may be attached to a page while Cloudflare's challenge runs.
+  The VM gives Chrome a virtual screen to draw on, so a fetch needs no desktop
+  session on the Mac. Everything else follows from the one constraint the module
+  docstring argues: nothing may be attached to a page while Cloudflare's
+  challenge runs.
 
-  - **The browser is launched, not driven.** `open` hands it to the account's
-    own desktop session, and URLs arrive as tabs rather than as navigations, so
-    no automation is in the picture when Cloudflare decides.
+  - **The browser is launched, not driven.** A shell in the VM starts it, and
+    URLs arrive as tabs rather than as navigations, so no automation is in the
+    picture when Cloudflare decides.
   - **Everything before the read speaks HTTP.** The DevTools HTTP endpoints
     attach no debugger to anything.
   - **The debugger attaches only to read, and detaches straight after**, so the
@@ -155,88 +201,84 @@ class _DesktopBrowser:
     browser running, which is what lets one browser serve a whole run and lets
     the first page's clearance cookie spare the rest.
 
-  One browser is launched per run, in a throwaway profile that goes with it.
+  One browser is launched per run, in a throwaway profile that goes with it. The
+  `limactl shell` that launches it stays open for the whole run, and the VM
+  counts an open shell as work, so the VM can't power itself off mid-fetch.
   """
 
   def __init__(self) -> None:
-    # One Playwright driver serves the whole run: it names the browser to
-    # launch, and every later read connects through it. Only the connection is
-    # made and dropped per read — the driver holding still attaches nothing to a
-    # page, and starting one per read left asyncio complaining about its own
-    # teardown on a run that had gone perfectly well.
+    # One Playwright driver serves the whole run, and every read connects
+    # through it. Only the connection is made and dropped per read — the driver
+    # holding still attaches nothing to a page, and starting one per read left
+    # asyncio complaining about its own teardown on a run that had gone
+    # perfectly well.
     self._playwright: Playwright | None = None
-    self._profile: Path | None = None
     self._port: int | None = None
+    # Releases what a successful `start` acquired, in the reverse order.
+    self._resources = contextlib.ExitStack()
 
   def start(self) -> None:
-    """Launch the browser in a throwaway profile and wait for its port.
-
-    `open` rather than the executable, because Claude's own session has no
-    window server of its own: LaunchServices routes the launch into this
-    account's desktop session, where the browser can render — which the
-    challenge requires, headless being refused outright.
+    """Ready the VM, launch the browser in it, and wait for its port.
 
     Raises:
-      RuntimeError: if the browser will not launch, or never answers.
+      RuntimeError: if the VM or the browser will not start, or the
+        browser never answers.
     """
     if self._port:
       return
 
+    instance = _start_virtual_machine()
     port = _free_port()
-    playwright = sync_playwright().start()
-    self._playwright = playwright
-    app = _browser_app(playwright)
-    profile = Path(tempfile.mkdtemp(prefix='acbl-fetch-'))
-    self._profile = profile
-    try:
-      subprocess.run(
-        (
-          'open',
-          # `-a` names the application to launch, and `-n` demands a new
-          # instance of it. Without `-n`, macOS would hand the request to an
-          # instance already running and discard every flag below, leaving this
-          # fetch pointed at someone else's profile and no debugging port.
-          '-na',
-          str(app),
-          '--args',
-          f'--user-data-dir={profile}',
-          f'--remote-debugging-port={port}',
-          # No window until a tab is asked for, so the only tab a run ever holds
-          # is the one it opened — which is how `read_page` knows what to read.
-          '--no-startup-window',
-          '--no-first-run',
-          '--no-default-browser-check',
-          # Chrome encrypts its cookies with a key it keeps in the login
-          # keychain, and asking for that key from a binary the keychain does
-          # not trust raises a prompt in the desktop session, where nobody is
-          # watching to answer it. The mock keychain uses a fixed in-memory key
-          # instead, as Playwright's own launches do.
-          '--use-mock-keychain',
-        ),
-        check=True,
-      )
-    except subprocess.CalledProcessError as error:
-      raise RuntimeError(f'could not launch {app.name}: {error}') from error
-
-    for _ in range(_BROWSER_START_TIMEOUT_SECONDS):
-      try:
-        _devtools_request(port, '/json/version')
-      except OSError:
-        time.sleep(_POLL_SECONDS)
-      else:
-        self._port = port
-        logger.info(f'browser up on port {port}')
-        return
-
-    # Best effort: a browser still on its way up cannot be reached over CDP to
-    # be told to quit, so one that binds the port just after this gives up is
-    # orphaned anyway. Claiming the port is what lets `quit` try at all.
-    self._port = port
-    self.quit()
-    raise RuntimeError(
-      f'{app.name} did not answer port {port} within '
-      f'{_BROWSER_START_TIMEOUT_SECONDS}s'
+    command = (
+      *('limactl', 'shell', '--workdir', '/', instance, '--'),
+      *('sh', '-c', _BROWSER_SESSION_SCRIPT, _VIRTUAL_MACHINE_CHROME),
+      f'--remote-debugging-port={port}',
+      # No window until a tab is asked for, so the only tab a run ever holds is
+      # the one it opened — which is how `read_page` knows what to read.
+      '--no-startup-window',
+      '--no-first-run',
+      '--no-default-browser-check',
+      # The VM runs no keyring for Chrome to keep its cookie key in, so the key
+      # stays in the throwaway profile instead.
+      '--password-store=basic',
     )
+    # Everything acquired here is released on leaving this block, unless the
+    # browser answers, in which case `pop_all` hands it all to `quit`.
+    with contextlib.ExitStack() as resources:
+      # What the browser's session prints, for an error message.
+      output = resources.enter_context(tempfile.TemporaryFile())
+      try:
+        session = subprocess.Popen(
+          command,
+          # The script runs until this input closes, which `quit` does.
+          stdin=subprocess.PIPE,
+          stdout=output,
+          stderr=subprocess.STDOUT,
+        )
+      except OSError as error:
+        raise RuntimeError(f'could not run {command[0]}: {error}') from error
+      resources.callback(_end_session, session, output)
+      playwright = resources.enter_context(sync_playwright())
+
+      for _ in range(_BROWSER_START_TIMEOUT_SECONDS):
+        if session.poll() is not None:
+          break
+        try:
+          _devtools_request(port, '/json/version')
+        except OSError:
+          time.sleep(_POLL_SECONDS)
+        else:
+          self._playwright = playwright
+          self._port = port
+          self._resources = resources.pop_all()
+          logger.info(f'browser up on port {port} in VM {instance}')
+          return
+
+      raise RuntimeError(
+        f'the browser in VM {instance} did not answer port {port} '
+        f'within {_BROWSER_START_TIMEOUT_SECONDS}s (session exit status: '
+        f'{session.poll()}); its output ends: {_excerpt(output)!r}'
+      )
 
   def request(self, path: str, *, decode: bool = True) -> object:
     """Call one of the browser's DevTools HTTP endpoints."""
@@ -286,22 +328,41 @@ class _DesktopBrowser:
 
   def quit(self) -> None:
     """Quit the browser and drop its profile; safe to call more than once."""
-    if self._port and self._playwright:
-      # A browser that has already gone is nothing to report at close time.
-      with contextlib.suppress(OSError, PlaywrightError):
-        browser = self._playwright.chromium.connect_over_cdp(
-          f'http://127.0.0.1:{self._port}'
-        )
-        # Unlike `browser.close`, which only disconnects a browser reached over
-        # CDP, this asks the browser itself to quit.
-        browser.new_browser_cdp_session().send('Browser.close')
     self._port = None
-    if self._playwright:
-      self._playwright.stop()
-      self._playwright = None
-    if self._profile:
-      shutil.rmtree(self._profile, ignore_errors=True)
-      self._profile = None
+    self._playwright = None
+    self._resources.close()
+
+
+def _end_session(session: subprocess.Popen[bytes], output: IO[bytes]) -> None:
+  """End a session `_VirtualMachineBrowser` started, and wait for it to exit.
+
+  Closing the session's input ends the browser, and the session then drops the
+  browser's profile and exits.
+  """
+  if session.stdin:
+    session.stdin.close()
+  try:
+    session.wait(timeout=_BROWSER_EXIT_TIMEOUT_SECONDS)
+  except subprocess.TimeoutExpired:
+    # The browser ignored being told to exit and may live on in the VM, keeping
+    # it awake. Killing `limactl` below only ends the wait: `limactl` starts
+    # `ssh` as a separate process, which survives the kill and keeps the session
+    # open.
+    #
+    # TODO: have `_BROWSER_SESSION_SCRIPT` kill the browser outright when it
+    # ignores being told to exit, should that ever happen.
+    logger.warning(
+      f'the browser did not exit within {_BROWSER_EXIT_TIMEOUT_SECONDS}s of '
+      f'being told to, and may still be running in the VM, keeping it '
+      f'awake; its output ends: {_excerpt(output)!r}'
+    )
+    session.kill()
+
+
+def _excerpt(output: IO[bytes]) -> str:
+  """The end of what a browser session has printed, for an error message."""
+  output.seek(0)
+  return output.read().decode(errors='replace')[-2000:]
 
 
 class BrowserFetcher:
@@ -320,12 +381,12 @@ class BrowserFetcher:
     """Fetch through `browser`, waiting between polls with `sleep`.
 
     Args:
-      browser: the browser to drive; defaults to Chrome in this account's own
-        desktop session.
+      browser: the browser to drive; defaults to Chrome in a Linux virtual
+        machine.
       sleep: waits between clearance polls. A clock is a dependency like any
         other, and injecting it lets a test cover the waiting itself.
     """
-    self._browser = browser or _DesktopBrowser()
+    self._browser = browser or _VirtualMachineBrowser()
     self._sleep = sleep
     self._started = False
 
