@@ -246,6 +246,19 @@ environment rather than a fault.
     where a team game's page simply has no rows — and the store drops that
     distinction, so any fix needs it carried outward. Deleting the captures
     would lose examples the parsers' tests describe.
+- [ ] Date a hand record the club uploads straight from the Common Game.
+  - Rationale: the 2026-11-13 Friday game's `D261113M.pbn` is
+    TheCommonGame.com's BridgeComposer export byte for byte, and that export
+    leaves `%HRTitleDate` as `0`, naming the date only in
+    `%HRTitleEvent "FRI 11/13/2026"`. `club_pbn_parsing` reads no date from it,
+    so the capture matches no session and every run warns `undated_capture`.
+  - Note: that session took its deals from the same export, downloaded by the
+    user and filed in `bridge-private` under
+    `travellers/raw/club/thecommongame/` with its date line filled in. Once the
+    club's own file can be dated, that copy is redundant.
+  - Open question: where the date comes from — the event title's `MM/DD/YYYY`,
+    which a downloaded copy also carries, or the club's file name, which encodes
+    it (`D261113M`) but only for captures fetched from the club.
 - [ ] Share one browser across a run's two ACBL surfaces.
       {#share-one-acbl-browser}
   - Rationale: `fetch_club_travellers` and `fetch_tournament_travellers` each
@@ -1003,6 +1016,10 @@ rationale lives in the design docs' open-question sections —
   - Rationale: with every call written, the two sides take turns, so a break in
     the alternation means a misplaced circle or a missing pass. It caught a
     crossed-out circle transcribed as a real one on 2026-10-26.
+  - Note: on 2026-11-13 it would have caught two boards with passes to spare.
+    Board 12 held three passes between South's 3NT and East's double, which put
+    the double on South; board 17 held four opening passes and an extra one
+    after 1C, which put circled bids on West.
 - [ ] Derive the declarer when the sheet writes every pass.
   - Rationale: models.md `#validation` declines to derive it because passes
     usually go unwritten. With every pass written, the dealer, known from the
@@ -1010,6 +1027,19 @@ rationale lives in the design docs' open-question sections —
   - Note: on 2026-11-02 a one-off script replayed all 24 auctions from their
     dealers, and every one fit: each circled bid fell to the opponents, and each
     auction named the travellers' declarer.
+  - Note: on 2026-11-13 it would have caught board 9, whose result cell named
+    South as declarer of a 3NT North bid first. Nothing else noticed until the
+    deals arrived: the opening-lead check then found the leader void in the suit
+    led, and the club's recap confirmed North.
+- [ ] Compare the sheet with a traveller that states scores but no contracts.
+  - Rationale: ACBL's club page gives each table's score and matchpoints and no
+    contract — none of 2026-11-13's 240 rows carried one. Where it is the only
+    traveller, as while the club's site was down that day, the sheet's contracts
+    and results meet no check at all. The score they imply is a cheap stand-in:
+    `scoring.score_for_contract` computes it, and a one-off script found all 24
+    of that session's rows matched.
+  - Note: a score confirms the contract, its doubling, the tricks taken, and
+    which side declared, but not which partner.
 
 ---
 
