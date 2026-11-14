@@ -230,14 +230,6 @@ Every ACBL fetch launches its browser in a Linux virtual machine, which
 all, so a run that returns club captures and no ACBL ones may be reporting the
 environment rather than a fault.
 
-- [ ] Drop the sandbox's desktop session, now that the ACBL fetch's browser runs
-      in a Linux virtual machine. {#drop-desktop-session}
-  - Note: what this takes is the plan's last step, in
-    `/Users/Shared/data/bridge/acbl-fetch-freeze-2026-11/README.md`.
-- [ ] Watch whether an ACBL fetch still freezes the screen.
-      {#acbl-fetch-hangs-windowserver}
-  - Note: findings, and what to capture if it recurs, are in
-    `/Users/Shared/data/bridge/acbl-fetch-freeze-2026-11/README.md`.
 - [ ] Stop every run from reporting the captures known to hold no boards.
       {#capture-diagnosis}
   - Rationale: `traveller_store` reports `capture_held_no_boards` for every
