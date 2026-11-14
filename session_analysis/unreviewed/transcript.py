@@ -10,8 +10,8 @@ working out what the session could have scored.
 Its shape follows its use. The whole transcript is pasted into an email to a
 partner, who replies with comments under the boards they concern, and the board
 lines are pasted into a spreadsheet. Those two uses take two layouts, plain text
-and the web page `--page` opens, and `transcript_layout` lays the one transcript
-built here out either way.
+and the web page `--page` writes, and `transcript_layout` lays the one
+transcript built here out either way.
 
 The board lines are in the sheet's own notation, rather than a canonical prose
 spelling. Whoever wrote the sheet already reads its shorthand fluently, so a
@@ -90,8 +90,6 @@ on a comment line under the line holding its link.
 import argparse
 import dataclasses
 import sys
-import tempfile
-import webbrowser
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path, PurePosixPath
@@ -762,43 +760,39 @@ def _unreadable(raw: str) -> str:
   return f'?{raw.strip()}?'
 
 
-def _show_page(page: str) -> None:
-  """Write a web page to a file of its own, and open it in the browser."""
-  # Kept after this process exits, since the browser reads it only afterward;
-  # the system clears it away with its other temporary files.
-  with tempfile.NamedTemporaryFile(
-    'w', encoding='utf-8', prefix='transcript-', suffix='.html', delete=False
-  ) as file:
-    file.write(page)
-  path = Path(file.name)
-  # Named on standard error, so the page can be found again — or opened by hand
-  # where no browser could be.
-  print(f'wrote {path}', file=sys.stderr)
-  webbrowser.open(path.as_uri())
+def _write_page(path: Path, page: str) -> None:
+  """Write a web page to `path`, creating its directory if need be."""
+  path.parent.mkdir(parents=True, exist_ok=True)
+  path.write_text(page, encoding='utf-8')
 
 
 def main(
   argv: Sequence[str] | None = None,
   *,
-  show_page: Callable[[str], None] = _show_page,
+  find_private_tree: Callable[[], PrivateTree] = discover_private_tree,
+  write_page: Callable[[Path, str], None] = _write_page,
 ) -> int:
   """Transcribe each session record named, or every stored one.
 
-  Prints the transcripts as plain text, or with `--page` hands them to
-  `show_page` as one web page instead.
+  Prints the transcripts as plain text, or with `--page` writes each as a web
+  page instead, beside its plain text in the private tree's `transcripts`.
+
+  Args:
+    argv: the command line, without the program's name; `sys.argv`'s when None.
+    find_private_tree: locates the private tree, which holds the stored records
+      and the transcripts; injectable so tests never touch the real one.
+    write_page: writes a page to a path; injectable so tests need no disk.
 
   Returns:
-    The exit status: non-zero if any record could not be read, so a run that
-    skipped one is distinguishable from one that transcribed everything asked
-    of it.
+    The exit status: non-zero if any record could not be read, or any page
+    written, so a run that skipped one is distinguishable from one that did
+    everything asked of it.
   """
   arguments = _parse_args(argv)
   records: Sequence[Path] = arguments.records
   if not records:
-    try:
-      tree = discover_private_tree()
-    except (FileNotFoundError, RuntimeError) as error:
-      print(f'could not find the stored sessions: {error}', file=sys.stderr)
+    tree = _private_tree(find_private_tree)
+    if not tree:
       return 1
     records = _stored_records(tree)
     if not records:
@@ -809,15 +803,38 @@ def main(
     session for record in records if (session := _read_session(record))
   ]
   status = 0 if len(sessions) == len(records) else 1
-  # Built lazily, so that plain text prints each session as soon as it is
-  # transcribed, rather than all of them at the end.
-  transcripts = (transcript_of(session) for session in sessions)
   if not arguments.page:
-    _print_transcripts(transcripts)
-  elif sessions:
-    title = _session_title(sessions[0]) if len(sessions) == 1 else 'Transcripts'
-    show_page(as_web_page(title, list(transcripts)))
+    # Built lazily, so that each session prints as soon as it is transcribed,
+    # rather than all of them at the end.
+    _print_transcripts(transcript_of(session) for session in sessions)
+    return status
+
+  tree = _private_tree(find_private_tree)
+  if not tree:
+    return 1
+  for session in sessions:
+    path = tree.transcripts / f'{session.session_key}.html'
+    page = as_web_page(_session_title(session), [transcript_of(session)])
+    try:
+      write_page(path, page)
+    except OSError as error:
+      print(f'could not write {path}: {error}', file=sys.stderr)
+      status = 1
+    else:
+      # Named on standard error, so the page can be found and opened by hand.
+      print(f'wrote {path}', file=sys.stderr)
   return status
+
+
+def _private_tree(
+  find_private_tree: Callable[[], PrivateTree],
+) -> PrivateTree | None:
+  """The private tree, or None with a complaint on standard error."""
+  try:
+    return find_private_tree()
+  except (FileNotFoundError, RuntimeError) as error:
+    print(f'could not find the private tree: {error}', file=sys.stderr)
+    return None
 
 
 def _print_transcripts(transcripts: Iterable[Sequence[Block]]) -> None:
@@ -876,8 +893,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
   parser.add_argument(
     '--page',
     action='store_true',
-    help='open the transcripts as a web page, whose tables keep their columns '
-    'lined up when pasted into an email, instead of printing them',
+    help='write each transcript as a web page beside its plain text, in the '
+    "private tree's transcripts/, instead of printing it; a page's tables keep "
+    'their columns lined up when pasted into an email',
   )
   return parser.parse_args(argv)
 

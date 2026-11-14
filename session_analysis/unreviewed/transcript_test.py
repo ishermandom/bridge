@@ -50,6 +50,7 @@ from session_analysis.models import (
   Session,
   SolvedDoubleDummyTricks,
 )
+from session_analysis.private_paths import PrivateTree
 from session_analysis.testing import provenance
 from session_analysis.testing.deals import a_deal_the_lead_decides
 from session_analysis.unreviewed.transcript import main, render_session
@@ -783,11 +784,7 @@ def test_the_page_links_each_recap_by_its_site_s_name(tmp_path: Path) -> None:
       ),
     ),
   )
-  pages: list[str] = []
-
-  main([str(record), '--page'], show_page=pages.append)
-
-  [page] = pages
+  page = _page_of(record)
   acbl = '<a href="https://acbl.example.com/details/1">ACBL</a>'
   club = '<a href="https://club.example.com/R260629M.htm">club</a>'
   assert f'Recaps: {acbl}, {club}</p>' in page
@@ -823,11 +820,7 @@ def test_the_page_sets_the_boards_as_lines_and_the_rest_as_tables(
       ),
     ),
   )
-  pages: list[str] = []
-
-  main([str(record), '--page'], show_page=pages.append)
-
-  [page] = pages
+  page = _page_of(record)
   # Lines, so that a partner replying can write notes between the boards.
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
   assert f'>#5{gap}1C{gap}MP=4.5</div>' in page
@@ -907,11 +900,7 @@ def test_the_page_links_a_board_s_number_to_the_solver(
       )
     ),
   )
-  pages: list[str] = []
-
-  main([str(record), '--page'], show_page=pages.append)
-
-  [page] = pages
+  page = _page_of(record)
   # The number itself is the link, so the line reads as it did without one.
   assert (
     '><a href="https://dds.bridgewebs.com/bsol_standalone/ddummy.htm'
@@ -1275,6 +1264,18 @@ def _write_record(directory: Path, session: Session) -> Path:
   return record
 
 
+def _page_of(record: Path) -> str:
+  """The one page `--page` makes of `record`, captured rather than written."""
+  pages: dict[Path, str] = {}
+  main(
+    [str(record), '--page'],
+    find_private_tree=lambda: PrivateTree(Path('private')),
+    write_page=pages.__setitem__,
+  )
+  [page] = pages.values()
+  return page
+
+
 def test_the_command_transcribes_a_record_it_is_given(
   tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1342,20 +1343,89 @@ def test_the_command_transcribes_the_records_it_can_read(
   assert '#5' in captured.out
 
 
-def test_the_command_hands_over_a_page_rather_than_printing(
+def test_the_command_writes_a_page_beside_the_plain_text(
   tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
   record = _write_record(
     tmp_path,
-    _make_session(_make_board(5, auction=[_make_bid(1, Strain.CLUBS)])),
+    _make_session(
+      _make_board(5, auction=[_make_bid(1, Strain.CLUBS)]),
+      session_key='pabc-mon-2026-06-29',
+    ),
   )
-  pages: list[str] = []
+  pages: dict[Path, str] = {}
 
-  status = main([str(record), '--page'], show_page=pages.append)
+  status = main(
+    [str(record), '--page'],
+    find_private_tree=lambda: PrivateTree(Path('private')),
+    write_page=pages.__setitem__,
+  )
 
   assert status == 0
-  assert not capsys.readouterr().out
-  # One page, titled for its one session, with the board's line on it.
-  [page] = pages
-  assert '<title>Monday Pairs — 2026-06-29</title>' in page
-  assert '>#5' in page
+  # Named for its session, as the plain text transcript beside it is.
+  path = Path('private/transcripts/pabc-mon-2026-06-29.html')
+  assert list(pages) == [path]
+  assert '<title>Monday Pairs — 2026-06-29</title>' in pages[path]
+  assert '>#5' in pages[path]
+  captured = capsys.readouterr()
+  assert not captured.out
+  assert str(path) in captured.err
+
+
+def test_each_session_gets_a_page_of_its_own(tmp_path: Path) -> None:
+  first = _write_record(
+    tmp_path, _make_session(_make_board(), session_key='pabc-mon-2026-06-29')
+  )
+  second = _write_record(
+    tmp_path, _make_session(_make_board(), session_key='pabc-mon-2026-07-06')
+  )
+  pages: dict[Path, str] = {}
+
+  main(
+    [str(first), str(second), '--page'],
+    find_private_tree=lambda: PrivateTree(Path('private')),
+    write_page=pages.__setitem__,
+  )
+
+  assert sorted(pages) == [
+    Path('private/transcripts/pabc-mon-2026-06-29.html'),
+    Path('private/transcripts/pabc-mon-2026-07-06.html'),
+  ]
+
+
+def test_a_page_with_no_private_tree_to_go_to_is_not_written(
+  tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+  record = _write_record(tmp_path, _make_session(_make_board()))
+  pages: dict[Path, str] = {}
+
+  def no_private_tree() -> PrivateTree:
+    raise RuntimeError('no bridge-private beside this checkout')
+
+  status = main(
+    [str(record), '--page'],
+    find_private_tree=no_private_tree,
+    write_page=pages.__setitem__,
+  )
+
+  assert status == 1
+  assert not pages
+  assert 'private tree' in capsys.readouterr().err
+
+
+def test_a_page_that_cannot_be_written_fails_the_run(
+  tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+  record = _write_record(tmp_path, _make_session(_make_board()))
+
+  def unwritable(path: Path, page: str) -> None:
+    raise PermissionError(f'{path} is read-only')
+
+  status = main(
+    [str(record), '--page'],
+    find_private_tree=lambda: PrivateTree(Path('private')),
+    write_page=unwritable,
+  )
+
+  assert status == 1
+  assert 'could not write' in capsys.readouterr().err

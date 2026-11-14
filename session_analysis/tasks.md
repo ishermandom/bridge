@@ -387,8 +387,10 @@ lane settles the sheet with the user in chat:
    needs clarifying or review in chat, and apply the user's fixes there.
 3. Once every detail is settled, re-fetch the travellers: a site can publish a
    correction hours after the game, as both did on 2026-11-02.
-4. Only then save the sheet's transcript as text and as a page in the private
-   tree's `transcripts/`, where the user opens it (#page-reaches-user).
+4. Only then save the sheet's transcript as text in the private tree's
+   `transcripts/`, where the user opens it, and write its page beside it with
+   `transcript --page`. Until #recap-by-player, name the partners by initials in
+   both by hand, in place of their seats.
 
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
@@ -685,9 +687,10 @@ text, and how the table's result compares with what the deal allowed.
 a line per board in the sheet's own shorthand, and a table for working out what
 the session could have scored.
 `python -m session_analysis.unreviewed.transcript` prints the records it is
-given, or every stored one, and `--page` opens them as a web page for pasting
-into an email. The comparisons themselves, and what their silences mean, are
-argued in `unreviewed.double_dummy_comparison`.
+given, or every stored one, and `--page` writes each as a web page for pasting
+into an email, beside its plain text in the private tree's `transcripts/`. The
+comparisons themselves, and what their silences mean, are argued in
+`unreviewed.double_dummy_comparison`.
 
 - [ ] Score each board in its game's own unit — matchpoints or IMPs — with a
       single unit shared by every board in a session. {#score-in-game-units}
@@ -781,19 +784,6 @@ argued in `unreviewed.double_dummy_comparison`.
     tell those apart. The quieter alternative is to let the empty columns speak
     for themselves, as the matchpoints column already does. Two of the three
     stored sessions are teams games, so it is doing real work today.
-- [ ] Let `--page` save the transcript where the user's own login can open it.
-      {#page-reaches-user}
-  - Rationale: `_show_page` writes the page to the running account's temporary
-    directory and opens it with `webbrowser`. Run from a Claude session in the
-    sandbox, neither reaches the user: that directory belongs to the sandbox
-    account, and a background login has no screen to open a browser on. The
-    2026-10-12 page went into the private tree's `transcripts/` by a one-off
-    script instead.
-  - Open question: whether the page takes a path to save to, or always lands
-    beside the stored text transcripts.
-  - Note: the user can open either `/Users/Shared/transfer` or the private
-    tree's `transcripts/`, and the latter keeps the page durably beside its
-    text.
 
 ---
 

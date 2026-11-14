@@ -125,6 +125,16 @@ class PrivateTree:
     """
     return self.session_records / 'pending'
 
+  @property
+  def transcripts(self) -> Path:
+    """Sessions rendered to read back, as `<session-key>.txt` and `.html`.
+
+    The plain text is saved from `transcript`'s output, and `transcript --page`
+    writes each page beside it, where the user's own login can open both. Both
+    are regenerable from the session records.
+    """
+    return self.root / 'transcripts'
+
 
 def _this_checkout() -> Path:
   """The `bridge` checkout this file belongs to, according to git.
