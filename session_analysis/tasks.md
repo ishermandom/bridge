@@ -799,15 +799,16 @@ comparisons themselves, and what their silences mean, are argued in
     stored sessions are teams games, so it is doing real work today.
 - [ ] Check the transcript page in a dark-mode mail program.
       {#dark-mode-mail-check}
-  - Note: the page draws gray, blue and red inline and sets no background.
-    Sources report that Apple Mail can leave an explicit color as written while
+  - Note: the page draws gray, blue and red inline, along with the light gray
+    dots leading across from each auction, and sets no background. Sources
+    report that Apple Mail can leave an explicit color as written while
     darkening an unset background. Why the colors sit where they do is at
     `transcript_layout._EMPHASIS_STYLES`.
   - Note: only the user can run the cheap check — paste a page into a message,
     send it to themselves, and read it with dark mode on in the mail programs
-    its readers use. The same check would show whether Gmail's compose window
-    keeps the hair space ending each line and the no-break spaces, which so far
-    have been tested only in Chrome's editing surface.
+    its readers use. Pasted into Gmail's compose window, the page keeps its
+    columns (checked 2026-11-16). Whether a note typed under a line there comes
+    out plain, as it does in Chrome, is still unchecked.
   - Open question: if muted or colored text goes dark on dark, either set an
     explicit white background on the board list, or lighten the colors at some
     cost to their contrast against white. Pasting into Gmail likely drops a
