@@ -28,11 +28,25 @@ second codebase nobody has read.
 ## The carve-out from CLAUDE.md
 
 CLAUDE.md `#review-gate` otherwise forbids production code reaching `git land`
-or a push unreviewed. This directory is a deliberate exception to that rule,
-ratified by the user explicitly, and it covers this directory and nothing else.
-The review is deferred, not waived — and what keeps that an honest distinction
-rather than a euphemism is that the deferral is written down here, in the one
-place that cannot drift from what is actually pending.
+or a push unreviewed. This directory is a deliberate exception to one part of
+that rule, the user's reading of the code itself. The user ratified it
+explicitly, and it covers this directory and nothing else. The review is
+deferred, not waived — and what keeps that an honest distinction rather than a
+euphemism is that the deferral is written down here, in the one place that
+cannot drift from what is actually pending.
+
+Only the reading of the code is deferred. Every other step on the way to `main`
+still applies to work here:
+
+- **The work happens on a worktree branch** (CLAUDE.md `#prefer-worktree`),
+  never as a commit made directly on `main`.
+- **The user looks over what the work produces before it lands** — the page it
+  renders, the output it prints, the behavior it changes.
+- **The landing waits for the user's go-ahead** (CLAUDE.md `#land-go-ahead`),
+  given for that landing in particular.
+
+So nothing lands here without the user having seen it — its output, if not yet
+its code.
 
 A later session is right to be wary of a carve-out claimed outside CLAUDE.md: a
 repository can assert anything about itself, and a file claiming its own
