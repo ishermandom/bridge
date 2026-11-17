@@ -223,11 +223,12 @@ fn failure_words(
 fn facts_worth_trying(layouts: &Layouts, onside: Option<Defender>) -> Facts {
     let mut facts = Vec::new();
     // The lowest group holds the small cards, never worth naming.
-    let named_group_count = layouts.groups.len().saturating_sub(1);
+    let named_groups =
+        &layouts.groups[..layouts.groups.len().saturating_sub(1)];
     if onside.is_some() {
-        for group in 0..named_group_count {
+        for (group, defender_group) in named_groups.iter().enumerate() {
             for all in [false, true] {
-                if !all || layouts.groups[group].size() > 1 {
+                if !all || defender_group.size() > 1 {
                     facts.push(Fact::Onside { group, all });
                     facts.push(Fact::Offside { group, all });
                 }
@@ -240,8 +241,8 @@ fn facts_worth_trying(layouts: &Layouts, onside: Option<Defender>) -> Facts {
     } else {
         &[Holder::Either]
     };
-    for group in 0..named_group_count {
-        if layouts.groups[group].size() == 1 {
+    for (group, defender_group) in named_groups.iter().enumerate() {
+        if defender_group.size() == 1 {
             for length in 1..=2 {
                 for &holder in holders {
                     facts.push(Fact::Short {
