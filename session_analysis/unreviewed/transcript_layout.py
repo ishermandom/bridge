@@ -23,6 +23,7 @@ whichever of the two functions here its reader needs.
 import dataclasses
 import enum
 import html
+import math
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 
 
@@ -137,10 +138,17 @@ class Table:
   rows: tuple[TableRow, ...]
   # Whether a reader should be able to write notes between its rows on the web
   # page. Most email editors can type into a row of a pasted table but cannot
-  # add one, so the page sets such a table's rows as lines of text instead,
-  # giving up its lined-up columns. Plain text, where a new line can go
+  # add one, so the page sets such a table's rows as lines of text instead, each
+  # cell held to its column's width. Plain text, where a new line can go
   # anywhere, lays it out like any other table.
   allows_notes_between_rows: bool = False
+  # For a table allowing notes, a width in em to hold its second column to,
+  # rather than setting the column as wide as its widest value. Sizing a column
+  # to its widest suits values of much the same length, but values as varied as
+  # auctions would leave most lines a wide gap. Held to a width that fits most
+  # of them instead, a longer value wraps within the column, and dots lead the
+  # eye across from a shorter one to the next.
+  second_column_width: float | None = None
 
 
 # What a transcript is built from: runs of lines, and tables.
@@ -309,9 +317,11 @@ _NAME_GAP = '\N{NO-BREAK SPACE}' * 3 + ' '
 #   than glare.
 # - Bold rather than semibold: none of the page's fonts comes in a semibold, and
 #   a font without one draws a weight of 600 as bold.
+# - Bold text is also kept whole, since a reader scans for it, so that a
+#   contract and its result never break across two lines.
 _EMPHASIS_STYLES: Mapping[Emphasis, str] = {
   Emphasis.MUTED: 'color: #767676',
-  Emphasis.STRONG: 'font-weight: bold',
+  Emphasis.STRONG: 'font-weight: bold; white-space: nowrap',
   Emphasis.GOOD: 'color: #2d74d8',
   Emphasis.BAD: 'color: #d73c36',
 }
@@ -334,6 +344,58 @@ _LINE_STYLE = f'{_FONT}; line-height: 1.4'
 # under the same line takes the line's last emphasis after all.
 _PLAIN_LINE_END = '\N{HAIR SPACE}'
 
+# How a line of a table allowing notes holds each cell to its column's width. It
+# works in layers, so that a mail program missing a layer loses only what that
+# layer adds:
+#
+# - Each cell is an inline block, set to its column's width. A program without
+#   inline blocks, such as Outlook for Windows, sets the cells as plain text,
+#   where the gaps and separators written between them still part them, and the
+#   line reads as it would unaligned.
+# - The held second column draws its dots with a flex layout, inside its block.
+#   A program without flex layout, such as Gmail's apps showing mail from
+#   another provider's account, leaves the block its width, so the columns still
+#   line up, only without the dots.
+#
+# Every block aligns by its top, so that the rest of a line stays level with the
+# first line of a wrapped second column. Every other column is given a minimum
+# width rather than a width, and kept from wrapping: Gmail breaks text too wide
+# for its box, even mid-word, so a cell wider than estimated widens its own line
+# instead.
+_HELD_STYLE = 'display: inline-block; vertical-align: top'
+_FITTED_STYLE = (
+  'display: inline-block; vertical-align: top; white-space: nowrap'
+)
+_DOTS_STYLE = (
+  'flex: 1 0 1em; margin-left: 0.4em; border-bottom: 1.5px dotted #a8a8a8'
+)
+
+# Arial's character widths, in em, from its published measurements, which
+# Helvetica shares. Calibri and Roboto draw narrower, so a column wide enough in
+# Arial is wide enough in each of the page's fonts. A character missing here is
+# taken to be an em wide, wider than any listed.
+_ARIAL_WIDTHS: Mapping[str, float] = {
+  **dict.fromkeys("'", 0.191),
+  **dict.fromkeys('ijl', 0.222),
+  **dict.fromkeys('|', 0.26),
+  **dict.fromkeys(' !,./:;I[\\]ft\N{NO-BREAK SPACE}\N{MIDDLE DOT}', 0.278),
+  **dict.fromkeys('()-`r{}', 0.333),
+  **dict.fromkeys('"', 0.355),
+  **dict.fromkeys('*', 0.389),
+  **dict.fromkeys('^', 0.469),
+  **dict.fromkeys('Jckvsxyz', 0.5),
+  **dict.fromkeys('#$0123456789?L_abdeghnopqu\N{FIGURE SPACE}', 0.556),
+  **dict.fromkeys('+<=>~\N{MINUS SIGN}', 0.584),
+  **dict.fromkeys('FTZ', 0.611),
+  **dict.fromkeys('&ABEKPSVXY', 0.667),
+  **dict.fromkeys('CDHNRUw', 0.722),
+  **dict.fromkeys('GOQ', 0.778),
+  **dict.fromkeys('Mm', 0.833),
+  **dict.fromkeys('%', 0.889),
+  **dict.fromkeys('W', 0.944),
+  **dict.fromkeys('@', 1.015),
+}
+
 
 def _block_html(block: Block) -> str:
   """One block as markup: a paragraph of lines, or a table.
@@ -344,7 +406,7 @@ def _block_html(block: Block) -> str:
     lines = '<br>\n'.join(_line_html(line) for line in block.lines)
     return f'<p style="{_PARAGRAPH_STYLE}">{lines}</p>'
   if block.allows_notes_between_rows:
-    return _lines_as_blocks_html(_rows_as_lines(block.rows))
+    return _noted_table_html(block)
 
   rows = '\n'.join(_row_html(row, block.alignments) for row in block.rows)
   return (
@@ -380,69 +442,114 @@ def _html_of(piece: Piece) -> str:
   return html.escape(piece)
 
 
-def _lines_as_blocks_html(lines: Iterable[Line]) -> str:
-  """Lines as markup, each a block of its own.
+def _noted_table_html(table: Table) -> str:
+  """A table allowing notes, as lines of text whose columns line up.
 
-  An editor's Enter at the end of such a line opens a new one under it, which
-  takes the line's font, and the line's last character leaves none of its
-  emphasis to what is typed there. At the end of one line of a paragraph, Enter
-  would split the paragraph instead, and its margin would set the two halves
-  apart.
+  Each line is a block of its own. An editor's Enter at the end of such a line
+  opens a new one under it, which takes the line's font, and the line's last
+  character leaves none of its emphasis to what is typed there. At the end of
+  one line of a paragraph, Enter would split the paragraph instead, and its
+  margin would set the two halves apart.
   """
+  rows = [row for row in table.rows if not isinstance(row, FullWidthRow)]
+  widths = _column_widths(table, rows)
   markup = '\n'.join(
-    f'<div style="{_LINE_STYLE}">{_line_html(line)}{_PLAIN_LINE_END}</div>'
-    for line in lines
+    f'<div style="{_LINE_STYLE}">'
+    f'{_noted_row_html(row, table, widths)}{_PLAIN_LINE_END}</div>'
+    for row in table.rows
   )
   return f'<div style="margin: 0 0 1em">\n{markup}\n</div>'
 
 
-def _rows_as_lines(rows: Sequence[TableRow]) -> Iterator[Line]:
-  """A table's rows as lines of text, their values starting together.
+def _column_widths(
+  table: Table, rows: Sequence[tuple[Cell, ...]]
+) -> Mapping[int, float]:
+  """The minimum width in em of each column set to its widest, by its place.
 
-  Each row's name is padded with figure spaces, each as wide as a digit, to the
-  length of the longest name. Names that differ only in how many digits they
-  hold, as board numbers do, then end at the same place, and the values after
-  them line up at their start.
+  A column's width counts the separator its cells open with, so that an empty
+  cell, which has none, still fills its column.
   """
-  name_length = max(
-    (
-      len(_cell_text(row[0]))
-      for row in rows
-      if not isinstance(row, FullWidthRow)
-    ),
-    default=0,
-  )
-  for row in rows:
-    yield _row_as_line(row, name_length)
+  separator = ''.join(_text_of(piece) for piece in _VALUE_SEPARATOR)
+  widths: dict[int, float] = {}
+  for index, column in enumerate(zip(*rows, strict=True)):
+    # A held column has its own width.
+    if index == 1 and table.second_column_width:
+      continue
+    opening = separator if index >= _first_separated_column(table) else ''
+    widths[index] = _arial_width(opening) + max(
+      _arial_width(_cell_text(cell)) for cell in column
+    )
+  return widths
 
 
-def _row_as_line(row: TableRow, name_length: int) -> Line:
-  """A table row as one line of text, led by the cell naming the row.
+def _first_separated_column(table: Table) -> int:
+  """The first column whose cells open with a separator.
 
-  The first cell names the row, as a board's number does, so space alone sets it
+  The column after the name, and the column after a held second column, need
+  none: a gap sets each off, which the held column's dots lead across.
+  """
+  return 3 if table.second_column_width else 2
+
+
+def _arial_width(text: str) -> float:
+  """How wide `text` is drawn in Arial at its regular weight, in em.
+
+  The estimate runs 3% over Arial's published measurements, since Arial as some
+  systems draw it sets a few characters, such as `+`, a little wider.
+  """
+  return 1.03 * sum(_ARIAL_WIDTHS.get(character, 1.0) for character in text)
+
+
+def _noted_row_html(
+  row: TableRow, table: Table, widths: Mapping[int, float]
+) -> str:
+  """One row of a table allowing notes as a line, its cells held to width.
+
+  The first cell names the row, as a board's number does, so a gap alone sets it
   off from the values after it, and a separator stands between each two of those
-  values. A cell with no text is left out rather than given a place between two
-  separators: with the columns no longer lining up, its place says nothing.
+  values.
   """
   if isinstance(row, FullWidthRow):
-    return row.text
+    return html.escape(row.text)
   name, *values = row
-  pieces: list[Piece] = []
-  for value in values:
-    if not _cell_text(value):
+  markup = _fitted_cell_html(_cell_pieces(name), widths[0]) + _NAME_GAP
+  for index, value in enumerate(values, start=1):
+    if index == 1 and table.second_column_width:
+      markup += _held_cell_html(value, table.second_column_width) + _NAME_GAP
       continue
-    if pieces:
-      pieces.extend(_VALUE_SEPARATOR)
-    pieces.extend(_cell_pieces(value))
+    pieces: tuple[Piece, ...] = _cell_pieces(value)
+    if index >= _first_separated_column(table) and _cell_text(value):
+      pieces = (*_VALUE_SEPARATOR, *pieces)
+    markup += _fitted_cell_html(pieces, widths[index])
+  return markup
 
-  name_text = _cell_text(name)
-  if not name_text:
-    return tuple(pieces)
-  if not pieces:
-    return _cell_pieces(name)
-  # Outside the name's own pieces, so that a link's underline stops at its text.
-  padding = '\N{FIGURE SPACE}' * (name_length - len(name_text))
-  return (*_cell_pieces(name), padding + _NAME_GAP, *pieces)
+
+def _fitted_cell_html(pieces: tuple[Piece, ...], width: float) -> str:
+  """A cell kept on one line, at least as wide as its column."""
+  return (
+    f'<span style="{_FITTED_STYLE}; min-width: {_in_em(width)}">'
+    f'{_line_html(pieces)}</span>'
+  )
+
+
+def _held_cell_html(cell: Cell, width: float) -> str:
+  """A cell held to a set width, dots leading across from its text."""
+  # The cell's pieces share one wrapper, which the flex layout sets as one item
+  # beside the dots, where it would set each piece apart and drop the space
+  # between two. The wrapper is styled, though its style is flex's default: a
+  # page copied into Gmail loses a span with no style of its own.
+  return (
+    f'<span style="{_HELD_STYLE}; width: {_in_em(width)}">'
+    '<span style="display: flex; align-items: baseline">'
+    f'<span style="flex: 0 1 auto">{_line_html(_cell_pieces(cell))}</span>'
+    f'<span style="{_DOTS_STYLE}"></span>'
+    '</span></span>'
+  )
+
+
+def _in_em(width: float) -> str:
+  """A width in em, rounded up to the hundredth, so as never to fall short."""
+  return f'{math.ceil(width * 100) / 100:g}em'
 
 
 def _row_html(row: TableRow, alignments: Sequence[Alignment]) -> str:

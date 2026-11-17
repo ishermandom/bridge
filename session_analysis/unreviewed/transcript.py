@@ -192,6 +192,11 @@ _RECAP_NAMES: Mapping[TravellerSource, str] = {
 # way a reader rounding by hand would: 17 of 32 is 53.13%, not banker's 53.12%.
 _HUNDREDTHS = Decimal('0.01')
 
+# How wide the web page holds a board's auction, in em: wide enough for nine
+# auctions in ten as Arial draws them, the widest of the page's fonts, with room
+# left for the dots that lead across to the lead. A longer auction wraps.
+_AUCTION_WIDTH = 16.75
+
 
 def transcript_of(session: Session) -> Sequence[Block]:
   """The whole of one session, as blocks `transcript_layout` lays out.
@@ -469,12 +474,14 @@ def _board_table(
 
   Each board's number links to the solver, where the board has a deal to open
   there, so in plain text a board's line can carry the link's address on a line
-  under it. On the web page the table allows notes between its rows.
+  under it. On the web page the table allows notes between its rows, and holds
+  the auctions, whose lengths vary most, to a set width.
   """
   return Table(
     alignments=(Alignment.LEFT,) * 6,
     rows=tuple(_board_cells(board, comparisons) for board in boards),
     allows_notes_between_rows=True,
+    second_column_width=_AUCTION_WIDTH,
   )
 
 
@@ -484,10 +491,9 @@ def _board_cells(
 ) -> tuple[Cell, ...]:
   """One board's line, a cell empty where nothing was recorded or compared.
 
-  The web page sets the boards as lines rather than as a table, so their columns
-  do not line up. Instead it draws the contract and result bold, as what a
-  reader scans the lines for, follows the matchpoints with their share of the
-  top, and colors each count by the way it went.
+  The web page draws the contract and result bold, as what a reader scans the
+  lines for, follows the matchpoints with their share of the top, and colors
+  each count by the way it went.
   """
   # A board whose number went unread reaches no traveller row, and so has no
   # comparison waiting for it under any key.

@@ -850,8 +850,9 @@ def test_the_page_sets_the_boards_as_lines_and_the_rest_as_tables(
   )
   page = _page_of(record)
   # Lines, so that a partner replying can write notes between the boards.
-  assert 'line-height: 1.4">#5' in page
-  assert 'line-height: 1.4">#6' in page
+  assert page.count('line-height: 1.4">') == 2
+  assert '>#5</span>' in page
+  assert '>#6</span>' in page
   # The summary's table and the could-have table.
   assert page.count('<table') == 2
 
@@ -873,7 +874,8 @@ def test_the_page_draws_the_contract_bold_after_a_plain_auction(
 
   # The auction's final bid is bold along with what the contract cell adds.
   assert (
-    '4S <span style="font-weight: bold">(5C)N\N{MINUS SIGN}1</span>'
+    '4S <span style="font-weight: bold; white-space: nowrap">'
+    '(5C)N\N{MINUS SIGN}1</span>'
   ) in page
 
 
@@ -891,7 +893,9 @@ def test_the_page_draws_a_contract_written_apart_from_its_auction_bold(
 
   page = _page_of(_write_record(tmp_path, _make_session(board)))
 
-  assert '1C <span style="font-weight: bold">3NS+3</span>' in page
+  assert (
+    '1C <span style="font-weight: bold; white-space: nowrap">3NS+3</span>'
+  ) in page
 
 
 def test_the_page_sets_the_lead_a_space_from_its_label(tmp_path: Path) -> None:
@@ -906,6 +910,20 @@ def test_the_page_sets_the_lead_a_space_from_its_label(tmp_path: Path) -> None:
 
   # Non-breaking, so that the label never ends a line apart from its card.
   assert 'lead\N{NO-BREAK SPACE}2oS' in page
+
+
+def test_the_page_holds_every_auction_to_one_width(tmp_path: Path) -> None:
+  board = _make_board(
+    outcome=_make_outcome(
+      level=3, strain=Strain.NOTRUMP, declarer=Direction.SOUTH, tricks_taken=9
+    ),
+  )
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  # So that the lead starts at one place on every line, however long the auction
+  # before it.
+  assert 'width: 16.75em">' in page
 
 
 def test_the_page_keeps_a_score_s_words_together(tmp_path: Path) -> None:

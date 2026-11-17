@@ -129,10 +129,9 @@ def test_a_table_allowing_notes_is_set_as_lines_on_the_page() -> None:
 
   page = as_web_page('Monday Pairs', [[table]])
 
-  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
   # A line apiece, so that an email editor can open a new line between two.
-  assert f'>#5{gap}1C\N{HAIR SPACE}</div>' in page
-  assert f'>#6{gap}1H\N{HAIR SPACE}</div>' in page
+  assert '>1C</span>\N{HAIR SPACE}</div>' in page
+  assert '>1H</span>\N{HAIR SPACE}</div>' in page
   assert '<table' not in page
 
 
@@ -151,10 +150,12 @@ def test_a_line_separates_the_values_after_its_first_cell() -> None:
     '\N{NO-BREAK SPACE}' * 2
     + '<span style="color: #767676">\N{MIDDLE DOT}</span>\N{NO-BREAK SPACE} '
   )
-  assert f'>#5{gap}1C{separator}MP=4\N{HAIR SPACE}</div>' in page
+  assert f'>#5</span>{gap}<span' in page
+  assert '>1C</span>' in page
+  assert f'>{separator}MP=4</span>' in page
 
 
-def test_a_shorter_first_cell_is_padded_to_line_up_the_values() -> None:
+def test_each_column_on_a_line_is_as_wide_as_arial_draws_its_widest() -> None:
   table = Table(
     alignments=(Alignment.LEFT, Alignment.LEFT),
     rows=(('#9', '1C'), ('#10', '1H')),
@@ -163,10 +164,37 @@ def test_a_shorter_first_cell_is_padded_to_line_up_the_values() -> None:
 
   page = as_web_page('Monday Pairs', [[table]])
 
-  # A figure space is as wide as a digit, so `1C` starts where `1H` does.
-  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert f'>#9\N{FIGURE SPACE}{gap}1C\N{HAIR SPACE}</div>' in page
-  assert f'>#10{gap}1H\N{HAIR SPACE}</div>' in page
+  # Each character of `#10` is 0.556 em wide in Arial, and the estimate runs 3%
+  # over, rounded up: 1.72 em, so that `1C` starts where `1H` does.
+  assert 'min-width: 1.72em">#9</span>' in page
+  assert 'min-width: 1.72em">#10</span>' in page
+
+
+def test_a_character_of_unknown_width_counts_as_an_em() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('\N{BLACK SPADE SUIT}', '1C'),),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # Wider than any character with a known width, and 3% over.
+  assert 'min-width: 1.03em">\N{BLACK SPADE SUIT}</span>' in page
+
+
+def test_a_cell_on_a_line_never_wraps() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', '3.5 mps'),),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # A cell drawn wider than estimated widens its line, where Gmail would break
+  # it mid-word.
+  assert 'white-space: nowrap; min-width: ' in page
 
 
 def test_lines_set_on_the_page_are_spaced_apart() -> None:
@@ -182,31 +210,76 @@ def test_lines_set_on_the_page_are_spaced_apart() -> None:
   assert page.count('line-height: 1.4">') == 2
 
 
-def test_a_line_leaves_out_an_empty_cell() -> None:
+def test_an_empty_cell_keeps_its_column_s_width_on_a_line() -> None:
   table = Table(
     alignments=(Alignment.LEFT, Alignment.LEFT, Alignment.LEFT),
-    rows=(('#6', '', 'MP=4.5'),),
+    rows=(('#5', '1C', 'MP=4'), ('#6', '', 'MP=4.5')),
     allows_notes_between_rows=True,
   )
 
   page = as_web_page('Monday Pairs', [[table]])
 
-  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert f'>#6{gap}MP=4.5\N{HAIR SPACE}</div>' in page
+  # As wide as `1C`, so that `MP=4.5` starts where `MP=4` does.
+  assert 'min-width: 1.32em"></span>' in page
 
 
-def test_a_line_leaves_out_a_cell_with_no_text() -> None:
+def test_a_cell_with_no_text_opens_with_no_separator() -> None:
   table = Table(
-    alignments=(Alignment.LEFT, Alignment.LEFT, Alignment.LEFT),
-    rows=(('#6', Emphasized('', Emphasis.MUTED), 'MP=4.5'),),
+    alignments=(Alignment.LEFT,) * 4,
+    rows=(('#6', '1C', Emphasized('', Emphasis.MUTED), 'MP=4.5'),),
     allows_notes_between_rows=True,
   )
 
   page = as_web_page('Monday Pairs', [[table]])
 
-  # The middle cell holds a piece, but no text.
+  # The third cell holds a piece, but no text, so only `MP=4.5` is set off.
+  assert page.count('\N{MIDDLE DOT}') == 1
+
+
+def test_a_held_second_column_keeps_its_width_and_leads_on_with_dots() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT,) * 3,
+    rows=(('#5', '1C', 'lead 2oS'),),
+    allows_notes_between_rows=True,
+    second_column_width=12,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  assert 'width: 12em">' in page
+  assert 'border-bottom: 1.5px dotted' in page
+
+
+def test_a_held_cell_s_pieces_share_a_styled_wrapper() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT,) * 2,
+    rows=(('#5', ('1C ', Emphasized('3NS+3', Emphasis.STRONG))),),
+    allows_notes_between_rows=True,
+    second_column_width=12,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # One flex item, so that the space before the contract stays, and styled, so
+  # that a copy pasted into Gmail keeps it.
+  assert '<span style="flex: 0 1 auto">1C <span' in page
+
+
+def test_the_column_after_a_held_one_opens_with_no_separator() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT,) * 4,
+    rows=(('#5', '1C', 'lead 2oS', 'MP=4'),),
+    allows_notes_between_rows=True,
+    second_column_width=12,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # The dots and a gap set the lead off; a separator sets off what follows it.
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert f'>#6{gap}MP=4.5\N{HAIR SPACE}</div>' in page
+  assert f'</span></span>{gap}<span' in page
+  assert '>lead 2oS</span>' in page
+  assert page.count('\N{MIDDLE DOT}') == 1
 
 
 def test_a_line_ends_on_a_character_with_no_emphasis() -> None:
@@ -220,7 +293,7 @@ def test_a_line_ends_on_a_character_with_no_emphasis() -> None:
 
   # An editor gives what is typed after Enter the style of the character before
   # the caret, so a note typed under this line is plain rather than blue.
-  assert '>DD+1</span>\N{HAIR SPACE}</div>' in page
+  assert '>DD+1</span></span>\N{HAIR SPACE}</div>' in page
 
 
 def test_a_paragraph_keeps_its_lines_apart() -> None:
@@ -307,7 +380,7 @@ def test_a_cell_s_run_of_pieces_is_one_value_in_plain_text() -> None:
   ('emphasis', 'style'),
   [
     (Emphasis.MUTED, 'color: #767676'),
-    (Emphasis.STRONG, 'font-weight: bold'),
+    (Emphasis.STRONG, 'font-weight: bold; white-space: nowrap'),
     (Emphasis.GOOD, 'color: #2d74d8'),
     (Emphasis.BAD, 'color: #d73c36'),
   ],
@@ -330,7 +403,10 @@ def test_the_page_draws_each_piece_of_a_table_cell_s_run() -> None:
 
   page = as_web_page('Monday Pairs', [[table]])
 
-  assert 'left">1C <span style="font-weight: bold">3NS+3</span></td>' in page
+  assert (
+    'left">1C <span style="font-weight: bold; white-space: nowrap">3NS+3'
+    '</span></td>'
+  ) in page
 
 
 # --- links ---
@@ -386,10 +462,7 @@ def test_the_page_links_a_cell_of_a_table_set_as_lines() -> None:
   page = as_web_page('Monday Pairs', [[table]])
 
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert (
-    f'><a href="https://example.com/5">#5</a>{gap}1C\N{HAIR SPACE}</div>'
-    in (page)
-  )
+  assert f'><a href="https://example.com/5">#5</a></span>{gap}<span' in page
 
 
 def test_the_page_links_a_cell_of_a_table() -> None:
