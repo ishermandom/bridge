@@ -166,6 +166,27 @@ def test_the_page_separates_one_document_from_the_next_with_a_rule() -> None:
   assert page.index('first') < page.index('<hr>') < page.index('second')
 
 
+# --- non-breaking spaces ---
+
+
+def test_plain_text_writes_a_non_breaking_space_as_an_ordinary_one() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', '6\N{NO-BREAK SPACE}mps'),),
+  )
+
+  assert list(as_plain_text([table])) == ['#5\t6 mps']
+
+
+def test_the_page_keeps_a_non_breaking_space() -> None:
+  paragraph = Paragraph(('6\N{NO-BREAK SPACE}mps',))
+
+  page = as_web_page('Monday Pairs', [[paragraph]])
+
+  # So that a narrow screen never ends a line between the two words.
+  assert '>6\N{NO-BREAK SPACE}mps</p>' in page
+
+
 # --- placeholders ---
 
 

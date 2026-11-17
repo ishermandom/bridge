@@ -18,7 +18,7 @@ spelling. Whoever wrote the sheet already reads its shorthand fluently, so a
 board comes back as they wrote it, here with its columns spaced for reading:
 
 ```text
-#2    1C (2C) (2H) 3C (3H) DBL 4C*E-4    lead=KoH    MP=0    DD+1    PLAY+1
+#2    1C (2C) (2H) 3C (3H) DBL 4C*E+4    lead KoH    8 mps (89%)    DD+1    PLAY+1
 ```
 
 Opponents' calls sit in parentheses, standing in for the circles the sheet draws
@@ -95,7 +95,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path, PurePosixPath
 
 from session_analysis import notation, traveller_store
-from session_analysis.enums import CallKind, Penalty, Rank, Strain
+from session_analysis.enums import CallKind, Penalty, Strain
 from session_analysis.models import (
   AuctionEntry,
   Board,
@@ -491,10 +491,38 @@ def _board_cells(
     Link(number, solver_link) if solver_link else number,
     _spell_bidding(board),
     _spell_lead(board.opening_lead),
-    _spell_matchpoints(board.matchpoints),
+    _matchpoints_cell(board),
     _spell_gain('DD', compared.whole_deal if compared else None),
     _spell_gain('PLAY', compared.after_lead if compared else None),
   )
+
+
+def _matchpoints_cell(board: Board) -> str:
+  """Our matchpoints on the board as a count, then their share of the top.
+
+  A count, `6 mps`, reads as a score at a glance, where a label leading the
+  number does not register on a skim. The share reads the same whatever the top,
+  where the matchpoints alone mean little without it. It follows in parentheses,
+  as `6 mps (67%)`.
+
+  Empty until a traveller supplies the matchpoints, and without a share where
+  none supplied the top.
+  """
+  if board.matchpoints is None:
+    return ''
+  # One matchpoint is singular, as a reader would say it. The space keeps the
+  # count and its unit on one line of the web page.
+  unit = 'mp' if board.matchpoints == 1 else 'mps'
+  score = f'{_spell_matchpoints(board.matchpoints)}\N{NO-BREAK SPACE}{unit}'
+  if not board.matchpoint_top:
+    return score
+  # From each float's shortest spelling, as `_spell_score` does, and rounded
+  # half up to a whole percent, as a reader rounding by hand would.
+  share = (
+    Decimal(str(board.matchpoints)) * 100 / Decimal(str(board.matchpoint_top))
+  )
+  percent = share.quantize(Decimal(1), rounding=ROUND_HALF_UP)
+  return f'{score}\N{NO-BREAK SPACE}({percent}%)'
 
 
 def _could_have_blocks(
@@ -564,7 +592,7 @@ def _spell_bidding(board: Board) -> str:
   """The auction run on into the contract cell, as one cell of the line.
 
   Where the auction visibly ends in the contract, the cell adds only what the
-  final bid leaves out, joined onto it: `4S (5C)` and `5CN-1` read `4S (5C)N-1`.
+  final bid leaves out, joined onto it: `4S (5C)` and `5CN+5` read `4S (5C)N+5`.
   Anywhere else — a passed-out board, an auction left unfinished, a contract
   cell disagreeing with the auction — the two are written out in full, side by
   side, so that nothing but a pass goes unseen.
@@ -687,21 +715,25 @@ def _spell_result(level: int, tricks_taken: int) -> str:
   The two halves count from different places, which is the convention spec.md
   `#notation` records: a contract that came home is written `+N` for the tricks
   it took above book, so `4C` making exactly is `+4` rather than `=`, while one
-  that failed is written `-N` for the tricks it fell short by.
+  that failed is written with a minus sign and N, the tricks it fell short by.
+  The sign is a true minus sign, as `spec.md` writes it, rather than a hyphen.
   """
   tricks_needed = level + notation.BOOK
   if tricks_taken >= tricks_needed:
     return f'+{tricks_taken - notation.BOOK}'
-  return f'-{tricks_needed - tricks_taken}'
+  return f'\N{MINUS SIGN}{tricks_needed - tricks_taken}'
 
 
 def _spell_lead(lead: Lead | None) -> str:
   """The opening lead, labelled so it cannot be misread as a bid.
 
   The label is what separates `9oH` from a call: both are a digit and a letter,
-  and the `o` for the spoken 'of' is the only thing between them. A lead the
-  sheet recorded as not played — a cell struck through rather than illegible —
-  carries no issue and no card, and shows as written.
+  and the `o` for the spoken 'of' is the only thing between them. A space sets
+  the label off from the card, which `=` would run into, and keeps the two on
+  one line of the web page.
+
+  A lead the sheet recorded as not played — a cell struck through rather than
+  illegible — carries no issue and no card, and shows as written.
   """
   if not lead:
     return ''
@@ -711,14 +743,16 @@ def _spell_lead(lead: Lead | None) -> str:
     card = _unreadable(lead.raw)
   else:
     card = lead.raw.strip()
-  return f'lead={card}'
+  return f'lead\N{NO-BREAK SPACE}{card}'
 
 
 def _spell_card(card: Card) -> str:
-  """A card as the sheet writes one: a rank, an `o` for 'of', then a suit."""
-  # The canonical ten is `T`, where a sheet writes the two characters out.
-  rank = '10' if card.rank == Rank.TEN else card.rank.value
-  return f'{rank}o{card.suit}'
+  """A card as a rank, an `o` for 'of', then a suit, the ten written `T`.
+
+  One character apiece keeps every card the same length, so a ten reads at a
+  glance as one rank among the rest.
+  """
+  return f'{card.rank.value}o{card.suit}'
 
 
 def _spell_matchpoints(matchpoints: float | None) -> str:
@@ -728,7 +762,7 @@ def _spell_matchpoints(matchpoints: float | None) -> str:
   # while leaving a half score its `.5`.
   if matchpoints is None:
     return ''
-  return f'MP={matchpoints:g}'
+  return f'{matchpoints:g}'
 
 
 def _spell_score(matchpoints: float | None) -> str:
@@ -745,14 +779,16 @@ def _spell_gain(label: str, tricks_gained: int | None) -> str:
   """What our side gained on one of the counts, as a signed trick count.
 
   Every value carries its sign, `+0` included, so that a column reads as a
-  comparison rather than as a stray count of tricks. Empty where no comparison
+  comparison rather than as a stray count of tricks. A loss's sign is a minus
+  sign rather than a hyphen, as wide as a gain's plus. Empty where no comparison
   could be made — `double_dummy_comparison` says what leaves one unmade.
   """
   # A board that came out exactly even gained zero, so a column is filled on a
   # stated value rather than on a truthy one.
   if tricks_gained is None:
     return ''
-  return f'{label}{tricks_gained:+d}'
+  sign = '\N{MINUS SIGN}' if tricks_gained < 0 else '+'
+  return f'{label}{sign}{abs(tricks_gained)}'
 
 
 def _unreadable(raw: str) -> str:

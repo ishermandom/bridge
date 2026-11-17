@@ -383,7 +383,8 @@ def test_a_contract_that_failed_counts_the_tricks_it_fell_short() -> None:
     )
   )
 
-  assert '6HW-1' in _board_line(board)
+  # A minus sign rather than a hyphen, as wide as a made contract's plus.
+  assert '6HW\N{MINUS SIGN}1' in _board_line(board)
 
 
 def test_a_doubled_contract_trails_one_mark() -> None:
@@ -397,7 +398,7 @@ def test_a_doubled_contract_trails_one_mark() -> None:
     )
   )
 
-  assert '2S*S-1' in _board_line(board)
+  assert '2S*S\N{MINUS SIGN}1' in _board_line(board)
 
 
 def test_a_redoubled_contract_trails_two_marks() -> None:
@@ -491,7 +492,7 @@ def test_an_opponents_final_bid_keeps_its_parentheses() -> None:
     ),
   )
 
-  assert _board_line(board) == '#5\t4S (5C)N-1'
+  assert _board_line(board) == '#5\t4S (5C)N\N{MINUS SIGN}1'
 
 
 def test_a_final_double_is_carried_by_the_contract_s_mark() -> None:
@@ -509,7 +510,7 @@ def test_a_final_double_is_carried_by_the_contract_s_mark() -> None:
     ),
   )
 
-  assert _board_line(board) == '#5\t4C*E-4'
+  assert _board_line(board) == '#5\t4C*E\N{MINUS SIGN}4'
 
 
 def test_a_double_the_auction_left_unwritten_still_runs_in() -> None:
@@ -524,7 +525,7 @@ def test_a_double_the_auction_left_unwritten_still_runs_in() -> None:
     ),
   )
 
-  assert _board_line(board) == '#5\t4C*E-4'
+  assert _board_line(board) == '#5\t4C*E\N{MINUS SIGN}4'
 
 
 def test_a_double_contradicting_the_contract_cell_writes_both_out() -> None:
@@ -573,13 +574,13 @@ def test_the_lead_is_labelled_and_written_with_its_of() -> None:
   board = _make_board(opening_lead=_make_lead(Rank.NINE, Suit.HEARTS))
 
   # The label and the `o` are what keep a lead from reading as a bid.
-  assert 'lead=9oH' in _board_line(board)
+  assert 'lead 9oH' in _board_line(board)
 
 
-def test_a_led_ten_is_written_with_both_its_digits() -> None:
+def test_a_led_ten_is_written_as_t() -> None:
   board = _make_board(opening_lead=_make_lead(Rank.TEN, Suit.SPADES))
 
-  assert 'lead=10oS' in _board_line(board)
+  assert 'lead ToS' in _board_line(board)
 
 
 def test_a_boxed_lead_is_written_without_its_box() -> None:
@@ -590,7 +591,7 @@ def test_a_boxed_lead_is_written_without_its_box() -> None:
   )
   board = _make_board(opening_lead=lead)
 
-  assert 'lead=KoH' in _board_line(board)
+  assert 'lead KoH' in _board_line(board)
 
 
 def test_a_lead_that_did_not_parse_shows_its_transcription() -> None:
@@ -606,7 +607,7 @@ def test_a_lead_that_did_not_parse_shows_its_transcription() -> None:
   )
   board = _make_board(opening_lead=lead)
 
-  assert 'lead=?10oX?' in _board_line(board)
+  assert 'lead ?10oX?' in _board_line(board)
 
 
 def test_a_lead_struck_through_is_not_marked_as_unread() -> None:
@@ -614,13 +615,13 @@ def test_a_lead_struck_through_is_not_marked_as_unread() -> None:
   # resolves to no card and no issue — it is not something it failed to read.
   board = _make_board(opening_lead=Lead(raw='---'))
 
-  assert 'lead=---' in _board_line(board)
+  assert 'lead ---' in _board_line(board)
 
 
 def test_a_board_with_no_lead_recorded_shows_none() -> None:
   board = _make_board(auction=[_make_bid(1, Strain.CLUBS)])
 
-  assert 'lead=' not in _board_line(board)
+  assert 'lead' not in _board_line(board)
 
 
 # --- the board number and matchpoints ---
@@ -651,26 +652,53 @@ def test_a_board_number_that_did_not_parse_shows_its_transcription() -> None:
 def test_matchpoints_drop_a_whole_score_s_trailing_zero() -> None:
   board = _make_board(matchpoints=6.0)
 
-  assert 'MP=6' in _board_line(board)
+  assert '6 mps' in _board_line(board)
 
 
 def test_matchpoints_keep_a_half_score() -> None:
   board = _make_board(matchpoints=4.5)
 
-  assert 'MP=4.5' in _board_line(board)
+  assert '4.5 mps' in _board_line(board)
 
 
 def test_a_bottom_board_shows_its_zero() -> None:
   # Zero matchpoints is a score, not an absent one, so it has to print.
   board = _make_board(matchpoints=0.0)
 
-  assert 'MP=0' in _board_line(board)
+  assert '0 mps' in _board_line(board)
 
 
 def test_a_board_no_traveller_has_reached_shows_no_matchpoints() -> None:
   board = _make_board(auction=[_make_bid(1, Strain.CLUBS)], matchpoints=None)
 
-  assert 'MP=' not in _board_line(board)
+  assert 'mp' not in _board_line(board)
+
+
+def test_matchpoints_are_followed_by_their_share_of_the_top() -> None:
+  board = _make_board(matchpoints=3.5, top=9)
+
+  # A count of mps, which reads as a score at a glance, then 3.5 of 9 as 38.9%,
+  # shown to the whole percent.
+  assert '3.5 mps (39%)' in _board_line(board)
+
+
+def test_a_board_s_share_of_the_top_rounds_half_up() -> None:
+  board = _make_board(matchpoints=1, top=8)
+
+  # 1 of 8 is exactly 12.5%, which a reader rounding by hand calls 13%.
+  assert '1 mp (13%)' in _board_line(board)
+
+
+def test_a_board_without_a_top_shows_no_share() -> None:
+  board = _make_board(matchpoints=4.5)
+
+  assert _board_line(board).endswith('\t4.5 mps')
+
+
+def test_a_single_matchpoint_is_singular() -> None:
+  board = _make_board(matchpoints=1)
+
+  assert _board_line(board).endswith('\t1 mp')
 
 
 # --- the session header ---
@@ -823,10 +851,34 @@ def test_the_page_sets_the_boards_as_lines_and_the_rest_as_tables(
   page = _page_of(record)
   # Lines, so that a partner replying can write notes between the boards.
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert f'>#5{gap}1C{gap}MP=4.5</div>' in page
-  assert f'>#6{gap}1H{gap}MP=2</div>' in page
+  score = '\N{NO-BREAK SPACE}mps\N{NO-BREAK SPACE}'
+  assert f'>#5{gap}1C{gap}4.5{score}(56%)</div>' in page
+  assert f'>#6{gap}1H{gap}2{score}(25%)</div>' in page
   # The summary's table and the could-have table.
   assert page.count('<table') == 2
+
+
+def test_the_page_sets_the_lead_a_space_from_its_label(tmp_path: Path) -> None:
+  board = _make_board(
+    outcome=_make_outcome(
+      level=3, strain=Strain.NOTRUMP, declarer=Direction.SOUTH, tricks_taken=9
+    ),
+    opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
+  )
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  # Non-breaking, so that the label never ends a line apart from its card.
+  assert 'lead\N{NO-BREAK SPACE}2oS' in page
+
+
+def test_the_page_keeps_a_score_s_words_together(tmp_path: Path) -> None:
+  board = _make_board(matchpoints=3.5, top=9)
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  # Non-breaking, where plain text writes ordinary spaces.
+  assert '3.5\N{NO-BREAK SPACE}mps\N{NO-BREAK SPACE}' in page
 
 
 def test_a_row_carrying_only_its_number_is_not_transcribed() -> None:
@@ -841,7 +893,7 @@ def test_a_row_carrying_only_its_number_is_not_transcribed() -> None:
 def test_a_board_scored_but_otherwise_unrecorded_is_transcribed() -> None:
   session = _make_session(_make_board(6, matchpoints=4.5))
 
-  assert '#6\t\t\tMP=4.5' in _lines_of(session)
+  assert '#6\t\t\t4.5 mps' in _lines_of(session)
 
 
 def test_a_session_whose_every_row_was_blank_says_so() -> None:
@@ -879,7 +931,7 @@ def test_a_board_with_a_deal_is_followed_by_its_solver_link() -> None:
 
   # `_make_number` fixes North as dealer and nobody vulnerable.
   assert (
-    '#5\t3NS+3\tlead=2oS\n'
+    '#5\t3NS+3\tlead 2oS\n'
     '- https://dds.bridgewebs.com/bsol_standalone/ddummy.htm?board=5&dealer=N'
     '&vul=None&north=AKQJ..AKQJ.AKQJT&east=76.8765432.76.43'
     '&south=T98.T9.T98.98765&west=5432.AKQJ.5432.2'
@@ -973,7 +1025,8 @@ def test_a_board_that_went_against_us_shows_a_negative_count() -> None:
     we_declared=True, tricks_taken=8, double_dummy_tricks=10
   )
 
-  assert 'DD-2' in line
+  # A minus sign rather than a hyphen, as wide as a gain's plus.
+  assert 'DD\N{MINUS SIGN}2' in line
 
 
 def test_a_board_we_defended_counts_the_shortfall_our_way() -> None:
@@ -1029,7 +1082,7 @@ def test_the_play_column_is_solved_rather_than_read_from_the_table() -> None:
   # the spade lead left standing, two against us. One number cannot be both, so
   # a `PLAY` quietly reusing the table would fail here.
   assert 'DD+2' in line
-  assert 'PLAY-2' in line
+  assert 'PLAY\N{MINUS SIGN}2' in line
 
 
 def test_the_play_column_stands_empty_without_a_deal_to_solve() -> None:
@@ -1173,7 +1226,7 @@ def test_a_session_without_matchpoints_has_no_matchpoint_column() -> None:
 
   # Eleven tricks against the table's nine, and against the thirteen the spade
   # lead left standing.
-  assert 'DD+2\tPLAY-2\tNet, across 1 hand' in lines
+  assert 'DD+2\tPLAY\N{MINUS SIGN}2\tNet, across 1 hand' in lines
   assert '%' not in lines
 
 
@@ -1221,7 +1274,7 @@ def test_the_could_have_table_keeps_a_doubled_contract_s_mark() -> None:
 
   lines = _lines_of(_make_session(board))
 
-  assert '1\t4♣*E-4\t0.00\t0.00' in lines
+  assert '1\t4♣*E\N{MINUS SIGN}4\t0.00\t0.00' in lines
 
 
 def test_the_could_have_table_closes_on_the_session_average() -> None:

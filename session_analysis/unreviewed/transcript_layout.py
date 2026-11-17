@@ -126,7 +126,18 @@ def as_plain_text(blocks: Sequence[Block]) -> Iterator[str]:
   A table's cells are separated by tabs. Empty cells at the end of a row are
   dropped, since a run of trailing tabs says nothing and pastes as nothing. The
   address of each link follows the line or row holding it, on a line of its own.
+
+  A non-breaking space is written as an ordinary one. On the web page it keeps
+  two words on one line, as `6 mps`, but plain text is never rewrapped, and a
+  pasted cell is better without a character that looks like a space and is not
+  one.
   """
+  for line in _plain_lines(blocks):
+    yield line.replace('\N{NO-BREAK SPACE}', ' ')
+
+
+def _plain_lines(blocks: Sequence[Block]) -> Iterator[str]:
+  """The blocks as lines of text, before their spaces are made ordinary."""
   for index, block in enumerate(blocks):
     if index:
       yield ''

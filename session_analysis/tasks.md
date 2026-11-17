@@ -502,7 +502,7 @@ lane settles the sheet with the user in chat:
     differently, and the lead cell has it right. A struck-through lead reads as
     recorded-but-not-played, carrying no card and no issue, which is why the
     sit-out boards of santa-clara-fri-morn-pairs-2026-09-04 show a clean
-    `lead=---` beside a flagged `?SIT ouT?`. A struck-through contract says the
+    `lead ---` beside a flagged `?SIT ouT?`. A struck-through contract says the
     board was played and passed out, so the nearest convention the contract cell
     has is the wrong one.
   - Note: `Passout` is nonetheless the shape to follow — a `Resolution` member
@@ -710,7 +710,7 @@ comparisons themselves, and what their silences mean, are argued in
   - Note: only matchpoints exist today, so a board from an IMP game scores
     nothing. They live in `Board.matchpoints`, a traveller row's
     `north_south_matchpoints` and `east_west_matchpoints`, the transcript's
-    `MP=` cell and `MP%` column, and its could-have table.
+    `mps` cell and `MP%` column, and its could-have table.
   - Note: the unit belongs to a section, not to a capture. The club's 2026-09-14
     files hold the IMP-scored Swiss beside a matchpointed pairs game and label
     both alike: the PBN's `[Scoring]` tag reads `MatchPoints` for the whole
