@@ -23,7 +23,7 @@ whichever of the two functions here its reader needs.
 import dataclasses
 import enum
 import html
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 
 
 class Alignment(enum.StrEnum):
@@ -73,8 +73,32 @@ class LinkList:
   links: tuple[Link, ...]
 
 
+class Emphasis(enum.Enum):
+  """How a run of text stands apart from the rest of its line on the web page.
+
+  Plain text has no typography, so there the text reads as written.
+  """
+
+  # Gray, for what a reader passes over on the way to what they scan for.
+  MUTED = enum.auto()
+  # Bold, for what a reader scans the line for.
+  STRONG = enum.auto()
+  # Blue, for news that is good for the reader.
+  GOOD = enum.auto()
+  # Red, for news that is bad for the reader.
+  BAD = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True)
+class Emphasized:
+  """Text set in an emphasis of its own on the web page."""
+
+  text: str
+  emphasis: Emphasis
+
+
 # One piece of a line.
-Piece = str | Placeholder | Link | LinkList
+Piece = str | Placeholder | Link | LinkList | Emphasized
 
 # A line of text, whole or in pieces, some of them placeholders or links.
 Line = str | tuple[Piece, ...]
@@ -94,8 +118,11 @@ class FullWidthRow:
   text: str
 
 
-# What one cell of a table holds.
-Cell = str | Link
+# One piece of a table cell.
+CellPiece = str | Link | Emphasized
+
+# What one cell of a table holds: one piece, or a run of them read as one value.
+Cell = CellPiece | tuple[CellPiece, ...]
 
 # A row of cells, one per column, or one value spanning them all.
 TableRow = tuple[Cell, ...] | FullWidthRow
@@ -150,8 +177,10 @@ def _plain_lines(blocks: Sequence[Block]) -> Iterator[str]:
         if isinstance(row, FullWidthRow):
           yield row.text
         else:
-          yield '\t'.join(_text_of(cell) for cell in row).rstrip('\t')
-          yield from _link_lines(row)
+          yield '\t'.join(_cell_text(cell) for cell in row).rstrip('\t')
+          yield from _link_lines(
+            piece for cell in row for piece in _cell_pieces(cell)
+          )
 
 
 def _line_text(line: Line) -> str:
@@ -163,15 +192,26 @@ def _line_text(line: Line) -> str:
   return ''.join(_text_of(piece) for piece in line).rstrip()
 
 
+def _cell_pieces(cell: Cell) -> tuple[CellPiece, ...]:
+  """A cell's pieces, whether it holds one or a run of them."""
+  return cell if isinstance(cell, tuple) else (cell,)
+
+
+def _cell_text(cell: Cell) -> str:
+  """One cell as plain text."""
+  return ''.join(_text_of(piece) for piece in _cell_pieces(cell))
+
+
 def _text_of(piece: Piece) -> str:
-  """A piece of a line, or a cell, as plain text.
+  """A piece of a line, or of a cell, as plain text.
 
   A placeholder is set in its square brackets, and a link keeps its text, its
-  address left for a line below. A list of links leaves out the names.
+  address left for a line below. A list of links leaves out the names, and
+  emphasized text reads as written.
   """
   if isinstance(piece, Placeholder):
     return f'[{piece.text}]'
-  if isinstance(piece, Link):
+  if isinstance(piece, Link | Emphasized):
     return piece.text
   if isinstance(piece, LinkList):
     return ''
@@ -242,11 +282,57 @@ _CELL_STYLE = (
   f'padding: 0 1.5em 0 0; white-space: nowrap; vertical-align: top; {_FONT}'
 )
 
-# What separates two values on a table row set as a line of text: about four
-# spaces' width. All but the last space are non-breaking, so that the email
-# keeps the whole gap rather than collapsing it to one space, while a line too
-# long for a narrow screen can still wrap at the last.
-_VALUE_GAP = '\N{NO-BREAK SPACE}' * 3 + ' '
+# What separates two values on a table row set as a line of text: a muted middle
+# dot with about two spaces' width either side. All but the last space are
+# non-breaking, so that the email keeps the whole gap rather than collapsing it
+# to one space, while a line too long for a narrow screen can still wrap after
+# the dot.
+_VALUE_SEPARATOR: tuple[Piece, ...] = (
+  '\N{NO-BREAK SPACE}' * 2,
+  Emphasized('\N{MIDDLE DOT}', Emphasis.MUTED),
+  '\N{NO-BREAK SPACE} ',
+)
+
+# What sets the cell naming a row, such as a board's number, off from the values
+# after it on a line: about four spaces' width, kept whole the way the separator
+# is.
+_NAME_GAP = '\N{NO-BREAK SPACE}' * 3 + ' '
+
+# How each emphasis is drawn.
+#
+# - The gray, the blue and the red share one brightness, a relative luminance of
+#   about 0.18. That is the only brightness at which a color contrasts equally
+#   with white and with black, about 4.6 to 1 against each, so each stays
+#   readable where a mail program darkens the background in dark mode yet leaves
+#   the colors as written. The blue and the red stop a little short of the most
+#   saturated colors that brightness allows, so that they read as color rather
+#   than glare.
+# - Bold rather than semibold: none of the page's fonts comes in a semibold, and
+#   a font without one draws a weight of 600 as bold.
+_EMPHASIS_STYLES: Mapping[Emphasis, str] = {
+  Emphasis.MUTED: 'color: #767676',
+  Emphasis.STRONG: 'font-weight: bold',
+  Emphasis.GOOD: 'color: #2d74d8',
+  Emphasis.BAD: 'color: #d73c36',
+}
+
+# Set on every line set as a block of its own. The extra spacing between lines
+# helps the eye follow a long run of them across, and a note opened under a line
+# by Enter takes the same spacing.
+_LINE_STYLE = f'{_FONT}; line-height: 1.4'
+
+# What ends every line set as a block of its own. An editor gives the text typed
+# after Enter the style of the character before the caret, so a line ending in
+# emphasized text would pass its emphasis on to a reader's note. This character
+# has no emphasis and cannot be seen, so a note takes the line's plain style
+# instead, and the line looks no different.
+#
+# A hair space, the thinnest of the spaces, is wide enough for this where a
+# zero-width character is not. In Chrome, a click past the end of a line puts
+# the caret after a hair space, but before a zero-width character, so that Enter
+# carries the zero-width character off into the new line, and a second note
+# under the same line takes the line's last emphasis after all.
+_PLAIN_LINE_END = '\N{HAIR SPACE}'
 
 
 def _block_html(block: Block) -> str:
@@ -258,7 +344,7 @@ def _block_html(block: Block) -> str:
     lines = '<br>\n'.join(_line_html(line) for line in block.lines)
     return f'<p style="{_PARAGRAPH_STYLE}">{lines}</p>'
   if block.allows_notes_between_rows:
-    return _lines_as_blocks_html(_row_as_line(row) for row in block.rows)
+    return _lines_as_blocks_html(_rows_as_lines(block.rows))
 
   rows = '\n'.join(_row_html(row, block.alignments) for row in block.rows)
   return (
@@ -276,10 +362,11 @@ def _line_html(line: Line) -> str:
 
 
 def _html_of(piece: Piece) -> str:
-  """A piece of a line, or a cell, as markup.
+  """A piece of a line, or of a cell, as markup.
 
   A placeholder is bracketed and drawn in red, and a link's text is made the
-  link itself. A list of links names each in turn, a comma between two.
+  link itself. A list of links names each in turn, a comma between two, and
+  emphasized text is drawn in its emphasis.
   """
   if isinstance(piece, Placeholder):
     return f'<span style="color: red">[{html.escape(piece.text)}]</span>'
@@ -287,6 +374,9 @@ def _html_of(piece: Piece) -> str:
     return f'<a href="{html.escape(piece.url)}">{html.escape(piece.text)}</a>'
   if isinstance(piece, LinkList):
     return ', '.join(_html_of(link) for link in piece.links)
+  if isinstance(piece, Emphasized):
+    style = _EMPHASIS_STYLES[piece.emphasis]
+    return f'<span style="{style}">{html.escape(piece.text)}</span>'
   return html.escape(piece)
 
 
@@ -294,31 +384,65 @@ def _lines_as_blocks_html(lines: Iterable[Line]) -> str:
   """Lines as markup, each a block of its own.
 
   An editor's Enter at the end of such a line opens a new one under it, which
-  takes the line's font. At the end of one line of a paragraph, Enter would
-  split the paragraph instead, and its margin would set the two halves apart.
+  takes the line's font, and the line's last character leaves none of its
+  emphasis to what is typed there. At the end of one line of a paragraph, Enter
+  would split the paragraph instead, and its margin would set the two halves
+  apart.
   """
   markup = '\n'.join(
-    f'<div style="{_FONT}">{_line_html(line)}</div>' for line in lines
+    f'<div style="{_LINE_STYLE}">{_line_html(line)}{_PLAIN_LINE_END}</div>'
+    for line in lines
   )
   return f'<div style="margin: 0 0 1em">\n{markup}\n</div>'
 
 
-def _row_as_line(row: TableRow) -> Line:
-  """A table row as one line of text, its values set a gap apart.
+def _rows_as_lines(rows: Sequence[TableRow]) -> Iterator[Line]:
+  """A table's rows as lines of text, their values starting together.
 
-  An empty cell is left out rather than widening the gap around it: with the
-  columns no longer lining up, its place says nothing.
+  Each row's name is padded with figure spaces, each as wide as a digit, to the
+  length of the longest name. Names that differ only in how many digits they
+  hold, as board numbers do, then end at the same place, and the values after
+  them line up at their start.
+  """
+  name_length = max(
+    (
+      len(_cell_text(row[0]))
+      for row in rows
+      if not isinstance(row, FullWidthRow)
+    ),
+    default=0,
+  )
+  for row in rows:
+    yield _row_as_line(row, name_length)
+
+
+def _row_as_line(row: TableRow, name_length: int) -> Line:
+  """A table row as one line of text, led by the cell naming the row.
+
+  The first cell names the row, as a board's number does, so space alone sets it
+  off from the values after it, and a separator stands between each two of those
+  values. A cell with no text is left out rather than given a place between two
+  separators: with the columns no longer lining up, its place says nothing.
   """
   if isinstance(row, FullWidthRow):
     return row.text
-  pieces: list[Cell] = []
-  for cell in row:
-    if not cell:
+  name, *values = row
+  pieces: list[Piece] = []
+  for value in values:
+    if not _cell_text(value):
       continue
     if pieces:
-      pieces.append(_VALUE_GAP)
-    pieces.append(cell)
-  return tuple(pieces)
+      pieces.extend(_VALUE_SEPARATOR)
+    pieces.extend(_cell_pieces(value))
+
+  name_text = _cell_text(name)
+  if not name_text:
+    return tuple(pieces)
+  if not pieces:
+    return _cell_pieces(name)
+  # Outside the name's own pieces, so that a link's underline stops at its text.
+  padding = '\N{FIGURE SPACE}' * (name_length - len(name_text))
+  return (*_cell_pieces(name), padding + _NAME_GAP, *pieces)
 
 
 def _row_html(row: TableRow, alignments: Sequence[Alignment]) -> str:
@@ -346,7 +470,7 @@ def _cell_html(cell: Cell) -> str:
   indent they give a row.
   """
   if not isinstance(cell, str):
-    return _html_of(cell)
+    return ''.join(_html_of(piece) for piece in _cell_pieces(cell))
   text = cell.lstrip(' ')
   indent = '\N{NO-BREAK SPACE}' * (len(cell) - len(text))
   return indent + html.escape(text)

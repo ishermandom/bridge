@@ -797,6 +797,22 @@ comparisons themselves, and what their silences mean, are argued in
     tell those apart. The quieter alternative is to let the empty columns speak
     for themselves, as the matchpoints column already does. Two of the three
     stored sessions are teams games, so it is doing real work today.
+- [ ] Check the transcript page in a dark-mode mail program.
+      {#dark-mode-mail-check}
+  - Note: the page draws gray, blue and red inline and sets no background.
+    Sources report that Apple Mail can leave an explicit color as written while
+    darkening an unset background. Why the colors sit where they do is at
+    `transcript_layout._EMPHASIS_STYLES`.
+  - Note: only the user can run the cheap check — paste a page into a message,
+    send it to themselves, and read it with dark mode on in the mail programs
+    its readers use. The same check would show whether Gmail's compose window
+    keeps the hair space ending each line and the no-break spaces, which so far
+    have been tested only in Chrome's editing surface.
+  - Open question: if muted or colored text goes dark on dark, either set an
+    explicit white background on the board list, or lighten the colors at some
+    cost to their contrast against white. Pasting into Gmail likely drops a
+    style sheet's dark-mode rules, so the fix has to be written into each
+    element.
 
 ---
 

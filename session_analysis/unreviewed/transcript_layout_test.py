@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: MIT
 """Tests for laying a transcript's blocks out as plain text and a web page."""
 
+import pytest
+
 from session_analysis.unreviewed.transcript_layout import (
   Alignment,
   Block,
+  Emphasis,
+  Emphasized,
   FullWidthRow,
   Link,
   LinkList,
@@ -127,9 +131,55 @@ def test_a_table_allowing_notes_is_set_as_lines_on_the_page() -> None:
 
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
   # A line apiece, so that an email editor can open a new line between two.
-  assert f'>#5{gap}1C</div>' in page
-  assert f'>#6{gap}1H</div>' in page
+  assert f'>#5{gap}1C\N{HAIR SPACE}</div>' in page
+  assert f'>#6{gap}1H\N{HAIR SPACE}</div>' in page
   assert '<table' not in page
+
+
+def test_a_line_separates_the_values_after_its_first_cell() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', '1C', 'MP=4'),),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # The first cell names the line, so only a gap follows it.
+  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
+  separator = (
+    '\N{NO-BREAK SPACE}' * 2
+    + '<span style="color: #767676">\N{MIDDLE DOT}</span>\N{NO-BREAK SPACE} '
+  )
+  assert f'>#5{gap}1C{separator}MP=4\N{HAIR SPACE}</div>' in page
+
+
+def test_a_shorter_first_cell_is_padded_to_line_up_the_values() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('#9', '1C'), ('#10', '1H')),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # A figure space is as wide as a digit, so `1C` starts where `1H` does.
+  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
+  assert f'>#9\N{FIGURE SPACE}{gap}1C\N{HAIR SPACE}</div>' in page
+  assert f'>#10{gap}1H\N{HAIR SPACE}</div>' in page
+
+
+def test_lines_set_on_the_page_are_spaced_apart() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT,),
+    rows=(('#5',), ('#6',)),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # Set on each line, so that a line copied alone keeps its spacing.
+  assert page.count('line-height: 1.4">') == 2
 
 
 def test_a_line_leaves_out_an_empty_cell() -> None:
@@ -142,7 +192,35 @@ def test_a_line_leaves_out_an_empty_cell() -> None:
   page = as_web_page('Monday Pairs', [[table]])
 
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert f'>#6{gap}MP=4.5</div>' in page
+  assert f'>#6{gap}MP=4.5\N{HAIR SPACE}</div>' in page
+
+
+def test_a_line_leaves_out_a_cell_with_no_text() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT, Alignment.LEFT),
+    rows=(('#6', Emphasized('', Emphasis.MUTED), 'MP=4.5'),),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # The middle cell holds a piece, but no text.
+  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
+  assert f'>#6{gap}MP=4.5\N{HAIR SPACE}</div>' in page
+
+
+def test_a_line_ends_on_a_character_with_no_emphasis() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', Emphasized('DD+1', Emphasis.GOOD)),),
+    allows_notes_between_rows=True,
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  # An editor gives what is typed after Enter the style of the character before
+  # the caret, so a note typed under this line is plain rather than blue.
+  assert '>DD+1</span>\N{HAIR SPACE}</div>' in page
 
 
 def test_a_paragraph_keeps_its_lines_apart() -> None:
@@ -206,6 +284,55 @@ def test_a_placeholder_is_drawn_in_red_on_the_page() -> None:
   assert '>earning <span style="color: red">[points]</span></p>' in page
 
 
+# --- emphasis ---
+
+
+def test_emphasized_text_reads_as_written_in_plain_text() -> None:
+  paragraph = Paragraph((('MP=', Emphasized('4.5', Emphasis.STRONG)),))
+
+  assert list(as_plain_text([paragraph])) == ['MP=4.5']
+
+
+def test_a_cell_s_run_of_pieces_is_one_value_in_plain_text() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT, Alignment.LEFT),
+    rows=(('#5', ('1C ', Emphasized('3NS+3', Emphasis.STRONG))),),
+  )
+
+  # No tab inside the run, so the spreadsheet keeps it to one cell.
+  assert list(as_plain_text([table])) == ['#5\t1C 3NS+3']
+
+
+@pytest.mark.parametrize(
+  ('emphasis', 'style'),
+  [
+    (Emphasis.MUTED, 'color: #767676'),
+    (Emphasis.STRONG, 'font-weight: bold'),
+    (Emphasis.GOOD, 'color: #2d74d8'),
+    (Emphasis.BAD, 'color: #d73c36'),
+  ],
+)
+def test_the_page_draws_each_emphasis_in_its_style(
+  emphasis: Emphasis, style: str
+) -> None:
+  paragraph = Paragraph((('#5 ', Emphasized('DD+1', emphasis)),))
+
+  page = as_web_page('Monday Pairs', [[paragraph]])
+
+  assert f'>#5 <span style="{style}">DD+1</span></p>' in page
+
+
+def test_the_page_draws_each_piece_of_a_table_cell_s_run() -> None:
+  table = Table(
+    alignments=(Alignment.LEFT,),
+    rows=((('1C ', Emphasized('3NS+3', Emphasis.STRONG)),),),
+  )
+
+  page = as_web_page('Monday Pairs', [[table]])
+
+  assert 'left">1C <span style="font-weight: bold">3NS+3</span></td>' in page
+
+
 # --- links ---
 
 
@@ -259,7 +386,10 @@ def test_the_page_links_a_cell_of_a_table_set_as_lines() -> None:
   page = as_web_page('Monday Pairs', [[table]])
 
   gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  assert f'><a href="https://example.com/5">#5</a>{gap}1C</div>' in page
+  assert (
+    f'><a href="https://example.com/5">#5</a>{gap}1C\N{HAIR SPACE}</div>'
+    in (page)
+  )
 
 
 def test_the_page_links_a_cell_of_a_table() -> None:

@@ -121,6 +121,8 @@ from session_analysis.unreviewed.transcript_layout import (
   Alignment,
   Block,
   Cell,
+  Emphasis,
+  Emphasized,
   FullWidthRow,
   Line,
   Link,
@@ -480,30 +482,38 @@ def _board_cells(
   board: Board,
   comparisons: Mapping[int, double_dummy_comparison.BoardComparison],
 ) -> tuple[Cell, ...]:
-  """One board's line, a cell empty where nothing was recorded or compared."""
+  """One board's line, a cell empty where nothing was recorded or compared.
+
+  The web page sets the boards as lines rather than as a table, so their columns
+  do not line up. Instead it draws the contract and result bold, as what a
+  reader scans the lines for, follows the matchpoints with their share of the
+  top, and colors each count by the way it went.
+  """
   # A board whose number went unread reaches no traveller row, and so has no
   # comparison waiting for it under any key.
   schedule = board.number.schedule
   compared = comparisons.get(schedule.number) if schedule else None
   number = _spell_number(board.number, prefix='#')
   solver_link = solver_links.solver_link(board)
+  whole_deal = compared.whole_deal if compared else None
+  after_lead = compared.after_lead if compared else None
   return (
     Link(number, solver_link) if solver_link else number,
     _spell_bidding(board),
     _spell_lead(board.opening_lead),
     _matchpoints_cell(board),
-    _spell_gain('DD', compared.whole_deal if compared else None),
-    _spell_gain('PLAY', compared.after_lead if compared else None),
+    _gain_cell('DD', whole_deal),
+    _gain_cell('PLAY', after_lead),
   )
 
 
-def _matchpoints_cell(board: Board) -> str:
+def _matchpoints_cell(board: Board) -> Cell:
   """Our matchpoints on the board as a count, then their share of the top.
 
   A count, `6 mps`, reads as a score at a glance, where a label leading the
   number does not register on a skim. The share reads the same whatever the top,
   where the matchpoints alone mean little without it. It follows in parentheses,
-  as `6 mps (67%)`.
+  muted on the web page, as `6 mps (67%)`.
 
   Empty until a traveller supplies the matchpoints, and without a share where
   none supplied the top.
@@ -522,7 +532,25 @@ def _matchpoints_cell(board: Board) -> str:
     Decimal(str(board.matchpoints)) * 100 / Decimal(str(board.matchpoint_top))
   )
   percent = share.quantize(Decimal(1), rounding=ROUND_HALF_UP)
-  return f'{score}\N{NO-BREAK SPACE}({percent}%)'
+  return (
+    f'{score}\N{NO-BREAK SPACE}',
+    Emphasized(f'({percent}%)', Emphasis.MUTED),
+  )
+
+
+def _gain_cell(label: str, tricks_gained: int | None) -> Cell:
+  """What our side gained on one of the counts, as a cell of a board's line.
+
+  On the web page a gain is drawn blue and a loss red, label and value alike, so
+  that the eye finds the boards that went either way. A board that came out even
+  stays plain.
+  """
+  spelled = _spell_gain(label, tricks_gained)
+  # Neither an even board nor one left uncompared went either way.
+  if not tricks_gained:
+    return spelled
+  direction = Emphasis.GOOD if tricks_gained > 0 else Emphasis.BAD
+  return Emphasized(spelled, direction)
 
 
 def _could_have_blocks(
@@ -588,7 +616,7 @@ def _spell_number(number: BoardNumber, *, prefix: str = '') -> str:
   return f'{prefix}{number.schedule.number}'
 
 
-def _spell_bidding(board: Board) -> str:
+def _spell_bidding(board: Board) -> Cell:
   """The auction run on into the contract cell, as one cell of the line.
 
   Where the auction visibly ends in the contract, the cell adds only what the
@@ -596,19 +624,36 @@ def _spell_bidding(board: Board) -> str:
   Anywhere else — a passed-out board, an auction left unfinished, a contract
   cell disagreeing with the auction — the two are written out in full, side by
   side, so that nothing but a pass goes unseen.
+
+  Either way, the web page draws the contract and its result bold: the final bid
+  with what the cell adds to it, or the contract cell written out.
   """
   resolution = board.outcome.resolution if board.outcome else None
   if isinstance(resolution, PlayedContract):
     final_bid = _final_bid_position(board.auction, resolution.contract)
     if final_bid is not None:
-      calls = _spell_auction(board.auction[: final_bid + 1])
-      return calls + _contract_suffix(resolution)
+      calls = _spell_auction(board.auction[:final_bid])
+      final_call = _spell_entry(board.auction[final_bid])
+      return _bidding_cell(calls, final_call + _contract_suffix(resolution))
 
-  spelled = (
+  return _bidding_cell(
     _spell_auction(board.auction),
     _spell_outcome(board.outcome, _STRAIN_LETTERS),
   )
-  return ' '.join(part for part in spelled if part)
+
+
+def _bidding_cell(calls: str, contract: str) -> Cell:
+  """Calls and then a contract as one cell, a space apart.
+
+  On the web page the contract is bold, so that the eye finds it and its result
+  first. Either may be empty, and then the cell holds the other alone.
+  """
+  if not contract:
+    return calls
+  bold = Emphasized(contract, Emphasis.STRONG)
+  if not calls:
+    return bold
+  return (f'{calls} ', bold)
 
 
 def _final_bid_position(

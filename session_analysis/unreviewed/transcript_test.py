@@ -850,12 +850,48 @@ def test_the_page_sets_the_boards_as_lines_and_the_rest_as_tables(
   )
   page = _page_of(record)
   # Lines, so that a partner replying can write notes between the boards.
-  gap = '\N{NO-BREAK SPACE}' * 3 + ' '
-  score = '\N{NO-BREAK SPACE}mps\N{NO-BREAK SPACE}'
-  assert f'>#5{gap}1C{gap}4.5{score}(56%)</div>' in page
-  assert f'>#6{gap}1H{gap}2{score}(25%)</div>' in page
+  assert 'line-height: 1.4">#5' in page
+  assert 'line-height: 1.4">#6' in page
   # The summary's table and the could-have table.
   assert page.count('<table') == 2
+
+
+def test_the_page_draws_the_contract_bold_after_a_plain_auction(
+  tmp_path: Path,
+) -> None:
+  board = _make_board(
+    auction=[
+      _make_bid(4, Strain.SPADES),
+      _make_bid(5, Strain.CLUBS, by_opponents=True),
+    ],
+    outcome=_make_outcome(
+      level=5, strain=Strain.CLUBS, declarer=Direction.NORTH, tricks_taken=10
+    ),
+  )
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  # The auction's final bid is bold along with what the contract cell adds.
+  assert (
+    '4S <span style="font-weight: bold">(5C)N\N{MINUS SIGN}1</span>'
+  ) in page
+
+
+def test_the_page_draws_a_contract_written_apart_from_its_auction_bold(
+  tmp_path: Path,
+) -> None:
+  # An auction that never reaches the contract, so the two are written out side
+  # by side.
+  board = _make_board(
+    auction=[_make_bid(1, Strain.CLUBS)],
+    outcome=_make_outcome(
+      level=3, strain=Strain.NOTRUMP, declarer=Direction.SOUTH, tricks_taken=9
+    ),
+  )
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  assert '1C <span style="font-weight: bold">3NS+3</span>' in page
 
 
 def test_the_page_sets_the_lead_a_space_from_its_label(tmp_path: Path) -> None:
@@ -879,6 +915,68 @@ def test_the_page_keeps_a_score_s_words_together(tmp_path: Path) -> None:
 
   # Non-breaking, where plain text writes ordinary spaces.
   assert '3.5\N{NO-BREAK SPACE}mps\N{NO-BREAK SPACE}' in page
+
+
+def test_the_page_mutes_a_board_s_share_of_the_top(tmp_path: Path) -> None:
+  board = _make_board(matchpoints=3.5, top=9)
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  assert '<span style="color: #767676">(39%)</span>' in page
+
+
+def test_the_page_draws_a_gain_blue_and_a_loss_red(tmp_path: Path) -> None:
+  # In `a_deal_the_lead_decides`, a spade lead leaves South thirteen tricks
+  # against the table's nine, so eleven taken fills both counts.
+  board = _make_board(
+    outcome=_make_outcome(
+      level=3, strain=Strain.NOTRUMP, declarer=Direction.SOUTH, tricks_taken=11
+    ),
+    opening_lead=_make_lead(Rank.TWO, Suit.SPADES),
+    matchpoints=4.5,
+    our_side=Side.NORTH_SOUTH,
+    deal=a_deal_the_lead_decides(),
+    table=_make_table(
+      declarer=Direction.SOUTH, strain=Strain.NOTRUMP, tricks=9
+    ),
+  )
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  separator = (
+    '\N{NO-BREAK SPACE}' * 2
+    + '<span style="color: #767676">\N{MIDDLE DOT}</span>\N{NO-BREAK SPACE} '
+  )
+  # Colored whole, label and value alike, a loss with a minus sign as wide as a
+  # gain's plus.
+  assert f'{separator}<span style="color: #2d74d8">DD+2</span>' in page
+  assert (
+    f'{separator}<span style="color: #d73c36">PLAY\N{MINUS SIGN}2</span>'
+  ) in page
+
+
+def test_the_page_leaves_a_count_that_came_out_even_plain(
+  tmp_path: Path,
+) -> None:
+  # Ten tricks taken, where best play by both sides yields ten.
+  board = _make_board(
+    outcome=_make_outcome(
+      level=4, strain=Strain.SPADES, declarer=Direction.NORTH, tricks_taken=10
+    ),
+    our_side=Side.NORTH_SOUTH,
+    table=_make_table(
+      declarer=Direction.NORTH, strain=Strain.SPADES, tricks=10
+    ),
+  )
+
+  page = _page_of(_write_record(tmp_path, _make_session(board)))
+
+  separator = (
+    '\N{NO-BREAK SPACE}' * 2
+    + '<span style="color: #767676">\N{MIDDLE DOT}</span>\N{NO-BREAK SPACE} '
+  )
+  # With no emphasis of its own: an even board went neither way.
+  assert f'{separator}DD+0' in page
 
 
 def test_a_row_carrying_only_its_number_is_not_transcribed() -> None:
