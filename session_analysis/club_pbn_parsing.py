@@ -67,7 +67,7 @@ _TAG_PATTERN = re.compile(
 
 # The title BridgeComposer prints above a hand record. It keeps that title in
 # comment lines of its own: `%HRTitleEvent "Placeholder Pairs"`, `%HRTitleDate
-# 2026.03.09`. Not standard, but the dependable source for the event and the
+# 2026.03.09`. Not standard, but the first place to look for the event and the
 # date: every capture writes these, where the standard `[Event]` and `[Date]`
 # tags are left empty often enough that neither can be relied on.
 _TITLE_COMMENT_PATTERN = re.compile(
@@ -261,7 +261,10 @@ def parse_club_pbn(text: str, reference: CaptureReference) -> Traveller:
     source=TravellerSource.CLUB_PBN,
     reference=reference,
     event=title.get('Event') or _first_tag(records, 'Event'),
-    date=_date(title.get('Date') or _first_tag(records, 'Date')),
+    # Each source is parsed on its own, since a title can state no date without
+    # leaving its field empty (see `_date`), and the boards' date must then be
+    # read in its place.
+    date=_date(title.get('Date', '')) or _date(_first_tag(records, 'Date')),
     boards=tuple(boards),
     issues=tuple(issues),
   )
@@ -309,10 +312,11 @@ def _title_comments(text: str) -> Mapping[str, str]:
 def _date(value: str) -> datetime.date | None:
   """The date a PBN date field states, or None when it states none.
 
-  Two ordinary cases yield no date, and neither is worth an issue: the club's
-  directors often leave the field empty, and `??` is how the standard spells a
-  part of the date the file does not know (see `_DATE_FORMAT`). In both the file
-  is declining to state a date rather than stating one badly — the distinction
+  Three ordinary cases yield no date, and none is worth an issue: the club's
+  directors often leave the field empty, BridgeComposer writes a hand-record
+  title that has no date as `0`, and `??` is how the standard spells a part of
+  the date the file does not know (see `_DATE_FORMAT`). In each the file is
+  declining to state a date rather than stating one badly — the distinction
   `TravellerResult.issues` draws.
   """
   try:

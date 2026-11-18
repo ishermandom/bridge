@@ -108,6 +108,19 @@ def test_the_event_and_date_come_from_the_title_comments() -> None:
   assert traveller.date == datetime.date(2026, 5, 12)
 
 
+def test_a_title_date_of_zero_gives_way_to_the_board_dates() -> None:
+  # BridgeComposer writes a hand-record title's missing date as `0`, which
+  # states nothing, so the date the boards carry is read instead.
+  traveller = parse_lines(
+    '%HRTitleDate 0',
+    '',
+    '[Date "2026.11.17"]',
+    '[Board "1"]',
+  )
+
+  assert traveller.date == datetime.date(2026, 11, 17)
+
+
 def test_a_tag_repeated_with_a_hash_takes_the_value_stated_earlier() -> None:
   # `#` means "the value from the nearest earlier game". The opening game here
   # says nothing at all, so neither the first game nor the `#` states the event.
