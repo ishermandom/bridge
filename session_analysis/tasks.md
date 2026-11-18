@@ -403,7 +403,8 @@ lane settles the sheet with the user in chat:
 4. Only then save the sheet's transcript as text in the private tree's
    `transcripts/`, where the user opens it, and write its page beside it with
    `transcript --page`. Until #recap-by-player, name the partners by initials in
-   both by hand, in place of their seats.
+   both by hand, in place of their seats. No record says who sat where, so ask
+   alongside step 2's questions.
 
 - [ ] Tell a table misread as two abutting panels from a genuine two-panel form.
   - Rationale: `resolve_sheet_geometry` refuses panels that overlap, but two
