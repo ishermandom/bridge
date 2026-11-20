@@ -439,9 +439,6 @@ Adopting it would take:
   which reports itself as pytest 9.0.3, and cannot share an environment with
   real pytest. Every run would use it, mid-turn and by hand as well as the
   hook's.
-- **Unsetting `VIRTUAL_ENV`** for the hook's call: pytest-rs honors it where
-  `uv run` ignores it, and the session's points at an unrelated Python 3.14
-  environment, where 40 test files then fail to import.
 - **Accepting a bundled pytest-benchmark plugin**, which it loads even with
   plugin autoloading off.
 

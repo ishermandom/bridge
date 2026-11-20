@@ -108,8 +108,9 @@ by where each file came from.
 
 - **Locally instanced Google Sans Flex**
   (`google-sans-flex/GoogleSansFlex-opsz6-SuperCondensed-Grad100.ttf`): cut with
-  `fontTools.varLib.instancer` (installed in `~/.venvs/default`) from the
-  family's full variable font, the last entry in its download manifest:
+  `fontTools.varLib.instancer` (a bridge dependency, run as
+  `uv run fonttools varLib.instancer`) from the family's full variable font, the
+  last entry in its download manifest:
 
   ```sh
   curl 'https://fonts.google.com/download/list?family=Google%20Sans%20Flex'
