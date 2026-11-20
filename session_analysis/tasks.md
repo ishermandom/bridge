@@ -391,9 +391,10 @@ from its footer. The run also stores newly saved traveller captures and matches
 them. spec.md `#ingest` holds the shape — the two idempotency keys, where a
 record waits for review, and what becomes of a scan that raises.
 
-**Ingesting a new scan** {#ingesting-a-scan}: each scan gets a task of its own,
-naming the file waiting in the inbox and the worktree its lane works in. The
-lane settles the sheet with the user in chat:
+**Ingesting a new scan** {#ingesting-a-scan}: an ingest adds no task to this
+tracker. A lane starts and settles its sheet in one sitting, so an entry would
+only be queued and pruned around it. The lane settles the sheet with the user in
+chat:
 
 1. Run the whole path first — ingest, the traveller fetch, and reconciliation.
 2. While the review UI (`#review-ui`) has not landed, raise any detail that
