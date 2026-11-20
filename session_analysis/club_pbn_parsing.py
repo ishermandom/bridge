@@ -733,6 +733,8 @@ def _pair(read: Mapping[str, str], *, side: Side, section: str) -> PairIdentity:
     section=section if section and section != _ABSENT else None,
     # The row gives surnames joined by a hyphen and nothing to tell that hyphen
     # from one inside a surname; splitting on it is the best the file supports.
+    # Reconciliation regroups the pieces against a source that names the players
+    # (`unreviewed.reconciliation._regrouped`).
     names=tuple(name for name in names.split('-') if name),
   )
 

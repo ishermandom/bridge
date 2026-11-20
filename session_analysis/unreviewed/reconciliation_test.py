@@ -4,6 +4,8 @@
 
 from collections.abc import Sequence
 
+import pytest
+
 from session_analysis import board_rotation
 from session_analysis.enums import (
   Direction,
@@ -455,6 +457,90 @@ def test_a_lone_name_matching_neither_player_disagrees() -> None:
       TravellerSource.ACBL_CLUB,
       path='acbl/1.html',
       boards=[_our_board(opponent_names=('Other Player', 'Their Partner'))],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  assert read.value[1].opponents is None
+  assert 'traveller_sources_disagree' in _codes(read.value[1].issues)
+
+
+@pytest.mark.parametrize(
+  'is_deal_file_first',
+  [True, False],
+  ids=['deal file first', 'deal file second'],
+)
+def test_a_pair_split_inside_a_hyphenated_surname_merges(
+  is_deal_file_first: bool,
+) -> None:
+  # A club PBN joins a pair's surnames with a hyphen, so `Player` and
+  # `Hyphen-Partner` print as `Player-Hyphen-Partner` and parse as three names.
+  # Whichever source comes first, the full names win.
+  deal_file = _make_traveller(
+    TravellerSource.CLUB_PBN,
+    path='club/game.pbn',
+    boards=[_our_board(opponent_names=('Player', 'Hyphen', 'Partner'))],
+  )
+  full_names = _make_traveller(
+    TravellerSource.ACBL_CLUB,
+    path='acbl/1.html',
+    boards=[
+      _our_board(opponent_names=('Other Player', 'Their Hyphen-Partner'))
+    ],
+  )
+  travellers = (
+    [deal_file, full_names] if is_deal_file_first else [full_names, deal_file]
+  )
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  opponents = read.value[1].opponents
+  assert opponents
+  assert opponents.names == ('Other Player', 'Their Hyphen-Partner')
+  assert read.value[1].issues == ()
+
+
+def test_a_lone_hyphenated_surname_merges_with_the_pair_naming_it() -> None:
+  # A row naming one player by a hyphenated surname splits it in two.
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[_our_board(opponent_names=('Hyphen', 'Partner'))],
+    ),
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[
+        _our_board(opponent_names=('Other Player', 'Their Hyphen-Partner'))
+      ],
+    ),
+  ]
+
+  read = build_enrichments(travellers, our_name=OUR_NAME)
+
+  opponents = read.value[1].opponents
+  assert opponents
+  assert opponents.names == ('Other Player', 'Their Hyphen-Partner')
+  assert read.value[1].issues == ()
+
+
+def test_split_names_spelling_other_surnames_disagree() -> None:
+  # Regrouping takes only an exact spelling of the pair's surnames; sharing
+  # pieces of them is not enough.
+  travellers = [
+    _make_traveller(
+      TravellerSource.CLUB_PBN,
+      path='club/game.pbn',
+      boards=[_our_board(opponent_names=('Player', 'Hyphen', 'Stranger'))],
+    ),
+    _make_traveller(
+      TravellerSource.ACBL_CLUB,
+      path='acbl/1.html',
+      boards=[
+        _our_board(opponent_names=('Other Player', 'Their Hyphen-Partner'))
+      ],
     ),
   ]
 

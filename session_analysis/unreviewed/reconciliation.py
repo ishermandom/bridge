@@ -379,6 +379,30 @@ def _names_one_pair(first: PairIdentity, second: PairIdentity) -> bool:
   )
 
 
+def _regrouped(
+  split: PairIdentity, reference: PairIdentity
+) -> PairIdentity | None:
+  """`split` regrouped into `reference`'s surnames, where its pieces spell them.
+
+  A club PBN joins a pair's surnames with a hyphen and has nothing to tell that
+  hyphen from one inside a surname, so `club_pbn_parsing` splits at every one:
+  `Player` and `Hyphen-Partner` arrive as three names. Joined back up, the
+  pieces still spell the row exactly as printed. Where that spelling is
+  `reference`'s surnames — some of them, in some order — the pieces name those
+  players, and regrouped they compare as any surname does.
+
+  Returns None when no such spelling matches, so anything short of an exact one
+  is still left to disagree.
+  """
+  printed = _normalized('-'.join(split.names))
+  surnames = [name.rsplit(maxsplit=1)[-1] for name in reference.names]
+  for count in range(1, len(surnames) + 1):
+    for ordered in itertools.permutations(surnames, count):
+      if _normalized('-'.join(ordered)) == printed:
+        return split.model_copy(update={'names': ordered})
+  return None
+
+
 def _fuller(first: PairIdentity, second: PairIdentity) -> PairIdentity:
   """Whichever of two spellings of one pair says more about the players.
 
@@ -428,6 +452,13 @@ def _agreed_pair(
     if not chosen:
       chosen = pair
       continue
+
+    if not _names_one_pair(chosen, pair):
+      # Either side may be a club PBN's names split inside a hyphenated surname.
+      # Regrouped, they compare as surnames — and rank below the full names,
+      # rather than outranking them by appearing to name more players.
+      chosen = _regrouped(chosen, pair) or chosen
+      pair = _regrouped(pair, chosen) or pair
 
     if not _names_one_pair(chosen, pair):
       accounts = '; '.join(
