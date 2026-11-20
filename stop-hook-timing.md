@@ -136,10 +136,8 @@ per repo, at ~99ms each under Homebrew's Node.
   `quiet-prettier-test.sh` passes with prettier under Bun. Prettier's cache key
   includes the Node version the runtime reports, so every launch sharing a cache
   must use the same runtime.
-- **Prettier's experimental command line** (`--experimental-cli`) checks the
-  same files in ~24ms under Bun. But it exits 1, not 2, on a parse error or a
-  missing file, which `format.sh` reads as a finding rather than breakage, and
-  it has no `--find-config-path`.
+- **Prettier's experimental command line** (`--experimental-cli`) is faster
+  still; #experimental-cli covers what it saves and why it stays out.
 
 | One prettier launch | `--version` | `--check`, 39 cached files |
 | ------------------- | ----------: | -------------------------: |
@@ -176,6 +174,41 @@ The config check answers "no project config" in every repo the hook formats. The
 one repo of the user's with a prettier config of its own, google-photos-deduper,
 also loads an import-sorting plugin that no replacement runs, and the hook skips
 it as third-party.
+
+### The experimental command line {#experimental-cli}
+
+Measured on 2026-11-20, prettier 3.10.1 under Bun 1.4.5. The experimental
+command line formats about twice as fast, but adopting it would save nothing at
+Stop today, because prettier is not what the formatting step waits for.
+
+| Run                                      | Usual | Experimental |
+| ---------------------------------------- | ----: | -----------: |
+| `--check`, bridge's 41 files, warm cache |  59ms |         27ms |
+| `quiet-prettier.sh` on one Markdown file |  78ms |         71ms |
+| The formatting step, from bridge         | 257ms |        253ms |
+
+- **Why the step doesn't shrink**: `format.sh` runs every formatter over both
+  repos at once, so the step lasts as long as the slowest. From bridge that is
+  bridge's rustfmt, at ~158ms; prettier drops from ~115ms to ~81ms beneath it.
+  In a repo without Rust, prettier is the slowest formatter, so there the step
+  would shrink by ~35ms.
+- **Edits**: the Markdown edit hook takes ~104ms — prettier's config lookup
+  ~27ms, its formatting ~32ms, the ownership check ~16ms — against a median
+  Markdown edit step of 3.8s in the session transcripts. The reflow hook calls
+  prettier only for a comment that needs rewrapping, which adds ~36ms.
+- **What adopting it would take**: it exits 1 rather than 2 on a parse error or
+  a missing file, though under `--write` any nonzero exit is breakage, so
+  mapping 1 to 2 would serve there. Under `--check`, a missing file beside a
+  clean one passes silently. It renames `--config` to `--config-path`, drops
+  `--cache-strategy` (content hashing is its only strategy), and has no
+  `--find-config-path`, so the config lookup would stay on the usual command
+  line. `--check` and `--write` share a cache, so the Stop pass, the edit hook,
+  and the prewarm would all have to switch together. It agreed with the usual
+  command line on all 120 files across bridge, dotfiles, and crosswords.
+- **Upstream**: its README plans for it to replace the usual command line once
+  it is nearly fully backwards compatible, with no date given, and
+  [prettier#18937](https://github.com/prettier/prettier/issues/18937), asking
+  for a roadmap, has no reply from a maintainer. No issue covers the gaps above.
 
 ## mypy, lint, and the third-party check
 

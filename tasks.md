@@ -164,10 +164,10 @@ production signatures for the tests' benefit.
     conda-forge or Linux distribution package of it. A prebuilt package for the
     repo's Python is a practical prerequisite.
 
-- [ ] **Revisit prettier's experimental command line**
-      {#prettier-experimental-cli} — under Bun it checks files in ~24ms, against
-      ~62ms for prettier's usual command line, measured in
-      [stop-hook-timing.md](stop-hook-timing.md#prettier-launches). Two gaps
-      keep it out of `format.sh` for now: it exits 1 rather than 2 on a parse
-      error or a missing file, which `format.sh` reads as a finding rather than
-      breakage, and it has no `--find-config-path`.
+- [ ] **[maybe] Revisit prettier's experimental command line**
+      {#prettier-experimental-cli} — it formats about twice as fast, but
+      prettier is not what the formatting step waits for, so adopting it would
+      save nothing at Stop today:
+      [stop-hook-timing.md](stop-hook-timing.md#experimental-cli). Revisit if
+      prettier becomes the slowest formatter, or once the experimental command
+      line becomes prettier's default.
